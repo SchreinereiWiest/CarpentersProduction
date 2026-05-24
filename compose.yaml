@@ -1,0 +1,127 @@
+services:
+
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik
+
+    command:
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+
+      - "--entrypoints.web.address=:80"
+
+
+    ports:
+      - "80:80"
+      - "8080:8080"
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+    networks:
+      - carpenters-network
+
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile.dev
+
+    restart: always
+
+    environment:
+      - NODE_ENV=development
+
+    volumes:
+      - ./Frontend:/app
+      - /app/node_modules
+
+    labels:
+      - "traefik.enable=true"
+
+      - "traefik.http.routers.frontend.rule=Host(`app.localhost`) && PathPrefix(`/`)"
+      - "traefik.http.routers.frontend.priority=1"   
+      - "traefik.http.routers.frontend.entrypoints=web"
+
+      - "traefik.http.services.frontend.loadbalancer.server.port=5173"
+
+    networks:
+      - carpenters-network
+ 
+  backendjs:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile.dev
+
+    restart: always
+
+    environment:
+      - NODE_ENV=development
+
+    labels:
+      - "traefik.enable=true"
+
+      - "traefik.http.routers.backend.rule=Host(`app.localhost`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.backend.priority=100"
+      - "traefik.http.routers.backend.entrypoints=web"
+
+      - "traefik.http.middlewares.strip-api.stripprefix.prefixes=/api"
+      - "traefik.http.routers.backend.middlewares=strip-api"
+
+      - "traefik.http.services.backend.loadbalancer.server.port=5000"
+
+    depends_on:
+      - postgres
+      - garage
+
+    networks:
+      - carpenters-network
+
+  postgres:
+    image: postgres:16
+
+    container_name: postgresql
+
+    restart: always
+
+    environment:
+      POSTGRES_USER: carpenters
+      POSTGRES_PASSWORD: aEi7h79aYYfrJswkwnHM
+      POSTGRES_DB: carpentersproduction
+
+    volumes:
+      - ./infra/postgres/data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+    networks:
+      - carpenters-network
+
+  garage:
+    image: dxflrs/garage:v2.3.0
+    
+    restart: always
+
+    volumes:
+      - ./infra/garage/config/garage.toml:/etc/garage.toml
+      - ./infra/garage/meta:/var/lib/garage/meta
+      - ./infra/garage/data:/var/lib/garage/data
+
+    labels:
+      - "traefik.enable=true"
+
+      - "traefik.http.routers.garage.rule=Host(`storage.localhost`)"
+      - "traefik.http.routers.garage.entrypoints=web"
+
+      - "traefik.http.services.garage.loadbalancer.server.port=3900"
+
+    networks:
+      - carpenters-network
+
+networks:
+  carpenters-network:
+    driver: bridge
+
+
+
