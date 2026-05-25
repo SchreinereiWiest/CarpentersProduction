@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser";
 import express from "express";
 
 import authRoutes from "./routes/auth.routes.js";
+import customerRoutes from "./routes/customer.routes.js";
 
 dotenv.config();
 
@@ -21,6 +22,8 @@ app.use(cookieParser());
 
 // user login und reauthorize
 app.use("/auth", authRoutes);
+
+app.use("/customers", customerRoutes);
 
 app.listen(5000, () => {
   console.log("Backend running on port 5000");

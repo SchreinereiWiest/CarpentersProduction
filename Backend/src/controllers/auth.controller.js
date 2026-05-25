@@ -45,13 +45,14 @@ export const login = async (req, res) => {
             role: user.role
         },
         process.env.JWT_ACCESS_SECRET,
-        { expiresIn: "1h" }
+        { expiresIn: "24h" }
     );
 
     res.cookie("token", token, {
         httpOnly: true,
         secure: false, // lokal
         sameSite: "lax",
+        // maxAge: 7 * 24 * 60 * 60
     });
 
     res.json({

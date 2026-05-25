@@ -80,7 +80,7 @@ function Login() {
                                     <div className="relative mt-6">
 
                                         <input
-                                            type="email"
+                                            // type="email"
                                             name="email"
                                             id="email"
 
