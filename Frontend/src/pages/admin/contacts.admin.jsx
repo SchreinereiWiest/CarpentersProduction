@@ -1,8 +1,40 @@
 import { useState } from 'react'
 import SideBar from '../../components/sideBar.jsx'
 import { Link } from "react-router";
+import axios from "axios";
+import { useEffect } from "react";
+import { useNavigate } from 'react-router';
+
 
 function Contacts() {
+
+    const [customers, setCustomers] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+  fetchCustomers();
+}, [currentPage]);
+
+    const fetchCustomers = async () => {
+    try {
+        setLoading(true);
+
+        const response = await axios.get(
+        `/api/customers/all?page=${currentPage}`
+        );
+
+        setCustomers(response.data.customers);
+        setTotalPages(response.data.totalPages);
+    } catch (error) {
+        console.error(error);
+    } finally {
+        setLoading(false);
+    }
+    };
+
+  const navigate = useNavigate();
 
 return (
 <>
@@ -51,21 +83,70 @@ return (
                         </tr>
                     </thead>
 
-                    <tbody className="bg-gray-700 hover:bg-gray-600 transition duration-300">
-                        <tr>
-                            <td className="py-4 px-6">John Doe</td>
-                            <td className="py-4 px-6 truncate">johndoe@gmail.com</td>
-                            <td className="py-4 px-6">555-555-5555</td>
-                            <td className="py-4 px-6">Altenstadt</td>
-                            <td className="py-4 px-6">
-                                <span className="bg-green-500 text-white py-1 px-2 rounded-full text-xs">Active</span>
-                            </td>
-                        </tr>
+                    <tbody>
+  {customers.map((customer) => (
+    <tr
+      key={customer.id}
+      className="bg-gray-700 hover:bg-gray-600 transition duration-300 cursor-pointer"
+      onClick={() => {navigate(`/Kontakte/info/${customer.id}`)}}
+    >
+      <td className="py-4 px-6">
+        {customer.firstName} {customer.lastName}
+      </td>
 
-                    </tbody>
+      <td className="py-4 px-6 truncate">
+        {customer.email}
+      </td>
+
+      <td className="py-4 px-6">
+        {customer.phoneMobile}
+      </td>
+
+      <td className="py-4 px-6">
+        {customer.city}
+      </td>
+
+      <td className="py-4 px-6">
+        <span
+          className={`py-1 px-2 rounded-full text-xs text-white ${
+            customer.customerStatus === "active"
+              ? "bg-green-500"
+              : "bg-red-500"
+          }`}
+        >
+          {customer.customerStatus}
+        </span>
+      </td>
+    </tr>
+  ))}
+</tbody>
                 </table>
             </div>
+            <div className="flex justify-center items-center gap-4 mt-6">
+  <button
+    disabled={currentPage === 1}
+    onClick={() =>
+      setCurrentPage((prev) => prev - 1)
+    }
+    className="bg-gray-700 px-4 py-2 rounded disabled:opacity-50"
+  >
+    Zurück
+  </button>
 
+  <span>
+    Seite {currentPage} von {totalPages}
+  </span>
+
+  <button
+    disabled={currentPage === totalPages}
+    onClick={() =>
+      setCurrentPage((prev) => prev + 1)
+    }
+    className="bg-gray-700 px-4 py-2 rounded disabled:opacity-50"
+  >
+    Weiter
+  </button>
+</div>
         </main>
     </div>
 </>

@@ -1,33 +1,15 @@
 import express from "express";
 import prisma from "../config/prisma.js";
-
 import {
-  login,
-} from "../controllers/auth.controller.js";
-import { authenticate } from "../middleware/auth.middleware.js";
+  newcustomer, getCustomers, getCustomerInfo
+} from "../controllers/customer.controller.js";
 
 const router = express.Router();
 
-router.post("/new", login);
+router.post("/new", newcustomer);
 
-//reauthorize
-router.get("/me", authenticate, async (req, res) => {
+router.get("/all", getCustomers);
 
-    const user = await prisma.user.findUnique({
-        where: {
-            id: req.user.id
-        }
-    });
-
-    if (!user) {
-        return res.status(404).json({ message: "User not found" });
-    }
-
-    res.json({
-        id: user.id,
-        email: user.email,
-        role: user.role
-    });
-});
+router.get("/get/:id", getCustomerInfo);
 
 export default router;

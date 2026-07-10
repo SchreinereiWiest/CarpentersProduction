@@ -3,7 +3,7 @@ import SideBar from '../../components/sideBar.jsx'
 import axios from 'axios';
 import { useNavigate } from 'react-router';
 
-function Contacts() {
+function EditContacts() {
 
     // Customer Information
     const [firstName, setFirstName] = useState("");
