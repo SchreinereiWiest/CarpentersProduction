@@ -8,6 +8,10 @@ import { authenticate } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
+// routes für authentication
+// login für anmeldung bei auth.contorller
+// authenticate middleware für reauthorization
+
 router.post("/login", login);
 
 //reauthorize

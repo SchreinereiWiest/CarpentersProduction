@@ -12,6 +12,7 @@ import HomeAdmin from "./pages/admin/home.admin";
 import ContactsAdmin from "./pages/admin/contacts.admin.jsx";
 import ContactsNewAdmin from "./pages/admin/newcontact.admin.jsx";
 import ShowContactsAdmin from "./pages/admin/showcontact.admin.jsx";
+import EditContactsAdmin from "./pages/admin/editcontact.admin.jsx";
 import Login from "./pages/public/Login";
 
 import './index.css'
@@ -82,6 +83,12 @@ ReactDOM.createRoot(root).render(
 
           <Route path="/Kontakte/info/:id" element={ <ProtectedRoute requiredRole="admin">
             <ShowContactsAdmin />
+            </ProtectedRoute>
+            }
+            />
+
+            <Route path="/Kontakte/edit/:id" element={ <ProtectedRoute requiredRole="admin">
+            <EditContactsAdmin />
             </ProtectedRoute>
             }
             />

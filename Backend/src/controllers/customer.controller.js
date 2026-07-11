@@ -1,5 +1,6 @@
 import prisma from "../config/prisma.js";
 
+// Api endpoint für alle Kunden felder
 
 export const newcustomer = async (req, res) => {
 
@@ -78,6 +79,9 @@ export const getCustomers = async (req, res) => {
         ],
         skip,
         take: limit,
+        include: {
+          addresses: true,
+        },
       }),
 
       prisma.customer.count(),
@@ -101,11 +105,10 @@ export const getCustomers = async (req, res) => {
 
 export const updateCustomer = async (req, res) => {
   try {
-    const { id } = req.params;
 
     const customer = await prisma.customer.update({
       where: {
-        id,
+        id: req.params.id,
       },
 
       data: {
@@ -124,7 +127,8 @@ export const updateCustomer = async (req, res) => {
                 notes: req.body.notes,
 
                 addresses: {
-                    create: {
+                    update: {where: { id: req.body.addressId },
+                    data: {
                         street: req.body.street,
                         houseNumber: req.body.houseNumber,
                         postalCode: req.body.postalCode,
@@ -133,7 +137,7 @@ export const updateCustomer = async (req, res) => {
                         floor: req.body.floor,
                         elevatorAvailable: req.body.elevatorAvailable,
                         parkingInfo: req.body.parkingInfo
-
+                    }
                     },
                 },
             }, include: {

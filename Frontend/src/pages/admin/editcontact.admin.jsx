@@ -2,8 +2,15 @@ import { useState } from 'react'
 import SideBar from '../../components/sideBar.jsx'
 import axios from 'axios';
 import { useNavigate } from 'react-router';
+import { useParams } from 'react-router';
+import { useEffect } from "react";
 
 function EditContacts() {
+
+    const { id } = useParams();
+    const navigate = useNavigate();
+
+    const [customer, setCustomer] = useState(null);
 
     // Customer Information
     const [firstName, setFirstName] = useState("");
@@ -35,13 +42,67 @@ function EditContacts() {
     const [elevatorAvailable, setElevatorAvailable] = useState(false);
     const [parkingInfo, setParkingInfo] = useState("");
 
-    const navigate = useNavigate();
+    const [addressId, setAddressId] = useState(null);
+
+    //Einzelner Kunde über params url /get/:id laden und eintragen
+
+    useEffect(() => {
+        const fetchCustomer = async () => {
+            const { data } = await axios.get(`/api/customers/get/${id}`);
+            setCustomer(data.customer);
+
+            setFirstName(data.customer.firstName);
+            setLastName(data.customer.lastName);
+            setCompanyName(data.customer.companyName);
+
+            setEmail(data.customer.email);
+            setPhoneMobile(data.customer.phoneMobile);
+            setPhoneLandline(data.customer.phoneLandline);
+
+            setPreferredContact(data.customer.preferredContact);
+
+            setNewsletterOptIn(data.customer.newsletterOptIn);
+
+            setCustomerStatus(data.customer.customerStatus);
+            setCustomerRating(data.customer.customerRating);
+
+            setSource(data.customer.source);
+            setNotes(data.customer.notes);
+
+            setAddressId(data.customer.addresses[0]?.id || null);
+
+            // Address Information
+            //erste Address eintragen
+            const address = data.customer.addresses[0];
+            if (address) {
+                setStreet(address.street);
+                setHouseNumber(address.houseNumber);
+                setPostalCode(address.postalCode);
+                setCity(address.city);
+                setCountry(address.country);
+
+                setFloor(address.floor);
+                setElevatorAvailable(address.elevatorAvailable);
+                setParkingInfo(address.parkingInfo);
+            };
+        }
+
+
+
+        fetchCustomer();
+    }, [id]);
+
+    console.log(customer);
+
+
 
     const handleSubmit = async (e) => {
-        
+
         e.preventDefault();
 
-        await axios.post("/api/customers/new", {
+        //Änderungen pushen
+
+        await axios.post(`/api/customers/update/${id}`, {
             firstName,
             lastName,
             companyName,
@@ -54,6 +115,7 @@ function EditContacts() {
             customerRating,
             source,
             notes,
+            addressId,
             street,
             houseNumber,
             postalCode,
@@ -67,11 +129,10 @@ function EditContacts() {
                 withCredentials: true
             });
 
-        navigate("/kontakte");
-        console.log("Customer created successfully");
+        navigate(`/kontakte/info/${id}`);
+        console.log("Customer updated successfully");
     };
-
-    return (
+return (
 <>
     <div className='h-screen bg-gray-900 text-white flex justify-left'>
 
@@ -84,13 +145,13 @@ function EditContacts() {
                 <div>
                     <form className="flex flex-col" onSubmit={handleSubmit}>
                         <div className="w-2/5">
-                             <label className="mb-5 block text-base font-semibold text-gray-300 sm:text-xl">
+                            <label className="mb-5 block text-base font-semibold text-gray-300 sm:text-xl">
                                 User Details
                             </label>
                             <div className="-mx-3 flex flex-wrap">
-                               
+
                                 <div className="w-full px-3 sm:w-1/2">
-                                    
+
                                     <div className="mb-5">
                                         <input type="text" name="firstName" id="firstName" placeholder="First Name"
                                             value={firstName} onChange={(e)=> setFirstName(e.target.value)}
@@ -99,7 +160,7 @@ function EditContacts() {
                                         focus:shadow-md" /></div>
                                 </div>
                                 <div className="w-full px-3 sm:w-1/2">
-                                    
+
                                     <div className="">
                                         <input type="text" name="lastName" id="lastName" placeholder="Last Name"
                                             value={lastName} onChange={(e)=> setLastName(e.target.value)}
@@ -112,7 +173,7 @@ function EditContacts() {
                             </div>
 
                             <div className="mb-5">
-                                
+
                                 <input type="text" name="companyName" id="companyName" placeholder="Company Name"
                                     value={companyName} onChange={(e)=> setCompanyName(e.target.value)}
                                 className="w-full rounded-md border border-[#e0e0e0] bg-white py-3 px-6 text-base
@@ -120,7 +181,7 @@ function EditContacts() {
                             </div>
 
                             <div className="mb-5">
-                                
+
                                 <input type="email" name="email" id="email" placeholder="Email" value={email}
                                     onChange={(e)=> setEmail(e.target.value)}
                                 className="w-full rounded-md border border-[#e0e0e0] bg-white py-3 px-6 text-base
@@ -128,7 +189,7 @@ function EditContacts() {
                             </div>
 
                             <div className="mb-5">
-                                
+
                                 <input type="text" name="phoneMobile" id="phoneMobile" placeholder="Phone Mobile"
                                     value={phoneMobile} onChange={(e)=> setPhoneMobile(e.target.value)}
                                 className="w-full rounded-md border border-[#e0e0e0] bg-white py-3 px-6 text-base
@@ -136,7 +197,7 @@ function EditContacts() {
                             </div>
 
                             <div className="mb-5">
-                               
+
                                 <input type="text" name="phoneLandline" id="phoneLandline" placeholder="Phone Landline"
                                     value={phoneLandline} onChange={(e)=> setPhoneLandline(e.target.value)}
                                 className="w-full rounded-md border border-[#e0e0e0] bg-white py-3 px-6 text-base
@@ -145,7 +206,7 @@ function EditContacts() {
 
                             <div className="-mx-3 flex flex-wrap">
                                 <div className="w-full px-3 sm:w-1/2">
-                              
+
                                     <div className="mb-5">
                                         <input type="text" name="preferredContact" id="preferredContactMethod"
                                             placeholder="Preferred Contact Method" value={preferredContact}
@@ -155,7 +216,8 @@ function EditContacts() {
                                         focus:shadow-md" /></div>
                                 </div>
                                 <div className="w-full px-3 sm:w-1/2">
-                                    <label htmlFor="newsletterOptIn" className="mb-3 block text-base font-medium text-gray-300">
+                                    <label htmlFor="newsletterOptIn"
+                                        className="mb-3 block text-base font-medium text-gray-300">
                                         Newsletter Opt-In
                                     </label>
                                     <div className="">
@@ -172,7 +234,7 @@ function EditContacts() {
 
                             <div className="-mx-3 flex flex-wrap">
                                 <div className="w-full px-3 sm:w-1/2">
-                               
+
                                     <div className="mb-5">
                                         <input type="text" name="customerStatus" id="customerStatus"
                                             placeholder="Customer Status" value={customerStatus} onChange={(e)=>
@@ -182,7 +244,7 @@ function EditContacts() {
                                         focus:shadow-md" /></div>
                                 </div>
                                 <div className="w-full px-3 sm:w-1/2">
-                             
+
                                     <div className="mb-5">
                                         <input type="text" name="customerRating" id="customerRating"
                                             placeholder="Customer Rating" value={customerRating} onChange={(e)=>
@@ -195,7 +257,7 @@ function EditContacts() {
                             </div>
 
                             <div className="mb-2">
-                           
+
                                 <input type="text" name="source" id="source" placeholder="Source" value={source}
                                     onChange={(e)=> setSource(e.target.value)}
                                 className="w-full rounded-md border border-[#e0e0e0] bg-white py-3 px-6 text-base
@@ -205,16 +267,17 @@ function EditContacts() {
                         </div>
 
                         <div className="absolute right-20 w-2/5">
-                             <label className="mb-5 block text-base font-semibold text-gray-300 sm:text-xl">
+                            <label className="mb-5 block text-base font-semibold text-gray-300 sm:text-xl">
                                 Address Details
                             </label>
-                      
+
                             <div className="-mx-3 flex flex-wrap">
                                 <div className="w-full px-3 sm:w-1/2">
                                     <div className="mb-5">
                                         <input type="text" name="area" id="street" placeholder="Street" value={street}
                                             onChange={(e)=> setStreet(e.target.value)}
-                                        className="w-full rounded-md border border-[#e0e0e0] bg-white py-3 px-6 text-base
+                                        className="w-full rounded-md border border-[#e0e0e0] bg-white py-3 px-6
+                                        text-base
                                         font-medium text-[#6B7280] outline-none focus:border-[#6A64F1] focus:shadow-md"
                                         />
                                     </div>
@@ -224,7 +287,8 @@ function EditContacts() {
                                         <input type="text" name="houseNumber" id="houseNumber"
                                             placeholder="House Number" value={houseNumber} onChange={(e)=>
                                         setHouseNumber(e.target.value)}
-                                        className="w-full rounded-md border border-[#e0e0e0] bg-white py-3 px-6 text-base
+                                        className="w-full rounded-md border border-[#e0e0e0] bg-white py-3 px-6
+                                        text-base
                                         font-medium text-[#6B7280] outline-none focus:border-[#6A64F1] focus:shadow-md"
                                         />
                                     </div>
@@ -233,7 +297,8 @@ function EditContacts() {
                                     <div className="mb-5">
                                         <input type="text" name="postalCode" id="postCode" placeholder="Post Code"
                                             value={postalCode} onChange={(e)=> setPostalCode(e.target.value)}
-                                        className="w-full rounded-md border border-[#e0e0e0] bg-white py-3 px-6 text-base
+                                        className="w-full rounded-md border border-[#e0e0e0] bg-white py-3 px-6
+                                        text-base
                                         font-medium text-[#6B7280] outline-none focus:border-[#6A64F1] focus:shadow-md"
                                         />
                                     </div>
@@ -242,7 +307,8 @@ function EditContacts() {
                                     <div className="mb-5">
                                         <input type="text" name="city" id="city" placeholder="City" value={city}
                                             onChange={(e)=> setCity(e.target.value)}
-                                        className="w-full rounded-md border border-[#e0e0e0] bg-white py-3 px-6 text-base
+                                        className="w-full rounded-md border border-[#e0e0e0] bg-white py-3 px-6
+                                        text-base
                                         font-medium text-[#6B7280] outline-none focus:border-[#6A64F1] focus:shadow-md"
                                         />
                                     </div>
@@ -251,7 +317,8 @@ function EditContacts() {
                                     <div className="mb-5">
                                         <input type="text" name="country" id="country" placeholder="Country"
                                             value={country} onChange={(e)=> setCountry(e.target.value)}
-                                        className="w-full rounded-md border border-[#e0e0e0] bg-white py-3 px-6 text-base
+                                        className="w-full rounded-md border border-[#e0e0e0] bg-white py-3 px-6
+                                        text-base
                                         font-medium text-[#6B7280] outline-none focus:border-[#6A64F1] focus:shadow-md"
                                         />
                                     </div>
@@ -260,7 +327,8 @@ function EditContacts() {
                                     <div className="mb-5">
                                         <input type="text" name="floor" id="floor" placeholder="Floor" value={floor}
                                             onChange={(e)=> setFloor(e.target.value)}
-                                        className="w-full rounded-md border border-[#e0e0e0] bg-white py-3 px-6 text-base
+                                        className="w-full rounded-md border border-[#e0e0e0] bg-white py-3 px-6
+                                        text-base
                                         font-medium text-[#6B7280] outline-none focus:border-[#6A64F1] focus:shadow-md"
                                         />
                                     </div>
@@ -270,7 +338,8 @@ function EditContacts() {
                                         <input type="text" name="parkingInfo" id="parkingInfo"
                                             placeholder="Parking Information" value={parkingInfo} onChange={(e)=>
                                         setParkingInfo(e.target.value)}
-                                        className="w-full rounded-md border border-[#e0e0e0] bg-white py-3 px-6 text-base
+                                        className="w-full rounded-md border border-[#e0e0e0] bg-white py-3 px-6
+                                        text-base
                                         font-medium text-[#6B7280] outline-none focus:border-[#6A64F1] focus:shadow-md"
                                         />
                                     </div>
@@ -278,9 +347,9 @@ function EditContacts() {
 
                             </div>
                             <button type="submit"
-                    className="hover:shadow-form w-full rounded-md bg-gray-700 hover:bg-gray-600 duration-300 py-3 px-8 text-center text-base font-semibold text-white outline-none">
-                    Speichern
-                </button>
+                                className="hover:shadow-form w-full rounded-md bg-gray-700 hover:bg-gray-600 duration-300 py-3 px-8 text-center text-base font-semibold text-white outline-none">
+                                Speichern
+                            </button>
 
                         </div>
 
@@ -293,4 +362,4 @@ function EditContacts() {
 </>
 );
 }
-export default Contacts;
+export default EditContacts;

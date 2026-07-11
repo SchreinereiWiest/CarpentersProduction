@@ -184,7 +184,7 @@ function Contacts() {
                                 <div className="w-full px-3 sm:w-1/2">
                              
                                     <div className="mb-5">
-                                        <input type="text" name="customerRating" id="customerRating"
+                                        <input type="number" name="customerRating" id="customerRating"
                                             placeholder="Customer Rating" value={customerRating} onChange={(e)=>
                                         setCustomerRating(e.target.value)}
                                         className="w-full rounded-md border border-[#e0e0e0] bg-white py-3 px-6

@@ -1,5 +1,8 @@
 import jwt from "jsonwebtoken";
 
+// token überprüfung middleware
+// wenn kein token erkannt access verweigert
+
 export const authenticate = (req, res, next) => {
 
     try {

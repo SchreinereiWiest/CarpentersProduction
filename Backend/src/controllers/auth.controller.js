@@ -7,6 +7,9 @@ import {
 } from "../utils/passwords.js";
 
 
+// User login
+// Überprüfung der credentials und Erstellung eines JWT-Tokens, das im Cookie gespeichert wird
+
 export const login = async (req, res) => {
 
   try {
@@ -36,6 +39,8 @@ export const login = async (req, res) => {
         error: "Invalid credentials",
       });
     }
+
+    //wenn user found und password valid, dann token erstellen und im cookie speichern
 
     //create cookie and sign
     const token = jwt.sign(

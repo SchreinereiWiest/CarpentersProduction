@@ -1,6 +1,10 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import axios from "axios";
 
+// Bei Reload credencials überprüfen und User setzen, falls vorhanden
+// Log out bei fehlendem cookie oder fehlender Session
+
+
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {

@@ -8,34 +8,36 @@ import { useNavigate } from 'react-router';
 
 function Contacts() {
 
-    const [customers, setCustomers] = useState([]);
-    const [currentPage, setCurrentPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const [loading, setLoading] = useState(false);
+  const [customers, setCustomers] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-  fetchCustomers();
-}, [currentPage]);
+//Alle Kunden /customers/all?page=1 laden und anzeigen
 
-    const fetchCustomers = async () => {
+  useEffect(() => {
+    fetchCustomers();
+  }, [currentPage]);
+
+  const fetchCustomers = async () => {
     try {
-        setLoading(true);
+      setLoading(true);
 
-        const response = await axios.get(
+      const response = await axios.get(
         `/api/customers/all?page=${currentPage}`
-        );
+      );
 
-        setCustomers(response.data.customers);
-        setTotalPages(response.data.totalPages);
+      setCustomers(response.data.customers);
+      setTotalPages(response.data.totalPages);
     } catch (error) {
-        console.error(error);
+      console.error(error);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
-    };
+  };
 
   const navigate = useNavigate();
-
+  console.log(customers);
 return (
 <>
     <div className='h-screen bg-gray-900 text-white flex justify-left'>
@@ -84,6 +86,8 @@ return (
                     </thead>
 
                     <tbody>
+
+                      
   {customers.map((customer) => (
     <tr
       key={customer.id}
@@ -103,7 +107,7 @@ return (
       </td>
 
       <td className="py-4 px-6">
-        {customer.city}
+        {customer.addresses[0]?.city}
       </td>
 
       <td className="py-4 px-6">

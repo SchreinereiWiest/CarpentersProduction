@@ -1,6 +1,8 @@
 import { Navigate } from "react-router";
 import { useAuth } from "./AuthContext";
 
+// User überprüfen und bei fehlendem User auf Login Seite weiterleiten
+
 export default function ProtectedRoute({ children, requiredRole }) {
 
     const { user, loading } = useAuth();
