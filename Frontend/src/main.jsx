@@ -9,10 +9,12 @@ import ProtectedRoute from "./routes/ProtectedRoute";
 import PublicRoute from "./routes/PublicRoute";
 
 import HomeAdmin from "./pages/admin/home.admin";
-import ContactsAdmin from "./pages/admin/contacts.admin.jsx";
-import ContactsNewAdmin from "./pages/admin/newcontact.admin.jsx";
-import ShowContactsAdmin from "./pages/admin/showcontact.admin.jsx";
-import EditContactsAdmin from "./pages/admin/editcontact.admin.jsx";
+import ContactsAdmin from "./pages/admin/contacts/contacts.admin.jsx";
+import ContactsNewAdmin from "./pages/admin/contacts/newcontact.admin.jsx";
+import ShowContactsAdmin from "./pages/admin/contacts/showcontact.admin.jsx";
+import EditContactsAdmin from "./pages/admin/contacts/editcontact.admin.jsx";
+import NewProject from "./pages/admin/projects/newproject.admin.jsx";
+import ShowProject from "./pages/admin/projects/showproject.admin.jsx";
 import Login from "./pages/public/Login";
 
 import './index.css'
@@ -69,6 +71,14 @@ ReactDOM.createRoot(root).render(
             }
             />
 
+          <Route path="/Projects/:projectId" element={ <ProtectedRoute>
+            <ShowProject />
+            </ProtectedRoute>
+            }
+            />
+
+            // Admin routes for contacts
+
           <Route path="/Kontakte" element={ <ProtectedRoute requiredRole="admin">
             <ContactsAdmin />
             </ProtectedRoute>
@@ -81,14 +91,20 @@ ReactDOM.createRoot(root).render(
             }
             />
 
-          <Route path="/Kontakte/info/:id" element={ <ProtectedRoute requiredRole="admin">
+          <Route path="/Kontakte/info/:userid" element={ <ProtectedRoute requiredRole="admin">
             <ShowContactsAdmin />
             </ProtectedRoute>
             }
             />
 
-            <Route path="/Kontakte/edit/:id" element={ <ProtectedRoute requiredRole="admin">
+            <Route path="/Kontakte/edit/:userid" element={ <ProtectedRoute requiredRole="admin">
             <EditContactsAdmin />
+            </ProtectedRoute>
+            }
+            />
+
+            <Route path="/Kontakte/NewProject/:userid" element={ <ProtectedRoute requiredRole="admin">
+            <NewProject />
             </ProtectedRoute>
             }
             />

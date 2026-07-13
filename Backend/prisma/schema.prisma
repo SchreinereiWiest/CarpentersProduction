@@ -250,6 +250,8 @@ model File {
   uploadedAt DateTime  @default(now()) @map("uploaded_at")
   deletedAt  DateTime? @map("deleted_at")
 
+  status String? @map("status")
+
   @@map("files")
 }
 

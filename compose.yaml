@@ -116,6 +116,8 @@ services:
 
       - "traefik.http.services.garage.loadbalancer.server.port=3900"
 
+
+
     networks:
       - carpenters-network
 
