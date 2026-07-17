@@ -12,7 +12,7 @@ function NewProject() {
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
   const [files, setFiles] = useState([]);
-  const [pcadFile, setPcadFile] = useState(null);
+  const [cadFiles, setPcadFile] = useState(null);
 
   const { userid } = useParams();
 
@@ -31,19 +31,38 @@ function NewProject() {
             
         console.log(project.data.id);
 
-        if (pcadFile) {
-            files.push(pcadFile);
+        if (cadFiles) {
+            files.push(...cadFiles);
         }
 
-        for (const file of files) {
+        console.log(files);
 
+        for (const file of files) {
+            let mimeType = file.type;
+
+            if (mimeType == "" | !mimeType) {
+
+                const extension = file.name.split(".").pop().toLowerCase();
+
+                switch (extension) {
+
+                    case "glb":
+                        mimeType = "model/gltf-binary";
+                        break;
+
+                    case "gltf":
+                        mimeType = "model/gltf+json";
+                        break;
+                }
+            }
+            
             const response = await axios.post("/api/files/upload-url",
             {
                 entityId: project.data.id,
                 customerId: userid,
                 entity: "project",
                 fileName: file.name,
-                mimeType: file.type,
+                mimeType: mimeType,
                 fileSize: file.size
             });
 
@@ -138,15 +157,16 @@ function NewProject() {
                         <div className="absolute right-20 mt-18 w-2/5">
 
                         <div className="mb-5">
-                            {pcadFile ? (
+                            {cadFiles ? (
                                 <div className="space-y-2">
 
                     
-                    <div key={pcadFile.name} className="bg-gray-700 rounded p-2 w-full h-48 text-center">
-                        {pcadFile.name}
+                    {cadFiles.map(file=>(
+                    <div key={file.name} className="bg-gray-700 rounded p-2 w-2/5">
+                        {file.name}
                     </div>
+                    ))}
                     
-
                 </div>) : (
                                 
       <a className="w-full" href="#">
@@ -167,10 +187,10 @@ function NewProject() {
 
             <input className="w-full h-full opacity-0"
                 type="file"
-                single
+                multiple
                 accept=".glb,.json"
                 onChange={(e)=>{
-                    setPcadFile(Array.from(e.target.files)[0]);
+                    setPcadFile(Array.from(e.target.files));
                 }}
 />
 
