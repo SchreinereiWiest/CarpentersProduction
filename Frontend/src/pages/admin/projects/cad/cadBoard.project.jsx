@@ -1,7 +1,6 @@
 import React from "react";
 import axios from "axios";
 import queryString from "query-string";
-import SideBar from "./sideBar.jsx";
 import { useEffect, useRef, useState } from 'react'
 import { Canvas, useFrame, useLoader } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
@@ -10,6 +9,8 @@ import * as THREE from "three";
 
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader'
 import { useControls } from 'leva'
+
+// Schreinerplatte cad parsing
 
 function Board(props) {
   // This reference gives us direct access to the THREE.Mesh object

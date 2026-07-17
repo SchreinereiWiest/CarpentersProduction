@@ -14,8 +14,9 @@ import ContactsNewAdmin from "./pages/admin/contacts/newcontact.admin.jsx";
 import ShowContactsAdmin from "./pages/admin/contacts/showcontact.admin.jsx";
 import EditContactsAdmin from "./pages/admin/contacts/editcontact.admin.jsx";
 import NewProject from "./pages/admin/projects/newproject.admin.jsx";
-import ShowProject from "./pages/admin/projects/home.project.admin.jsx";
+import ShowProject from "./pages/admin/projects/home.project.jsx";
 import Login from "./pages/public/Login";
+import CadViewer from "./pages/admin/projects/cad/cad.project.jsx";
 
 import './index.css'
 
@@ -73,6 +74,12 @@ ReactDOM.createRoot(root).render(
 
           <Route path="/Projects/:projectId" element={ <ProtectedRoute>
             <ShowProject />
+            </ProtectedRoute>
+            }
+            />
+
+            <Route path="/Projects/CAD/:projectId" element={ <ProtectedRoute>
+            <CadViewer />
             </ProtectedRoute>
             }
             />

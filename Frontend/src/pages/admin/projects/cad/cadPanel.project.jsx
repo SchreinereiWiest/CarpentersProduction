@@ -1,6 +1,9 @@
 import React, { Children } from "react";
 import { useEffect, useRef, useState } from 'react'
 
+
+// Editor Panel in CAD viewer
+
 function EditorPanel({ selectedParent, setSelectedParent }) {
 
     const [eckeOL, seteckeOL] = useState([true]);
@@ -12,8 +15,6 @@ function EditorPanel({ selectedParent, setSelectedParent }) {
 
     const [dropAusführung, setdropAusführung] = useState(false);
     const [dropTeile, setdropTeile] = useState(false);
-
-    console.log(selectedParent);
 
     // Falls Children existieren -> diese nutzen
     // sonst Parent selbst als Array verwenden
