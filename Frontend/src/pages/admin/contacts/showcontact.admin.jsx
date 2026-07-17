@@ -39,7 +39,7 @@ return (
 
         <SideBar selected={5} className="flex-1" />
 
-        <main className="pt-10 h-full flex-1">
+        <main className="pt-10 h-full flex-1 overflow-y-auto">
 
             <div className="justify-left pl-8">
                 <div className="relative flex items-left">

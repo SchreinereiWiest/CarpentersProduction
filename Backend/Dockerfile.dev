@@ -1,33 +1,35 @@
 # =========================================
-# Stage: Development (Vite React.js App)
+# Stage: Development (Node.js Backend)
 # =========================================
+
 ARG NODE_VERSION=22.22.2
- 
+
 FROM node:${NODE_VERSION} AS dev
- 
-# Set working directory inside the container
+
 WORKDIR /app
- 
+
 # Copy package files
 COPY package*.json ./
- 
+
 # Install dependencies
 RUN npm install
- 
-# Copy rest of the source code
+
+# Copy Prisma schema first
+COPY prisma ./prisma
+
+# Generate Prisma Client from current schema
+RUN npx prisma generate
+
+# Copy application source
 COPY . .
- 
- 
-# Ensure the "node" user owns the application files
+
+# Ensure node user owns application files
 RUN chown -R node:node /app
- 
- 
-# Switch to the built-in non-root "node" user
+
+# Use non-root user
 USER node
- 
- 
-# Expose Vite dev server port
+
+# Backend port
 EXPOSE 5000
- 
-# Run Vite in dev mode, accessible outside the container
+
 CMD ["npm", "run", "dev"]

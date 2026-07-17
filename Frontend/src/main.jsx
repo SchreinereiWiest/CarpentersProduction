@@ -14,7 +14,7 @@ import ContactsNewAdmin from "./pages/admin/contacts/newcontact.admin.jsx";
 import ShowContactsAdmin from "./pages/admin/contacts/showcontact.admin.jsx";
 import EditContactsAdmin from "./pages/admin/contacts/editcontact.admin.jsx";
 import NewProject from "./pages/admin/projects/newproject.admin.jsx";
-import ShowProject from "./pages/admin/projects/showproject.admin.jsx";
+import ShowProject from "./pages/admin/projects/home.project.admin.jsx";
 import Login from "./pages/public/Login";
 
 import './index.css'

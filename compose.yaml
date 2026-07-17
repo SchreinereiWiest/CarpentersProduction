@@ -57,6 +57,9 @@ services:
 
     restart: always
 
+    env_file:
+    - ./Backend/.env
+
     environment:
       - NODE_ENV=development
 

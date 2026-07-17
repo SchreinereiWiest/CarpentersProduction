@@ -81,6 +81,14 @@ export async function createUploadUrl(req,res){
             }
         );
 
+    const storageObject = await prisma.s3Object.create({
+    data: {
+        provider: "garage",
+        bucketName: process.env.S3_BUCKET,
+        objectKey,
+        endpoint: process.env.S3_PUBLIC_ENDPOINT,
+    },
+});
 
     const fileEntry = await prisma.file.create({
         data: {
@@ -96,6 +104,12 @@ export async function createUploadUrl(req,res){
                     }
                 },
 
+                storageObject: {
+            connect: {
+                id: storageObject.id,
+            },
+        },
+
 
                 fileName: fileName,
                 mimeType: mimeType,
@@ -103,18 +117,6 @@ export async function createUploadUrl(req,res){
 
                 status: "pending",
 
-                storageObject: {
-                    create: {
-                        provider:"garage",
-                        bucketName: process.env.S3_BUCKET,
-                        objectKey: objectKey,
-                        endpoint: process.env.S3_PUBLIC_ENDPOINT,
-                    
-                    }
-
-                    }
-                
-                
             },
     });
 
@@ -127,6 +129,7 @@ export async function createUploadUrl(req,res){
 }
 
 export async function createDownloadUrl(req,res) {
+    console.log(req.params.id);
     try {
 
         const file = await prisma.file.findUnique({

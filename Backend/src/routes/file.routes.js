@@ -11,5 +11,5 @@ router.post("/upload-url", createUploadUrl);
 
 router.post("/complete", uploadcomplete);
 
-router.post("/download/:id", authenticate, createDownloadUrl);
+router.get("/download/:id", authenticate, createDownloadUrl);
 export default router;

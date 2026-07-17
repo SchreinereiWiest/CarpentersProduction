@@ -59,6 +59,8 @@ function NewProject() {
                 }
             );
             
+            console.log(response.data.fileEntry.id);
+
             await axios.post(`/api/files/complete/`, {
                     id: response.data.fileEntry.id
                 }

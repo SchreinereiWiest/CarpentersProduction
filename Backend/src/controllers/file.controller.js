@@ -6,7 +6,7 @@ export const uploadcomplete = async (req, res) => {
 
     const file = await prisma.file.update({
       where: {
-        id: req.id,
+        id: req.body.id,
       },
 
       data: {
