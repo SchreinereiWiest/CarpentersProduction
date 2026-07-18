@@ -99,7 +99,7 @@ fetchProject();
   useEffect(() => {
 
     const cadFiles = project?.files?.filter(file =>
-    file.mimeType?.startsWith("application/json") ||
+    file.fileName?.startsWith("Planung.json") ||
     file.mimeType?.startsWith("model/gltf-binary")
 ) ?? [];
               

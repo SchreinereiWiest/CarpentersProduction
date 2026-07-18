@@ -17,6 +17,7 @@ import NewProject from "./pages/admin/projects/newproject.admin.jsx";
 import ShowProject from "./pages/admin/projects/home.project.jsx";
 import Login from "./pages/public/Login";
 import CadViewer from "./pages/admin/projects/cad/cad.project.jsx";
+import ListMaterial from "./pages/admin/projects/list/list.project.jsx";
 
 import './index.css'
 
@@ -80,6 +81,12 @@ ReactDOM.createRoot(root).render(
 
             <Route path="/Projects/CAD/:projectId" element={ <ProtectedRoute>
             <CadViewer />
+            </ProtectedRoute>
+            }
+            />
+
+            <Route path="/Projects/List/:projectId" element={ <ProtectedRoute>
+            <ListMaterial />
             </ProtectedRoute>
             }
             />
