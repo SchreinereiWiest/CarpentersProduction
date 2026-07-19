@@ -56,10 +56,12 @@ function GLBModel({ url }) {
     );
 
     return (
+      <group scale={[1,1,-1]}>
         <primitive
             object={gltf.scene}
             scale={100}
         />
+        </group>
     );
 }
 

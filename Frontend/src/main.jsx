@@ -18,6 +18,7 @@ import ShowProject from "./pages/admin/projects/home.project.jsx";
 import Login from "./pages/public/Login";
 import CadViewer from "./pages/admin/projects/cad/cad.project.jsx";
 import ListMaterial from "./pages/admin/projects/list/list.project.jsx";
+import NestingView from "./pages/admin/projects/nesting/nesting.project.jsx";
 
 import './index.css'
 
@@ -87,6 +88,12 @@ ReactDOM.createRoot(root).render(
 
             <Route path="/Projects/List/:projectId" element={ <ProtectedRoute>
             <ListMaterial />
+            </ProtectedRoute>
+            }
+            />
+
+            <Route path="/Projects/Nesting/:projectId" element={ <ProtectedRoute>
+            <NestingView />
             </ProtectedRoute>
             }
             />

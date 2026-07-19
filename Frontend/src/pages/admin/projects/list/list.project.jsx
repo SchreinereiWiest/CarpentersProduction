@@ -101,7 +101,7 @@ return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden">
 
                 {leftItems?.map((item) => (
 
-                <div className="bg-gray-800 rounded-xl p-5 shadow-lg" key={item.PID}>
+                <div className="bg-gray-800 rounded-xl p-5 shadow-lg mb-4" key={item.PID}>
 
                     <div className="flex justify-between items-center">
 
