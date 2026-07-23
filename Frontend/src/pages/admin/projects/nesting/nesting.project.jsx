@@ -108,7 +108,7 @@ function NestingView() {
 
     <div className="absolute inset-0">
             <Canvas orthographic camera={{ zoom: 6, position: [0, 0, 2] }}>
-                <group scale={[0.01,0.01,0.01]} position={[-75,-10,0]}>
+                <group scale={[0.01,-0.01,0.01]} position={[-75,-10,0]}>
                     <NestingScene result={nestingResult} />
                 </group>
                 

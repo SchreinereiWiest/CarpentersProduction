@@ -206,6 +206,7 @@ return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden">
 
                             </span>
 
+
                             <span>
 
                                 x {item.Anzahl}
@@ -214,9 +215,16 @@ return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden">
 
                         </div>
 
-                        <div className="text-sm text-gray-400 mt-1">
+                        <div className="text-sm text-gray-400 mt-1 flex justify-between">
 
+                            <span>
                             {item.L} × {item.B} × {item.T}
+                            </span>
+                            <span>
+
+                                {item.MID || "-"}
+
+                            </span>
 
                         </div>
 

@@ -4,6 +4,8 @@ export default function longestSideSort(plates) {
 
     return [...plates].sort((a, b) => {
 
+        a.rotate=null;
+
         const longA = Math.max(a.L, a.B);
         const longB = Math.max(b.L, b.B);
 

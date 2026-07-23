@@ -17,12 +17,24 @@ export function randomBool(chance = 0.5) {
 
 }
 
-export function canFit(rect, width, height, gap) {
+export function canFit(rect, width, height) {
 
-    return (
+    return (width <= rect.width && height <= rect.height);
 
-        width + gap <= rect.width && height + gap <= rect.height
+}
 
-    );
 
+export function hasEdge(edge) {
+    return edge !== "" && edge !== "Standardmaterial" ? edge : "";
+}
+
+export function addEdgeKey(plate) {
+    plate.edgeKey = [
+            hasEdge(plate.ELID),
+            hasEdge(plate.ERID),
+            hasEdge(plate.ETID),
+            hasEdge(plate.EBID)
+        ].join("|");
+
+    return plate;
 }

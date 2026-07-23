@@ -8,8 +8,8 @@ export function SheetObject({sheet, PlateIndex})
         <mesh
 
             position={[
-                sheet.offsetX + sheet.width/2,
-                sheet.height/2 + (sheet.height +150)*PlateIndex,
+                sheet.id * 3000 + sheet.width/2,
+                sheet.height/2 + (sheet.height +150) * PlateIndex,
                 -2
             ]}
 
@@ -33,10 +33,10 @@ export function SheetObject({sheet, PlateIndex})
 
 
 
-export function PlateObject({plate, sheets, PlateIndex})
+export function PlateObject({plate, PlateIndex})
 {
 
-    const offset = sheets[plate.sheet].offsetX
+    const offset = plate.sheet *3000;
 
     // console.log(plate);
     return(
@@ -45,9 +45,9 @@ export function PlateObject({plate, sheets, PlateIndex})
 
             position={[
 
-                plate.x + plate.width/2 + offset,
+                plate.x + plate.placedWidth/2 + offset,
 
-                plate.y + plate.height/2  + (sheets[plate.sheet].height +150)*PlateIndex,
+                plate.y + plate.placedHeight/2 + (PlateIndex * (2070 + 150)),
 
                 0
 
@@ -59,9 +59,9 @@ export function PlateObject({plate, sheets, PlateIndex})
 
                 args={[
 
-                    plate.width,
+                    plate.placedWidth,
 
-                    plate.height,
+                    plate.placedHeight,
 
                     2
 
@@ -78,10 +78,61 @@ export function PlateObject({plate, sheets, PlateIndex})
 }
 
 
-export function FreeRectObject({rect, sheets, PlateIndex})
+export function ItemObject({plate, strip, PlateIndex })
 {
 
-    const offset = sheets[rect.sheet].offsetX
+    const offset = strip.sheet *3000;
+
+    const Width = strip.type=="horizontal" ? plate.originalHeight : plate.originalWidth;
+    const Height = strip.type=="horizontal" ? plate.originalWidth : plate.originalHeight;
+
+    const posX = strip.type=="horizontal" ? (plate.x + Width/2 + 10) : (strip.x + 10 + Width/2);
+    const posY = strip.type=="horizontal" ? (strip.y + 10 + Height/2) : (plate.x + Height/2 + 10);
+
+    // console.log(plate);
+    return(
+
+        <mesh
+
+            position={[
+
+                posX + offset,
+
+                posY + (PlateIndex * (2070 + 150)),
+
+                2
+
+            ]}
+
+        >
+
+            <boxGeometry
+
+                args={[
+
+                    Width,
+
+                    Height,
+
+                    2
+
+                ]}
+
+            />
+
+            <meshBasicMaterial color="#402ecc98"/>
+
+        </mesh>
+
+    );
+
+}
+
+
+export function FreeRectObject({rect, PlateIndex, Slotindex})
+{
+
+    const offset = Slotindex * 3000;
 
     return(
 
@@ -91,7 +142,7 @@ export function FreeRectObject({rect, sheets, PlateIndex})
 
                 rect.x+rect.width/2 + offset,
 
-                rect.y+rect.height/2  + (sheets[rect.sheet].height +150)*PlateIndex,
+                rect.y+rect.height/2  + (PlateIndex * (2070 + 150)),
 
                 -1
 

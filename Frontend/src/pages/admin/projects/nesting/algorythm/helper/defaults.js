@@ -5,24 +5,24 @@ export const defaultSettings = {
     margin: 10,
 
     // Abstand zwischen Teilen
-    gap: 5,
+    gap: 20,
 
     // Sägeschnitt
     cutGap: 4,
 
     // Anzahl Versuche
-    iterations: 50,
+    iterations: 1,
 
-    // Teile drehen erlaubt
+    // Teile drehen erlaubt 
     allowRotation: true,
 
     // Wahrscheinlichkeit einer Rotation
-    rotationChance: 0.5,
+    rotationChance: 0.4,
 
     // 0 = horizontal
     // 1 = vertikal
     // 0.5 = zufällig
-    cutDirection: 0.5,
+    cutDirection: 0.6,
 
     // Abstand zwischen mehreren Platten
     sheetOffset: 3000,

@@ -1,27 +1,33 @@
-export function splitRect(rect, width, height, settings, cut) {
+export function splitRect(rect, strip, settings) {
 
     const freeRects = [];
     const cuts = [];
 
     const rightWidth =
         rect.width -
-        width -
-        settings.gap -
+        strip.placedWidth -
         settings.cutGap;
 
     const bottomHeight =
         rect.height -
-        height -
-        settings.gap -
+        strip.placedHeight -
         settings.cutGap;
 
+    let cut = true;
+
+    if (strip.type == "horizontal") {
+        cut = true;
+        } else {
+        cut = false;
+        }
+    
     let rightHeight = rect.height
-    if (cut=="h") {
-    rightHeight =rect.height - (rect.height - height-settings.gap)}
+    if (cut) {
+        rightHeight =rect.height - (rect.height - strip.placedHeight)}
 
     let bottomWidth = rect.width
-    if (cut=="v") {
-        bottomWidth = rect.width - (rect.width-width-settings.gap)}
+    if (!cut) {
+        bottomWidth = rect.width - (rect.width-strip.placedWidth)}
 
     if (rightWidth > 0) {
 
@@ -31,8 +37,7 @@ export function splitRect(rect, width, height, settings, cut) {
 
             x:
                 rect.x +
-                width +
-                settings.gap +
+                strip.placedWidth +
                 settings.cutGap,
 
             y: rect.y,
@@ -49,8 +54,7 @@ export function splitRect(rect, width, height, settings, cut) {
 
             x:
                 rect.x +
-                width +
-                settings.gap,
+                strip.placedWidth,
 
             y: rect.y,
 
@@ -72,8 +76,7 @@ export function splitRect(rect, width, height, settings, cut) {
 
             y:
                 rect.y +
-                height +
-                settings.gap +
+                strip.placedHeight +
                 settings.cutGap,
 
             width: bottomWidth,
@@ -90,8 +93,7 @@ export function splitRect(rect, width, height, settings, cut) {
 
             y:
                 rect.y +
-                height +
-                settings.gap,
+                strip.placedHeight,
 
             width: bottomWidth,
 
