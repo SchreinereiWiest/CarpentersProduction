@@ -1,67 +1,44 @@
 import { SheetObject, PlateObject, FreeRectObject, ItemObject } from "./plateObjects.project";
 import React from 'react'
 
-export default function NestingScene({result})
+export default function NestingScene({result, setActiveStrip, activeStrip})
 {
+if(!result) return;
 
-    if(!result) return;
+console.log(result);
 
-    return (
+return (
 
-        <>
-           {result.map((sheetPlate, sheetPlateIndex) => (
-            <React.Fragment key={sheetPlateIndex}>
+<>
 
-                {sheetPlate.strips.nestingPlates.map(sheet => (
-                <SheetObject
-                    key={sheet.id}
-                    sheet={sheet}
-                    PlateIndex={sheetPlateIndex}
-                />
-                ))}
+    {result.nestingPlates.map(sheet => (
+    <SheetObject key={sheet.id} sheet={sheet} />
+    ))}
 
-                {sheetPlate.strips.strips.map((plate, index) => (
-                <PlateObject
-                    key={index}
-                    plate={plate}
-                    PlateIndex={sheetPlateIndex}
-                />
-                ))}
+    {result.strips.map((plate, index) => (
+    <PlateObject key={index} plate={plate} setActiveStrip={setActiveStrip} activeStrip={activeStrip} />
+    ))}
 
-                {sheetPlate.strips.nestingPlates.map((rect, index) => (
-                    <React.Fragment key={index}>
-                        {rect.freeSpaces.map((space, indexe) => (
+    {result.nestingPlates.map((rect, index) => (
+    <React.Fragment key={index}>
+        {rect.freeSpaces.map((space, indexe) => (
 
-                        <FreeRectObject
-                            key={indexe}
-                            rect={space}
-                            PlateIndex={sheetPlateIndex}
-                            Slotindex={index}
-                        />
-                        ))}
-                </React.Fragment>
-                ))}
+        <FreeRectObject key={indexe} rect={space} Slotindex={index} />
+        ))}
+    </React.Fragment>
+    ))}
 
-            {sheetPlate.strips.strips.map((plate, index) => (
-                <React.Fragment key={index}>
-                    {plate.plates.map((item, indexe) => (
-                        <ItemObject
-                    key={indexe}
-                    plate={item}
-                    strip={plate}
-                    PlateIndex={sheetPlateIndex}
-                />
-                    ))}
+    {result.strips.map((plate, index) => (
+    <React.Fragment key={index}>
+        {plate.plates.map((item, indexe) => (
+        <ItemObject key={indexe} plate={item} strip={plate} />
+        ))}
 
-                    </React.Fragment>
-                ))}
+    </React.Fragment>
+    ))}
 
-            </React.Fragment>
-            ))}
-            
+</>
 
-        </>
-
-    );
+);
 
 }

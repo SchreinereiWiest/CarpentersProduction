@@ -3,7 +3,7 @@ import { createPlateList } from "./createPlates";
 import { sortPlates } from "./placement/sortPlates";
 import { nestStrips } from "./placement/nestingPlate";
 
-import {createStrips} from "./placement/createStrip"
+import { createStrips } from "./placement/createStrip"
 
 
 function createNestingGroups(
@@ -34,9 +34,9 @@ function createNestingGroups(
     const sortedPlates = sortPlates(preparedPlates);
 
     const strips = createStrips(
-    sortedPlates,
-    settings
-);
+        sortedPlates,
+        settings
+    );
 
     const nestingPlates =
         nestStrips(
@@ -62,9 +62,8 @@ export function calculateNesting(processedContent, userSettings = {}) {
     };
 
     // fetch content to all plates list
-    const platesList = createPlateList(processedContent);
 
-    console.log(platesList);
+    const platesList = createPlateList(processedContent);
 
     platesList.forEach(sheet => {
 
@@ -72,7 +71,8 @@ export function calculateNesting(processedContent, userSettings = {}) {
 
         const strips = createNestingGroups(plates, settings);
 
-        sheet.strips = strips;
+        sheet.nestingPlates = strips.nestingPlates;
+        sheet.strips = strips.strips;
     });
 
 

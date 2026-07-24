@@ -1,185 +1,108 @@
 import { MeshBasicMaterial } from "three";
+import { Text } from "@react-three/drei";
+import React, { Children, useEffect, useRef, useState, useMemo } from "react";
 
-export function SheetObject({sheet, PlateIndex})
+export function SheetObject({sheet})
 {
 
-    return(
+return(
 
-        <mesh
+<mesh position={[ sheet.id * 3000 + sheet.width/2, sheet.height/2, -2 ]}>
 
-            position={[
-                sheet.id * 3000 + sheet.width/2,
-                sheet.height/2 + (sheet.height +150) * PlateIndex,
-                -2
-            ]}
+    <boxGeometry args={[ sheet.width, sheet.height, 1 ]} />
 
-        >
+    <meshBasicMaterial color="#333" />
 
-            <boxGeometry args={[
+</mesh>
 
-                sheet.width,
-                sheet.height,
-                1
-
-            ]}/>
-
-            <meshBasicMaterial color="#333"/>
-
-        </mesh>
-
-    );
+);
 
 }
 
-
-
-export function PlateObject({plate, PlateIndex})
+export function PlateObject({plate, setActiveStrip, activeStrip})
 {
 
-    const offset = plate.sheet *3000;
+const offset = plate.sheet *3000;
+const [hovered, hover] = useState(false)
 
-    // console.log(plate);
-    return(
+let clicked = false;
+if(activeStrip == plate) {
+clicked = true;
+} else {
+clicked = false;
+}
 
-        <mesh
+// console.log(plate);
+return(
+<group onPointerOver={(event)=> (event.stopPropagation(), hover(true))} onPointerOut={(event) => hover(false)}
+    onPointerDown={(e) => {
+    e.stopPropagation();
+    setActiveStrip(plate);
 
-            position={[
+    }}>
+    <mesh position={[ plate.x + plate.placedWidth/2 + offset, plate.y + plate.placedHeight/2, 0 ]}>
 
-                plate.x + plate.placedWidth/2 + offset,
+        <boxGeometry args={[ plate.placedWidth, plate.placedHeight, 2 ]} />
 
-                plate.y + plate.placedHeight/2 + (PlateIndex * (2070 + 150)),
+        <meshBasicMaterial color={ hovered || clicked ? "rgb(225, 255, 0)" :"#2ecc71" } />
 
-                0
+    </mesh>
 
-            ]}
+    <Text scale={[1 , -1, 1]} position={[ plate.x + plate.placedWidth / 2 + offset, plate.y + plate.placedHeight / 2, 3
+        ]} fontSize={70} anchorX="center" anchorY="middle" color="#111111">
+        {`[${plate.id}]`}
 
-        >
+    </Text>
 
-            <boxGeometry
-
-                args={[
-
-                    plate.placedWidth,
-
-                    plate.placedHeight,
-
-                    2
-
-                ]}
-
-            />
-
-            <meshBasicMaterial color="#2ecc71"/>
-
-        </mesh>
-
-    );
+    <Text scale={[1 , -1, 1]} position={[ plate.x + plate.placedWidth / 2 + offset, plate.y + plate.placedHeight / 2 -
+        100, 3 ]} fontSize={60} anchorX="center" anchorY="middle" color="#111111"> {`${Math.round( plate.placedWidth )}
+        × ${Math.round(
+        plate.placedHeight )} mm`} </Text> </group>
+);
 
 }
 
-
-export function ItemObject({plate, strip, PlateIndex })
+export function ItemObject({plate, strip})
 {
 
-    const offset = strip.sheet *3000;
+const offset = strip.sheet *3000;
 
-    const Width = strip.type=="horizontal" ? plate.originalHeight : plate.originalWidth;
-    const Height = strip.type=="horizontal" ? plate.originalWidth : plate.originalHeight;
+const Width = strip.type=="horizontal" ? plate.originalHeight : plate.originalWidth;
+const Height = strip.type=="horizontal" ? plate.originalWidth : plate.originalHeight;
 
-    const posX = strip.type=="horizontal" ? (plate.x + Width/2 + 10) : (strip.x + 10 + Width/2);
-    const posY = strip.type=="horizontal" ? (strip.y + 10 + Height/2) : (plate.x + Height/2 + 10 + strip.y);
+const posX = strip.type=="horizontal" ? (plate.x + Width/2 + 10) : (strip.x + 10 + Width/2);
+const posY = strip.type=="horizontal" ? (strip.y + 10 + Height/2) : (plate.x + Height/2 + 10 + strip.y);
 
-    // console.log(plate);
-    return(
+// console.log(plate);
+return(
 
-        <mesh
+<mesh position={[ posX + offset, posY, 2 ]}>
 
-            position={[
+    <boxGeometry args={[ Width, Height, 2 ]} />
 
-                posX + offset,
+    <meshBasicMaterial color={plate.color} />
 
-                posY + (PlateIndex * (2070 + 150)),
+</mesh>
 
-                2
-
-            ]}
-
-        >
-
-            <boxGeometry
-
-                args={[
-
-                    Width,
-
-                    Height,
-
-                    2
-
-                ]}
-
-            />
-
-            <meshBasicMaterial
-
-                color="#3f3ce7"
-
-                transparent
-
-                opacity={0.25}
-
-            />
-
-        </mesh>
-
-    );
+);
 
 }
 
-
-export function FreeRectObject({rect, PlateIndex, Slotindex})
+export function FreeRectObject({rect, Slotindex})
 {
 
-    const offset = Slotindex * 3000;
+const offset = Slotindex * 3000;
 
-    return(
+return(
 
-        <mesh
+<mesh position={[ rect.x+rect.width/2 + offset, rect.y+rect.height/2, -1 ]}>
 
-            position={[
+    <boxGeometry args={[ rect.width, rect.height, 1 ]} />
 
-                rect.x+rect.width/2 + offset,
+    <meshBasicMaterial color="#e74c3c" transparent opacity={0.65} depthWrite={false} />
 
-                rect.y+rect.height/2  + (PlateIndex * (2070 + 150)),
+</mesh>
 
-                -1
-
-            ]}
-
-        >
-
-            <boxGeometry args={[
-
-                rect.width,
-
-                rect.height,
-
-                1
-
-            ]}/>
-
-            <meshBasicMaterial
-
-                color="#e74c3c"
-
-                transparent
-
-                opacity={0.25}
-
-            />
-
-        </mesh>
-
-    );
+);
 
 }

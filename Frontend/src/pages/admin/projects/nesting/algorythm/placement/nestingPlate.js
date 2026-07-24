@@ -197,12 +197,6 @@ export function nestStrips(
                 settings
             );
 
-            currentPlate.freeSpaces =
-    freeSpaces.filter(
-        space =>
-            space.sheet === currentPlate.id
-    );
-
             continue;
         }
 
@@ -221,15 +215,13 @@ export function nestStrips(
             settings
         );
 
-        currentPlate.freeSpaces =
-    freeSpaces.filter(
-        space =>
-            space.sheet === currentPlate.id
-    );
-
     }
-    // console.log(freeSpaces);
+    for (const nest of nestingPlates) {
 
-
+    nest.freeSpaces = freeSpaces.filter(
+        space =>
+            space.sheet === nest.id
+    );
+}
     return nestingPlates;
 }

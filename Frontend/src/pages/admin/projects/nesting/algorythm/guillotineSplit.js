@@ -17,17 +17,19 @@ export function splitRect(rect, strip, settings) {
 
     if (strip.type == "horizontal") {
         cut = true;
-        } else {
+    } else {
         cut = false;
-        }
-    
+    }
+
     let rightHeight = rect.height
     if (cut) {
-        rightHeight =rect.height - (rect.height - strip.placedHeight)}
+        rightHeight = rect.height - (rect.height - strip.placedHeight)
+    }
 
     let bottomWidth = rect.width
     if (!cut) {
-        bottomWidth = rect.width - (rect.width-strip.placedWidth)}
+        bottomWidth = rect.width - (rect.width - strip.placedWidth)
+    }
 
     if (rightWidth > 0) {
 

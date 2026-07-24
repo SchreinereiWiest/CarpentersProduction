@@ -1,10 +1,23 @@
 
 
+function getRandomHexColor() {
+    return (
+        "#" +
+        Math.floor(
+            Math.random() * 16777215
+        )
+            .toString(16)
+            .padStart(6, "0")
+    );
+}
+
 export function processContent(content) {
 
         const duplicates = new Map();
 
         content.forEach(item => {
+
+            const color = getRandomHexColor();
 
             // Nur Bauteile mit BPID behalten
             const filteredChildren = (item.Children || [])
@@ -29,7 +42,8 @@ export function processContent(content) {
 
                     mergedChildrenMap.set(childKey, {
                         ...child,
-                        Anzahl: Number(child.Anzahl)
+                        Anzahl: Number(child.Anzahl),
+                        color: color
                     });
 
                 } else {

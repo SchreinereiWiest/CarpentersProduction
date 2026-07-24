@@ -42,7 +42,9 @@ export function createPlateList(processedContent) {
 
                 EdgeL : child.ELID,
 
-                EdgeR : child.ERID
+                EdgeR : child.ERID,
+
+                color: child.color
 
             });
 

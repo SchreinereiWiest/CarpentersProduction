@@ -14,7 +14,7 @@ export function placeStrip(
     strip.y =
         bestSpace.y;
 
-    strip.sheet =bestSpace.space.sheet;
+    strip.sheet = bestSpace.space.sheet;
 
     strip.id = nestingPlates[bestSpace.space.sheet].strips.length;
 
@@ -26,10 +26,10 @@ export function placeStrip(
     );
 
     const split = splitRect(
-                        bestSpace.space,
-                        strip,
-                        settings
-                    );
+        bestSpace.space,
+        strip,
+        settings
+    );
 
     const newSpaces = split.freeRects;
 
