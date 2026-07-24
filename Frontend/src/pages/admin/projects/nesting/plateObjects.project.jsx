@@ -120,7 +120,15 @@ export function ItemObject({plate, strip, PlateIndex })
 
             />
 
-            <meshBasicMaterial color="#402ecc98"/>
+            <meshBasicMaterial
+
+                color="#3f3ce7"
+
+                transparent
+
+                opacity={0.25}
+
+            />
 
         </mesh>
 

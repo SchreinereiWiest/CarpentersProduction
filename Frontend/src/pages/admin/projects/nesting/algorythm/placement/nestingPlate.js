@@ -42,31 +42,41 @@ export function nestStrips(
 
                 plates: [],
 
-                freeSpaces: []
-            };
+                freeSpaces: [{
 
-
-            nestingPlates.push(
-                currentPlate
-            );
-
-
-            freeSpaces = [
-
-                {
+                    sheet: nestingPlates.length,
 
                     x: 0,
 
                     y: 0,
 
-                    width:
-                        defaultPlate.width,
+                    width: defaultPlate.width,
 
-                    height:
-                        defaultPlate.height
+                    height: defaultPlate.height
+                }]
+            };
+
+            nestingPlates.push(
+                currentPlate
+            );
+
+            freeSpaces = [
+                {
+
+                    sheet: nestingPlates.length - 1,
+
+                    x: 0,
+
+                    y: 0,
+
+                    width: defaultPlate.width,
+
+                    height: defaultPlate.height
                 }
-            ];
+            ]
         }
+
+
 
 
         /*
@@ -111,7 +121,20 @@ export function nestStrips(
 
                 plates: [],
 
-                freeSpaces: []
+                freeSpaces: [{
+
+                     sheet: nestingPlates.length,
+
+                    x: 0,
+
+                    y: 0,
+
+                    width:
+                        defaultPlate.width,
+
+                    height:
+                        defaultPlate.height
+                }]
             };
 
 
@@ -119,10 +142,10 @@ export function nestStrips(
                 currentPlate
             );
 
-
-            freeSpaces = [
+            freeSpaces.push(
 
                 {
+                     sheet: nestingPlates.length - 1,
 
                     x: 0,
 
@@ -134,7 +157,7 @@ export function nestStrips(
                     height:
                         defaultPlate.height
                 }
-            ];
+            );
 
 
             /*
@@ -169,12 +192,16 @@ export function nestStrips(
             placeStrip(
                 strip,
                 newBestSpace,
-                currentPlate,
+                nestingPlates,
                 freeSpaces,
                 settings
             );
 
-            currentPlate.freeSpaces = freeSpaces;
+            currentPlate.freeSpaces =
+    freeSpaces.filter(
+        space =>
+            space.sheet === currentPlate.id
+    );
 
             continue;
         }
@@ -189,12 +216,16 @@ export function nestStrips(
         placeStrip(
             strip,
             bestSpace,
-            currentPlate,
+            nestingPlates,
             freeSpaces,
             settings
         );
 
-        currentPlate.freeSpaces = freeSpaces;
+        currentPlate.freeSpaces =
+    freeSpaces.filter(
+        space =>
+            space.sheet === currentPlate.id
+    );
 
     }
     // console.log(freeSpaces);

@@ -4,7 +4,7 @@ import { splitRect } from "../guillotineSplit";
 export function placeStrip(
     strip,
     bestSpace,
-    currentPlate,
+    nestingPlates,
     freeSpaces,
     settings
 ) {
@@ -14,16 +14,14 @@ export function placeStrip(
     strip.y =
         bestSpace.y;
 
-    strip.sheet =
-        currentPlate.id;
+    strip.sheet =bestSpace.space.sheet;
 
-    strip.id =
-        currentPlate.strips.length;
+    strip.id = nestingPlates[bestSpace.space.sheet].strips.length;
 
     strip.x = bestSpace.x;
     strip.y = bestSpace.y;
 
-    currentPlate.strips.push(
+    nestingPlates[bestSpace.space.sheet].strips.push(
         strip
     );
 
