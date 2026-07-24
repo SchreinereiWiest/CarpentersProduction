@@ -10,19 +10,10 @@ export const defaultSettings = {
     // Sägeschnitt
     cutGap: 4,
 
-    // Anzahl Versuche
-    iterations: 1,
-
     // Teile drehen erlaubt 
     allowRotation: true,
 
-    // Wahrscheinlichkeit einer Rotation
-    rotationChance: 0.4,
-
-    // 0 = horizontal
-    // 1 = vertikal
-    // 0.5 = zufällig
-    cutDirection: 0.6,
+    stripDifference: 100,
 
     // Abstand zwischen mehreren Platten
     sheetOffset: 3000,

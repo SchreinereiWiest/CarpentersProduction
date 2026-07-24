@@ -87,7 +87,7 @@ export function ItemObject({plate, strip, PlateIndex })
     const Height = strip.type=="horizontal" ? plate.originalWidth : plate.originalHeight;
 
     const posX = strip.type=="horizontal" ? (plate.x + Width/2 + 10) : (strip.x + 10 + Width/2);
-    const posY = strip.type=="horizontal" ? (strip.y + 10 + Height/2) : (plate.x + Height/2 + 10);
+    const posY = strip.type=="horizontal" ? (strip.y + 10 + Height/2) : (plate.x + Height/2 + 10 + strip.y);
 
     // console.log(plate);
     return(

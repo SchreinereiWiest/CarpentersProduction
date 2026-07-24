@@ -9,6 +9,8 @@ export function createStrips(sortedPlates, settings) {
     const cutGap =
         settings.cutGap;
 
+    const stripDifference = settings.stripDifference;
+    
     const strips = [];
 
     let remainingPlates = [
@@ -25,7 +27,8 @@ export function createStrips(sortedPlates, settings) {
                 remainingPlates,
                 verticalTarget,
                 horizontalTarget,
-                cutGap
+                cutGap,
+                stripDifference
             );
 
         if (
@@ -122,24 +125,24 @@ export function createStrips(sortedPlates, settings) {
     return strips;
 }
 
-
 function findBestStripCombination(
     plates,
     verticalTarget,
     horizontalTarget,
-    cutGap
+    cutGap,
+    stripDifference
 ) {
     let bestCombination = null;
 
     function search(
         startIndex,
         selectedPlates,
-        currentHeight
+        currentHeight,
+        minWidth,
+        maxWidth
     ) {
         /*
-         * Die aktuelle Kombination
-         * sowohl vertikal als auch horizontal
-         * bewerten.
+         * Die aktuelle Kombination bewerten
          */
         if (
             selectedPlates.length > 0
@@ -160,12 +163,6 @@ function findBestStripCombination(
                     "horizontal"
                 );
 
-            /*
-             * Die Kombination kann für beide
-             * Zielrichtungen geeignet sein.
-             *
-             * Die bessere Variante wird gewählt.
-             */
             if (
                 verticalCandidate
             ) {
@@ -198,6 +195,50 @@ function findBestStripCombination(
             const plate =
                 plates[i];
 
+            /*
+             * Bei der ersten Platte gibt es
+             * noch keine Breitenbegrenzung.
+             */
+            let newMinWidth;
+            let newMaxWidth;
+
+            if (
+                selectedPlates.length === 0
+            ) {
+                newMinWidth =
+                    plate.width -
+                    stripDifference;
+
+                newMaxWidth =
+                    plate.width +
+                    stripDifference;
+            } else {
+                /*
+                 * Die neue Platte muss innerhalb
+                 * der Breiten-Grenzen liegen.
+                 */
+                if (
+                    plate.width <
+                        minWidth ||
+                    plate.width >
+                        maxWidth
+                ) {
+                    continue;
+                }
+
+                /*
+                 * Die Grenzen bleiben bestehen.
+                 */
+                newMinWidth =
+                    minWidth;
+
+                newMaxWidth =
+                    maxWidth;
+            }
+
+            /*
+             * Schnittspalt zwischen Platten
+             */
             const gap =
                 selectedPlates.length > 0
                     ? cutGap
@@ -209,9 +250,9 @@ function findBestStripCombination(
                 plate.height;
 
             /*
-             * Wenn die Kombination bereits
-             * länger als beide Zielrichtungen
-             * ist, kann nicht weiter gesucht werden.
+             * Wenn die Kombination länger
+             * als beide möglichen Zielrichtungen
+             * ist, nicht weiter verfolgen.
              */
             if (
                 newHeight >
@@ -229,7 +270,9 @@ function findBestStripCombination(
             search(
                 i + 1,
                 selectedPlates,
-                newHeight
+                newHeight,
+                newMinWidth,
+                newMaxWidth
             );
 
             selectedPlates.pop();
@@ -239,12 +282,13 @@ function findBestStripCombination(
     search(
         0,
         [],
-        0
+        0,
+        null,
+        null
     );
 
     return bestCombination;
 }
-
 
 function createCandidate(
     plates,
