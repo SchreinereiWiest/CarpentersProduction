@@ -2,9 +2,7 @@ import { defaultSettings } from "./helper/defaults";
 import { createPlateList } from "./createPlates";
 import { sortPlates } from "./placement/sortPlates";
 import { nestStrips } from "./placement/nestingPlate";
-
 import { createStrips } from "./placement/createStrip"
-
 
 function createNestingGroups(
     plates,
@@ -29,7 +27,6 @@ function createNestingGroups(
                 settings.gap
         };
     });
-
 
     const sortedPlates = sortPlates(preparedPlates);
 
@@ -75,9 +72,6 @@ export function calculateNesting(processedContent, userSettings = {}) {
         sheet.strips = strips.strips;
     });
 
-
-
     return platesList;
-
 
 }

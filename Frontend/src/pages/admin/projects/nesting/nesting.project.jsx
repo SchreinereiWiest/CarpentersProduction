@@ -10,6 +10,8 @@ import { loadCadFile } from '../cad/cadLoader.project.js';
 import { processContent } from '../list/listProcess.project.js';
 import { calculateNesting } from './algorythm/nestingAlgorythm.js';
 import NestingScene from './nestingscene.project.jsx';
+import { defaultSettings } from './algorythm/helper/defaults.js';
+import NestingSettingsModal from "./nestingSettingsModal.project.jsx"
 
 import { Canvas, useFrame, useLoader } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
@@ -32,9 +34,94 @@ function NestingView() {
 
     const [nestingResult, setNestingResult] = useState();
 
+    const [loadingGeneratedData, setLoadingGeneratedData] = useState(false);
+
+    const [settings, setSettings] = useState(defaultSettings);
+    const [showSettings, setShowSettings] = useState(false);
+
+    async function createdata(userSettings) {
+        const cadFiles = project?.files?.filter(file =>
+            file.fileName?.startsWith("Planung.json") ||
+            file.mimeType?.startsWith("model/gltf-binary")
+        ) ?? [];
+
+        setcadfiles(cadFiles);
+
+        const jsonFile = cadFiles.find(file =>
+            file.fileName?.toLowerCase().endsWith(".json")
+        );
+
+        if (!jsonFile) return;
+
+        // 1. CAD-Daten laden
+        const contentData = await loadCadFile(jsonFile);
+
+        if (!contentData?.length) return;
+
+        // State setzen
+        setContent(contentData);
+
+
+        // 2. Direkt mit der lokalen Variable weiterarbeiten
+        const processedData = processContent(contentData);
+
+        if (!processedData) return;
+
+        // State setzen
+        setProcessedContent(processedData);
+
+
+        // 3. Wieder mit der lokalen Variable weiterarbeiten
+        const nestingData = calculateNesting(processedData, userSettings);
+
+        setNestingResult(nestingData);
+
+        return nestingData;
+    }
+
+    async function UploadData() {
+        // Datei existiert nicht
+                const generatedData = await createdata(settings);
+                
+                setNestingResult(generatedData);
+
+                if (!generatedData) return;
+
+                // Datei beim Backend erstellen
+                const postResponse =
+                    await axios.post(
+
+                        `/api/projects/generated/${projectId}/nesting`,
+                        {
+                        },
+
+                        {
+                            withCredentials: true
+                        }
+
+                    );
+
+                const jsonContent = JSON.stringify(generatedData);
+
+                console.log(postResponse.data);
+
+                const s3response = await axios.put(
+                    postResponse.data.uploadUrl,
+                    jsonContent,
+                    {
+                        headers: {
+                            "Content-Type": jsonContent.type
+                        }
+                    }
+                );
+
+    }
+
+
     useEffect(() => {
         const fetchProject = async () => {
             const { data } = await axios.get(`/api/projects/get/${projectId}`);
+            const projectData = data.project;
             setProject(data.project);
 
             const customerdata = await axios.get(`/api/customers/get/${data.project.customerId}`);
@@ -46,49 +133,86 @@ function NestingView() {
     }, [projectId]);
 
 
+    
+
+
     useEffect(() => {
-        const cadFiles = project?.files?.filter(file =>
-            file.fileName?.startsWith("Planung.json") ||
-            file.mimeType?.startsWith("model/gltf-binary")
-        ) ?? [];
 
-        setcadfiles(cadFiles);
+        if (!projectId) {
+            return;
+        }
 
-        const load = async () => {
+        const loadGeneratedData = async () => {
 
-            const jsonFile = cadFiles.find(file =>
-                file.fileName
-                    .toLowerCase()
-                    .endsWith(".json")
-            );
+            setLoadingGeneratedData(true);
 
-            if (!jsonFile) return;
+            try {
 
-            const result = await loadCadFile(jsonFile);
-            setContent(result);
+                const response = await axios.get(
+
+                    `/api/projects/generated/${projectId}/nesting`,
+
+                    {
+                        withCredentials: true
+                    }
+
+                );
+
+                const {
+
+                    exists,
+
+                    downloadUrl,
+
+                } = response.data;
+
+                console.log(response.data);
+
+
+                // Datei existiert bereits
+                if (exists) {
+
+                    try {
+                        const fileResponse = await fetch(
+                            downloadUrl
+                        );
+
+                        const data = await fileResponse.json();
+
+
+                        setNestingResult(data);
+
+                        return;
+                    } catch (error) {
+                        console.warn("cant fetch data, try new upload");
+                    }
+
+                }
+
+                //datei existiert nicht -> neu erstellen un hochladen
+                await UploadData();
+
+
+            } catch (error) {
+
+                console.error(
+                    "Generated data konnte nicht geladen werden",
+                    error
+                );
+
+            } finally {
+
+                setLoadingGeneratedData(false);
+
+            }
 
         };
-        load();
 
-    }, [project]);
 
-    // console.log(content);
+        loadGeneratedData();
 
-    useEffect(() => {
-        if (!content.length) return;
+    }, [projectId, project]);
 
-        setProcessedContent(processContent(content));
-
-    }, [content]);
-
-    useEffect(() => {
-        if (!processedContent) return;
-
-        const result = calculateNesting(processedContent);
-
-        setNestingResult(result);
-
-    }, [processedContent]);
 
     const [activeSheetIndex, setActiveSheetIndex] = useState(0);
     const activeSheet = nestingResult?.[activeSheetIndex];
@@ -149,17 +273,93 @@ function NestingView() {
                         <div className="text-xs text-gray-400 mb-1"> Aktiver Strip </div>
                         <div className="font-semibold text-white"> {activeStrip.placedWidth} x {activeStrip.placedHeight} </div>
                         {activeStrip?.plates?.map((plate, index) => (
-                        <div className="flex gap-4 mt-2 text-lm text-gray-500"> <span> {plate.originalWidth} x {plate.originalHeight} | {plate.original.Objektname} </span> </div>
+                        <div className="flex gap-4 mt-2 text-lm text-gray-500" key={plate.id}> <span> {plate.originalWidth} x {plate.originalHeight} | {plate.original.Objektname} </span> </div>
                         ))}
                     </div>
 
                 </div> )}
 
+                <div className="absolute top-24 right-4 z-20">
+    <div className="
+        flex
+        items-center
+        gap-3
+        bg-gray-800/90
+        backdrop-blur
+        border
+        border-gray-700
+        rounded-lg
+        px-4
+        py-3
+        shadow-lg
+    ">
+
+        <button
+            onClick={() => setShowSettings(true)}
+            className="
+                flex
+                items-center
+                gap-3
+                rounded-lg
+                border
+                border-gray-700
+                bg-gray-900
+                px-4
+                py-2
+                whitespace-nowrap
+                text-gray-400
+                transition-all
+                duration-200
+                hover:bg-gray-700
+                hover:text-white
+            "
+        >
+            Einstellungen
+        </button>
+
+        <button
+            className="
+                flex
+                items-center
+                gap-3
+                rounded-lg
+                border
+                border-gray-700
+                bg-gray-900
+                px-4
+                py-2
+                whitespace-nowrap
+                text-gray-400
+                transition-all
+                duration-200
+                hover:bg-gray-700
+                hover:text-white
+            "
+            onClick={UploadData}
+        >
+            <span className="font-medium">
+                Update
+            </span>
+        </button>
+
+    </div>
+</div>
+
+                {showSettings && (
+
+                    <NestingSettingsModal
+                        settings={settings}
+                        setSettings={setSettings}
+                        onClose={() => setShowSettings(false)}
+                    />
+
+                )}
+
                 <div className="absolute inset-0">
                     <Canvas orthographic camera={{ zoom: 6, position: [0, 0, 2] }}>
                         <group scale={[0.01,-0.01,0.01]} position={[-75, 9,0]}>
                             <NestingScene result={activeSheet} setActiveStrip={setActiveStrip}
-                                activeStrip={activeStrip} />
+                                activeStrip={activeStrip} settings={settings}/>
                         </group>
 
                         <OrbitControls enableRotate={false} enablePan={true} enableZoom={true} mouseButtons={{

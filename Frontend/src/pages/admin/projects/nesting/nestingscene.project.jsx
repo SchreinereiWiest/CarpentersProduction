@@ -1,18 +1,18 @@
 import { SheetObject, PlateObject, FreeRectObject, ItemObject } from "./plateObjects.project";
 import React from 'react'
 
-export default function NestingScene({result, setActiveStrip, activeStrip})
+export default function NestingScene({result, setActiveStrip, activeStrip, settings})
 {
 if(!result) return;
 
-console.log(result);
+// console.log(result);
 
 return (
 
 <>
 
     {result.nestingPlates.map(sheet => (
-    <SheetObject key={sheet.id} sheet={sheet} />
+    <SheetObject key={sheet.id} sheet={sheet} settings={settings}/>
     ))}
 
     {result.strips.map((plate, index) => (

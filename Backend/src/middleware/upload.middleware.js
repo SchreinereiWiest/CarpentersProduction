@@ -10,25 +10,8 @@ import {
 
 import prisma from "../config/prisma.js";
 
+import {s3} from "../config/s3.js"
 
-const s3 = new S3Client({
-
-    endpoint: process.env.S3_PUBLIC_ENDPOINT,
-
-    region:"garage",
-
-    forcePathStyle: true,
-
-    credentials:{
-        accessKeyId:
-            process.env.S3_ACCESS_KEY,
-
-        secretAccessKey:
-            process.env.S3_SECRET_KEY
-    },
-
-    requestChecksumCalculation: "WHEN_REQUIRED",
-});
 
 
 export async function createUploadUrl(req,res){
@@ -59,7 +42,6 @@ export async function createUploadUrl(req,res){
     const objectId = `${crypto.randomUUID()}-${fileName}`;
 
     const objectKey = `${prefix}/${objectId}`;
-
 
     const command = new PutObjectCommand({
 

@@ -2,14 +2,14 @@ import { MeshBasicMaterial } from "three";
 import { Text } from "@react-three/drei";
 import React, { Children, useEffect, useRef, useState, useMemo } from "react";
 
-export function SheetObject({sheet})
+export function SheetObject({sheet, settings})
 {
 
 return(
 
-<mesh position={[ sheet.id * 3000 + sheet.width/2, sheet.height/2, -2 ]}>
+<mesh position={[ sheet.id * 3000 + sheet.placedWidth/2 - settings.margin, sheet.placedHeight/2 - settings.margin, -2 ]}>
 
-    <boxGeometry args={[ sheet.width, sheet.height, 1 ]} />
+    <boxGeometry args={[ sheet.placedWidth, sheet.placedHeight, 1 ]} />
 
     <meshBasicMaterial color="#333" />
 

@@ -1,22 +1,22 @@
 
-export const defaultSettings = {
+    export const defaultSettings = {
 
-    // Rand zur Außenkante
-    margin: 10,
+        // Rand zur Außenkante
+        margin: 10,
 
-    // Abstand zwischen Teilen
-    gap: 20,
+        // Abstand zwischen Teilen
+        gap: 20,
 
-    // Sägeschnitt
-    cutGap: 4,
+        // Sägeschnitt
+        cutGap: 4,
 
-    // Teile drehen erlaubt 
-    allowRotation: true,
+        // Teile drehen erlaubt 
+        allowRotation: true,
 
-    stripDifference: 100,
+        stripDifference: 100,
 
-    // Abstand zwischen mehreren Platten
-    sheetOffset: 3000,
+        // Abstand zwischen mehreren Platten
+        sheetOffset: 3000,
 
     // Standardplatte
     defaultSheet: {

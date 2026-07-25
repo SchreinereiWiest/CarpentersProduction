@@ -32,11 +32,13 @@ export function nestStrips(
                 id:
                     nestingPlates.length,
 
-                width:
-                    defaultPlate.width,
+                width: defaultPlate.width - settings.margin*2,
 
-                height:
-                    defaultPlate.height,
+                height: defaultPlate.height - settings.margin*2,
+
+                placedWidth: defaultPlate.width,
+
+                placedHeight: defaultPlate.height,
 
                 strips: [],
 
@@ -50,9 +52,9 @@ export function nestStrips(
 
                     y: 0,
 
-                    width: defaultPlate.width,
+                    width: defaultPlate.width - settings.margin*2,
 
-                    height: defaultPlate.height
+                    height: defaultPlate.height - settings.margin*2
                 }]
             };
 
@@ -69,9 +71,9 @@ export function nestStrips(
 
                     y: 0,
 
-                    width: defaultPlate.width,
+                    width: defaultPlate.width - settings.margin*2,
 
-                    height: defaultPlate.height
+                    height: defaultPlate.height - settings.margin*2,
                 }
             ]
         }
@@ -111,11 +113,13 @@ export function nestStrips(
                 id:
                     nestingPlates.length,
 
-                width:
-                    defaultPlate.width,
+                width: defaultPlate.width - settings.margin*2,
 
-                height:
-                    defaultPlate.height,
+                height: defaultPlate.height - settings.margin*2,
+
+                placedWidth: defaultPlate.width,
+
+                placedHeight: defaultPlate.height,
 
                 strips: [],
 
@@ -129,11 +133,9 @@ export function nestStrips(
 
                     y: 0,
 
-                    width:
-                        defaultPlate.width,
+                    width: defaultPlate.width - settings.margin*2,
 
-                    height:
-                        defaultPlate.height
+                    height: defaultPlate.height - settings.margin*2,
                 }]
             };
 
@@ -151,11 +153,9 @@ export function nestStrips(
 
                     y: 0,
 
-                    width:
-                        defaultPlate.width,
+                    width: defaultPlate.width - settings.margin*2,
 
-                    height:
-                        defaultPlate.height
+                    height: defaultPlate.height - settings.margin*2,
                 }
             );
 

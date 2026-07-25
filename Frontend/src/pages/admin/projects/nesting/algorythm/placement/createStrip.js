@@ -28,7 +28,8 @@ export function createStrips(sortedPlates, settings) {
                 verticalTarget,
                 horizontalTarget,
                 cutGap,
-                stripDifference
+                stripDifference,
+                settings
             );
 
         if (
@@ -130,7 +131,8 @@ function findBestStripCombination(
     verticalTarget,
     horizontalTarget,
     cutGap,
-    stripDifference
+    stripDifference,
+    settings
 ) {
     let bestCombination = null;
 
@@ -164,7 +166,7 @@ function findBestStripCombination(
                 );
 
             if (
-                verticalCandidate
+                verticalCandidate && settings.allowRotation
             ) {
                 bestCombination =
                     chooseBetterCombination(
