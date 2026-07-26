@@ -55,9 +55,7 @@ return(
     </Text>
 
     <Text scale={[1 , -1, 1]} position={[ plate.x + plate.placedWidth / 2 + offset, plate.y + plate.placedHeight / 2 -
-        100, 3 ]} fontSize={60} anchorX="center" anchorY="middle" color="#111111"> {`${Math.round( plate.placedWidth )}
-        × ${Math.round(
-        plate.placedHeight )} mm`} </Text> </group>
+        100, 3 ]} fontSize={60} anchorX="center" anchorY="middle" color="#111111"> {`${Math.round( plate.placedWidth )} × ${Math.round(plate.placedHeight )}`} </Text> </group>
 );
 
 }

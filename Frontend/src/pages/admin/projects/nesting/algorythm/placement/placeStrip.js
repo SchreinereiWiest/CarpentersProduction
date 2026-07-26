@@ -16,7 +16,7 @@ export function placeStrip(
 
     strip.sheet = bestSpace.space.sheet;
 
-    strip.id = nestingPlates[bestSpace.space.sheet].strips.length;
+    // strip.id = nestingPlates[bestSpace.space.sheet].strips.length;
 
     strip.x = bestSpace.x;
     strip.y = bestSpace.y;

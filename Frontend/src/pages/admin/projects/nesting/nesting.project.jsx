@@ -73,6 +73,10 @@ function NestingView() {
 
         // 3. Wieder mit der lokalen Variable weiterarbeiten
         const nestingData = calculateNesting(processedData, userSettings);
+        nestingData.forEach(plate => {
+            plate.settings = userSettings;
+        });
+        
 
         setNestingResult(nestingData);
 
@@ -270,7 +274,7 @@ function NestingView() {
 
                 {activeStrip && ( <div className="absolute top-56 left-4 z-20">
                     <div className="bg-gray-800/90 backdrop-blur border border-gray-700 rounded-lg px-4 py-3 shadow-lg">
-                        <div className="text-xs text-gray-400 mb-1"> Aktiver Strip </div>
+                        <div className="text-gray-400 mb-1"><span className="text-sm"> Aktiver Strip</span> <span className="ml-8 font-semibold text-white text-l">{activeStrip.id}</span></div>
                         <div className="font-semibold text-white"> {activeStrip.placedWidth} x {activeStrip.placedHeight} </div>
                         {activeStrip?.plates?.map((plate, index) => (
                         <div className="flex gap-4 mt-2 text-lm text-gray-500" key={plate.id}> <span> {plate.originalWidth} x {plate.originalHeight} | {plate.original.Objektname} </span> </div>
