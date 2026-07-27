@@ -4,7 +4,7 @@ import prisma from "../config/prisma.js";
 
 const createUser = async () => {
 
-    const password = "carpenter";
+    const password = "admin";
 
     const passwordHash = await bcrypt.hash(
         password,
@@ -15,11 +15,11 @@ const createUser = async () => {
 
         data: {
 
-            email: "user",
+            email: "admin",
 
             passwordHash,
 
-            role: "user",
+            role: "admin",
 
             isActive: true,
         },

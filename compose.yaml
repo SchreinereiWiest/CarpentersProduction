@@ -41,7 +41,7 @@ services:
     labels:
       - "traefik.enable=true"
 
-      - "traefik.http.routers.frontend.rule=Host(`app.localhost`) && PathPrefix(`/`)"
+      - "traefik.http.routers.frontend.rule=Host(`10.10.100.52`) && PathPrefix(`/`)"
       - "traefik.http.routers.frontend.priority=1"   
       - "traefik.http.routers.frontend.entrypoints=web"
 
@@ -66,7 +66,7 @@ services:
     labels:
       - "traefik.enable=true"
 
-      - "traefik.http.routers.backend.rule=Host(`app.localhost`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.backend.rule=Host(`10.10.100.52`) && PathPrefix(`/api`)"
       - "traefik.http.routers.backend.priority=100"
       - "traefik.http.routers.backend.entrypoints=web"
 
@@ -114,7 +114,8 @@ services:
     labels:
       - "traefik.enable=true"
 
-      - "traefik.http.routers.garage.rule=Host(`storage.localhost`)"
+      - "traefik.http.routers.garage.rule=Host(`10.10.100.52`) && PathPrefix(`/carpenters-storage`)"
+      - "traefik.http.routers.garage.priority=50"
       - "traefik.http.routers.garage.entrypoints=web"
 
       - "traefik.http.services.garage.loadbalancer.server.port=3900"

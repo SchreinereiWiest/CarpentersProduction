@@ -124,7 +124,7 @@ model Project {
 
   startDate        DateTime? @map("start_date")
   installationDate DateTime? @map("installation_date")
-  completionDate   DateTime? @map("completion_date")
+    completionDate   DateTime? @map("completion_date")
 
   specialRequirements String? @map("special_requirements")
   customerNotes       String? @map("customer_notes")
@@ -270,4 +270,38 @@ model ProjectStorage {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("project_storage")
+}
+
+
+model Material {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  materialNumber String? @map("material_number")
+  name           String  @map("name")
+  manufacturer   String? @map("manufacturer")
+
+  width Int @map("width")
+
+  height Int @map("height")
+
+  category String? @map("category")
+
+  thickness Float? @map("thickness")
+
+  pricePerSquareMeter Decimal? @map("price_per_square_meter") @db.Decimal(10, 2)
+
+  quantity Int? @map("quantity")
+
+  minimumStorage Int? @map("minimum_storage")
+
+  maser Boolean? @default(false) @map("maser")
+
+  supplier String? @map("supplier")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([materialNumber])
+  @@index([name])
+  @@map("materials")
 }

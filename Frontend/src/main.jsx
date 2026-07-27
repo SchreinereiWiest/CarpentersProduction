@@ -20,6 +20,8 @@ import CadViewer from "./pages/admin/projects/cad/cad.project.jsx";
 import ListMaterial from "./pages/admin/projects/list/list.project.jsx";
 import NestingView from "./pages/admin/projects/nesting/nesting.project.jsx";
 import CutingView from "./pages/admin/projects/cut/cut.project.jsx";
+import ProjectOverview from "./pages/admin/projects/overview.project.jsx";
+import ShowStorage from "./pages/admin/storage/home.storage.jsx";
 
 import './index.css'
 
@@ -75,32 +77,44 @@ ReactDOM.createRoot(root).render(
             }
             />
 
-          <Route path="/Projects/:projectId" element={ <ProtectedRoute>
+            <Route path="/Projects" element={ <ProtectedRoute requiredRole="user">
+            <ProjectOverview/>
+            </ProtectedRoute>
+            }
+            />
+
+            <Route path="/Projects/:projectId" element={ <ProtectedRoute requiredRole="user">
             <ShowProject />
             </ProtectedRoute>
             }
             />
 
-            <Route path="/Projects/CAD/:projectId" element={ <ProtectedRoute>
+            <Route path="/Projects/CAD/:projectId" element={ <ProtectedRoute requiredRole="user">
             <CadViewer />
             </ProtectedRoute>
             }
             />
 
-            <Route path="/Projects/List/:projectId" element={ <ProtectedRoute>
+            <Route path="/Projects/List/:projectId" element={ <ProtectedRoute requiredRole="user">
             <ListMaterial />
             </ProtectedRoute>
             }
             />
 
-            <Route path="/Projects/Nesting/:projectId" element={ <ProtectedRoute>
+            <Route path="/Projects/Nesting/:projectId" element={ <ProtectedRoute requiredRole="user">
             <NestingView />
             </ProtectedRoute>
             }
             />
 
-            <Route path="/Projects/Cut/:projectId" element={ <ProtectedRoute>
+            <Route path="/Projects/Cut/:projectId" element={ <ProtectedRoute requiredRole="user">
             <CutingView/>
+            </ProtectedRoute>
+            }
+            />
+
+            <Route path="/Storage" element={ <ProtectedRoute requiredRole="user">
+            <ShowStorage/>
             </ProtectedRoute>
             }
             />

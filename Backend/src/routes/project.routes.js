@@ -1,19 +1,21 @@
 import express from "express";
 import prisma from "../config/prisma.js";
 
-import { newProject, getAllProjects, getProject, getGeneratedProjectData, createGeneratedProjectData } from "../controllers/project.controller.js";
-
+import { newProject, getAllProjectsID, getProject, getGeneratedProjectData, createGeneratedProjectData, getAllActive } from "../controllers/project.controller.js";
+import { authenticate } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
-router.post("/new", newProject);
+router.post("/new", authenticate, newProject);
 
-router.get("/getAll/:id", getAllProjects);
+router.get("/getAll/:id", authenticate, getAllProjectsID);
 
-router.get("/get/:id", getProject);
+router.get("/getActive", authenticate, getAllActive);
 
-router.get("/generated/:id/:name", getGeneratedProjectData);
+router.get("/get/:id", authenticate, getProject);
 
-router.post("/generated/:id/:name", createGeneratedProjectData);
+router.get("/generated/:id/:name", authenticate, getGeneratedProjectData);
+
+router.post("/generated/:id/:name", authenticate, createGeneratedProjectData);
 
 export default router;

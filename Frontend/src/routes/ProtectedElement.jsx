@@ -3,7 +3,7 @@ import { useAuth } from "./AuthContext";
 
 // User überprüfen und bei fehlendem User auf Login Seite weiterleiten
 
-export default function ProtectedRoute({ children, requiredRole }) {
+export default function ProtectedElement({ children, requiredRole }) {
 
     const { user, loading } = useAuth();
 
@@ -23,8 +23,7 @@ export default function ProtectedRoute({ children, requiredRole }) {
 
     
     if (requiredRole && user.role !== requiredRole && user.role != "admin" || (requiredRole === "admin" && user.role !== "admin")) {
-        return <Navigate to="/" replace />;
+        return <></>;
     }
-    console.log(user, requiredRole);
     return children;
 } 

@@ -7,9 +7,10 @@ import { authenticate } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
-router.post("/upload-url", createUploadUrl);
+router.post("/upload-url", authenticate, createUploadUrl);
 
 router.post("/complete", uploadcomplete);
 
 router.get("/download/:id", authenticate, createDownloadUrl);
+
 export default router;

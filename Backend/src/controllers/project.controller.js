@@ -30,7 +30,7 @@ export const newProject = async (req, res) => {
 
 }
 
-export const getAllProjects = async (req, res) => {
+export const getAllProjectsID = async (req, res) => {
     const id = req.params.id;
 
     
@@ -45,6 +45,39 @@ export const getAllProjects = async (req, res) => {
             title: "asc",
           },
         ],
+
+      });
+
+    res.status(200).json({
+      projects
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      error: "Internal server error",
+    });
+  }
+};
+
+export const getAllActive = async (req, res) => {
+    
+  try {
+
+    const projects = await prisma.project.findMany({
+        where: {
+        status: {
+            not: "archived"
+        }
+    },
+        orderBy: [
+          {
+            title: "asc",
+          },
+        ],
+        include : {
+            customer: true
+        }
 
       });
 

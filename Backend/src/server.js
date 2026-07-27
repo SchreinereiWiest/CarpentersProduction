@@ -8,13 +8,15 @@ import authRoutes from "./routes/auth.routes.js";
 import customerRoutes from "./routes/customer.routes.js";
 import projectRoutes from "./routes/project.routes.js";
 import fileRoutes from "./routes/file.routes.js";
+import storageRoutes from "./routes/storage.routes.js"
 
 dotenv.config();
 
 const app = express();
 
 app.use(cors({
-  origin: "http://app.localhost",
+  origin: ["http://10.10.100.52"],
+
   credentials: true,
 }));
 
@@ -30,6 +32,8 @@ app.use("/customers", customerRoutes);
 app.use("/projects", projectRoutes);
 
 app.use("/files", fileRoutes);
+
+app.use("/materials", storageRoutes);
 
 app.listen(5000, () => {
   console.log("Backend running on port 5000");
