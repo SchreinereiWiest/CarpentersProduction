@@ -9,7 +9,7 @@ import { useCorpus } from "./useProjectEditor";
 import { ProjectSave } from './uploadProject';
 import CustomerSearch from './customerSearch.project';
 
-export default function CorpusRight({EditorState}) {
+export default function CorpusRight({EditorState, mode, id}) {
 
     const [projectName, setProjectName] = useState("");
     const [projectDescription, setProjectDescription] = useState("");
@@ -165,14 +165,9 @@ return <>
                 
 
             </div>
-
-            <CustomerSearch
-
-    selectedCustomer={selectedCustomer}
-
-    setSelectedCustomer={setSelectedCustomer}
-
-/>
+            
+            {mode == "edit" ? <></> : <div>
+                <CustomerSearch selectedCustomer={selectedCustomer} setSelectedCustomer={setSelectedCustomer} />
 
 <input placeholder="Name" className=" rounded-lg bg-gray-900 p-3 w-full" type="text" value={projectName} onChange={(e)=>
 setProjectName(e.target.value)
@@ -214,14 +209,16 @@ placeholder="Projekt Name"
                     </div>
                     ))}
 
-                </div>
+                </div> 
+                
+                </div>}
 
         </div>
 
         <div className={activeCorpus ? ` border-t border-gray-700 p-5 ` : <>
 </>}>
 
-{activeCorpus?.type == "corpus" && KorpusEdit == false ? <button className="
+{activeCorpus?.type == "KO" && KorpusEdit == false ? <button className="
                             w-full
                             rounded-lg
                             bg-orange-600
@@ -239,7 +236,7 @@ placeholder="Projekt Name"
 
     Korpus Editieren
 
-</button> : activeCorpus?.type == "corpus" && KorpusEdit ? <button className="
+</button> : activeCorpus?.type == "KO" && KorpusEdit ? <button className="
                             w-full
                             rounded-lg
                             bg-red-600
@@ -288,7 +285,7 @@ placeholder="Projekt Name"
                             hover:bg-green-500
                         " onClick={(e)=>
         {
-        if (KorpusEdit | activeCorpus.type !="corpus") {
+        if (KorpusEdit | activeCorpus.type !="KO") {
         createCorpus(activeCorpus.id, activeCorpus.type);
         }
         setActiveCorpus(null);
@@ -305,7 +302,7 @@ placeholder="Projekt Name"
                             py-3
                             font-semibold
                             hover:bg-green-500
-                        " onClick={(e) => {ProjectSave(corpuses, materials, selectedCustomer, files, projectDescription, projectName);
+                        " onClick={(e) => {ProjectSave(corpuses, materials, selectedCustomer, files, projectDescription, projectName, mode, id);
                             navigate(`/Projects`);
                         }}>
 

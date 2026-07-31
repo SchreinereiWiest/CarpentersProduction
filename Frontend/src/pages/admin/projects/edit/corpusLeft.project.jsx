@@ -119,7 +119,7 @@ return <>
             <button key={corpus.id} onClick={(e)=> {
                 e.stopPropagation();
 
-                if(corpus.type=="corpus") {
+                if(corpus.type=="KO") {
                 setSelectedName("");
                 setSelectedHeigth("");
                 setSelectedWidth("");
@@ -173,7 +173,7 @@ return <>
                     </div>
                 </div>
 
-                {corpus.type=="corpus" ? <div className="text-sm text-gray-300">
+                {corpus.type=="KO" ? <div className="text-sm text-gray-300">
 
                     {corpus.Children.length} Platten
 

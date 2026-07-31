@@ -12,8 +12,21 @@ import { useCorpus } from "./useProjectEditor";
 import CorpusLeft from "./corpusLeft.project";
 import CorpusMiddle from "./corpusMiddle.project";
 import CorpusRight from "./corpusRight.project";
+import { useLocation } from "react-router";
+import { importCadData } from "./importCAD";
 
 function CreateProject() {
+
+    const { id } = useParams();
+    const location = useLocation();
+
+    const cadData = location.state?.cadData;
+    let mode = location.state?.mode;
+
+    if (mode != "edit") {
+        mode = "create";
+    }
+
     const EditorState = useCorpus();
 
     const {
@@ -73,6 +86,15 @@ function CreateProject() {
 
 } = EditorState;
     
+    useEffect(() => {
+
+    if (!cadData) return;
+
+    const corpuses = importCadData(cadData, materials);
+
+    setCorpuses(corpuses);
+
+}, [cadData, materials]);
     
     useEffect(() => {
     
@@ -127,7 +149,7 @@ function CreateProject() {
 
                     <CorpusMiddle EditorState={EditorState} />
 
-                    <CorpusRight EditorState={EditorState} />
+                    <CorpusRight EditorState={EditorState} mode={mode} id={id} />
 
                 </div>
 

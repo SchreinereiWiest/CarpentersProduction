@@ -23,10 +23,10 @@ export function useCorpus() {
         let children = [];
 
         if(type==null) {
-            type="corpus";
+            type="KO";
         }
 
-        if(type=="corpus") {
+        if(type=="KO") {
 
                     if (activeCorpus != null) {
                         children = activeCorpus.Children;
@@ -79,7 +79,10 @@ export function useCorpus() {
 
             if (override != null) {
                 console.log(children);
-                children = updateChildren(children, material);
+
+                
+
+                children = updateChildren(children, materials);
                 console.log(children);
             }
 
@@ -297,8 +300,11 @@ setCorpuses(prev =>
     );
     }
 
-    function updateChildren (children, material) {
+    function updateChildren (children, materials) {
         return children.map(child => {
+            const childMaterial = materials.find(
+                material => material.id === child.MID
+            );
 
         switch (child.preset) {
 
@@ -306,9 +312,9 @@ setCorpuses(prev =>
 
                 return {
                     ...child,
-                    height: selectedWidth-material.thickness*2,
+                    height: selectedWidth-childMaterial.thickness*2,
                     width: selectedDepth,
-                    depth: material.thickness
+                    depth: childMaterial.thickness
                 };
 
             case "Seite":
@@ -317,7 +323,7 @@ setCorpuses(prev =>
                     ...child,
                     height: selectedHeigth,
                     width: selectedDepth,
-                    depth: material.thickness
+                    depth: childMaterial.thickness
                 };
 
             case "Back":

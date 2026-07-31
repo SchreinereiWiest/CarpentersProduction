@@ -128,6 +128,12 @@ ReactDOM.createRoot(root).render(
             }
             />
 
+            <Route path="/Projects/Create/:id" element={ <ProtectedRoute requiredRole="user">
+            <CreateProject/>
+            </ProtectedRoute>
+            }
+            />
+
             <Route path="/Storage" element={ <ProtectedRoute requiredRole="user">
             <ShowStorage/>
             </ProtectedRoute>

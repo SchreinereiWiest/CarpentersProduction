@@ -8,6 +8,7 @@ import { Link } from "react-router";
 import ProjectBar from '../../../../components/projectBar.jsx';
 import { loadCadFile } from '../cad/cadLoader.project.js';
 import { processContent } from './listProcess.project.js';
+import { importCadData } from '../edit/importCAD.js';
 
 function ListMaterial() {
     const navigate = useNavigate();
@@ -307,11 +308,71 @@ return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden">
 
             <div className="w-1/3 border-l border-gray-700 p-8">
 
-                <h2 className="text-xl font-semibold mb-6">
+                <div className='flex justify-between'>
+
+                    <h2 className="text-xl font-semibold ">
                     Einzelteile
                 </h2>
 
-                <div className="space-y-3">
+                <div className='flex'>
+                    <button
+             onClick={() => navigate(`/projects/create/${projectId}`, {
+        state: {
+            mode: "edit",
+            cadData: processedContent
+        }
+    })}
+            className="
+            ml-8
+                flex
+                items-center
+                gap-3
+                rounded-lg
+                border
+                border-gray-700
+                bg-gray-800
+                px-4
+                py-2
+                whitespace-nowrap
+                text-gray-400
+                transition-all
+                duration-200
+                hover:bg-gray-700
+                hover:text-white
+            "
+        >
+            Editieren
+        </button>
+
+        <button
+             onClick={() => UploadData()}
+            className="
+            ml-8
+                flex
+                items-center
+                gap-3
+                rounded-lg
+                border
+                border-gray-700
+                bg-gray-800
+                px-4
+                py-2
+                whitespace-nowrap
+                text-gray-400
+                transition-all
+                duration-200
+                hover:bg-gray-700
+                hover:text-white
+            "
+        >
+            Update
+        </button>
+        </div>
+
+                </div>
+                
+
+                <div className="space-y-3 mt-4">
 
                     {rightItems?.map((item) => (
 
