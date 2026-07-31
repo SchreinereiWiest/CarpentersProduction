@@ -35,7 +35,6 @@ export async function getMaterials(req, res) {
 
 }
 
-
 export async function createMaterial(req, res) {
 
     try {

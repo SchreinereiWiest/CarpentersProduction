@@ -6,8 +6,17 @@ import { useParams } from 'react-router';
 
 import { corpusPresets, platePresets } from "./helper";
 import { useCorpus } from "./useProjectEditor";
+import { ProjectSave } from './uploadProject';
+import CustomerSearch from './customerSearch.project';
 
 export default function CorpusRight({EditorState}) {
+
+    const [projectName, setProjectName] = useState("");
+    const [projectDescription, setProjectDescription] = useState("");
+    const [files, setFiles] = useState([]);
+    const [selectedCustomer, setSelectedCustomer] = useState(null);
+    
+    const navigate = useNavigate();
 
             const {
     // Auswahl
@@ -101,7 +110,7 @@ return <>
         p-5
         space-y-3
     ">
-            <div className="mb-4">
+            <div className="mb-12">
 
                 <label className="
         block
@@ -153,7 +162,59 @@ return <>
 
                 </select>
 
+                
+
             </div>
+
+            <CustomerSearch
+
+    selectedCustomer={selectedCustomer}
+
+    setSelectedCustomer={setSelectedCustomer}
+
+/>
+
+<input placeholder="Name" className=" rounded-lg bg-gray-900 p-3 w-full" type="text" value={projectName} onChange={(e)=>
+setProjectName(e.target.value)
+}
+
+placeholder="Projekt Name"
+/>
+
+<textarea name="projectDescription" id="projectDescription" placeholder="Project Description" value={projectDescription}
+    onChange={(e)=> setProjectDescription(e.target.value)}
+                                className=" rounded-lg bg-gray-900 p-3 w-full"
+                            />
+
+                            <div className="w-full">
+                            <div
+                                className="relative h-36 rounded-lg bg-gray-900 p-3 w-full flex justify-center items-center">
+
+                                <div className="absolute">
+
+                                    <div className="flex flex-col items-center">
+                                        <i className="fa fa-folder-open fa-4x text-gray-400"></i>
+                                        <span className="block text-gray-400 font-normal">Attach Images Here</span>
+                                    </div>
+                                </div>
+
+                                <input className="w-full h-full opacity-0" type="file" multiple accept='.jpg, .png .glb' onChange={(e)=>{
+                                setFiles(Array.from(e.target.files));
+                                }}
+                                />
+
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+
+                    {files.map(file=>(
+                    <div key={file.name} className="bg-gray-700 rounded p-2 w-full">
+                        {file.name}
+                    </div>
+                    ))}
+
+                </div>
 
         </div>
 
@@ -244,7 +305,9 @@ return <>
                             py-3
                             font-semibold
                             hover:bg-green-500
-                        ">
+                        " onClick={(e) => {ProjectSave(corpuses, materials, selectedCustomer, files, projectDescription, projectName);
+                            navigate(`/Projects`);
+                        }}>
 
         Projekt speichern
 

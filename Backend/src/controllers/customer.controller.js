@@ -180,3 +180,74 @@ export const getCustomerInfo = async (req, res) => {
     });
   }
 };
+
+
+
+export const searchCustomers = async (req, res) => {
+
+    try {
+
+        const search = req.query.search ?? "";
+
+        const customers = await prisma.customer.findMany({
+
+            where: {
+
+                OR: [
+
+                    {
+                        firstName: {
+                            contains: search,
+                            mode: "insensitive"
+                        }
+                    },
+
+                    {
+                        lastName: {
+                            contains: search,
+                            mode: "insensitive"
+                        }
+                    },
+
+                    {
+                        companyName: {
+                            contains: search,
+                            mode: "insensitive"
+                        }
+                    }
+
+                ]
+
+            },
+
+            orderBy: [
+
+                {
+                    companyName: "asc"
+                },
+
+                {
+                    lastName: "asc"
+                }
+
+            ],
+
+            take: 15
+
+        });
+
+        res.status(200).json(customers);
+
+    }
+
+    catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+            error: "Internal server error"
+        });
+
+    }
+
+};

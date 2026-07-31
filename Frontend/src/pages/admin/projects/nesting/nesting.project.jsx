@@ -36,41 +36,84 @@ function NestingView() {
     const [nestingResult, setNestingResult] = useState();
 
     const [loadingGeneratedData, setLoadingGeneratedData] = useState(false);
+    const [loadingListData, setLoadingListData] = useState(false);
 
     const [settings, setSettings] = useState(defaultSettings);
     const [showSettings, setShowSettings] = useState(false);
 
     async function createdata(userSettings) {
-        const cadFiles = project?.files?.filter(file =>
-            file.fileName?.startsWith("Planung.json") ||
-            file.mimeType?.startsWith("model/gltf-binary")
-        ) ?? [];
+        if (!projectId) {
+            return;
+        }
 
-        setcadfiles(cadFiles);
+        const loadGeneratedData = async () => {
 
-        const jsonFile = cadFiles.find(file =>
-            file.fileName?.toLowerCase().endsWith(".json")
-        );
+            setLoadingListData(true);
 
-        if (!jsonFile) return;
+            try {
 
-        // 1. CAD-Daten laden
-        const contentData = await loadCadFile(jsonFile);
+                const response = await axios.get(
 
-        if (!contentData?.length) return;
+                    `/api/projects/generated/${projectId}/list`,
 
-        // State setzen
-        setContent(contentData);
+                    {
+                        withCredentials: true
+                    }
+
+                );
+
+                const {
+
+                    exists,
+
+                    downloadUrl,
+
+                } = response.data;
+
+                console.log(response.data, "list");
 
 
-        // 2. Direkt mit der lokalen Variable weiterarbeiten
-        const processedData = processContent(contentData);
+                // Datei existiert bereits
+                if (exists) {
+
+                    try {
+                        const fileResponse = await fetch(
+                            downloadUrl
+                        );
+
+                        const data = await fileResponse.json();
+
+
+                        setProcessedContent(data);
+
+                        return data;
+                    } catch (error) {
+                        console.warn("cant fetch data, try new upload");
+                    }
+
+                }
+
+                //datei existiert nicht -> neu erstellen un hochladen
+                console.warn("Keine datei vorhanden!");
+
+            } catch (error) {
+
+                console.error(
+                    "Generated data konnte nicht geladen werden",
+                    error
+                );
+
+            } finally {
+
+                setLoadingListData(false);
+
+            }
+
+        };
+
+        const processedData = await loadGeneratedData();
 
         if (!processedData) return;
-
-        // State setzen
-        setProcessedContent(processedData);
-
 
         // 3. Wieder mit der lokalen Variable weiterarbeiten
         const nestingData = calculateNesting(processedData, userSettings);

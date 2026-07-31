@@ -132,6 +132,10 @@ export const getGeneratedProjectData = async (req, res) => {
         fileName = "nesting.json"
         break;
 
+      case "list": 
+        fileName = "list.json"
+        break;
+
       default:
         fileName="";
         break;
@@ -205,6 +209,10 @@ export async function createGeneratedProjectData(req,res){
     switch(name) {
       case "nesting": 
         fileName = "nesting.json"
+        break;
+
+      case "list": 
+        fileName = "list.json"
         break;
 
       default:

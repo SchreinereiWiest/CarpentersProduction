@@ -20,6 +20,8 @@ function ListMaterial() {
     const [content, setContent] = useState([]);
     const [processedContent, setProcessedContent] = useState();
 
+    const [loadingGeneratedData, setLoadingGeneratedData] = useState(false);
+
     useEffect(() => {
         const fetchProject = async () => {
         const { data } = await axios.get(`/api/projects/get/${projectId}`);
@@ -34,7 +36,9 @@ function ListMaterial() {
     }, [projectId]);
 
 
-    useEffect(() => {
+    async function UploadData() {
+        // Datei existiert nicht
+
         const cadFiles = project?.files?.filter(file =>
             file.fileName?.startsWith("Planung.json") ||
             file.mimeType?.startsWith("model/gltf-binary")
@@ -54,20 +58,135 @@ function ListMaterial() {
 
                 const result = await loadCadFile(jsonFile);
                 setContent(result);
+                return result;
                 
             };
-        load();
+        
 
-}, [project]);
+                const contentData = await load();
+                console.log(contentData);
+                const generatedData = processContent(contentData);
+                setProcessedContent(generatedData);
+                
+                if (!generatedData) return;
 
-    console.log(content);
+                // Datei beim Backend erstellen
+                const postResponse =
+                    await axios.post(
+
+                        `/api/projects/generated/${projectId}/list`,
+                        {
+                        },
+
+                        {
+                            withCredentials: true
+                        }
+
+                    );
+
+                const jsonContent = JSON.stringify(generatedData);
+
+                console.log(postResponse.data);
+
+                const s3response = await axios.put(
+                    postResponse.data.uploadUrl,
+                    jsonContent,
+                    {
+                        headers: {
+                            "Content-Type": jsonContent.type
+                        }
+                    }
+                );
+
+    }
+
 
     useEffect(() => {
-        if (!content.length) return;
 
-        setProcessedContent(processContent(content));
+        if (!projectId) {
+            return;
+        }
 
-    }, [content]);
+        const loadGeneratedData = async () => {
+
+            setLoadingGeneratedData(true);
+
+            try {
+
+                const response = await axios.get(
+
+                    `/api/projects/generated/${projectId}/list`,
+
+                    {
+                        withCredentials: true
+                    }
+
+                );
+
+                const {
+
+                    exists,
+
+                    downloadUrl,
+
+                } = response.data;
+
+                console.log(response.data);
+
+
+                // Datei existiert bereits
+                if (exists) {
+
+                    try {
+                        const fileResponse = await fetch(
+                            downloadUrl
+                        );
+
+                        const data = await fileResponse.json();
+
+
+                        setProcessedContent(data);
+
+                        return;
+                    } catch (error) {
+                        console.warn("cant fetch data, try new upload");
+                    }
+
+                }
+
+                //datei existiert nicht -> neu erstellen un hochladen
+                await UploadData();
+
+
+            } catch (error) {
+
+                console.error(
+                    "Generated data konnte nicht geladen werden",
+                    error
+                );
+
+            } finally {
+
+                setLoadingGeneratedData(false);
+
+            }
+
+        };
+
+
+        loadGeneratedData();
+
+    }, [projectId, project]);
+
+
+    // console.log(content);
+
+    // useEffect(() => {
+    //     if (!content.length) return;
+
+    //     setProcessedContent(processContent(content));
+
+    // }, [content]);
 
 
 console.log(processedContent);
