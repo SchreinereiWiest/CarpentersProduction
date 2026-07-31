@@ -1,10 +1,10 @@
 
 export function createStrips(sortedPlates, settings) {
     const verticalTarget =
-        settings.defaultSheet.height;
+        settings.defaultSheet.height - settings.margin*2;
 
     const horizontalTarget =
-        settings.defaultSheet.width;
+        settings.defaultSheet.width  - settings.margin*2;
 
     const cutGap =
         settings.cutGap;

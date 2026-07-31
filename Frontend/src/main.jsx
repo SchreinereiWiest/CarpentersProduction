@@ -22,7 +22,8 @@ import NestingView from "./pages/admin/projects/nesting/nesting.project.jsx";
 import CutingView from "./pages/admin/projects/cut/cut.project.jsx";
 import ProjectOverview from "./pages/admin/projects/overview.project.jsx";
 import ShowStorage from "./pages/admin/storage/home.storage.jsx";
-
+import TimeTracking from "./pages/admin/projects/timetracking/timeTracking.project.jsx";
+import CreateProject from "./pages/admin/projects/edit/create.project.jsx";
 import './index.css'
 
 import {
@@ -30,6 +31,8 @@ createContext,
 useState,
 useContext
 } from "react";
+
+
 
 const root = document.getElementById("root");
 
@@ -109,6 +112,18 @@ ReactDOM.createRoot(root).render(
 
             <Route path="/Projects/Cut/:projectId" element={ <ProtectedRoute requiredRole="user">
             <CutingView/>
+            </ProtectedRoute>
+            }
+            />
+
+            <Route path="/Projects/Time/:projectId" element={ <ProtectedRoute requiredRole="user">
+            <TimeTracking/>
+            </ProtectedRoute>
+            }
+            />
+
+            <Route path="/Projects/Create" element={ <ProtectedRoute requiredRole="user">
+            <CreateProject/>
             </ProtectedRoute>
             }
             />

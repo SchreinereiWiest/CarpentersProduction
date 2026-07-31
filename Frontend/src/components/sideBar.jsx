@@ -10,7 +10,7 @@ function SideBar({selected=0}) {
     const {SideBarCollapsed, setSideBarCollapsed} = useApp();
 
 return (
-<nav aria-label="Sidebar" className="hidden lg:block lg:flex-shrink-0 lg:overflow-y-auto lg:bg-gray-800">
+<nav aria-label="Sidebar" className="block flex-shrink-0 overflow-y-auto bg-gray-800">
     <div className={SideBarCollapsed ? "relative flex w-20 flex-col space-y-3 p-3"
         : "relative flex w-60 flex-col space-y-3 p-3" }>
         

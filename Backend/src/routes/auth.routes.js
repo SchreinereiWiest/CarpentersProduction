@@ -2,6 +2,7 @@ import express from "express";
 import prisma from "../config/prisma.js";
 
 import {
+    getAllUsers,
   login,
 } from "../controllers/auth.controller.js";
 import { authenticate } from "../middleware/auth.middleware.js";
@@ -13,6 +14,8 @@ const router = express.Router();
 // authenticate middleware für reauthorization
 
 router.post("/login", login);
+
+router.get("/users", authenticate, getAllUsers); 
 
 //reauthorize
 router.get("/me", authenticate, async (req, res) => {

@@ -12,6 +12,7 @@ import { calculateNesting } from './algorythm/nestingAlgorythm.js';
 import NestingScene from './nestingscene.project.jsx';
 import { defaultSettings } from './algorythm/helper/defaults.js';
 import NestingSettingsModal from "./nestingSettingsModal.project.jsx"
+import { TOUCH } from "three";
 
 import { Canvas, useFrame, useLoader } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
@@ -279,6 +280,7 @@ function NestingView() {
                         {activeStrip?.plates?.map((plate, index) => (
                         <div className="flex gap-4 mt-2 text-lm text-gray-500" key={plate.id}> <span> {plate.originalWidth} x {plate.originalHeight} | {plate.original.Objektname} </span> </div>
                         ))}
+                        <div className="text-gray-500 text-lm"> Rest: {activeStrip.remainingHeight} </div>
                     </div>
 
                 </div> )}
@@ -366,11 +368,20 @@ function NestingView() {
                                 activeStrip={activeStrip} settings={settings}/>
                         </group>
 
-                        <OrbitControls enableRotate={false} enablePan={true} enableZoom={true} mouseButtons={{
+                        <OrbitControls
+    enableRotate={false}
+    enablePan={true}
+    enableZoom={true}
+    mouseButtons={{
         LEFT: MOUSE.PAN,
         MIDDLE: MOUSE.DOLLY,
-        RIGHT: MOUSE.PAN
-    }} />
+        RIGHT: MOUSE.PAN,
+    }}
+    touches={{
+        ONE: TOUCH.PAN,
+        TWO: TOUCH.DOLLY_PAN,
+    }}
+/>
 
                     </Canvas>
 

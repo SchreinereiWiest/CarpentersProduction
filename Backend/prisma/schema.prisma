@@ -19,6 +19,15 @@ enum CustomerStatus {
   inactive
 }
 
+enum WorkType {
+  cutting
+  edging
+  cnc
+  assembly
+  finishing
+  installation
+}
+
 model User {
   id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email        String   @unique
@@ -32,6 +41,7 @@ model User {
   communications Communication[]
   appointments   Appointment[]
   files          File[]
+  timeTable TimeEntry[]
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -137,12 +147,14 @@ model Project {
   appointments   Appointment[]
   files          File[]
   storage        ProjectStorage[]
+  timeEntries    TimeEntry[]
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
   @@map("projects")
+  
 }
 
 model Communication {
@@ -304,4 +316,29 @@ model Material {
   @@index([materialNumber])
   @@index([name])
   @@map("materials")
+}
+
+
+model TimeEntry {
+
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  projectId String @map("project_id") @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  userId String? @map("user_id") @db.Uuid
+  user   User? @relation(fields: [userId], references: [id])
+
+  workType WorkType @map("work_type")
+
+  startedAt DateTime? @map("started_at")
+  endedAt DateTime? @map("ended_at")
+
+  duration Int @default(0) // Sekunden
+
+  note String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("time_entries")
 }

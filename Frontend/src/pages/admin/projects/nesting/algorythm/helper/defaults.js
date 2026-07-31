@@ -2,7 +2,7 @@
     export const defaultSettings = {
 
         // Rand zur Außenkante
-        margin: 10,
+        margin: 0,
 
         // Abstand zwischen Teilen
         gap: 20,

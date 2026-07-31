@@ -100,7 +100,7 @@ return (
 
         </Link>
 
-        <Link to="/" className={selected===7
+        <Link to={`/Projects/Time/${projectId}`} className={selected===7
             ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-14 rounded-lg"
             : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-14 rounded-lg"
             }>

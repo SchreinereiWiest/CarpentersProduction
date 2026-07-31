@@ -77,3 +77,33 @@ export const login = async (req, res) => {
     });
   }
 };
+
+export const getAllUsers = async (req, res) => {
+
+  try {
+
+    const users = await prisma.User.findMany({
+        orderBy: [
+          {
+            email: "asc",
+          },
+        ],
+
+      });
+
+      const filterUser = [];
+      users.forEach(element => {
+        filterUser.push({id: element.id, email: element.email});
+      });
+
+    res.status(200).json({
+      filterUser
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      error: "Internal server error",
+    });
+  }
+};
