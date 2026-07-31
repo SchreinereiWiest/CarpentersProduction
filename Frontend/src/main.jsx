@@ -8,22 +8,22 @@ import { AuthProvider } from "./routes/AuthContext";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import PublicRoute from "./routes/PublicRoute";
 
-import HomeAdmin from "./pages/admin/home.admin";
-import ContactsAdmin from "./pages/admin/contacts/contacts.admin.jsx";
-import ContactsNewAdmin from "./pages/admin/contacts/newcontact.admin.jsx";
-import ShowContactsAdmin from "./pages/admin/contacts/showcontact.admin.jsx";
-import EditContactsAdmin from "./pages/admin/contacts/editcontact.admin.jsx";
-import NewProject from "./pages/admin/projects/newproject.admin.jsx";
-import ShowProject from "./pages/admin/projects/home.project.jsx";
+import HomeAdmin from "./pages/home.admin";
+import ContactsAdmin from "./pages/contacts/contacts.admin.jsx";
+import ContactsNewAdmin from "./pages/contacts/newcontact.admin.jsx";
+import ShowContactsAdmin from "./pages/contacts/showcontact.admin.jsx";
+import EditContactsAdmin from "./pages/contacts/editcontact.admin.jsx";
+import NewProject from "./pages/projects/newproject.admin.jsx";
+import ShowProject from "./pages/projects/home.project.jsx";
 import Login from "./pages/public/Login";
-import CadViewer from "./pages/admin/projects/cad/cad.project.jsx";
-import ListMaterial from "./pages/admin/projects/list/list.project.jsx";
-import NestingView from "./pages/admin/projects/nesting/nesting.project.jsx";
-import CutingView from "./pages/admin/projects/cut/cut.project.jsx";
-import ProjectOverview from "./pages/admin/projects/overview.project.jsx";
-import ShowStorage from "./pages/admin/storage/home.storage.jsx";
-import TimeTracking from "./pages/admin/projects/timetracking/timeTracking.project.jsx";
-import CreateProject from "./pages/admin/projects/edit/create.project.jsx";
+import CadViewer from "./pages/projects/cad/cad.project.jsx";
+import ListMaterial from "./pages/projects/list/list.project.jsx";
+import NestingView from "./pages/projects/nesting/nesting.project.jsx";
+import CutingView from "./pages/projects/cut/cut.project.jsx";
+import ProjectOverview from "./pages/projects/overview.project.jsx";
+import ShowStorage from "./pages/storage/home.storage.jsx";
+import TimeTracking from "./pages/projects/timetracking/timeTracking.project.jsx";
+import CreateProject from "./pages/projects/edit/create.project.jsx";
 import './index.css'
 
 import {

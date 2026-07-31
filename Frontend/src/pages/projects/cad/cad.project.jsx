@@ -2,10 +2,10 @@ import React, { Children, useEffect, useRef, useState, useMemo } from "react";
 import axios from "axios";
 import { useNavigate, useParams } from 'react-router';
 
-import SideBar from "../../../../components/sideBar.jsx";
+import SideBar from "../../../components/sideBar.jsx";
 import Board from "./cadBoard.project.jsx";
 import EditorPanel from "./cadPanel.project.jsx";
-import ProjectBar from "../../../../components/projectBar.jsx";
+import ProjectBar from "../../../components/projectBar.jsx";
 import { loadCadFile } from "./cadLoader.project.js";
 
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader'

@@ -3,7 +3,8 @@
 import { useEffect, useState, setState } from "react";
 import axios from "axios";
 import { workTypes } from "./timeTracking.project";
-import { useAuth } from "../../../../routes/AuthContext";
+import { useAuth } from "../../../routes/AuthContext";
+import DurationInput from "./TimeEntry.project";
 
 export default function TimeControls({
     projectId,
@@ -56,21 +57,31 @@ export default function TimeControls({
 
     function formatTime(seconds) {
 
-        const h = Math.floor(seconds / 3600)
-            .toString()
-            .padStart(2, "0");
+    if (!seconds) return "00:00:00";
 
-        const m = Math.floor((seconds % 3600) / 60)
-            .toString()
-            .padStart(2, "0");
+    const h = Math.floor(seconds / 3600)
+        .toString()
+        .padStart(2, "0");
 
-        const s = Math.floor(seconds % 60)
-            .toString()
-            .padStart(2, "0");
+    const m = Math.floor((seconds % 3600) / 60)
+        .toString()
+        .padStart(2, "0");
 
-        return `${h}:${m}:${s}`;
+    const s = Math.floor(seconds % 60)
+        .toString()
+        .padStart(2, "0");
 
-    }
+    return `${h}:${m}:${s}`;
+
+}
+
+function timeToSeconds(value) {
+
+    const [h, m, s] = value.split(":").map(Number);
+
+    return h * 3600 + m * 60 + s;
+
+}
 
     async function startTimer(workType) {
 
@@ -124,20 +135,11 @@ export default function TimeControls({
 
                 if (!value) continue;
 
-                const split = value.split(":");
-
-                const seconds =
-                    parseInt(split[0]) * 3600 +
-                    parseInt(split[1]) * 60 +
-                    parseInt(split[2]);
-
-                if (seconds <= 0) continue;
-
                 await axios.post(
                     `/api/projects/time/${projectId}/new`,
                     {
                         workType,
-                        duration: seconds,
+                        duration: value,
                         userId: timeUser.id
                     }
                 );
@@ -162,13 +164,11 @@ export default function TimeControls({
             const { data } = await axios.get(`/api/auth/users`);
             const allUsers = data.filterUser;
             setAllUsers(data.filterUser);
-            console.log(data);
         };
         
         fetchUser();
     }, []);
 
-    console.log(allUsers);
     return (
 
         <div className="
@@ -303,32 +303,22 @@ export default function TimeControls({
 
                     <>
 
-                        <input
-                            type="time"
-                            step="1"
-                            value={
-                                manualTimes[work.id] ??
-                                "00:00:00"
-                            }
-                            disabled={disabled}
-                            onChange={(e) =>
-                                setManualTimes(prev => ({
-                                    ...prev,
-                                    [work.id]: e.target.value
-                                }))
-                            }
-                            className="
-                                mb-3
-                                w-full
-                                rounded-lg
-                                border
-                                border-gray-700
-                                bg-gray-800
-                                px-3
-                                py-2
-                                text-center
-                            "
-                        />
+                        <DurationInput
+
+    value={
+        manualTimes[work.id] ?? 0
+    }
+
+    disabled={disabled}
+
+    onChange={(seconds) =>
+        setManualTimes(prev => ({
+            ...prev,
+            [work.id]: seconds
+        }))
+    }
+
+/>
 
                         <button
                             disabled={disabled}

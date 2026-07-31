@@ -13,11 +13,15 @@ export const startTime = async (req, res) => {
                     }
                 },
 
+                user: {
+                    connect: {
+                        id: req.body.userId
+                    }
+                },
+
                 workType: req.body.workType,
 
                 startedAt: new Date(),
-
-                userId: req.body.userId
             }
 
         });
@@ -105,6 +109,7 @@ export const getTime = async (req, res) => {
 export const newTime = async (req, res) => {
 
     try {
+
         const entry = await prisma.timeEntry.create({
 
             data: {
@@ -115,6 +120,12 @@ export const newTime = async (req, res) => {
                     }
                 },
 
+                user: {
+                    connect: {
+                        id: req.body.userId
+                    }
+                },
+
                 workType: req.body.workType,
 
                 startedAt: req.body.startTime,
@@ -122,8 +133,6 @@ export const newTime = async (req, res) => {
                 endedAt: req.body.endTime,
 
                 duration: req.body.duration,
-
-                userId: req.body.userId
 
             }
 

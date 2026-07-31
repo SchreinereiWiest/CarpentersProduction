@@ -19,7 +19,7 @@ export default function TimeHistory({ entries }) {
 
         entries.forEach(entry => {
 
-            const day = new Date(entry.startedAt)
+            const day = new Date(entry.createdAt)
                 .toLocaleDateString("de-DE");
 
             if (!grouped[day]) {

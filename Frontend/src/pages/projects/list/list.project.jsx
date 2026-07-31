@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import SideBar from '../../../../components/sideBar.jsx';
+import SideBar from '../../../components/sideBar.jsx';
 import axios from 'axios';
 import { useNavigate } from 'react-router';
 import { useParams } from 'react-router';
 import { useEffect } from "react";
 import { Link } from "react-router";
-import ProjectBar from '../../../../components/projectBar.jsx';
+import ProjectBar from '../../../components/projectBar.jsx';
 import { loadCadFile } from '../cad/cadLoader.project.js';
 import { processContent } from './listProcess.project.js';
 import { importCadData } from '../edit/importCAD.js';

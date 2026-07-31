@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import SideBar from '../../components/sideBar.jsx'
+import SideBar from '../components/sideBar.jsx'
 
 function Home() {
 

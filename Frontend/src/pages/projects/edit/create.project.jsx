@@ -1,5 +1,5 @@
-import SideBar from "../../../../components/sideBar"
-import ProjectBar from "../../../../components/projectBar"
+import SideBar from "../../../components/sideBar"
+import ProjectBar from "../../../components/projectBar"
 
 import { useState, useEffect } from 'react'
 import { setCurrentStack } from "three/src/nodes/tsl/TSLCore.js";

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import SideBar from '../../../components/sideBar.jsx'
+import SideBar from '../../components/sideBar.jsx'
 import axios from 'axios';
 import { useNavigate } from 'react-router';
 import { useParams } from 'react-router';

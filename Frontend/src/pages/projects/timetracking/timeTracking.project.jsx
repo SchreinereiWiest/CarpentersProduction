@@ -4,8 +4,8 @@ import axios from "axios";
 
 import TimeControls from "./timeControll.project";
 import TimeHistory from "./timehistory.project";
-import SideBar from "../../../../components/sideBar";
-import ProjectBar from "../../../../components/projectBar";
+import SideBar from "../../../components/sideBar";
+import ProjectBar from "../../../components/projectBar";
 
 export const workTypes = [
 
@@ -61,7 +61,7 @@ export default function TimeTracking() {
         setEntries(data);
 
         const running = data.find(
-            entry => !entry.endedAt
+            entry => !entry.endedAt && entry.startedAt
         );
 
         setActiveEntry(running ?? null);
@@ -102,6 +102,7 @@ export default function TimeTracking() {
             grid-cols-2
             gap-6
             h-full
+            overflow-y-auto
         ">
 
             <TimeControls

@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import SideBar from '../../../components/sideBar.jsx'
+import SideBar from '../../components/sideBar.jsx'
 import axios from 'axios';
 import { useNavigate } from 'react-router';
 import { useParams } from 'react-router';
 import { useEffect } from "react";
 import { Link } from "react-router";
-import ProjectBar from '../../../components/projectBar.jsx';
-import ImageGallery from '../../../components/images/imageGalery.jsx';
+import ProjectBar from '../../components/projectBar.jsx';
+import ImageGallery from '../../components/images/imageGalery.jsx';
 
 //Untermenü in Kontakte, um ein neues Projekt für den Kunden zu erstellen.
 
