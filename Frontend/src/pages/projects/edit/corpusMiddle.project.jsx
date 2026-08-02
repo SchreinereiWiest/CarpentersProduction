@@ -44,6 +44,9 @@ export default function CorpusMiddle ({EditorState}) {
     KorpusMaterialId,
     setKorpusMaterialId,
 
+    EdgeMaterialId,
+    setEdgeMaterialId,
+
     // Bearbeitungsstatus
     KorpusEdit,
     setkorpusEdit,
@@ -59,6 +62,9 @@ export default function CorpusMiddle ({EditorState}) {
     error,
     setError,
 
+    selectedEdges,
+    setSelectedEdges,
+
     createCorpus,
     updateInput,
     addChildPlate,
@@ -66,6 +72,21 @@ export default function CorpusMiddle ({EditorState}) {
     updateChildren
 
 } = EditorState;
+
+
+function toggleEdge(edge) {
+
+    setSelectedEdges(prev => ({
+
+        ...prev,
+
+        [edge]: !prev[edge]
+
+    }));
+
+}
+
+
 return <>
     {/* =======================================
     Mitte
@@ -238,6 +259,12 @@ return <>
                 setSelectedPreset(child.preset);
                 setSelectedQuantity(child.quantity);
                 setActivePlate(child);
+                setSelectedEdges({
+                    top: child.ETID != "",
+                    right: child.ERID != "",
+                    bottom: child.EBID != "",
+                    left: child.ELID != ""
+                });
                 }
 
                 }>
@@ -287,6 +314,109 @@ return <>
                         </select>
 
                     </div>
+
+                   {activePlate?.id===child.id ? <div className="flex justify-center py-4">
+
+    <div className="grid grid-cols-3 grid-rows-3 gap-2">
+
+        <div />
+
+        <button
+            type="button"
+            onClick={(e) =>{e.stopPropagation(); toggleEdge("top");}}
+            className={`
+                h-10
+                w-10
+                rounded-lg
+                border
+                transition
+                ${
+                    selectedEdges.top
+                        ? "bg-orange-600 border-blue-500"
+                        : "bg-gray-800 border-gray-700"
+                }
+            `}
+        >
+            O
+        </button>
+
+        <div />
+
+        <button
+            type="button"
+            onClick={(e) =>{e.stopPropagation(); toggleEdge("left");}}
+            className={`
+                h-10
+                w-10
+                rounded-lg
+                border
+                transition
+                ${
+                    selectedEdges.left
+                        ? "bg-orange-600 border-blue-500"
+                        : "bg-gray-800 border-gray-700"
+                }
+            `}
+        >
+            L
+        </button>
+
+        <div className="
+            flex
+            items-center
+            justify-center
+            text-sm
+            text-gray-400
+        ">
+            Platte
+        </div>
+
+        <button
+            type="button"
+            onClick={(e) =>{e.stopPropagation(); toggleEdge("right");}}
+            className={`
+                h-10
+                w-10
+                rounded-lg
+                border
+                transition
+                ${
+                    selectedEdges.right
+                        ? "bg-orange-600 border-blue-500"
+                        : "bg-gray-800 border-gray-700"
+                }
+            `}
+        >
+            R
+        </button>
+
+        <div />
+
+        <button
+            type="button"
+            onClick={(e) =>{e.stopPropagation(); toggleEdge("bottom");}}
+            className={`
+                h-10
+                w-10
+                rounded-lg
+                border
+                transition
+                ${
+                    selectedEdges.bottom
+                        ? "bg-orange-600 border-blue-500"
+                        : "bg-gray-800 border-gray-700"
+                }
+            `}
+        >
+            U
+        </button>
+
+        <div />
+
+    </div>
+
+</div> : <></>}
+
                     <div>
                         {child.quantity}
                     </div>

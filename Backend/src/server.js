@@ -9,6 +9,7 @@ import customerRoutes from "./routes/customer.routes.js";
 import projectRoutes from "./routes/project.routes.js";
 import fileRoutes from "./routes/file.routes.js";
 import storageRoutes from "./routes/storage.routes.js"
+import timeRoutes from "./routes/time.routes.js";
 
 dotenv.config();
 
@@ -34,6 +35,8 @@ app.use("/projects", projectRoutes);
 app.use("/files", fileRoutes);
 
 app.use("/materials", storageRoutes);
+
+app.use("/time", timeRoutes);
 
 app.listen(5000, () => {
   console.log("Backend running on port 5000");

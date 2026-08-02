@@ -63,6 +63,9 @@ function CreateProject() {
     KorpusMaterialId,
     setKorpusMaterialId,
 
+    EdgeMaterialId,
+    setEdgeMaterialId,
+
     // Bearbeitungsstatus
     KorpusEdit,
     setkorpusEdit,
@@ -77,6 +80,9 @@ function CreateProject() {
 
     error,
     setError,
+
+    selectedEdges,
+    setSelectedEdges,
 
     createCorpus,
     updateInput,

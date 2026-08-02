@@ -52,6 +52,9 @@ export default function CorpusRight({EditorState, mode, id}) {
     KorpusMaterialId,
     setKorpusMaterialId,
 
+    EdgeMaterialId,
+    setEdgeMaterialId,
+
     // Bearbeitungsstatus
     KorpusEdit,
     setkorpusEdit,
@@ -66,6 +69,9 @@ export default function CorpusRight({EditorState, mode, id}) {
 
     error,
     setError,
+
+    selectedEdges,
+    setSelectedEdges,
 
     createCorpus,
     updateInput,
@@ -169,7 +175,7 @@ return <>
             {mode == "edit" ? <></> : <div>
                 <CustomerSearch selectedCustomer={selectedCustomer} setSelectedCustomer={setSelectedCustomer} />
 
-<input placeholder="Name" className=" rounded-lg bg-gray-900 p-3 w-full" type="text" value={projectName} onChange={(e)=>
+<input placeholder="Name" className="mt-4 rounded-lg bg-gray-900 p-3 w-full" type="text" value={projectName} onChange={(e)=>
 setProjectName(e.target.value)
 }
 
@@ -178,12 +184,12 @@ placeholder="Projekt Name"
 
 <textarea name="projectDescription" id="projectDescription" placeholder="Project Description" value={projectDescription}
     onChange={(e)=> setProjectDescription(e.target.value)}
-                                className=" rounded-lg bg-gray-900 p-3 w-full"
+                                className=" mt-4 rounded-lg bg-gray-900 p-3 w-full"
                             />
 
                             <div className="w-full">
                             <div
-                                className="relative h-36 rounded-lg bg-gray-900 p-3 w-full flex justify-center items-center">
+                                className=" mt-4 relative h-36 rounded-lg bg-gray-900 p-3 w-full flex justify-center items-center">
 
                                 <div className="absolute">
 

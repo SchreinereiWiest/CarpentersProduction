@@ -21,7 +21,6 @@ import * as THREE from "three";
 import { MapControls } from "@react-three/drei";
 import {MOUSE} from "three";
 
-
 function CutingView() {
     const navigate = useNavigate();
     const { projectId } = useParams();

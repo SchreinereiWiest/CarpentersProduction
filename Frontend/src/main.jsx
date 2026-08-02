@@ -31,6 +31,7 @@ createContext,
 useState,
 useContext
 } from "react";
+import Personal from "./pages/personal/personal.personal.jsx";
 
 
 
@@ -136,6 +137,12 @@ ReactDOM.createRoot(root).render(
 
             <Route path="/Storage" element={ <ProtectedRoute requiredRole="user">
             <ShowStorage/>
+            </ProtectedRoute>
+            }
+            />
+
+            <Route path="/Mitarbeiter" element={ <ProtectedRoute requiredRole="user">
+            <Personal/>
             </ProtectedRoute>
             }
             />

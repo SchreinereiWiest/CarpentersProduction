@@ -20,16 +20,6 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
     const getMaterial = (id) =>
         materials.find(m => m.id === id);
 
-    const createEdgeString = (plate) => {
-
-        const edge = edge =>
-            edge && edge !== "Standardmaterial"
-                ? "000"
-                : "";
-
-        return `${edge(plate.ELID)}:${edge(plate.ERID)}:${edge(plate.ETID)}:${edge(plate.EBID)}`;
-    };
-
     console.log(corpuses);
     cadData = corpuses.map(corpus => {
 
@@ -95,13 +85,13 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
 
                     Maserung: material?.maser ? "Ja" : "",
 
-                    ELID: child.ELID ?? "",
+                    ELID: getMaterial(child.ELID)?.materialNumber ?? "",
 
-                    ERID: child.ERID ?? "",
+                    ERID: getMaterial(child.ERID)?.materialNumber ?? "",
 
-                    ETID: child.ETID ?? "",
+                    ETID: getMaterial(child.ETID)?.materialNumber ?? "",
 
-                    EBID: child.EBID ?? "",
+                    EBID: getMaterial(child.EBID)?.materialNumber ?? "",
 
                     Notiz: "",
 
@@ -112,8 +102,6 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
                             .padStart(6, "0")
 
                 };
-
-                plate.Kante = createEdgeString(plate);
 
                 return plate;
 
@@ -126,104 +114,99 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
     console.log(cadData);
 
     //Upload Project
-    if(mode != "edit") {
+
+    let projectId = id;
+    if (mode != "edit") {
         const project = await axios.post("/api/projects/new", {
-                    customerId: selectedCustomer.id,
-                    title: projectName,
-                    description: projectDescription
-                },
-                    {
-                        withCredentials: true
-                    });
-        
+            customerId: selectedCustomer.id,
+            title: projectName,
+            description: projectDescription
+        },
+            {
+                withCredentials: true
+            });
+
+        projectId = project.data.id
+
         for (const file of files) {
-                    let mimeType = file.type;
-        
-                    if (mimeType == "" | !mimeType) {
-        
-                        const extension = file.name.split(".").pop().toLowerCase();
-        
-                        switch (extension) {
-        
-                            case "glb":
-                                mimeType = "model/gltf-binary";
-                                break;
-        
-                            case "gltf":
-                                mimeType = "model/gltf+json";
-                                break;
-                        }
-                    }
-                    
-                    const response = await axios.post("/api/files/upload-url",
-                    {
-                        entityId: project.data.id,
-                        customerId: selectedCustomer.id,
-                        entity: "project",
-                        fileName: file.name,
-                        mimeType: mimeType,
-                        fileSize: file.size
-                    });
-        
-                    console.log("Upload URL:", response.data.uploadUrl);
-        
-                    const s3response = await axios.put(
-                        response.data.uploadUrl,
-                        file,
-                        {
-                            headers:{
-                                "Content-Type": file.type
-                            }
-                        }
-                    );
-                    
-                    console.log(response.data.fileEntry.id);
-        
-                    await axios.post(`/api/files/complete/`, {
-                            id: response.data.fileEntry.id
-                        }
-                );
+            let mimeType = file.type;
+
+            if (mimeType == "" | !mimeType) {
+
+                const extension = file.name.split(".").pop().toLowerCase();
+
+                switch (extension) {
+
+                    case "glb":
+                        mimeType = "model/gltf-binary";
+                        break;
+
+                    case "gltf":
+                        mimeType = "model/gltf+json";
+                        break;
                 }
             }
-        const generatedData = cadData;
-                        
-                        if (!generatedData) return;
 
-                        let projectId = null;
+            const response = await axios.post("/api/files/upload-url",
+                {
+                    entityId: project.data.id,
+                    customerId: selectedCustomer.id,
+                    entity: "project",
+                    fileName: file.name,
+                    mimeType: mimeType,
+                    fileSize: file.size
+                });
 
-                        console.log(id, "id");
-                        if(mode=="edit") {
-                            projectId = id;
-                        } else {
-                            projectId = project.data.id;
-                        }
-        
-                        // Datei beim Backend erstellen
-                        const postResponse =
-                            await axios.post(
-        
-                                `/api/projects/generated/${projectId}/list`,
-                                {
-                                },
-        
-                                {
-                                    withCredentials: true
-                                }
-        
-                            );
-        
-                        const jsonContent = JSON.stringify(generatedData);
-        
-                        console.log(postResponse.data);
-        
-                        const s3response = await axios.put(
-                            postResponse.data.uploadUrl,
-                            jsonContent,
-                            {
-                                headers: {
-                                    "Content-Type": jsonContent.type
-                                }
-                            }
-                        );
+            console.log("Upload URL:", response.data.uploadUrl);
+
+            const s3response = await axios.put(
+                response.data.uploadUrl,
+                file,
+                {
+                    headers: {
+                        "Content-Type": file.type
+                    }
+                }
+            );
+
+            console.log(response.data.fileEntry.id);
+
+            await axios.post(`/api/files/complete/`, {
+                id: response.data.fileEntry.id
+            }
+            );
+        }
+    }
+    const generatedData = cadData;
+
+    if (!generatedData) return;
+
+    // Datei beim Backend erstellen
+    const postResponse =
+        await axios.post(
+
+            `/api/projects/generated/${projectId}/list`,
+            {
+            },
+
+            {
+                withCredentials: true
+            }
+
+        );
+
+    const jsonContent = JSON.stringify(generatedData);
+
+    console.log(postResponse.data);
+
+    const s3response = await axios.put(
+        postResponse.data.uploadUrl,
+        jsonContent,
+        {
+            headers: {
+                "Content-Type": jsonContent.type
+            }
+        }
+    );
 
 }

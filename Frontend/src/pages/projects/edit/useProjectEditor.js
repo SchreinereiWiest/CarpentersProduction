@@ -13,10 +13,19 @@ export function useCorpus() {
     const [selectedPreset, setSelectedPreset] = useState("def");
 
     const [KorpusMaterialId, setKorpusMaterialId] = useState("");
+    //mehrfachEdgeMat
+    const [EdgeMaterialId, setEdgeMaterialId] = useState("");
     const [KorpusEdit, setkorpusEdit] = useState(false);
     const [materials, setMaterials] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    const [selectedEdges, setSelectedEdges] = useState({
+    top: false,
+    right: false,
+    bottom: false,
+    left: false
+});
 
     function createCorpus(override, type) {
 
@@ -56,9 +65,9 @@ export function useCorpus() {
                                 ...children.filter(child =>
                     ![0, 1, 2].includes(child.id)
                 ),
-                                { id: 0, name: "Seiten", quantity: 2 * selectedQuantity, width: selectedDepth, height: selectedHeigth, depth: material.thickness, type: "Seite", MID: ""}, 
-                                { id: 1, name: "Boden", quantity: 2 * selectedQuantity, width: selectedDepth, height: (selectedWidth - material.thickness * 2), depth: material.thickness, type: "Boden", MID: ""}, 
-                                { id: 2, name: "Rückwand", quantity: 1 * selectedQuantity, width: selectedWidth, height: selectedHeigth, depth: 8, type: "Back", MID: ""}
+                                { id: 0, name: "Seiten", quantity: 2 * selectedQuantity, width: selectedDepth, height: selectedHeigth, depth: material.thickness, type: "Seite", MID: "", EBID: "", ETID: "", ELID:"", ERID: KorpusMaterialId}, 
+                                { id: 1, name: "Boden", quantity: 2 * selectedQuantity, width: selectedDepth, height: (selectedWidth - material.thickness * 2), depth: material.thickness, type: "Boden", MID: "", EBID: "", ETID: "", ELID:"", ERID: KorpusMaterialId}, 
+                                { id: 2, name: "Rückwand", quantity: 1 * selectedQuantity, width: selectedWidth, height: selectedHeigth, depth: 8, type: "Back", MID: "", EBID: "", ETID: "", ELID:"", ERID: ""}
                             ]
                             break;
 
@@ -204,6 +213,16 @@ export function useCorpus() {
 
             preset: selectedPreset,
 
+            //EdgeMat
+
+            ETID: selectedEdges.top ? activePlate.MID : "",
+
+            EBID: selectedEdges.bottom ? activePlate.MID : "",
+
+            ELID: selectedEdges.left ? activePlate.MID : "",
+
+            ERID: selectedEdges.right ? activePlate.MID : "",
+
             MID: override == null ? KorpusMaterialId : activePlate.MID,
 
         };
@@ -281,6 +300,7 @@ setCorpuses(prev =>
                 ? {
                     ...child,
                     MID: materialId,
+                    //EdgeMat
                 }
 
                 : child
@@ -378,6 +398,9 @@ return {
     KorpusMaterialId,
     setKorpusMaterialId,
 
+    EdgeMaterialId,
+    setEdgeMaterialId,
+
     // Bearbeitungsstatus
     KorpusEdit,
     setkorpusEdit,
@@ -392,6 +415,9 @@ return {
 
     error,
     setError,
+
+    selectedEdges,
+    setSelectedEdges,
 
     createCorpus,
     updateInput,

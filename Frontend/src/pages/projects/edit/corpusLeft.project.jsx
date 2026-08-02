@@ -43,6 +43,9 @@ export default function CorpusLeft ({EditorState}) {
     KorpusMaterialId,
     setKorpusMaterialId,
 
+    EdgeMaterialId,
+    setEdgeMaterialId,
+
     // Bearbeitungsstatus
     KorpusEdit,
     setkorpusEdit,
@@ -57,6 +60,9 @@ export default function CorpusLeft ({EditorState}) {
 
     error,
     setError,
+
+    selectedEdges,
+    setSelectedEdges,
 
     createCorpus,
     updateInput,

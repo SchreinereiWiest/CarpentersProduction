@@ -105,6 +105,70 @@ export const getTime = async (req, res) => {
 
 }
 
+export const getDayEntrys = async (req, res) => {
+
+    const [year, month, day] = req.params.date
+    .split("-")
+    .map(Number);
+
+    const startOfDay = new Date(year, month - 1, day);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(year, month - 1, day);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    try {
+        const entries = await prisma.timeEntry.findMany({
+
+            where:{
+                createdAt: {
+                gte: startOfDay,
+                lt: endOfDay
+                }
+            },
+
+            orderBy:{
+                createdAt:"desc"
+            }
+
+        });
+
+    return res.json(entries);
+    }
+
+    catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+
+}
+
+export const getOpenEntrys = async (req, res) => {
+
+    try {
+        const entries = await prisma.timeEntry.findMany({
+
+            where:{
+                startedAt: null
+            },
+
+            orderBy:{
+                createdAt:"desc"
+            }
+
+        });
+
+    return res.json(entries);
+    }
+
+    catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+
+}
+
+
 
 export const newTime = async (req, res) => {
 
