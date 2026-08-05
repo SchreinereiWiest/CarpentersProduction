@@ -40,7 +40,7 @@ export function importCadData(cadData, materials) {
 
     return cadData.map((item, index) => ({
 
-        id: index,
+        id: Date.now() + Math.random(),
 
         name: item.Objektname,
 
@@ -60,7 +60,7 @@ export function importCadData(cadData, materials) {
 
         Children: (item.Children ?? []).map((child, childIndex) => ({
 
-            id: childIndex,
+            id: Date.now() + Math.random(),
 
             name: child.Objektname,
 
@@ -78,13 +78,13 @@ export function importCadData(cadData, materials) {
 
             type: child.Plattentyp,
 
-            ELID: child.ELID ?? "",
+            ELID: getMaterialId(child.ELID) ?? "",
 
-            ERID: child.ERID ?? "",
+            ERID: getMaterialId(child.ERID) ?? "",
 
-            ETID: child.ETID ?? "",
+            ETID: getMaterialId(child.ETID) ?? "",
 
-            EBID: child.EBID ?? "",
+            EBID: getMaterialId(child.EBID) ?? "",
 
             Maserung: child.Maserung ?? "",
 

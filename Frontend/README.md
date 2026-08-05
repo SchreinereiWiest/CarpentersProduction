@@ -14,3 +14,21 @@ The React Compiler is not enabled on this template because of its impact on dev 
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+
+Prisma config:
+
+backend: 
+npx prisma generate
+npx prisma db push
+
+node src/scripts/createAdmin.js
+
+Garage: ubuntu terminal remote
+list all files: 
+aws s3 ls s3://carpenters-storage/projects/   --endpoint-url http://10.10.100.52
+
+delete all project files:
+aws s3 rm s3://carpenters-storage/projects/ \
+  --recursive \
+  --endpoint-url http://10.10.100.52

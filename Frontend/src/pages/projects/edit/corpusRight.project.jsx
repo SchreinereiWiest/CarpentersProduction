@@ -77,7 +77,8 @@ export default function CorpusRight({EditorState, mode, id}) {
     updateInput,
     addChildPlate,
     updateChildMaterial,
-    updateChildren
+    updateChildren,
+    deleteCorpus
 
 } = EditorState;
 return <>
@@ -224,7 +225,7 @@ placeholder="Projekt Name"
         <div className={activeCorpus ? ` border-t border-gray-700 p-5 ` : <>
 </>}>
 
-{activeCorpus?.type == "KO" && KorpusEdit == false ? <button className="
+{activeCorpus && KorpusEdit == false ? <button className="
                             w-full
                             rounded-lg
                             bg-orange-600
@@ -242,13 +243,13 @@ placeholder="Projekt Name"
 
     Korpus Editieren
 
-</button> : activeCorpus?.type == "KO" && KorpusEdit ? <button className="
+</button> : activeCorpus && KorpusEdit ? <div className='flex justify-between gap-4'><button className="
                             w-full
                             rounded-lg
-                            bg-red-600
+                            bg-orange-600
                             py-3
                             font-semibold
-                            hover:bg-red-500
+                            hover:bg-orange-500
                         " onClick={(e)=> {setkorpusEdit(false);
     setSelectedName("");
     setSelectedHeigth("");
@@ -261,7 +262,29 @@ placeholder="Projekt Name"
 
     Abbrechen
 
-</button>:<></>}
+</button><button className="
+                            w-full
+                            rounded-lg
+                            bg-red-600
+                            py-3
+                            font-semibold
+                            hover:bg-red-500
+                        " onClick={(e)=> {
+                            console.log(activeCorpus, corpuses);
+    deleteCorpus(activeCorpus.id);
+    setkorpusEdit(false);
+    setSelectedName("");
+    setSelectedHeigth("");
+    setSelectedWidth("");
+    setSelectedDepth("");
+    setSelectedQuantity("");
+    setSelectedPreset("def");
+    setActivePlate(null);
+    }}>
+
+    Löschen
+
+</button></div> : <></>}
 
 </div>
 
@@ -278,7 +301,14 @@ placeholder="Projekt Name"
                             py-3
                             font-semibold
                             hover:bg-green-500
-                        " onClick={(e)=> {addChildPlate(activePlate.id);}}>
+                        " onClick={(e)=> {addChildPlate(activePlate.id);
+                            setSelectedEdges({
+                    top: "",
+                    right: "",
+                    bottom: "",
+                    left: ""
+                });
+                        }}>
 
         Platte speichern
 
@@ -308,7 +338,9 @@ placeholder="Projekt Name"
                             py-3
                             font-semibold
                             hover:bg-green-500
-                        " onClick={(e) => {ProjectSave(corpuses, materials, selectedCustomer, files, projectDescription, projectName, mode, id);
+                        " onClick={(e) => {
+                            console.log("corpus", corpuses);
+                            ProjectSave(corpuses, materials, selectedCustomer, files, projectDescription, projectName, mode, id);
                             navigate(`/Projects`);
                         }}>
 

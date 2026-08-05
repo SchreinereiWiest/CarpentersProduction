@@ -6,7 +6,6 @@ import { useParams } from 'react-router';
 
 export async function ProjectSave(corpuses, materials, selectedCustomer, files, projectDescription, projectName, mode, id) {
 
-
     let cadData = null;
     console.log(corpuses);
 
@@ -111,7 +110,7 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
 
     });
 
-    console.log(cadData);
+    console.log("CADDaten", cadData);
 
     //Upload Project
 

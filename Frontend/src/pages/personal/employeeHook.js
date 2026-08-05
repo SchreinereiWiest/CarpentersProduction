@@ -249,7 +249,7 @@ function findInsertSlot(weekData, day, blockId, offset) {
         for (const [index, day] of days.entries()) {
             const date = new Date(weekStart);
 
-            date.setDate(weekStart.getDate() + index + 3);
+            date.setDate(weekStart.getDate() + index + 1);
 
             const dateString = date.toISOString().split("T")[0];
 

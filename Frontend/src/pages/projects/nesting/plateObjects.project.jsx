@@ -68,7 +68,7 @@ const offset = strip.sheet *3000;
 const Width = strip.type=="horizontal" ? plate.originalHeight : plate.originalWidth;
 const Height = strip.type=="horizontal" ? plate.originalWidth : plate.originalHeight;
 
-const posX = strip.type=="horizontal" ? (plate.x + Width/2 + 10) : (strip.x + 10 + Width/2);
+const posX = strip.type=="horizontal" ? (strip.x + plate.x + Width/2 + 10) : (strip.x + 10 + Width/2);
 const posY = strip.type=="horizontal" ? (strip.y + 10 + Height/2) : (plate.x + Height/2 + 10 + strip.y);
 
 // console.log(plate);
