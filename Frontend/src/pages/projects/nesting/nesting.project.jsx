@@ -79,7 +79,7 @@ function NestingView() {
                         const data = await fileResponse.json();
 
 
-                        setProcessedContent(data);
+                        setProcessedContent(data);                       
 
                         return data;
                     } catch (error) {
@@ -140,6 +140,8 @@ function NestingView() {
                 const generatedData = await createdata(settings);
                 
                 setNestingResult(generatedData);
+
+                console.log(generatedData);
 
                 if (!generatedData) return;
 
@@ -234,6 +236,19 @@ function NestingView() {
 
 
                         setNestingResult(data);
+
+                        setSettings(prev => {
+                            const newSettings = [...prev];
+
+                            data.forEach((sheet, index) => {
+                                newSettings[index] = {
+                                    ...defaultSettings,
+                                    ...sheet.settings
+                                };
+                            });
+
+                            return newSettings;
+                        });
 
                         return;
                     } catch (error) {

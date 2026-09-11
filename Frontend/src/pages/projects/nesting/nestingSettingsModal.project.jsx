@@ -1,4 +1,5 @@
 import { useState } from "react";
+import NestingSettingsRemaining from "./nestingSettingsRemaining.project";
 
 function NestingSettingsModal({
     settings,
@@ -8,10 +9,10 @@ function NestingSettingsModal({
 }) {
 
     const [localSettings, setLocalSettings] = useState(settings);
+    const [remainingPlates, setRemainingPlates] = useState(settings?.remainingPlates || []);
 
 
     function handleChange(event) {
-
         const {
             name,
             value,
@@ -23,6 +24,8 @@ function NestingSettingsModal({
         setLocalSettings(prev => ({
 
             ...prev,
+
+            remainingPlates: remainingPlates,
 
             [name]:
                 type === "checkbox"
@@ -41,7 +44,8 @@ function NestingSettingsModal({
 
     newSettings[activeSheet] = {
         ...newSettings[activeSheet],
-        ...localSettings
+        ...localSettings,
+        remainingPlates: remainingPlates
     };
     console.log(newSettings);
     return newSettings;
@@ -51,6 +55,7 @@ function NestingSettingsModal({
 
     }
 
+    
 
     return (
 
@@ -66,7 +71,7 @@ function NestingSettingsModal({
         ">
 
             <div className="
-                w-[500px]
+                w-[700px]
                 rounded-2xl
                 border
                 border-white/10
@@ -84,208 +89,216 @@ function NestingSettingsModal({
                     Nesting Einstellungen
                 </h2>
 
-
-                <div className="
-                    space-y-4
-                ">
-
-
-                    {/* Margin */}
-
-                    <div>
-                        <label className="
-                            mb-1
-                            block
-                            text-sm
-                            text-gray-300
-                        ">
-                            Rand zur Außenkante
-                        </label>
-
-                        <input
-                            type="number"
-                            name="margin"
-                            value={localSettings.margin}
-                            onChange={handleChange}
-                            className="
-                                w-full
-                                rounded-lg
-                                bg-gray-800
-                                px-3
-                                py-2
-                                outline-none
-                                ring-1
-                                ring-gray-700
-                                focus:ring-blue-500
-                            "
-                        />
-                    </div>
-
-
-                    {/* Gap */}
-
-                    <div>
-                        <label className="
-                            mb-1
-                            block
-                            text-sm
-                            text-gray-300
-                        ">
-                            Abstand zwischen Teilen
-                        </label>
-
-                        <input
-                            type="number"
-                            name="gap"
-                            value={localSettings.gap}
-                            onChange={handleChange}
-                            className="
-                                w-full
-                                rounded-lg
-                                bg-gray-800
-                                px-3
-                                py-2
-                                outline-none
-                                ring-1
-                                ring-gray-700
-                                focus:ring-blue-500
-                            "
-                        />
-                    </div>
-
-
-                    {/* Cut Gap */}
-
-                    <div>
-                        <label className="
-                            mb-1
-                            block
-                            text-sm
-                            text-gray-300
-                        ">
-                            Sägeschnitt
-                        </label>
-
-                        <input
-                            type="number"
-                            name="cutGap"
-                            value={localSettings.cutGap}
-                            onChange={handleChange}
-                            className="
-                                w-full
-                                rounded-lg
-                                bg-gray-800
-                                px-3
-                                py-2
-                                outline-none
-                                ring-1
-                                ring-gray-700
-                                focus:ring-blue-500
-                            "
-                        />
-                    </div>
-
-
-                    {/* Strip Difference */}
-
-                    <div>
-                        <label className="
-                            mb-1
-                            block
-                            text-sm
-                            text-gray-300
-                        ">
-                            Strip Difference
-                        </label>
-
-                        <input
-                            type="number"
-                            name="stripDifference"
-                            value={localSettings.stripDifference}
-                            onChange={handleChange}
-                            className="
-                                w-full
-                                rounded-lg
-                                bg-gray-800
-                                px-3
-                                py-2
-                                outline-none
-                                ring-1
-                                ring-gray-700
-                                focus:ring-blue-500
-                            "
-                        />
-                    </div>
-
-
-                    {/* Sheet Offset */}
-
-                    <div>
-                        <label className="
-                            mb-1
-                            block
-                            text-sm
-                            text-gray-300
-                        ">
-                            Abstand zwischen Platten
-                        </label>
-
-                        <input
-                            type="number"
-                            name="sheetOffset"
-                            value={localSettings.sheetOffset}
-                            onChange={handleChange}
-                            className="
-                                w-full
-                                rounded-lg
-                                bg-gray-800
-                                px-3
-                                py-2
-                                outline-none
-                                ring-1
-                                ring-gray-700
-                                focus:ring-blue-500
-                            "
-                        />
-                    </div>
-
-
-                    {/* Rotation */}
-
-                    <label className="
-                        flex
-                        cursor-pointer
-                        items-center
-                        justify-between
-                        rounded-lg
-                        bg-gray-800
-                        p-3
+                <div className="grid
+    grid-cols-2
+    gap-6">
+                    <div className="
+                        space-y-4
                     ">
 
-                        <span className="
-                            text-sm
-                            text-gray-300
+
+                        {/* Margin */}
+
+                        <div>
+                            <label className="
+                                mb-1
+                                block
+                                text-sm
+                                text-gray-300
+                            ">
+                                Rand zur Außenkante
+                            </label>
+
+                            <input
+                                type="number"
+                                name="margin"
+                                value={localSettings.margin}
+                                onChange={handleChange}
+                                className="
+                                    w-full
+                                    rounded-lg
+                                    bg-gray-800
+                                    px-3
+                                    py-2
+                                    outline-none
+                                    ring-1
+                                    ring-gray-700
+                                    focus:ring-blue-500
+                                "
+                            />
+                        </div>
+
+
+                        {/* Gap */}
+
+                        <div>
+                            <label className="
+                                mb-1
+                                block
+                                text-sm
+                                text-gray-300
+                            ">
+                                Abstand zwischen Teilen
+                            </label>
+
+                            <input
+                                type="number"
+                                name="gap"
+                                value={localSettings.gap}
+                                onChange={handleChange}
+                                className="
+                                    w-full
+                                    rounded-lg
+                                    bg-gray-800
+                                    px-3
+                                    py-2
+                                    outline-none
+                                    ring-1
+                                    ring-gray-700
+                                    focus:ring-blue-500
+                                "
+                            />
+                        </div>
+
+
+                        {/* Cut Gap */}
+
+                        <div>
+                            <label className="
+                                mb-1
+                                block
+                                text-sm
+                                text-gray-300
+                            ">
+                                Sägeschnitt
+                            </label>
+
+                            <input
+                                type="number"
+                                name="cutGap"
+                                value={localSettings.cutGap}
+                                onChange={handleChange}
+                                className="
+                                    w-full
+                                    rounded-lg
+                                    bg-gray-800
+                                    px-3
+                                    py-2
+                                    outline-none
+                                    ring-1
+                                    ring-gray-700
+                                    focus:ring-blue-500
+                                "
+                            />
+                        </div>
+
+
+                        {/* Strip Difference */}
+
+                        <div>
+                            <label className="
+                                mb-1
+                                block
+                                text-sm
+                                text-gray-300
+                            ">
+                                Strip Difference
+                            </label>
+
+                            <input
+                                type="number"
+                                name="stripDifference"
+                                value={localSettings.stripDifference}
+                                onChange={handleChange}
+                                className="
+                                    w-full
+                                    rounded-lg
+                                    bg-gray-800
+                                    px-3
+                                    py-2
+                                    outline-none
+                                    ring-1
+                                    ring-gray-700
+                                    focus:ring-blue-500
+                                "
+                            />
+                        </div>
+
+
+                        {/* Sheet Offset */}
+
+                        <div>
+                            <label className="
+                                mb-1
+                                block
+                                text-sm
+                                text-gray-300
+                            ">
+                                Abstand zwischen Platten
+                            </label>
+
+                            <input
+                                type="number"
+                                name="sheetOffset"
+                                value={localSettings.sheetOffset}
+                                onChange={handleChange}
+                                className="
+                                    w-full
+                                    rounded-lg
+                                    bg-gray-800
+                                    px-3
+                                    py-2
+                                    outline-none
+                                    ring-1
+                                    ring-gray-700
+                                    focus:ring-blue-500
+                                "
+                            />
+                        </div>
+
+
+                        {/* Rotation */}
+
+                        <label className="
+                            flex
+                            cursor-pointer
+                            items-center
+                            justify-between
+                            rounded-lg
+                            bg-gray-800
+                            p-3
                         ">
-                            Teile drehen erlaubt
-                        </span>
 
-                        <input
-                            type="checkbox"
-                            name="allowRotation"
-                            checked={
-                                localSettings.allowRotation
-                            }
-                            onChange={handleChange}
-                            className="
-                                h-5
-                                w-5
-                            "
-                        />
+                            <span className="
+                                text-sm
+                                text-gray-300
+                            ">
+                                Teile drehen erlaubt
+                            </span>
 
-                    </label>
+                            <input
+                                type="checkbox"
+                                name="allowRotation"
+                                checked={
+                                    localSettings.allowRotation
+                                }
+                                onChange={handleChange}
+                                className="
+                                    h-5
+                                    w-5
+                                "
+                            />
 
+                        </label>
+
+                    </div>
+                    
+                    <NestingSettingsRemaining
+                        remainingPlates={remainingPlates}
+                        setRemainingPlates={setRemainingPlates}
+                    />
+                    
                 </div>
-
 
                 {/* Footer */}
 
