@@ -10,7 +10,7 @@ import { useParams } from 'react-router';
 import { corpusPresets, platePresets } from "./helper";
 import { useCorpus } from "./useProjectEditor";
 import CorpusLeft from "./corpusLeft.project";
-import CorpusMiddle from "./corpusMiddle.project";
+import CorpusMiddle from "./corpusMiddle/corpusMiddle.project";
 import CorpusRight from "./corpusRight.project";
 import { useLocation } from "react-router";
 import { importCadData } from "./importCAD";

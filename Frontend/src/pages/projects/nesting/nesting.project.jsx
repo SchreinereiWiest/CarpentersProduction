@@ -38,15 +38,10 @@ function NestingView() {
     const [loadingGeneratedData, setLoadingGeneratedData] = useState(false);
     const [loadingListData, setLoadingListData] = useState(false);
 
-    const [settings, setSettings] = useState(defaultSettings);
+    const [settings, setSettings] = useState([defaultSettings]);
     const [showSettings, setShowSettings] = useState(false);
 
-    async function createdata(userSettings) {
-        if (!projectId) {
-            return;
-        }
-
-        const loadGeneratedData = async () => {
+    const loadListData = async () => {
 
             setLoadingListData(true);
 
@@ -93,7 +88,7 @@ function NestingView() {
 
                 }
 
-                //datei existiert nicht -> neu erstellen un hochladen
+                //datei existiert nicht -> neu erstellen und hochladen
                 console.warn("Keine datei vorhanden!");
 
             } catch (error) {
@@ -111,18 +106,31 @@ function NestingView() {
 
         };
 
-        const processedData = await loadGeneratedData();
+    async function createdata(userSettings) {
+        if (!projectId) {
+            return;
+        }
+
+        const processedData = await loadListData();
 
         if (!processedData) return;
 
         // 3. Wieder mit der lokalen Variable weiterarbeiten
         const nestingData = calculateNesting(processedData, userSettings);
-        nestingData.forEach(plate => {
-            plate.settings = userSettings;
+        nestingData.forEach((plate, index) => {
+            setSettings(prev => {
+                const newSettings = [...prev];
+
+                newSettings[index] = {
+                    ...newSettings[index],
+                    ...plate.settings
+                };
+                return newSettings;
+            });
         });
         
-
         setNestingResult(nestingData);
+
 
         return nestingData;
     }
@@ -179,9 +187,6 @@ function NestingView() {
 
         fetchProject();
     }, [projectId]);
-
-
-    
 
 
     useEffect(() => {
@@ -250,14 +255,23 @@ function NestingView() {
 
             } finally {
 
+                const processedData = await loadListData();
+
+                if (!processedData) return;
+
+                setContent(processedData);
+
                 setLoadingGeneratedData(false);
 
             }
+
 
         };
 
 
         loadGeneratedData();
+
+        
 
     }, [projectId, project]);
 
@@ -266,6 +280,8 @@ function NestingView() {
     const activeSheet = nestingResult?.[activeSheetIndex];
 
     const [activeStrip, setActiveStrip] = useState({});
+
+    console.log(content);
 
     return (
     <div className="bg-gray-900 text-white h-screen flex overflow-hidden">
@@ -394,10 +410,34 @@ function NestingView() {
     </div>
 </div>
 
+                {( <div className="absolute top-44 right-4 z-20">
+                    <div className="bg-gray-800/90 backdrop-blur border border-gray-700 rounded-lg px-4 py-3 shadow-lg">
+                        <div className="text-gray-400 mb-1"><span className="text-sm"> Legende: </span> </div>
+                        
+                        {content?.map((list, index) => (
+                            
+                        <div className="flex gap-4 mt-2 text-lm text-white" key={list.PID}> 
+                            <div className="flex items-center gap-2">
+                                <div
+                                    className="w-4 h-4 rounded-sm"
+                                    style={{ backgroundColor: list.color }}
+                                />
+
+                                <span>
+                                    {list.Objektname}
+                                </span>
+                            </div>
+                        </div>
+                        ))}
+                    </div>
+
+                </div> )}
+
                 {showSettings && (
 
                     <NestingSettingsModal
-                        settings={settings}
+                        settings={settings[activeSheetIndex]}
+                        activeSheet={activeSheetIndex}
                         setSettings={setSettings}
                         onClose={() => setShowSettings(false)}
                     />

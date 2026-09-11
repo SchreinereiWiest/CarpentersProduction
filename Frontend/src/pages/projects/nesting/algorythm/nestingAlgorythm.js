@@ -49,20 +49,24 @@ function createNestingGroups(
     };
 }
 
-export function calculateNesting(processedContent, userSettings = {}) {
+export function calculateNesting(processedContent, userSettings = [{}]) {
 
-    const settings = {
-
-        ...defaultSettings,
-        ...userSettings
-
-    };
+    
 
     // fetch content to all plates list
 
     const platesList = createPlateList(processedContent);
 
-    platesList.forEach(sheet => {
+    platesList.forEach((sheet, index) => {
+
+        const settings = {
+
+        ...defaultSettings,
+        ...userSettings[index]
+
+    };
+
+        sheet.settings = settings;
 
         const plates = sheet.plates;
 

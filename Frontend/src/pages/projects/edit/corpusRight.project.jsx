@@ -179,8 +179,6 @@ return <>
 <input placeholder="Name" className="mt-4 rounded-lg bg-gray-900 p-3 w-full" type="text" value={projectName} onChange={(e)=>
 setProjectName(e.target.value)
 }
-
-placeholder="Projekt Name"
 />
 
 <textarea name="projectDescription" id="projectDescription" placeholder="Project Description" value={projectDescription}
@@ -340,6 +338,19 @@ placeholder="Projekt Name"
                             hover:bg-green-500
                         " onClick={(e) => {
                             console.log("corpus", corpuses);
+                            // if(selectedCustomer == null && mode == "create") {
+                            //     alert("Bitte wählen Sie einen Kunden aus.");
+                            //     return;
+                            // }
+                            if(projectName == "" && mode == "create") {
+                                alert("Bitte geben Sie einen Projektnamen ein.");
+                                return;
+                            }
+                            if(corpuses.length == 0) {
+                                alert("Bitte fügen Sie mindestens einen Korpus hinzu.");
+                                return;
+                            }
+                            console.log(selectedCustomer);
                             ProjectSave(corpuses, materials, selectedCustomer, files, projectDescription, projectName, mode, id);
                             navigate(`/Projects`);
                         }}>

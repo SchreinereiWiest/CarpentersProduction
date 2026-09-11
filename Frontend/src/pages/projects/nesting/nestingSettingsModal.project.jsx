@@ -2,12 +2,12 @@ import { useState } from "react";
 
 function NestingSettingsModal({
     settings,
+    activeSheet,
     setSettings,
     onClose
 }) {
 
-    const [localSettings, setLocalSettings] =
-        useState(settings);
+    const [localSettings, setLocalSettings] = useState(settings);
 
 
     function handleChange(event) {
@@ -36,7 +36,16 @@ function NestingSettingsModal({
 
     function handleSave() {
 
-        setSettings(localSettings);
+        setSettings(prev => {
+    const newSettings = [...prev];
+
+    newSettings[activeSheet] = {
+        ...newSettings[activeSheet],
+        ...localSettings
+    };
+    console.log(newSettings);
+    return newSettings;
+});
 
         onClose();
 

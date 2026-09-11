@@ -63,8 +63,12 @@ function ListMaterial() {
                 
             };
         
+                
 
                 const contentData = await load();
+
+                if(!contentData) return;
+                
                 console.log(contentData);
                 const generatedData = processContent(contentData);
                 setProcessedContent(generatedData);

@@ -6,6 +6,10 @@ import { useParams } from 'react-router';
 
 export async function ProjectSave(corpuses, materials, selectedCustomer, files, projectDescription, projectName, mode, id) {
 
+    if (selectedCustomer == null) {
+        console.warn("No customer selected");
+        selectedCustomer = {id: "1a87d110-bb96-4af3-9bc5-c0753e1fdadc"}
+    }
     let cadData = null;
     console.log(corpuses);
 
@@ -23,6 +27,12 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
     cadData = corpuses.map(corpus => {
 
         const corpusMaterial = getMaterial(corpus.MID);
+
+        const color = 
+                        "#" +
+                        Math.floor(Math.random() * 16777215)
+                            .toString(16)
+                            .padStart(6, "0");
 
         return {
 
@@ -57,6 +67,8 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
             Kante: ":::",
 
             Notiz: "",
+
+            color: color,
 
             Children: corpus.Children.map(child => {
 
@@ -94,11 +106,7 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
 
                     Notiz: "",
 
-                    color:
-                        "#" +
-                        Math.floor(Math.random() * 16777215)
-                            .toString(16)
-                            .padStart(6, "0")
+                    color: color
 
                 };
 

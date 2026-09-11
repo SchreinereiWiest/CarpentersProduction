@@ -19,6 +19,8 @@ export function processContent(content) {
 
             const color = getRandomHexColor();
 
+            item.color = color;
+
             // Nur Bauteile mit BPID behalten
             const filteredChildren = (item.Children || [])
                 .filter(child => child.BPID !== "");

@@ -104,12 +104,7 @@ return <>
 
             <div className="flex justify-between">
 
-                <input placeholder="Name" className={KorpusEdit ? ` rounded-lg bg-gray-900 border border-orange-700 p-3
-                    ` : ` rounded-lg bg-gray-900 p-3 `} type="text" value={selectedName} onChange={(e)=>
-                setSelectedName(e.target.value)
-                }
-
-                placeholder={activeCorpus == null | KorpusEdit ? "Korpusname" : "Plattenname"}
+                <input className={KorpusEdit ? ` rounded-lg bg-gray-900 border border-orange-700 p-3` : ` rounded-lg bg-gray-900 p-3 `} type="text" value={selectedName} onChange={(e)=>setSelectedName(e.target.value)} placeholder={activeCorpus == null | KorpusEdit ? "Korpusname" : "Plattenname"}
                 />
 
                 <div className="flex">
@@ -258,8 +253,11 @@ return <>
 
                     <div className="">
 
-                        <select value={child.MID ?? "" } onChange={(e)=>
-                            updateChildMaterial(child.id, e.target.value)
+                        <select value={child.MID ?? "" } onClick={(e)=> e.stopPropagation()} onChange={(e)=> {
+                            
+                            updateChildMaterial(child.id, e.target.value);
+                        }
+                            
                             }
 
                             className="
@@ -410,10 +408,7 @@ return <>
                 </div>
 
             </div> : <button key={child.id} className={` w-full rounded-lg px-4 py-3 text-left transition ${
-                activePlate?.id===child.id ? "bg-blue-600" : "bg-gray-700 hover:bg-gray-600" } `} onClick={()=>
-                {setActivePlate(child);
-
-                }} onClick={(e)=> {
+                activePlate?.id===child.id ? "bg-blue-600" : "bg-gray-700 hover:bg-gray-600" } `} onClick={(e)=> {
                 e.stopPropagation();
                 setSelectedName(child.name);
                 setSelectedHeigth(child.height);
@@ -496,7 +491,7 @@ return <>
 
 ))
 
-            }</> : <div key={activeCorpus.id} className="w-full rounded-lg px-4 py-3 text-left transition bg-gray-700">
+            }</> : activeCorpus?.type=="plate" ? <div key={activeCorpus?.id} className="w-full rounded-lg px-4 py-3 text-left transition bg-gray-700">
 
                 <div className="flex justify-between">
 
@@ -644,7 +639,7 @@ return <>
                 </div>
 
             </div> 
-        }
+        : <></>}
             
 
         </div>
