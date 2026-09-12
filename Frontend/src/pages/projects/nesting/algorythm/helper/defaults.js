@@ -25,6 +25,8 @@
         height: 2070,
         material: "STANDARD"
 
-    }
+    },
+
+    remainingPlates: []
 
 };

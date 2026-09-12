@@ -65,7 +65,7 @@ function NestingView() {
 
                 } = response.data;
 
-                console.log(response.data, "list");
+                // console.log(response.data, "list");
 
 
                 // Datei existiert bereits
@@ -141,8 +141,6 @@ function NestingView() {
                 
                 setNestingResult(generatedData);
 
-                console.log(generatedData);
-
                 if (!generatedData) return;
 
                 // Datei beim Backend erstellen
@@ -160,8 +158,6 @@ function NestingView() {
                     );
 
                 const jsonContent = JSON.stringify(generatedData);
-
-                console.log(postResponse.data);
 
                 const s3response = await axios.put(
                     postResponse.data.uploadUrl,
@@ -220,8 +216,6 @@ function NestingView() {
                     downloadUrl,
 
                 } = response.data;
-
-                console.log(response.data);
 
 
                 // Datei existiert bereits
@@ -296,7 +290,7 @@ function NestingView() {
 
     const [activeStrip, setActiveStrip] = useState({});
 
-    console.log(content);
+    // console.log(content);
 
     return (
     <div className="bg-gray-900 text-white h-screen flex overflow-hidden">

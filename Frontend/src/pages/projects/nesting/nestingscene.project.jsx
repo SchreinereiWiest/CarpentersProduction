@@ -5,7 +5,7 @@ export default function NestingScene({result, setActiveStrip, activeStrip, setti
 {
 if(!result) return;
 
-// console.log(result);
+console.log(result);
 
 return (
 

@@ -1,8 +1,8 @@
 import { defaultSettings } from "./helper/defaults";
 import { createPlateList } from "./createPlates";
 import { sortPlates } from "./placement/sortPlates";
-import { nestStrips } from "./placement/nestingPlate";
-import { createStrips } from "./placement/createStrip"
+
+import { nestWithRemainingPlates } from "./placement/nestRemaining";
 
 function createNestingGroups(
     plates,
@@ -30,22 +30,18 @@ function createNestingGroups(
 
     const sortedPlates = sortPlates(preparedPlates);
 
-    const strips = createStrips(
+    
+
+    const nestingPlates =
+        nestWithRemainingPlates(
         sortedPlates,
+        defaultPlate,
         settings
     );
 
-    const nestingPlates =
-        nestStrips(
-            strips,
-            defaultPlate,
-            settings
-        );
-
-
     return {
-        strips,
-        nestingPlates
+        strips: nestingPlates.strips,
+        nestingPlates: nestingPlates.nestingPlates
     };
 }
 
