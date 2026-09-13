@@ -2,34 +2,28 @@
 # Stage: Development (Node.js Backend)
 # =========================================
 
-ARG NODE_VERSION=22.22.2
+ARG PNPM_VERSION=12.4.1
 
-FROM node:${NODE_VERSION} AS dev
+FROM ghcr.io/pnpm/pnpm:${PNPM_VERSION} AS dev
+
+RUN pnpm runtime set node 22.23.2 -g
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Package files
+COPY package.json pnpm-lock.yaml ./
 
 # Install dependencies
-RUN npm install
+RUN pnpm approve-builds @prisma/client @prisma/engines bcrypt esbuild prisma msgpackr-extract workerd
+RUN pnpm install
 
-# Copy Prisma schema first
+# Prisma
 COPY prisma ./prisma
+RUN pnpm exec prisma generate
 
-# Generate Prisma Client from current schema
-RUN npx prisma generate
-
-# Copy application source
+# Application
 COPY . .
 
-# Ensure node user owns application files
-RUN chown -R node:node /app
-
-# Use non-root user
-USER node
-
-# Backend port
 EXPOSE 5000
 
-CMD ["npm", "run", "dev"]
+CMD ["pnpm", "run", "start"]

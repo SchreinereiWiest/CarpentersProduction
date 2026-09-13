@@ -9,6 +9,7 @@ import ProjectBar from '../../../components/projectBar.jsx';
 import { loadCadFile } from '../cad/cadLoader.project.js';
 import { processContent } from './listProcess.project.js';
 import { importCadData } from '../edit/importCAD.js';
+import { createPartsListPDF } from './createPDF.project.js';
 
 function ListMaterial() {
     const navigate = useNavigate();
@@ -319,6 +320,30 @@ return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden">
                 </h2>
 
                 <div className='flex'>
+                    <button
+             onClick={() => createPartsListPDF(processedContent)}
+            className="
+            ml-8
+                flex
+                items-center
+                gap-3
+                rounded-lg
+                border
+                border-gray-700
+                bg-gray-800
+                px-4
+                py-2
+                whitespace-nowrap
+                text-gray-400
+                transition-all
+                duration-200
+                hover:bg-gray-700
+                hover:text-white
+            "
+        >
+            PDF
+        </button>
+
                     <button
              onClick={() => navigate(`/projects/create/${projectId}`, {
         state: {

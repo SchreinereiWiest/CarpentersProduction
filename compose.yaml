@@ -45,7 +45,7 @@ services:
       - "traefik.http.routers.frontend.priority=1"   
       - "traefik.http.routers.frontend.entrypoints=web"
 
-      - "traefik.http.services.frontend.loadbalancer.server.port=5173"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
 
     networks:
       - carpenters-network
