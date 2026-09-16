@@ -3,114 +3,204 @@ import {
     PutObjectCommand,
     GetObjectCommand
 } from "@aws-sdk/client-s3";
-
+import crypto from "crypto";
 import {
     getSignedUrl
 } from "@aws-sdk/s3-request-presigner";
 
 import prisma from "../config/prisma.js";
 
-import {s3} from "../config/s3.js"
+import { s3Upload, s3Download } from "../config/s3.js"
+
+export async function createUpload(req, res) {
+
+    try {
+
+        /*
+         * Datei aus multipart/form-data
+         */
+        const file = req.file;
+
+        if (!file) {
+            return res.status(400).json({
+                error: "No file uploaded"
+            });
+        }
+
+
+        /*
+         * Formulardaten
+         */
+        const {
+            entityId,
+            entity,
+            customerId,
+            fileName,
+            mimeType,
+            fileSize
+        } = req.body;
+
+
+        /*
+         * S3-Prefix bestimmen
+         */
+        let prefix = "";
+
+        switch (entity) {
+
+            case "project":
+                prefix = `projects/${entityId}`;
+                break;
+
+            case "customer":
+                prefix = `customers/${entityId}`;
+                break;
+
+            default:
+                return res.status(400).json({
+                    error: "Invalid entity type"
+                });
+        }
+
+
+        /*
+         * Eindeutigen Dateinamen erzeugen
+         */
+        const objectId = `${crypto.randomUUID()}-${fileName}`;
+
+        const objectKey = `${prefix}/${objectId}`;
+
+
+        /*
+         * --------------------------------------------------
+         * 1. S3Object in Datenbank anlegen
+         * --------------------------------------------------
+         */
+
+        const storageObject = await prisma.s3Object.create({
+
+            data: {
+
+                provider: "garage",
+
+                bucketName:
+                    process.env.S3_BUCKET,
+
+                objectKey,
+
+                endpoint:
+                    process.env.S3_PUBLIC_ENDPOINT,
+
+            },
+
+        });
+
+
+        /*
+         * --------------------------------------------------
+         * 2. File-Eintrag in Datenbank anlegen
+         * --------------------------------------------------
+         */
 
 
 
-export async function createUploadUrl(req,res){
 
-    let prefix = "";
+        /*
+         * --------------------------------------------------
+         * 3. Datei zu Garage hochladen
+         * --------------------------------------------------
+         */
 
-    const {
-        entityId,
-        entity,
-        customerId,
-        fileName,
-        mimeType,
-        fileSize
-    } = req.body;
+        const command = new PutObjectCommand({
 
-    switch (entity) {
-    case "project":
-        prefix = `projects/${entityId}`;
-        break;
+            Bucket:
+                process.env.S3_BUCKET,
 
-    case "customer":
-        prefix = `customers/${entityId}`;
-        break;
-    default:
-        return res.status(400).json({error:"Invalid entity type"});
+            Key:
+                objectKey,
+
+            Body:
+                file.buffer,
+
+            ContentType:
+                mimeType || file.mimetype,
+
+        });
+
+
+        await s3Upload.send(command);
+
+
+        /*
+         * --------------------------------------------------
+         * 4. Upload erfolgreich -> Status aktualisieren
+         * --------------------------------------------------
+         */
+
+        const fileEntry = await prisma.file.create({
+             data: { 
+                project: { 
+                    connect: { 
+                        id: entityId 
+                    } 
+                }, 
+                customer: { 
+                    connect: { 
+                        id: customerId 
+                    } 
+                }, 
+                storageObject: { 
+                    connect: { 
+                        id: storageObject.id, 
+                    }, 
+                }, fileName: fileName, 
+                mimeType: mimeType, 
+                fileSize: fileSize, 
+                status: "completed", 
+            }, 
+        });
+
+
+        /*
+         * --------------------------------------------------
+         * 5. Antwort an Frontend
+         * --------------------------------------------------
+         */
+
+        return res.json({
+
+            success: true,
+
+            objectKey,
+
+            fileEntry:
+                completedFile
+
+        });
+
     }
+    catch (error) {
 
-    const objectId = `${crypto.randomUUID()}-${fileName}`;
-
-    const objectKey = `${prefix}/${objectId}`;
-
-    const command = new PutObjectCommand({
-
-        Bucket: process.env.S3_BUCKET,
-
-        Key:objectKey,
-
-        ContentType:mimeType
-
-    });
-
-
-    const uploadUrl =
-        await getSignedUrl(
-            s3,
-            command,
-            {
-                expiresIn:900
-            }
+        console.error(
+            "S3 upload failed:",
+            error
         );
 
-    const storageObject = await prisma.s3Object.create({
-    data: {
-        provider: "garage",
-        bucketName: process.env.S3_BUCKET,
-        objectKey,
-        endpoint: process.env.S3_PUBLIC_ENDPOINT,
-    },
-});
+        return res.status(500).json({
 
-    const fileEntry = await prisma.file.create({
-        data: {
-                        project: {
-                    connect: {
-                        id: entityId
-                    }
-                },
+            error:
+                "File upload failed",
 
-                customer: {
-                    connect: {
-                        id: customerId
-                    }
-                },
+            message:
+                error.message
 
-                storageObject: {
-            connect: {
-                id: storageObject.id,
-            },
-        },
+        });
 
+    }
 
-                fileName: fileName,
-                mimeType: mimeType,
-                fileSize: fileSize,
-
-                status: "pending",
-
-            },
-    });
-
-
-    res.json({
-        uploadUrl,
-        objectKey,
-        fileEntry
-    });
 }
 
-export async function createDownloadUrl(req,res) {
+export async function createDownloadUrl(req, res) {
     console.log(req.params.id);
     try {
 
@@ -133,17 +223,17 @@ export async function createDownloadUrl(req,res) {
 
 
         const command = new GetObjectCommand({
-        Bucket: process.env.S3_BUCKET,
-        Key: file.storageObject.objectKey
+            Bucket: process.env.S3_BUCKET,
+            Key: file.storageObject.objectKey
         });
 
 
         const url = await getSignedUrl(
-        s3,
-        command,
-        {
-            expiresIn: 900
-        }
+            s3Download,
+            command,
+            {
+                expiresIn: 900
+            }
         );
 
         res.json({
@@ -151,7 +241,7 @@ export async function createDownloadUrl(req,res) {
         });
 
 
-        } catch (error) {
+    } catch (error) {
 
         console.error(error);
 

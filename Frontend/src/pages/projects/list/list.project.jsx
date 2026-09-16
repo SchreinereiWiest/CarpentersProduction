@@ -37,7 +37,6 @@ function ListMaterial() {
     fetchProject();
     }, [projectId]);
 
-
     async function UploadData() {
         // Datei existiert nicht
 
@@ -93,6 +92,7 @@ function ListMaterial() {
                 const jsonContent = JSON.stringify(generatedData);
 
                 console.log(postResponse.data);
+                
 
                 const s3response = await axios.put(
                     postResponse.data.uploadUrl,

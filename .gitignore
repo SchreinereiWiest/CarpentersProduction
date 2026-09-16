@@ -1,2 +1,3 @@
-/infra/*
-/compose.yaml
+infra/*
+compose.yaml
+!infra/garage/config/garage.toml

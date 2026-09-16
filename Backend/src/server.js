@@ -16,27 +16,32 @@ dotenv.config();
 const app = express();
 
 app.use(cors({
-  origin: ["http://10.10.100.52"],
+  origin: ["cp.moebelschreinerei-wiest.de", "s3.moebelschreinerei-wiest.de"],
 
   credentials: true,
 }));
+
+app.use((req, res, next) => {
+    console.log("REQUEST:", req.method, req.originalUrl);
+    next();
+});
 
 app.use(express.json());
 
 app.use(cookieParser());
 
 // user login und reauthorize
-app.use("/auth", authRoutes);
+app.use("/api/auth", authRoutes);
 
-app.use("/customers", customerRoutes);
+app.use("/api/customers", customerRoutes);
 
-app.use("/projects", projectRoutes);
+app.use("/api/projects", projectRoutes);
 
-app.use("/files", fileRoutes);
+app.use("/api/files", fileRoutes);
 
-app.use("/materials", storageRoutes);
+app.use("/api/materials", storageRoutes);
 
-app.use("/time", timeRoutes);
+app.use("/api/time", timeRoutes);
 
 app.listen(5000, () => {
   console.log("Backend running on port 5000");

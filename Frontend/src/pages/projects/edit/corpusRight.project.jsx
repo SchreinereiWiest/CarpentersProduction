@@ -351,6 +351,7 @@ setProjectName(e.target.value)
                                 return;
                             }
                             console.log(selectedCustomer);
+                            console.log("save");
                             ProjectSave(corpuses, materials, selectedCustomer, files, projectDescription, projectName, mode, id);
                             navigate(`/Projects`);
                         }}>

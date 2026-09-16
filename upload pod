@@ -1,0 +1,13 @@
+delete pod
+
+vpn verbindung
+
+kubectl get pods -n storage
+
+kubectl delete pod -n storage carpentersproduction...
+
+-----
+
+dauerhafte pod info: kubectl get pods -n storage -w
+
+logs: kubectlogs -n storage carpentersproduction-...  -c backend

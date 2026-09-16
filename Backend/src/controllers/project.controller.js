@@ -1,5 +1,5 @@
 import prisma from "../config/prisma.js";
-import {s3} from "../config/s3.js"
+import {s3Download, s3Upload} from "../config/s3.js"
 import {
     S3Client,
     PutObjectCommand,
@@ -165,7 +165,7 @@ export const getGeneratedProjectData = async (req, res) => {
                     });
             
             const downloadUrl = await getSignedUrl(
-            s3,
+            s3Download,
             command,
             {
                 expiresIn: 900
@@ -200,148 +200,225 @@ export const getGeneratedProjectData = async (req, res) => {
 
 export async function createGeneratedProjectData(req,res){
 
-    const { id } = req.params;
-    const {name} = req.params;
+    const { id, name } = req.params;
 
-    let prefix = `projects/${id}`;
     let fileName = "";
 
-    switch(name) {
-      case "nesting": 
-        fileName = "nesting.json"
-        break;
+    switch (name) {
 
-      case "list": 
-        fileName = "list.json"
-        break;
+        case "nesting":
+            fileName = "nesting.json";
+            break;
 
-      default:
-        fileName="";
-        break;
+        case "list":
+            fileName = "list.json";
+            break;
+
+        default:
+            return res.status(400).json({
+                error: "Invalid file name"
+            });
     }
 
+
+    const prefix = `projects/${id}`;
     const objectKey = `${prefix}/${fileName}`;
+
+
+    /*
+     * JSON-Daten aus dem Request
+     */
+    const jsonContent = JSON.stringify(req.body);
+
+    const body = Buffer.from(jsonContent, "utf-8");
+
+
+    /*
+     * --------------------------------------------------
+     * 1. Datei direkt zu Garage hochladen
+     * --------------------------------------------------
+     */
 
     const command = new PutObjectCommand({
 
         Bucket: process.env.S3_BUCKET,
 
-        Key:objectKey,
+        Key: objectKey,
+
+        Body: body,
 
         ContentType: "application/json"
 
     });
 
 
-    const uploadUrl =
-            await getSignedUrl(
-                s3,
-                command,
-                {
-                    expiresIn:900
-                }
-            );
-
-    const file = await prisma.file.findFirst({
-
-          where: {
-              projectId: id,
-              fileName: fileName,
-              deletedAt: null
-          },
-
-          include: {
-              storageObject: true
-          }
-
-        });
-        
-        if (!file) {
-          const storageObject = await prisma.s3Object.create({
-              data: {
-                  provider: "garage",
-                  bucketName: process.env.S3_BUCKET,
-                  objectKey,
-                  endpoint: process.env.S3_PUBLIC_ENDPOINT,
-              },
-          });
-
-          const fileEntry = await prisma.file.create({
-              data: {
-                              project: {
-                          connect: {
-                              id: id
-                          }
-                      },
+    await s3Upload.send(command);
 
 
-                      storageObject: {
-                  connect: {
-                      id: storageObject.id,
-                  },
-              },
+    /*
+     * --------------------------------------------------
+     * 2. Prüfen, ob bereits ein File-Eintrag existiert
+     * --------------------------------------------------
+     */
 
+    const existingFile = await prisma.file.findFirst({
 
-                      fileName: fileName,
-                      mimeType: "application/json",
-                      status: "complete",
-
-                  },
-          });
-
-
-   res.json({
-        uploadUrl,
-        objectKey,
-        fileEntry
-    });
-
-        } else {
-          const storageObject = await prisma.s3Object.update({
-            where: {
-              id: file.storageObject.id
-            },
-    data: {
-        provider: "garage",
-        bucketName: process.env.S3_BUCKET,
-        objectKey,
-        endpoint: process.env.S3_PUBLIC_ENDPOINT,
-    },
-});
-
-    const fileEntry = await prisma.file.update({
-      where: {
-        id: file.id
-      },
-        data: {
-                        project: {
-                    connect: {
-                        id: id
-                    }
-                },
-
-
-                storageObject: {
-            connect: {
-                id: storageObject.id,
-            },
+        where: {
+            projectId: id,
+            fileName: fileName,
+            deletedAt: null
         },
 
-
-                fileName: fileName,
-                mimeType: "application/json",
-                status: "complete",
-
-            },
-    });
-
-   res.json({
-        uploadUrl,
-        objectKey,
-        fileEntry
-    });
+        include: {
+            storageObject: true
         }
 
-    
+    });
+
+
+    /*
+     * --------------------------------------------------
+     * 3. Noch kein File vorhanden
+     * --------------------------------------------------
+     */
+
+    if (!existingFile) {
+
+        const storageObject =
+            await prisma.s3Object.create({
+
+                data: {
+
+                    provider: "garage",
+
+                    bucketName:
+                        process.env.S3_BUCKET,
+
+                    objectKey:
+
+                        objectKey,
+
+                    endpoint:
+                        process.env.S3_PUBLIC_ENDPOINT
+
+                }
+
+            });
+
+        const fileEntry =
+            await prisma.file.create({
+
+                data: {
+
+                    project: {
+                        connect: {
+                            id: id
+                        }
+                    },
+
+                    storageObject: {
+                        connect: {
+                            id: storageObject.id
+                        }
+                    },
+
+                    fileName:
+                        fileName,
+
+                    mimeType:
+                        "application/json",
+
+                    fileSize:
+                        body.length,
+
+                    status:
+                        "complete"
+
+                }
+
+            });
+
+
+        return res.json({
+
+            success: true,
+
+            objectKey,
+
+            fileEntry
+
+        });
+
+    }
+
+
+    /*
+     * --------------------------------------------------
+     * 4. File existiert bereits
+     * --------------------------------------------------
+     */
+
+    const storageObject =
+        await prisma.s3Object.update({
+
+            where: {
+                id: existingFile.storageObject.id
+            },
+
+            data: {
+
+                provider:
+                    "garage",
+
+                bucketName:
+                    process.env.S3_BUCKET,
+
+                objectKey:
+                    objectKey,
+
+                endpoint:
+                    process.env.S3_PUBLIC_ENDPOINT
+
+            }
+
+        });
+
+
+    const fileEntry =
+        await prisma.file.update({
+
+            where: {
+                id: existingFile.id
+            },
+
+            data: {
+
+                fileName:
+                    fileName,
+
+                mimeType:
+                    "application/json",
+
+                fileSize:
+                    body.length,
+
+                status:
+                    "complete"
+
+            }
+
+        });
+
+
+    return res.json({
+
+        success: true,
+
+        objectKey,
+
+        fileEntry
+
+    });
 
 }
+

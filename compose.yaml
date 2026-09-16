@@ -27,7 +27,7 @@ services:
   frontend:
     build:
       context: ./Frontend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
 
     restart: always
 
@@ -45,7 +45,7 @@ services:
       - "traefik.http.routers.frontend.priority=1"   
       - "traefik.http.routers.frontend.entrypoints=web"
 
-      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+      - "traefik.http.services.frontend.loadbalancer.server.port=5173"
 
     networks:
       - carpenters-network
@@ -53,7 +53,7 @@ services:
   backendjs:
     build:
       context: ./Backend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
 
     restart: always
 
@@ -69,9 +69,6 @@ services:
       - "traefik.http.routers.backend.rule=Host(`10.10.100.52`) && PathPrefix(`/api`)"
       - "traefik.http.routers.backend.priority=100"
       - "traefik.http.routers.backend.entrypoints=web"
-
-      - "traefik.http.middlewares.strip-api.stripprefix.prefixes=/api"
-      - "traefik.http.routers.backend.middlewares=strip-api"
 
       - "traefik.http.services.backend.loadbalancer.server.port=5000"
 

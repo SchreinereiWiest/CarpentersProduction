@@ -154,34 +154,47 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
                 }
             }
 
-            const response = await axios.post("/api/files/upload-url",
-                {
-                    entityId: project.data.id,
-                    customerId: selectedCustomer.id,
-                    entity: "project",
-                    fileName: file.name,
-                    mimeType: mimeType,
-                    fileSize: file.size
-                });
+            // const response = await axios.post("/api/files/upload-url",
+            //     {
+            //         entityId: project.data.id,
+            //         customerId: selectedCustomer.id,
+            //         entity: "project",
+            //         fileName: file.name,
+            //         mimeType: mimeType,
+            //         fileSize: file.size
+            //     });
 
-            console.log("Upload URL:", response.data.uploadUrl);
+            // const s3response = await axios.put(
+            //     response.data.uploadUrl,
+            //     file,
+            //     {
+            //         headers: {
+            //             "Content-Type": jsonContent.type
+            //         }
+            //     }
+            // );
 
-            const s3response = await axios.put(
-                response.data.uploadUrl,
-                file,
-                {
-                    headers: {
-                        "Content-Type": file.type
-                    }
-                }
+            const formData = new FormData();
+
+            formData.append("file", file);
+            formData.append("entityId", project.data.id);
+            formData.append("customerId", selectedCustomer.id);
+            formData.append("entity", "project");
+            formData.append("fileName", file.name);
+            formData.append("mimeType", mimeType);
+            formData.append("fileSize", file.size);
+
+            const response = await axios.post(
+                "/api/files/upload",
+                formData
             );
 
-            console.log(response.data.fileEntry.id);
+            console.log("response", response.data.fileEntry.id);
 
-            await axios.post(`/api/files/complete/`, {
-                id: response.data.fileEntry.id
-            }
-            );
+            // await axios.post(`/api/files/complete/`, {
+            //     id: response.data.fileEntry.id
+            // }
+            // );
         }
     }
     const generatedData = cadData;
@@ -189,31 +202,34 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
     if (!generatedData) return;
 
     // Datei beim Backend erstellen
-    const postResponse =
-        await axios.post(
+        
+    try {
 
+        const response = await axios.post(
             `/api/projects/generated/${projectId}/list`,
+            generatedData,
             {
-            },
-
-            {
-                withCredentials: true
+                withCredentials: true,
+                headers: {
+                    "Content-Type": "application/json"
+                }
             }
-
         );
 
-    const jsonContent = JSON.stringify(generatedData);
+        console.log("Upload response:", response.data);
 
-    console.log(postResponse.data);
+    } catch (error) {
 
-    const s3response = await axios.put(
-        postResponse.data.uploadUrl,
-        jsonContent,
-        {
-            headers: {
-                "Content-Type": jsonContent.type
-            }
-        }
-    );
+        console.error(
+            "Error uploading list.json:",
+            error
+        );
+
+        console.error(
+            "Response:",
+            error.response?.data
+        );
+
+    }
 
 }
