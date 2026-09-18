@@ -36,6 +36,7 @@ export const startTime = async (req, res) => {
 
 }
 
+
 export const stopTime = async (req, res) => {
 
     try {
@@ -80,6 +81,7 @@ export const stopTime = async (req, res) => {
 
 }
 
+
 export const getTime = async (req, res) => {
 
     try {
@@ -104,6 +106,7 @@ export const getTime = async (req, res) => {
     }
 
 }
+
 
 export const getDayEntrys = async (req, res) => {
 
@@ -143,6 +146,7 @@ export const getDayEntrys = async (req, res) => {
 
 }
 
+
 export const getOpenEntrys = async (req, res) => {
 
     try {
@@ -167,7 +171,6 @@ export const getOpenEntrys = async (req, res) => {
     }
 
 }
-
 
 
 export const newTime = async (req, res) => {

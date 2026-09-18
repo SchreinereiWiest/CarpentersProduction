@@ -78,6 +78,7 @@ export const login = async (req, res) => {
   }
 };
 
+
 export const getAllUsers = async (req, res) => {
 
   try {

@@ -182,7 +182,6 @@ export const getCustomerInfo = async (req, res) => {
 };
 
 
-
 export const searchCustomers = async (req, res) => {
 
     try {

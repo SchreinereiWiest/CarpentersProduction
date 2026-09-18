@@ -1,7 +1,8 @@
 import {
     S3Client,
     PutObjectCommand,
-    GetObjectCommand
+    GetObjectCommand,
+    DeleteObjectCommand
 } from "@aws-sdk/client-s3";
 import crypto from "crypto";
 import {
@@ -39,6 +40,8 @@ export async function createUpload(req, res) {
             mimeType,
             fileSize
         } = req.body;
+
+        const parsedFileSize = parseInt(fileSize, 10);
 
 
         /*
@@ -155,7 +158,7 @@ export async function createUpload(req, res) {
                     }, 
                 }, fileName: fileName, 
                 mimeType: mimeType, 
-                fileSize: fileSize, 
+                fileSize: parsedFileSize, 
                 status: "completed", 
             }, 
         });
@@ -173,8 +176,7 @@ export async function createUpload(req, res) {
 
             objectKey,
 
-            fileEntry:
-                completedFile
+            fileEntry: fileEntry
 
         });
 
@@ -199,6 +201,7 @@ export async function createUpload(req, res) {
     }
 
 }
+
 
 export async function createDownloadUrl(req, res) {
     console.log(req.params.id);
@@ -252,3 +255,143 @@ export async function createDownloadUrl(req, res) {
 
 
 }
+
+
+export async function deleteFile(req, res) {
+
+    try {
+
+        const { fileId } = req.params;
+
+
+        /*
+         * --------------------------------------------------
+         * 1. Datei aus Datenbank laden
+         * --------------------------------------------------
+         */
+
+        const fileEntry = await prisma.file.findUnique({
+            where: {
+                id: fileId
+            },
+            include: {
+                storageObject: true
+            }
+        });
+
+
+        if (!fileEntry) {
+
+            return res.status(404).json({
+                error: "File not found"
+            });
+
+        }
+
+
+        /*
+         * Prüfen, ob ein S3-Objekt vorhanden ist
+         */
+
+        if (!fileEntry.storageObject) {
+
+            return res.status(404).json({
+                error: "Storage object not found"
+            });
+
+        }
+
+
+        const storageObject = fileEntry.storageObject;
+
+
+        /*
+         * --------------------------------------------------
+         * 2. Datei aus Garage löschen
+         * --------------------------------------------------
+         */
+
+        const command = new DeleteObjectCommand({
+
+            Bucket:
+                storageObject.bucketName,
+
+            Key:
+                storageObject.objectKey
+
+        });
+
+
+        await s3Upload.send(command);
+
+
+        /*
+         * --------------------------------------------------
+         * 3. File-Eintrag aus Datenbank löschen
+         * --------------------------------------------------
+         */
+
+        await prisma.file.delete({
+
+            where: {
+                id: fileId
+            }
+
+        });
+
+
+        /*
+         * --------------------------------------------------
+         * 4. S3Object aus Datenbank löschen
+         * --------------------------------------------------
+         */
+
+        await prisma.s3Object.delete({
+
+            where: {
+                id: storageObject.id
+            }
+
+        });
+
+
+        /*
+         * --------------------------------------------------
+         * 5. Antwort
+         * --------------------------------------------------
+         */
+
+        return res.json({
+
+            success: true,
+
+            message: "File deleted successfully",
+
+            fileId: fileId,
+
+            objectKey: storageObject.objectKey
+
+        });
+
+    }
+    catch (error) {
+
+        console.error(
+            "S3 delete failed:",
+            error
+        );
+
+
+        return res.status(500).json({
+
+            error:
+                "File deletion failed",
+
+            message:
+                error.message
+
+        });
+
+    }
+
+};

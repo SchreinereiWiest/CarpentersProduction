@@ -75,34 +75,18 @@ function ListMaterial() {
                 
                 if (!generatedData) return;
 
-                // Datei beim Backend erstellen
-                const postResponse =
-                    await axios.post(
-
-                        `/api/projects/generated/${projectId}/list`,
-                        {
-                        },
-
-                        {
-                            withCredentials: true
-                        }
-
-                    );
-
-                const jsonContent = JSON.stringify(generatedData);
-
-                console.log(postResponse.data);
-                
-
-                const s3response = await axios.put(
-                    postResponse.data.uploadUrl,
-                    jsonContent,
+                const response = await axios.post(
+                    `/api/projects/generated/${projectId}/list`,
+                    generatedData,
                     {
+                        withCredentials: true,
                         headers: {
-                            "Content-Type": jsonContent.type
+                            "Content-Type": "application/json"
                         }
                     }
                 );
+
+                console.log("Upload response:", response.data);
 
     }
 

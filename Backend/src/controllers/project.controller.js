@@ -3,7 +3,8 @@ import {s3Download, s3Upload} from "../config/s3.js"
 import {
     S3Client,
     PutObjectCommand,
-    GetObjectCommand
+    GetObjectCommand,
+    DeleteObjectCommand
 } from "@aws-sdk/client-s3";
 import {
     getSignedUrl
@@ -29,6 +30,228 @@ export const newProject = async (req, res) => {
     }
 
 }
+
+
+export const updateProject = async (req, res) => {
+
+    try {
+
+        const project = await prisma.project.update({
+            where: {
+                id: req.params.id
+            },
+            data: {
+                customerId: req.body.customerId,
+                title: req.body.title,
+                description: req.body.description,
+                status: req.body.status
+            },
+        });
+
+        return res.status(201).json(project);
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+
+}
+
+
+export const deleteProject = async (req, res) => {
+
+    try {
+
+        const { projectId } = req.params;
+
+        /*
+         * --------------------------------------------------
+         * 1. Projekt laden
+         * --------------------------------------------------
+         */
+
+        const project = await prisma.project.findUnique({
+
+            where: {
+                id: projectId
+            }
+
+        });
+
+
+        if (!project) {
+
+            return res.status(404).json({
+                error: "Project not found"
+            });
+
+        }
+
+
+        /*
+         * --------------------------------------------------
+         * 2. Alle Dateien des Projekts laden
+         * --------------------------------------------------
+         */
+
+        const files = await prisma.file.findMany({
+
+            where: {
+                projectId: projectId
+            },
+
+            include: {
+                storageObject: true
+            }
+
+        });
+
+
+        console.log(
+            `Deleting project ${projectId} with ${files.length} files`
+        );
+
+
+        /*
+         * --------------------------------------------------
+         * 3. Alle Dateien aus Garage löschen
+         * --------------------------------------------------
+         */
+
+        for (const file of files) {
+
+            if (!file.storageObject) {
+
+                console.warn(
+                    `File ${file.id} has no storage object`
+                );
+
+                continue;
+
+            }
+
+
+            const storageObject = file.storageObject;
+
+
+            const command = new DeleteObjectCommand({
+
+                Bucket:
+                    storageObject.bucketName,
+
+                Key:
+                    storageObject.objectKey
+
+            });
+
+
+            await s3Upload.send(command);
+
+
+            console.log(
+                `Deleted Garage object: ${storageObject.objectKey}`
+            );
+
+        }
+
+
+        /*
+         * --------------------------------------------------
+         * 4. File-Einträge löschen
+         * --------------------------------------------------
+         */
+
+        await prisma.file.deleteMany({
+
+            where: {
+                projectId: projectId
+            }
+
+        });
+
+
+        /*
+         * --------------------------------------------------
+         * 5. S3Object-Einträge löschen
+         * --------------------------------------------------
+         */
+
+        const storageObjectIds = files
+            .filter(file => file.storageObject)
+            .map(file => file.storageObject.id);
+
+
+        if (storageObjectIds.length > 0) {
+
+            await prisma.s3Object.deleteMany({
+
+                where: {
+                    id: {
+                        in: storageObjectIds
+                    }
+                }
+
+            });
+
+        }
+
+
+        /*
+         * --------------------------------------------------
+         * 6. Projekt löschen
+         * --------------------------------------------------
+         */
+
+        await prisma.project.delete({
+
+            where: {
+                id: projectId
+            }
+
+        });
+
+
+        /*
+         * --------------------------------------------------
+         * 7. Antwort
+         * --------------------------------------------------
+         */
+
+        return res.json({
+
+            success: true,
+
+            message: "Project deleted successfully",
+
+            projectId: projectId,
+
+            deletedFiles: files.length
+
+        });
+
+    }
+    catch (error) {
+
+        console.error(
+            "Project deletion failed:",
+            error
+        );
+
+
+        return res.status(500).json({
+
+            error:
+                "Project deletion failed",
+
+            message:
+                error.message
+
+        });
+
+    }
+
+};
+
 
 export const getAllProjectsID = async (req, res) => {
     const id = req.params.id;
@@ -59,6 +282,7 @@ export const getAllProjectsID = async (req, res) => {
     });
   }
 };
+
 
 export const getAllActive = async (req, res) => {
     
@@ -92,7 +316,6 @@ export const getAllActive = async (req, res) => {
     });
   }
 };
-
 
 
 export const getProject = async (req, res) => {
@@ -194,8 +417,6 @@ export const getGeneratedProjectData = async (req, res) => {
     }
 
 };
-
-
 
 
 export async function createGeneratedProjectData(req,res){

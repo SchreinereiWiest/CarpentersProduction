@@ -24,6 +24,7 @@ import ProjectOverview from "./pages/projects/overview.project.jsx";
 import ShowStorage from "./pages/storage/home.storage.jsx";
 import TimeTracking from "./pages/projects/timetracking/timeTracking.project.jsx";
 import CreateProject from "./pages/projects/edit/create.project.jsx";
+import ProjectSettings from "./pages/projects/settings/settings.project.jsx";
 import './index.css'
 
 import {
@@ -131,6 +132,12 @@ ReactDOM.createRoot(root).render(
 
             <Route path="/Projects/Create/:id" element={ <ProtectedRoute requiredRole="user">
             <CreateProject/>
+            </ProtectedRoute>
+            }
+            />
+
+            <Route path="/Projects/Settings/:projectId" element={ <ProtectedRoute requiredRole="user">
+            <ProjectSettings/>
             </ProtectedRoute>
             }
             />

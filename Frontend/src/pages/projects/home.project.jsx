@@ -25,16 +25,13 @@ function ShowProject() {
 
     const customerdata = await axios.get(`/api/customers/get/${data.project.customerId}`);
     setCustomer(customerdata.data.customer);
-
     
 };
 
 fetchProject();
 }, [projectId]);
 
-
     // console.log(project);
-
 
 console.log(customer);
   return (<>

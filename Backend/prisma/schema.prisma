@@ -126,7 +126,7 @@ model Project {
   description String?
 
   projectType String? @map("project_type")
-  status      String  @default("inquiry")
+  status      String  @default("active")
   priority    String  @default("normal")
 
   estimatedValue Float? @map("estimated_value")

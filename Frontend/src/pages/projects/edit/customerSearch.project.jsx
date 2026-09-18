@@ -54,7 +54,7 @@ export default function CustomerSearch({
 
     return (
 
-        <div className="relative">
+        <div className="relative w-full max-w-xl mb-5">
 
             {
 
@@ -65,9 +65,19 @@ export default function CustomerSearch({
                     items-center
                     justify-between
                     rounded-lg
-                    bg-gray-700
                     px-4
                     py-3
+                    rounded-md
+                                            border
+                                            border-gray-600
+                                            bg-gray-900
+                                            py-3
+                                            px-4
+                                            text-white
+                                            outline-none
+                                            focus:border-blue-500
+                                            focus:ring-1
+                                            focus:ring-blue-500
                 ">
 
                     <div>
@@ -125,16 +135,19 @@ export default function CustomerSearch({
                         placeholder="Kunde suchen..."
 
                         className="
-                            w-full
-                            rounded-lg
-                            border
-                            border-gray-700
-                            bg-gray-800
-                            px-4
-                            py-3
-                            outline-none
-                            focus:border-blue-500
-                        "
+                                            w-full
+                                            rounded-md
+                                            border
+                                            border-gray-600
+                                            bg-gray-900
+                                            py-3
+                                            px-4
+                                            text-white
+                                            outline-none
+                                            focus:border-blue-500
+                                            focus:ring-1
+                                            focus:ring-blue-500
+                                        "   
 
                     />
 

@@ -1,6 +1,6 @@
 import prisma from "../config/prisma.js";
 
-
+//deprecated
 export const uploadcomplete = async (req, res) => {
   try {
 

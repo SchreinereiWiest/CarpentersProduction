@@ -55,28 +55,23 @@ function NewProject() {
                         break;
                 }
             }
-            
-            const response = await axios.post("/api/files/upload-url",
-            {
-                entityId: project.data.id,
-                customerId: userid,
-                entity: "project",
-                fileName: file.name,
-                mimeType: mimeType,
-                fileSize: file.size
-            });
 
-            console.log("Upload URL:", response.data.uploadUrl);
+            const formData = new FormData();
 
-            const s3response = await axios.put(
-                response.data.uploadUrl,
-                file,
-                {
-                    headers:{
-                        "Content-Type": file.type
-                    }
-                }
+            formData.append("file", file);
+            formData.append("entityId", project.data.id);
+            formData.append("customerId", userid);
+            formData.append("entity", "project");
+            formData.append("fileName", file.name);
+            formData.append("mimeType", mimeType);
+            formData.append("fileSize", file.size);
+
+            const response = await axios.post(
+                "/api/files/upload",
+                formData
             );
+
+            console.log("response", response.data.fileEntry.id);
             
             console.log(response.data.fileEntry.id);
 
