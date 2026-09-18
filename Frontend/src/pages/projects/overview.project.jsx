@@ -29,7 +29,7 @@ function ProjectOverview() {
 
         <SideBar selected={2} className="flex-1" />
 
-        <main className="pt-10 h-full flex-1 overflow-y-auto">
+        <main className="xl:pt-10 pt-5 h-full flex-1 overflow-y-auto">
 
             <button
              onClick={() => navigate(`/Projects/create`)}
@@ -59,11 +59,11 @@ function ProjectOverview() {
                         <table className="w-full table-fixed">
                             <thead>
                                 <tr className="bg-gray-800">
-                                    <th className="w-1/4 py-4 px-6 text-left text-gray-300 font-bold uppercase">Title</th>
-                                    <th className="w-1/4 py-4 px-6 text-left text-gray-300 font-bold uppercase">Customer</th>
-                                    <th className="w-1/4 py-4 px-6 text-left text-gray-300 font-bold uppercase">StartDate</th>
-                                    <th className="w-1/4 py-4 px-6 text-left text-gray-300 font-bold uppercase">priority</th>
-                                    <th className="w-1/4 py-4 px-6 text-left text-gray-300 font-bold uppercase">Status</th>
+                                    <th className="w-1/4 xl:py-4 py-2 px-6 text-left text-gray-300 font-bold uppercase">Title</th>
+                                    <th className="w-1/4 xl:py-4 py-2 px-6 text-left text-gray-300 font-bold uppercase">Customer</th>
+                                    <th className="w-1/4 xl:py-4 py-2 px-6 text-left text-gray-300 font-bold uppercase">StartDate</th>
+                                    <th className="w-1/4 xl:py-4 py-2 px-6 text-left text-gray-300 font-bold uppercase">priority</th>
+                                    <th className="w-1/4 xl:py-4 py-2 px-6 text-left text-gray-300 font-bold uppercase">Status</th>
 
                                 </tr>
                             </thead>
@@ -74,23 +74,23 @@ function ProjectOverview() {
                                 <tr key={project.id} className="bg-gray-700 hover:bg-gray-600 transition duration-300 cursor-pointer"
                                     onClick={()=> {navigate(`/Projects/${project.id}`)}}
                                     >
-                                    <td className="py-4 px-6">
+                                    <td className="xl:py-4 py-3 px-6">
                                         {project.title}
                                     </td>
 
-                                    <td className="py-4 px-6">
+                                    <td className="xl:py-4 py-3 px-6">
                                         {project.customer.lastName}
                                     </td>
 
-                                    <td className="py-4 px-6 truncate">
+                                    <td className="xl:py-4 py-3 px-6 truncate">
                                         {project.startDate}
                                     </td>
 
-                                    <td className="py-4 px-6 truncate">
+                                    <td className="xl:py-4 py-3 px-6 truncate">
                                         {project.priority}
                                     </td>
 
-                                    <td className="py-4 px-6 truncate">
+                                    <td className="xl:py-4 py-3 px-6 truncate">
                                         {project.status}
                                     </td>
 

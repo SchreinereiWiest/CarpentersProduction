@@ -34,42 +34,58 @@ fetchProject();
     // console.log(project);
 
 console.log(customer);
-  return (<>
-    <div className='bg-gray-900 text-white justify-left h-screen overflow-hidden flex'>
+  return (
+    <>
+        <div className="bg-gray-900 text-white h-dvh w-full flex overflow-hidden">
 
-        <SideBar selected={2} />
-        
+    <SideBar selected={2} />
 
-        <main className="flex-1 overflow-y-auto">
+    <main className="flex-1 flex flex-col overflow-hidden">
 
+        {/* bleibt immer oben */}
+        <div className="sticky top-0 z-20 bg-gray-900 border-b border-gray-700">
             <ProjectBar selected={0}/>
+        </div>
+                <div className="pl-8 pt-4 pr-4 overflow-y-auto">
 
-            <div className="justify-left pl-8 pt-4,">
-                <div className="relative flex items-left">
-                    <h2 className="text-2xl font-bold mt-2">{customer?.lastName}</h2>
-                    
-                    
-                    <div className="absolute left-1/5 mt-2">
-                        <h2 className="text-2xl font-bold">Bilder:</h2>
-                    </div>
-                    
-                </div>
-                <h2 className="text-2xl font-bold mt-2">{project?.title}</h2>
-                <div className="relative flex items-left">
-                    
-                    <div className="relative items-left w-1/5 pt-4">
-                        {project?.description}
-                    </div> 
+                    {/* Kunde + Bilder */}
+                    <div className="flex flex-col md:flex-row md:items-center">
 
-                    <div className="rounded-lg absolute left-1/5 mt-4 flex justify-left right-18 overflow-hidden">
-                        <ImageGallery files={project?.files}/>     
+                        <h2 className="text-2xl font-bold mt-2 truncate md:w-1/5">
+                            {customer?.lastName}
+                        </h2>
+
+                        <h2 className="text-2xl font-bold mt-2 md:ml-0">
+                            Bilder:
+                        </h2>
+
                     </div>
 
+                    {/* Projektname */}
+                    <h2 className="text-2xl font-bold mt-2 truncate">
+                        {project?.title}
+                    </h2>
+
+                    {/* Beschreibung + Bilder */}
+                    <div className="flex flex-col md:flex-row">
+
+                        {/* Beschreibung */}
+                        <div className="w-full md:w-1/5 pt-4 pr-4">
+                            {project?.description}
+                        </div>
+
+                        {/* Bilder */}
+                        <div className="rounded-lg mt-4 md:mt-4 md:flex-1 overflow-hidden">
+                            <ImageGallery files={project?.files} />
+                        </div>
+
+                    </div>
+
                 </div>
-            </div>
-        </main>
-  </div>
-</>
+
+            </main>
+        </div>
+    </>
 );
 }
 

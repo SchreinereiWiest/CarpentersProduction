@@ -130,10 +130,10 @@ return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden">
         </div>
 
         <div className="relative flex-1 overflow-hidden"> {/* Navigation der Hauptplatten
-            */} <div className="absolute top-4 left-4 right-4 z-20">
-                <div className="bg-gray-800/95 backdrop-blur border border-gray-700 rounded-xl shadow-xl p-3">
-                    <div className="flex items-center gap-3">
-                        <div className="text-sm text-gray-400 whitespace-nowrap"> Hauptplatten </div>
+                */} <div className="absolute xl:top-4 top-2 xl:left-4 left-2 xl:right-4 right-2 z-20">
+                    <div className="bg-gray-800/95 backdrop-blur border border-gray-700 rounded-xl shadow-xl xl:p-3 p-2">
+                        <div className="flex items-center xl:gap-3 gap-2">
+                            <div className="xl:text-sm text-xs text-gray-400 whitespace-nowrap"> Hauptplatten </div>
                         <div className="h-5 w-px bg-gray-700" />
                         <div className="flex gap-2 overflow-x-auto"> {nestingResult?.map( (sheetPlate, index) => {
                             const
@@ -141,10 +141,12 @@ return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden">
                                 setActiveSheetIndex( index );
                                 setShowStripIndex(0);
 
-                                }} className={` flex items-center gap-3 px-4 py-2 rounded-lg border transition-all duration-200 whitespace-nowrap ${ isActive ? "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-900/30" : "bg-gray-900 border-gray-700 text-gray-400 hover:bg-gray-700 hover:text-white" } `} > <span
+                                }} className={` flex items-center xl:gap-3 gap-2 xl:px-4 px-2 xl:py-2 py-1
+                                    rounded-lg border transition-all duration-200 whitespace-nowrap ${ isActive ?
+                                    "bg-blue-600 border-blue-500 text-white xl:shadow-lg shadow-md shadow-blue-900/30" : "bg-gray-900 border-gray-700 text-gray-400 hover:bg-gray-700 hover:text-white" } `} > <span
                                     className="text-xs text-gray-400"> #{index + 1}
                                 </span>
-                                <span className="font-medium"> {sheetPlate.MID} </span> #
+                                <span className="font-medium xl:text-md text-sm"> {sheetPlate.MID} </span> #
                                 <span className="text-xs opacity-70"> {sheetPlate.T} mm </span>
                             </button> ); } )}
                         </div>
@@ -153,30 +155,30 @@ return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden">
 
             </div>
 
-            <div className="absolute top-24 right-4 z-20">
+            <div className="absolute xl:top-24 top-17 right-4 z-20">
                 <div className="
         flex
         items-center
-        gap-3
+        xl:gap-3 gap-1
         bg-gray-800/90
         backdrop-blur
         border
         border-gray-700
         rounded-lg
-        px-4
-        py-3
+        xl:px-4 px-2
+        xl:py-3 py-1
         shadow-lg
     ">
                     <span className="
                 flex
                 items-center
-                gap-3
+                xl:gap-3 gap-2
                 rounded-lg
                 border
                 border-gray-700
                 bg-gray-900
-                px-4
-                py-2
+                xl:px-4 px-2
+                xl:py-2 py-1
                 whitespace-nowrap
                 text-gray-400
                 transition-all
@@ -189,13 +191,13 @@ return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden">
                         className="
                         flex
                         items-center
-                        gap-3
+                        xl:gap-3 gap-2
                         rounded-lg
                         border
                         border-gray-700
                         bg-gray-900
-                        px-4
-                        py-2
+                        xl:px-4 px-2
+                        xl:py-2 py-1
                         whitespace-nowrap
                         text-gray-400
                         transition-all
@@ -212,13 +214,13 @@ return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden">
                             className="
                 flex
                 items-center
-                gap-3
+                xl:gap-3 gap-2
                 rounded-lg
                 border
                 border-gray-700
                 bg-gray-900
-                px-4
-                py-2
+                xl:px-4 px-2
+                xl:py-2 py-1
                 whitespace-nowrap
                 text-gray-400
                 transition-all
@@ -232,23 +234,23 @@ return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden">
                 </div>
             </div>
 
-            <div className="absolute top-24 left-4 z-20">
-                <div className="bg-gray-800/90 backdrop-blur border border-gray-700 rounded-lg px-4 py-3 shadow-lg">
-                    <div className="font-semibold text-white"><span className="text-xl"> Strip {ShowStripIndex}</span>
+            <div className="absolute xl:top-24 top-17 xl:left-4 left-2 z-20">
+                <div className="bg-gray-800/90 backdrop-blur border border-gray-700 rounded-lg xl:px-4 px-2 xl:py-3 py-1 shadow-lg">
+                    <div className="font-semibold text-white"><span className="xl:text-xl text-lm"> Strip {ShowStripIndex}</span>
                     </div>
-                    <div className="flex gap-4 mt-2 text-xs text-gray-500">
+                    <div className="flex xl:gap-4 gap-2 mt-2 text-xs text-gray-500">
 
                     </div>
-                    <div className="font-semibold text-white mb-4"> {activeSheet?.strips[ShowStripIndex].placedWidth} x
+                    <div className="font-semibold text-white xl:mb-4 mb-2 xl:text-xl text-lm"> {activeSheet?.strips[ShowStripIndex].placedWidth} x
                         {activeSheet?.strips[ShowStripIndex].placedHeight} </div>
                     {activeSheet?.strips[ShowStripIndex].plates?.map((plate, index) => (
-                    <div className="gap-4 mt-2 text-lm text-white" key={plate.id}>
+                    <div className="xl:gap-4 gap-2 xl:mt-2 mt-1 xl:text-lg text-sm text-white" key={plate.id}>
                         <span> {plate.originalHeight} x {plate.originalWidth} | {plate.original.Objektname} </span>
 
-                        <div className="ml-8 text-gray-300 text-sm"> Kante Oben: {plate.EdgeT}</div>
-                        <div className="ml-8 text-gray-300 text-sm"> Kante Rechts: {plate.EdgeR}</div>
-                        <div className="ml-8 text-gray-300 text-sm"> Kante Links: {plate.EdgeL}</div>
-                        <div className="ml-8 text-gray-300 text-sm"> Kante Unten: {plate.EdgeB}</div>
+                        <div className="xl:ml-8 ml-4 text-gray-400 text-sm"> Kante Oben: {plate.EdgeT}</div>
+                        <div className="xl:ml-8 ml-4 text-gray-400 text-sm"> Kante Rechts: {plate.EdgeR}</div>
+                        <div className="xl:ml-8 ml-4 text-gray-400 text-sm"> Kante Links: {plate.EdgeL}</div>
+                        <div className="xl:ml-8 ml-4 text-gray-400 text-sm"> Kante Unten: {plate.EdgeB}</div>
                     </div>
 
                     ))}

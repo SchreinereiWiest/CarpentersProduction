@@ -9,13 +9,13 @@ function ProjectBar({selected=0}) {
     const { projectId } = useParams();
 
 return (
-<nav className="bg-gray-800 h-20 w-full">
-    <div className="relative flex space-x-3 p-3"
+<nav className="bg-gray-800 xl:h-20 h-16 w-full">
+    <div className="relative flex xl:space-x-3 space-x-2 xl:p-3 p-2"
          >
 
         <Link to={`/Projects/${projectId}`} className={selected===0
-            ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-14 rounded-lg"
-            : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-14 rounded-lg"
+            ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
+            : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             
             }>
 
@@ -28,8 +28,8 @@ return (
         </Link>
 
         <Link to={`/Projects/CAD/${projectId}`} className={selected===1
-            ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-14 rounded-lg"
-            : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-14 rounded-lg"
+            ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
+            : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             
             }>
 
@@ -40,8 +40,8 @@ return (
         </Link>
 
         <Link to="/Projects" className={selected===2
-            ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-14 rounded-lg"
-            : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-14 rounded-lg"
+            ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
+            : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             
             }>
 
@@ -53,8 +53,8 @@ return (
         </Link>
 
         <Link to={`/Projects/List/${projectId}`} className={selected===3
-            ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-14 rounded-lg"
-            : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-14 rounded-lg"
+            ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
+            : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             
             }>
 
@@ -66,8 +66,8 @@ return (
         </Link>
 
         <Link to={`/Projects/Nesting/${projectId}`} className={selected===4
-            ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-14 rounded-lg"
-            : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-14 rounded-lg"
+            ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
+            : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             }>
 
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
@@ -77,8 +77,8 @@ return (
         </Link>
 
         <Link to={`/Projects/Cut/${projectId}`} className={selected===5
-            ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-14 rounded-lg"
-            : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-14 rounded-lg"
+            ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
+            : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             }>
 
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
@@ -89,8 +89,8 @@ return (
         </Link>
 
         <Link to="/" className={selected===6
-            ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-14 rounded-lg"
-            : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-14 rounded-lg"
+            ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
+            : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             }>
 
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
@@ -101,8 +101,8 @@ return (
         </Link>
 
         <Link to={`/Projects/Time/${projectId}`} className={selected===7
-            ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-14 rounded-lg"
-            : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-14 rounded-lg"
+            ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
+            : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             }>
 
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
@@ -112,8 +112,8 @@ return (
         </Link>
 
         <Link to={`/Projects/Settings/${projectId}`} className={selected===8
-            ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-14 rounded-lg"
-            : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-14 rounded-lg"
+            ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
+            : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             }>
 
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">

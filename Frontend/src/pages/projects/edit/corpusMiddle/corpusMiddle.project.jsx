@@ -100,148 +100,159 @@ return <>
                     overflow-hidden
                 ">
 
-        <div className={KorpusEdit ? ` p-6 border-b border-orange-700 ` : ` p-6 border-b border-gray-700 `}>
+            <div
+    className={
+        KorpusEdit
+            ? "p-2 xl:p-6 border-b border-orange-700"
+            : "p-2 xl:p-6 border-b border-gray-700"
+    }
+>
+    {/* Name / Anzahl / Preset */}
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
 
-            <div className="flex justify-between">
+        {/* Name */}
+        <input
+            className={
+                KorpusEdit
+                    ? "min-w-0 flex-1 rounded-lg bg-gray-900 border border-orange-700 p-3"
+                    : "min-w-0 flex-1 rounded-lg bg-gray-900 p-3"
+            }
+            type="text"
+            value={selectedName}
+            onChange={(e) => setSelectedName(e.target.value)}
+            placeholder={
+                activeCorpus == null || KorpusEdit
+                    ? "Korpusname"
+                    : "Plattenname"
+            }
+        />
 
-                <input className={KorpusEdit ? ` rounded-lg bg-gray-900 border border-orange-700 p-3` : ` rounded-lg bg-gray-900 p-3 `} type="text" value={selectedName} onChange={(e)=>setSelectedName(e.target.value)} placeholder={activeCorpus == null | KorpusEdit ? "Korpusname" : "Plattenname"}
-                />
+        {/* Anzahl + Preset */}
+        <div className="flex min-w-0 flex-col gap-3 sm:flex-row">
 
-                <div className="flex">
+            {/* Anzahl */}
+            <input
+                placeholder="Anzahl"
+                className={
+                    KorpusEdit
+                        ? "w-full sm:w-28 rounded-lg bg-gray-900 border border-orange-700 p-3"
+                        : "w-full sm:w-28 rounded-lg bg-gray-900 p-3"
+                }
+                type="number"
+                value={selectedQuantity}
+                onChange={(e) => setSelectedQuantity(e.target.value)}
+            />
 
-                    <input placeholder="Anzahl" className={KorpusEdit ? ` rounded-lg bg-gray-900 border
-                        border-orange-700 p-3 mr-3 ` : ` rounded-lg bg-gray-900 p-3 mr-3 `} type="number"
-                        value={selectedQuantity} onChange={(e)=>
-                    setSelectedQuantity(e.target.value)
-                    }/>
+            {/* Preset */}
+            <select
+                value={selectedPreset}
+                onChange={(e) => {
+                    setSelectedPreset(e.target.value);
 
-                    {activeCorpus == null | KorpusEdit ? <div className="">
-
-                        <select value={selectedPreset} onChange={(e)=>
-                            setSelectedPreset(e.target.value)
-                            }
-
-                            className={KorpusEdit ? `
-                            w-full
+                    if (activeCorpus != null && !KorpusEdit) {
+                        updateInput(e.target.value);
+                    }
+                }}
+                className={
+                    KorpusEdit
+                        ? `
+                            w-full sm:w-48
                             rounded-lg
-                            border
-                            border-orange-700
+                            border border-orange-700
                             bg-gray-900
-                            px-3
-                            py-3
+                            px-3 py-3
                             text-white
                             focus:border-blue-500
                             focus:outline-none
-                            ` : `
-                            w-full
+                        `
+                        : `
+                            w-full sm:w-48
                             rounded-lg
-                            border
-                            border-gray-700
+                            border border-gray-700
                             bg-gray-900
-                            px-3
-                            py-3
+                            px-3 py-3
                             text-white
                             focus:border-blue-500
                             focus:outline-none
-                            `}
-
-                            >
-
-                            {
-
-                            corpusPresets.map(preset => (
-
-                            <option key={preset.id} value={preset.id}>
-
-                                {preset.name}
-
-                            </option>
-
-                            ))
-
-                            }
-
-                        </select>
-
-                    </div> : <div className="">
-
-                        <select value={selectedPreset} onChange={(e)=> {
-                            setSelectedPreset(e.target.value);
-                            updateInput(e.target.value);
-                            }
-                            }
-
-                            className="
-                            w-full
-                            rounded-lg
-                            border
-                            border-gray-700
-                            bg-gray-900
-                            px-3
-                            py-3
-                            text-white
-                            focus:border-blue-500
-                            focus:outline-none
-                            ">
-
-                            {
-
-                            platePresets.map(preset => (
-
-                            <option key={preset.id} value={preset.id}>
-
-                                {preset.name}
-
-                            </option>
-
-                            ))
-
-                            }
-
-                        </select>
-
-                    </div>}
-
-                </div>
-            </div>
-
-            <div className="
-                            mt-6
-                            grid
-                            grid-cols-3
-                            gap-4
-                        ">
-                <input placeholder="Höhe" className={KorpusEdit ? ` rounded-lg bg-gray-900 border border-orange-700 p-3
-                    ` : ` rounded-lg bg-gray-900 p-3 `} type="text" value={selectedHeigth} onChange={(e)=>
-                setSelectedHeigth(e.target.value)
-                }/>
-
-                <input placeholder="Breite" className={KorpusEdit ? ` rounded-lg bg-gray-900 border border-orange-700
-                    p-3 ` : ` rounded-lg bg-gray-900 p-3 `} type="text" value={selectedWidth} onChange={(e)=>
-                setSelectedWidth(e.target.value)
-                }/>
-
-                <input placeholder="Tiefe" className={KorpusEdit ? ` rounded-lg bg-gray-900 border border-orange-700 p-3
-                    ` : ` rounded-lg bg-gray-900 p-3 `} type="text" value={selectedDepth} onChange={(e)=>
-                setSelectedDepth(e.target.value)
-                }/>
-
-            </div>
+                        `
+                }
+            >
+                {(activeCorpus == null || KorpusEdit
+                    ? corpusPresets
+                    : platePresets
+                ).map((preset) => (
+                    <option key={preset.id} value={preset.id}>
+                        {preset.name}
+                    </option>
+                ))}
+            </select>
 
         </div>
+    </div>
 
-        <div className="
-    flex-1
-    overflow-y-auto
-    p-5
-    space-y-3
-" onClick={()=> setActivePlate(null)}>
+    {/* Abmessungen */}
+    <div className="
+        mt-4
+        grid
+        grid-cols-1
+        sm:grid-cols-3
+        gap-3
+    ">
+        <input
+            placeholder="Höhe"
+            className={
+                KorpusEdit
+                    ? "rounded-lg bg-gray-900 border border-orange-700 p-3"
+                    : "rounded-lg bg-gray-900 p-3"
+            }
+            type="text"
+            value={selectedHeigth}
+            onChange={(e) => setSelectedHeigth(e.target.value)}
+        />
+
+        <input
+            placeholder="Breite"
+            className={
+                KorpusEdit
+                    ? "rounded-lg bg-gray-900 border border-orange-700 p-3"
+                    : "rounded-lg bg-gray-900 p-3"
+            }
+            type="text"
+            value={selectedWidth}
+            onChange={(e) => setSelectedWidth(e.target.value)}
+        />
+
+        <input
+            placeholder="Tiefe"
+            className={
+                KorpusEdit
+                    ? "rounded-lg bg-gray-900 border border-orange-700 p-3"
+                    : "rounded-lg bg-gray-900 p-3"
+            }
+            type="text"
+            value={selectedDepth}
+            onChange={(e) => setSelectedDepth(e.target.value)}
+        />
+    </div>
+</div>
+
+<div
+    className="
+        flex-1
+        min-h-0
+        overflow-y-auto
+        overflow-x-hidden
+        xl:p-5 p-2
+        xl:space-y-3 space-y-2
+    "
+    onClick={() => setActivePlate(null)}
+>
 
             {activeCorpus?.type == "KO" ? <>{
 
             activeCorpus?.Children.map(child => (<>
             
-                {activePlate?.id===child.id ? <div key={child.id} className={` w-full rounded-lg px-4 py-3 text-left transition ${
+                {activePlate?.id===child.id ? <div key={child.id} className={` w-full rounded-lg xl:px-4 px-2 xl:py-3 py-2 text-left transition ${
                 activePlate?.id===child.id ? "bg-blue-600" : "bg-gray-700 hover:bg-gray-600" } `}>
 
                 <div className="flex justify-between">
@@ -266,8 +277,8 @@ return <>
                             border
                             border-gray-700
                             bg-gray-900
-                            px-3
-                            py-2
+                            xl:px-3 px-2
+                            xl:py-2 py-1
                             text-white
                             focus:border-blue-500
                             focus:outline-none
@@ -293,9 +304,9 @@ return <>
 
                     </div>
 
-                    <div className="flex justify-center py-4">
+                    <div className="flex justify-center xl:py-4 py-2">
 
-    <div className="grid grid-cols-3 grid-rows-3 gap-2">
+    <div className="grid grid-cols-3 grid-rows-3 xl:gap-2 gap-1">
 
         <div />
 

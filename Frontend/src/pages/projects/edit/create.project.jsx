@@ -147,9 +147,9 @@ function CreateProject() {
 
         <main className="flex-1 overflow-hidden flex flex-col">
 
-            <div className="flex-1 overflow-hidden p-6">
+            <div className="flex-1 overflow-hidden xl:p-6 p-2">
 
-                <div className="grid grid-cols-[280px_1fr_340px] gap-6 h-full">
+                <div className="grid grid-cols-[280px_1fr_340px] xl:gap-6 gap-2 h-full">
 
                     <CorpusLeft EditorState={EditorState} />
 

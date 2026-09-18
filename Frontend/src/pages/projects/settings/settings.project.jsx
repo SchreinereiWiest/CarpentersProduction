@@ -392,7 +392,7 @@ export default function ProjectSettings() {
                         {/* Header */}
                         {/* -------------------------------- */}
 
-                        <div className="mb-8">
+                        <div className="xl:mb-8 mb-4">
 
                             <h1 className="text-2xl font-semibold">
 
@@ -414,7 +414,7 @@ export default function ProjectSettings() {
                         {/* Project status */}
                         {/* -------------------------------- */}
 
-                        <section className="bg-gray-800 border border-gray-700 rounded-xl p-6 mb-6">
+                        <section className="bg-gray-800 border border-gray-700 rounded-xl xl:p-6 p-4 xl:mb-6 mb-4">
 
                             <div className="mb-5">
 
@@ -572,7 +572,7 @@ export default function ProjectSettings() {
                         {/* Edit project */}
                         {/* -------------------------------- */}
 
-                        <section className="bg-gray-800 border border-gray-700 rounded-xl p-6 mb-6">
+                        <section className="bg-gray-800 border border-gray-700 rounded-xl xl:p-6 p-4 xl:mb-6 mb-4">
 
 
                             <div className="mb-6">
@@ -719,11 +719,11 @@ export default function ProjectSettings() {
                                                             border-gray-700
                                                             rounded-lg
                                                             px-4
-                                                            py-3
+                                                            xl:py-3 py-2
                                                         "
                                                     >
 
-                                                        <div className="flex items-center gap-3 min-w-0">
+                                                        <div className="flex items-center xl:gap-3 gap-2 min-w-0">
 
                                                             <div className="text-blue-400">
 
@@ -878,7 +878,7 @@ export default function ProjectSettings() {
                                                             bg-gray-700
                                                             rounded-lg
                                                             px-4
-                                                            py-3
+                                                            xl:py-3 py-2
                                                         "
                                                     >
 
@@ -962,10 +962,10 @@ export default function ProjectSettings() {
                         {/* Danger zone */}
                         {/* -------------------------------- */}
 
-                        <section className="border border-red-900/60 bg-red-950/20 rounded-xl p-6 mb-10">
+                        <section className="border border-red-900/60 bg-red-950/20 rounded-xl xl:p-6 p-4 mb-10">
 
 
-                            <div className="flex items-center justify-between gap-6">
+                            <div className="flex items-center justify-between xl:gap-6 gap-2">
 
 
                                 <div>
@@ -998,8 +998,8 @@ export default function ProjectSettings() {
                                         bg-red-900/30
                                         hover:bg-red-900/60
                                         disabled:opacity-50
-                                        px-5
-                                        py-3
+                                        xl:px-5 px-4
+                                        xl:py-3 py-2
                                         text-red-300
                                         font-semibold
                                         transition

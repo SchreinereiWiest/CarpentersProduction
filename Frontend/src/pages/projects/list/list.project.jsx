@@ -169,16 +169,6 @@ function ListMaterial() {
     }, [projectId, project]);
 
 
-    // console.log(content);
-
-    // useEffect(() => {
-    //     if (!content.length) return;
-
-    //     setProcessedContent(processContent(content));
-
-    // }, [content]);
-
-
 console.log(processedContent);
 
 
@@ -191,7 +181,7 @@ const leftItems = processedContent?.filter(
     );
 
 
-return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden">
+return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden overscroll-none">
 
     <SideBar selected={2} />
 
@@ -206,17 +196,17 @@ return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden">
         <div className="flex overflow-y-auto">
 
             {/* LINKER BEREICH */}
-            <div className="w-2/3 p-8">
+            <div className="w-2/3 xl:p-8 p-6">
 
                 {leftItems?.map((item) => (
 
-                <div className="bg-gray-800 rounded-xl p-5 shadow-lg mb-4" key={item.PID}>
+                <div className="bg-gray-800 xl:rounded-xl rounded-md xl:p-5 p-4 shadow-lg xl:mb-4 mb-2" key={item.PID}>
 
                     <div className="flex justify-between items-center">
 
                         <div>
 
-                            <h2 className="text-2xl font-semibold">
+                            <h2 className="xl:text-2xl text-lg font-semibold">
                                 {item.Objektname}
                             </h2>
 
@@ -226,13 +216,13 @@ return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden">
 
                         </div>
 
-                        <div className="text-xl font-semibold">
+                        <div className="xl:text-xl text-lg font-semibold">
                             Stück {item.Anzahl}
                         </div>
 
                     </div>
 
-                    <table className="mt-6 w-full">
+                    <table className="mt-2 w-full">
 
                         <thead>
 
@@ -295,94 +285,96 @@ return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden">
 
             {/* RECHTER BEREICH */}
 
-            <div className="w-1/3 border-l border-gray-700 p-8">
+            <div className="w-1/3 min-w-0 border-l border-gray-700 p-8">
 
-                <div className='flex justify-between'>
+    <div className="flex flex-col gap-3">
 
-                    <h2 className="text-xl font-semibold ">
-                    Einzelteile
-                </h2>
+        {/* 1. Zeile – Buttons */}
+        <div className="flex flex-wrap gap-2">
 
-                <div className='flex'>
-                    <button
-             onClick={() => createPartsListPDF(processedContent)}
-            className="
-            ml-8
-                flex
-                items-center
-                gap-3
-                rounded-lg
-                border
-                border-gray-700
-                bg-gray-800
-                px-4
-                py-2
-                whitespace-nowrap
-                text-gray-400
-                transition-all
-                duration-200
-                hover:bg-gray-700
-                hover:text-white
-            "
-        >
-            PDF
-        </button>
+            <button
+                onClick={() => createPartsListPDF(processedContent)}
+                className="
+                    flex
+                    items-center
+                    gap-3
+                    rounded-lg
+                    border
+                    border-gray-700
+                    bg-gray-800
+                    px-4
+                    py-2
+                    whitespace-nowrap
+                    text-gray-400
+                    transition-all
+                    duration-200
+                    hover:bg-gray-700
+                    hover:text-white
+                "
+            >
+                PDF
+            </button>
 
-                    <button
-             onClick={() => navigate(`/projects/create/${projectId}`, {
-        state: {
-            mode: "edit",
-            cadData: processedContent
-        }
-    })}
-            className="
-            ml-8
-                flex
-                items-center
-                gap-3
-                rounded-lg
-                border
-                border-gray-700
-                bg-gray-800
-                px-4
-                py-2
-                whitespace-nowrap
-                text-gray-400
-                transition-all
-                duration-200
-                hover:bg-gray-700
-                hover:text-white
-            "
-        >
-            Editieren
-        </button>
+            <button
+                onClick={() => navigate(`/projects/create/${projectId}`, {
+                    state: {
+                        mode: "edit",
+                        cadData: processedContent
+                    }
+                })}
+                className="
+                    flex
+                    items-center
+                    gap-3
+                    rounded-lg
+                    border
+                    border-gray-700
+                    bg-gray-800
+                    px-4
+                    py-2
+                    whitespace-nowrap
+                    text-gray-400
+                    transition-all
+                    duration-200
+                    hover:bg-gray-700
+                    hover:text-white
+                "
+            >
+                Editieren
+            </button>
 
-        <button
-             onClick={() => UploadData()}
-            className="
-            ml-8
-                flex
-                items-center
-                gap-3
-                rounded-lg
-                border
-                border-gray-700
-                bg-gray-800
-                px-4
-                py-2
-                whitespace-nowrap
-                text-gray-400
-                transition-all
-                duration-200
-                hover:bg-gray-700
-                hover:text-white
-            "
-        >
-            Update
-        </button>
+            <button
+                onClick={() => UploadData()}
+                className="
+                    flex
+                    items-center
+                    gap-3
+                    rounded-lg
+                    border
+                    border-gray-700
+                    bg-gray-800
+                    px-4
+                    py-2
+                    whitespace-nowrap
+                    text-gray-400
+                    transition-all
+                    duration-200
+                    hover:bg-gray-700
+                    hover:text-white
+                "
+            >
+                Update
+            </button>
+
         </div>
 
-                </div>
+        {/* 2. Zeile */}
+        <h2 className="xl:text-2xl text-lg font-semibold">
+            Einzelteile:
+        </h2>
+
+    </div>
+
                 
 
                 <div className="space-y-3 mt-4">

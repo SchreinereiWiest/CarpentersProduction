@@ -1,18 +1,56 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import queryString from "query-string";
 import { useApp } from '../main.jsx';
 import { Link } from "react-router";
 import { useAuth } from "../routes/AuthContext.jsx";
 import ProtectedElement from '../routes/ProtectedElement.jsx';
 
+
+
 function SideBar({selected=0}) {
 
     const {SideBarCollapsed, setSideBarCollapsed} = useApp();
 
+    const [isFullscreen, setIsFullscreen] = useState(false);
+
+    useEffect(() => {
+        const handleFullscreenChange = () => {
+            setIsFullscreen(!!document.fullscreenElement);
+        };
+
+        document.addEventListener("fullscreenchange", handleFullscreenChange);
+
+        return () => {
+            document.removeEventListener(
+                "fullscreenchange",
+                handleFullscreenChange
+            );
+        };
+    }, []);
+
+    const toggleFullscreen = async () => {
+        if (document.fullscreenElement) {
+            await document.exitFullscreen();
+        } else {
+            await document.documentElement.requestFullscreen();
+        }
+    };
+
 return (
-<nav aria-label="Sidebar" className="block flex-shrink-0 overflow-y-auto bg-gray-800">
-    <div className={SideBarCollapsed ? "relative flex w-20 flex-col space-y-3 p-3"
-        : "relative flex w-60 flex-col space-y-3 p-3" }>
+<nav
+    aria-label="Sidebar"
+    className="
+        h-dvh
+        shrink-0
+        overflow-y-auto
+        overflow-x-hidden
+        overscroll-contain
+        touch-pan-y
+        bg-gray-800
+    "
+>
+    <div className={SideBarCollapsed ? "relative flex xl:w-20 flex-col xl:space-y-2 p-3 space-y-0 w-16"
+        : "relative flex xl:w-60 flex-col xl:space-y-2 p-3 space-y-0" }>
         
         <ProtectedElement requiredRole="user">
             <Link to="/" className={SideBarCollapsed ? selected===0
@@ -207,7 +245,24 @@ return (
             </Link>
         </ProtectedElement>
 
+        <ProtectedElement requiredRole="user">
+            <Link to="/" className={SideBarCollapsed ? selected===9
+                ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
+                : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
+                : selected===0
+                ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-left pl-4 h-14 w-full rounded-lg"
+                : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-left pl-4 h-14 w-full rounded-lg"
+                }>
 
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-6">
+  <path fill-rule="evenodd" d="M7.5 6a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0ZM3.751 20.105a8.25 8.25 0 0 1 16.498 0 .75.75 0 0 1-.437.695A18.683 18.683 0 0 1 12 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 0 1-.437-.695Z" clip-rule="evenodd" />
+</svg>
+
+                <span className={SideBarCollapsed ? "hidden" : "pl-2 block" }>Benutzer</span>
+            </Link>
+        </ProtectedElement>
+
+        
 
         <a onClick={()=> setSideBarCollapsed(!SideBarCollapsed)} className={SideBarCollapsed ?
             "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
@@ -237,6 +292,43 @@ return (
             <span className={SideBarCollapsed ? "hidden" : "pl-2 block" }>Einkalppen</span>
         </a>
 
+                <button
+    onClick={() => toggleFullscreen()}
+    className={
+        SideBarCollapsed
+            ? "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
+            : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-left pl-4 h-14 w-full rounded-lg"
+    }
+>
+    {/* Icon */}
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        className="size-6"
+    >
+        {isFullscreen ? (
+            // Vollbild verlassen
+            <path
+                fillRule="evenodd"
+                d="M3.22 3.22a.75.75 0 0 1 1.06 0l3.97 3.97V4.5a.75.75 0 0 1 1.5 0V9a.75.75 0 0 1-.75.75H4.5a.75.75 0 0 1 0-1.5h2.69L3.22 4.28a.75.75 0 0 1 0-1.06Zm17.56 0a.75.75 0 0 1 0 1.06l-3.97 3.97h2.69a.75.75 0 0 1 0 1.5H15a.75.75 0 0 1-.75-.75V4.5a.75.75 0 0 1 1.5 0v2.69l3.97-3.97a.75.75 0 0 1 1.06 0ZM3.75 15a.75.75 0 0 1 .75-.75H9a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-2.69l-3.97 3.97a.75.75 0 1 1-1.06-1.06l3.97-3.97H4.5a.75.75 0 0 1-.75-.75Zm10.5 0a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 0 1.5h-2.69l3.97 3.97a.75.75 0 1 1-1.06 1.06l-3.97-3.97v2.69a.75.75 0 0 1-1.5 0V15Z"
+                clipRule="evenodd"
+            />
+        ) : (
+            // Vollbild aktivieren
+            <path
+                fillRule="evenodd"
+                d="M15 3.75a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 .75.75v4.5a.75.75 0 1 1-1.5 0V5.56l-3.97 3.97a.75.75 0 1 1-1.06-1.06l3.97-3.97h-2.69a.75.75 0 0 1-.75-.75Zm-12 0A.75.75 0 0 1 3.75 3h4.5a.75.75 0 0 1 0 1.5H5.56l3.97 3.97a.75.75 0 1 1-1.06 1.06L4.5 5.56v2.69a.75.75 0 0 1-1.5 0v-4.5Zm11.47 11.78a.75.75 0 1 1 1.06-1.06l3.97 3.97v-2.69a.75.75 0 0 1 1.5 0v4.5a.75.75 0 0 1-.75.75h-4.5a.75.75 0 0 1 0-1.5h2.69l-3.97-3.97Zm-4.94-1.06a.75.75 0 0 1 0 1.06L5.56 19.5h2.69a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1-.75-.75v-4.5a.75.75 0 0 1 1.5 0v2.69l3.97-3.97a.75.75 0 1 1 1.06 0Z"
+                clipRule="evenodd"
+            />
+        )}
+    </svg>
+
+    {/* Text */}
+    <span className={SideBarCollapsed ? "hidden" : "pl-2 block"}>
+        {isFullscreen ? "Vollbild verlassen" : "Vollbild"}
+    </span>
+</button>
     </div>
 </nav>
 )};
