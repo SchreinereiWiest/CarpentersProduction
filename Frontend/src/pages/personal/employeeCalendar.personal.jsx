@@ -7,7 +7,7 @@ export default function EmployeeCalendar({
     data
 
 }) {
-
+    // console.log(data);
     return (
 
         <div className="
@@ -20,27 +20,54 @@ export default function EmployeeCalendar({
             overflow-hidden
         ">
 
-            <div className="
-                mb-4
-                flex
-                items-center
-                justify-between
-            ">
+            <div className="flex items-center justify-center gap-4 mb-4">
 
-                <h2 className="
-                    text-xl
-                    font-semibold
-                ">
-                    Kalender
-                </h2>
+    {/* Vorherige Woche */}
+    <button
+        type="button"
+        onClick={data.previousWeek}
+        className="p-2 rounded-lg hover:bg-gray-700 transition"
+    >
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            className="size-6"
+        >
+            <path
+                fillRule="evenodd"
+                d="M7.28 7.72a.75.75 0 0 1 0 1.06l-2.47 2.47H21a.75.75 0 0 1 0 1.5H4.81l2.47 2.47a.75.75 0 1 1-1.06 1.06l-3.75-3.75a.75.75 0 0 1 0-1.06l3.75-3.75a.75.75 0 0 1 1.06 0Z"
+                clipRule="evenodd"
+            />
+        </svg>
+    </button>
 
-                <div className="
-                    text-gray-400
-                ">
-                    KW 31
-                </div>
+    {/* Kalenderwoche */}
+    <div className="min-w-20 text-center text-lg font-semibold">
+        KW {data.getCalendarWeek(data.weekOffset, data.today)}
+    </div>
 
-            </div>
+    {/* Nächste Woche */}
+    <button
+        type="button"
+        onClick={data.nextWeek}
+        className="p-2 rounded-lg hover:bg-gray-700 transition"
+    >
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            className="size-6"
+        >
+            <path
+                fillRule="evenodd"
+                d="M16.72 7.72a.75.75 0 0 1 1.06 0l3.75 3.75a.75.75 0 0 1 0 1.06l-3.75 3.75a.75.75 0 1 1-1.06-1.06l2.47-2.47H3a.75.75 0 0 1 0-1.5h16.19l-2.47-2.47a.75.75 0 0 1 0-1.06Z"
+                clipRule="evenodd"
+            />
+        </svg>
+    </button>
+
+</div>
 
             <div className="
                 grid
@@ -52,19 +79,17 @@ export default function EmployeeCalendar({
 
                 {
 
-                    data?.days.map(day => (
+                    data.weekData.map(day => (
 
                         <DayColumn
 
-                            key={day.id}
+                            key={day.day}
 
-                            day={day}
+                            day={data.days?.find(
+                                    d => d.id === day.day
+                                )}
 
-                            dayData={   
-                                data.weekData?.find(
-                                    d => d.day === day.id
-                                )
-                            }
+                            dayData={day}
 
                             data={data}
 

@@ -3,7 +3,7 @@ import prisma from "../config/prisma.js";
 
 import { newProject, getAllProjectsID, getProject, getGeneratedProjectData, createGeneratedProjectData, getAllActive, updateProject, deleteProject } from "../controllers/project.controller.js";
 import { authenticate } from "../middleware/auth.middleware.js";
-import { getTime, newTime, startTime, stopTime } from "../controllers/time.controller.js";
+import { getTime, manualTime, startTime, stopTime } from "../controllers/time.controller.js";
 
 const router = express.Router();
 
@@ -29,6 +29,6 @@ router.patch("/time/:id/stop", authenticate, stopTime);
 
 router.get("/time/:id", authenticate, getTime);
 
-router.post("/time/:id/new", authenticate, newTime);
+router.post("/time/:id/new", authenticate, manualTime);
 
 export default router;

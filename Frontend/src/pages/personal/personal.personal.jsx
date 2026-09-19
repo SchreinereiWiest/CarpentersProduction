@@ -1,7 +1,7 @@
 import EmployeeCalendar from "./employeeCalendar.personal";
 import MissingTimes from "./missingTimes.personal";
 import SideBar from "../../components/sideBar";
-import { useEmployeeCalendar } from "./employeeHook";
+import { useEmployeeCalendar } from "./calendar/employeeHook";
 import EditTimeModal from "./editTimeModal.personal";
 import { useState, useEffect } from 'react'
 import axios from "axios";
@@ -15,16 +15,17 @@ export default function Personal() {
     useEffect(() => {
         if(!user || loading) return;
 
-        const data = Calendar.createWeek();
-        Calendar.setWeekData(data);
+        Calendar.setUser(user); 
 
         
 
         const fetchProjects = async () => {
         const result = await axios.get(`/api/projects/getActive`);
         Calendar.setProjects(result.data.projects);
+        const res = await Calendar.loadWeek(user, Calendar);
+        Calendar.setWeekData(res.weekData);
 
-        await Calendar.loadDayEntries(data, user);
+        // await Calendar.loadDayEntries(data, user);
         };
 
         fetchProjects();
@@ -117,6 +118,8 @@ export default function Personal() {
     onDelete={Calendar.deleteSlot}
 
     mode={Calendar.editMode}
+
+    Cal={Calendar}
 
 />
 

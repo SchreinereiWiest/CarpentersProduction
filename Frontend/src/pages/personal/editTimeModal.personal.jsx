@@ -16,8 +16,11 @@ export default function EditTimeModal({
     onSave,
     onClose,
     onDelete,
-    mode
+    mode,
+    Cal
 }) {
+
+    // console.log("editSlot", slot);
 
     const [entry, setEntry] = useState({
         projectId: "",
@@ -317,9 +320,11 @@ export default function EditTimeModal({
 
                                     manual: true,
 
-                                    start: entry.start
+                                    start: entry.start,
 
-                                }, mode)
+                                    date: slot.date,
+
+                                }, mode, Cal)
 
                             }
 

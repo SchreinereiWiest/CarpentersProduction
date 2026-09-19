@@ -31,7 +31,7 @@ export default function DayColumn({
                 border-gray-700
             ">
 
-                {day.label}
+                {day.label} {dayData?.date}
 
             </div>
 
@@ -92,7 +92,6 @@ export function TimeBlock({
     data
 
 }) {
-
     return (
 
         <div className="
@@ -159,10 +158,10 @@ export function TimeSlot({
     totalDuration,
 
     data,
+
 }) {
 
     const selected = data.selectedSlot?.id === slot.id;
-
     return (
 
         <button
@@ -199,7 +198,7 @@ export function TimeSlot({
                     data.openEditor?.(slot, "new");
 
                 } else {
-                    data.openEditor?.(slot, "edit");
+                    data.openEditor?.(slot,  "edit");
                 }
 
                 

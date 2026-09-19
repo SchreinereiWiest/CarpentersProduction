@@ -18,10 +18,10 @@ export default function TimeRow({ entry }) {
 
     }
 
-    function formatDuration(seconds = 0) {
+    function formatDuration(minutes = 0) {
 
-        const h = Math.floor(seconds / 3600);
-        const m = Math.floor((seconds % 3600) / 60);
+        const h = Math.floor(minutes / 60);
+        const m = Math.floor((minutes % 60));
 
         if (h > 0) {
             return `${h}h ${m}min`;

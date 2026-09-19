@@ -4,10 +4,10 @@ import TimeRow from "./timeRow.project";
 
 export default function TimeHistory({ entries }) {
 
-    function formatDuration(seconds) {
+    function formatDuration(minutes) {
 
-        const h = Math.floor(seconds / 3600);
-        const m = Math.floor((seconds % 3600) / 60);
+        const h = Math.floor(minutes / 60);
+        const m = Math.floor((minutes % 60));
 
         return `${h}h ${m}min`;
 
@@ -18,9 +18,11 @@ export default function TimeHistory({ entries }) {
         const grouped = {};
 
         entries.forEach(entry => {
-
-            const day = new Date(entry.createdAt)
+            let day = new Date().toLocaleDateString("de-DE");
+            if(entry.startedAt!=null) {
+                day = new Date(entry.startedAt)
                 .toLocaleDateString("de-DE");
+            }
 
             if (!grouped[day]) {
 

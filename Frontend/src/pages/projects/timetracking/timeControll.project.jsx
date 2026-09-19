@@ -40,7 +40,7 @@ export default function TimeControls({
 
                 Math.floor(
                     (Date.now() -
-                        new Date(runningEntry.startedAt).getTime()) / 1000
+                        new Date(runningEntry.startedAt).getTime()) / 1000 /60
                 )
 
             );
@@ -49,7 +49,7 @@ export default function TimeControls({
 
         update();
 
-        const interval = setInterval(update, 1000);
+        const interval = setInterval(update, 1000/60);
 
         return () => clearInterval(interval);
 
@@ -57,29 +57,17 @@ export default function TimeControls({
 
     function formatTime(seconds) {
 
-    if (!seconds) return "00:00:00";
+    if (!seconds) return "00:00";
 
-    const h = Math.floor(seconds / 3600)
+    const h = Math.floor(seconds / 60)
         .toString()
         .padStart(2, "0");
 
-    const m = Math.floor((seconds % 3600) / 60)
+    const m = Math.floor((seconds % 60))
         .toString()
         .padStart(2, "0");
 
-    const s = Math.floor(seconds % 60)
-        .toString()
-        .padStart(2, "0");
-
-    return `${h}:${m}:${s}`;
-
-}
-
-function timeToSeconds(value) {
-
-    const [h, m, s] = value.split(":").map(Number);
-
-    return h * 3600 + m * 60 + s;
+    return `${h}:${m}`;
 
 }
 

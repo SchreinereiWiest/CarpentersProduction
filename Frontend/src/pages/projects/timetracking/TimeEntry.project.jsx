@@ -9,18 +9,14 @@ export default function DurationInput({
 
     const [hours, setHours] = useState("00");
     const [minutes, setMinutes] = useState("00");
-    const [seconds, setSeconds] = useState("00");
-
 
     useEffect(() => {
 
-        const h = Math.floor(value / 3600);
-        const m = Math.floor((value % 3600) / 60);
-        const s = value % 60;
+        const h = Math.floor(value / 60);
+        const m = Math.floor((value % 60));
 
         setHours(String(h).padStart(2, "0"));
         setMinutes(String(m).padStart(2, "0"));
-        setSeconds(String(s).padStart(2, "0"));
 
     }, [value]);
 
@@ -29,7 +25,6 @@ export default function DurationInput({
 
         let h = Number(hours);
         let m = Number(minutes);
-        let s = Number(seconds);
 
 
         if(type === "hours") {
@@ -44,21 +39,12 @@ export default function DurationInput({
         }
 
 
-        if(type === "seconds") {
-            s = Number(newValue);
-            setSeconds(newValue);
-        }
-
-
         // Grenzen
         if(m > 59) m = 59;
-        if(s > 59) s = 59;
-
 
         onChange(
-            h * 3600 +
-            m * 60 +
-            s
+            h * 60 + m 
+            
         );
 
     }
