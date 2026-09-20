@@ -938,9 +938,11 @@ export default function CabinetViewport({
                         Fronten
                     --------------------------------- */}
 
-                    {mode === "fronts" && (
+                    {mode === "front" && (
                         <FrontLayer
                             cabinet={cabinet}
+                            selectedElement={selectedElement}
+                            onSelect={onSelect}
                         />
                     )}
 

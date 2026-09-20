@@ -1,53 +1,54 @@
-
-
 export function InteriorLayer({
     cabinet,
     selectedElement,
     onSelect
 }) {
 
-    const sections =
-        cabinet.sections ?? [];
+    const sections = cabinet.sections ?? [];
 
 
-    return (
-        <g>
+    const renderSections = (
+        sections,
+        parentNumber = ""
+    ) => {
 
-            {sections.map(
-                (section) => {
+        return sections.map(
+            (section, index) => {
 
-                    const selected =
-                        selectedElement?.id ===
-                        section.id;
+                const sectionNumber =
+                    parentNumber
+                        ? `${parentNumber}.${index + 1}`
+                        : `${index + 1}`;
 
 
-                    return (
+                const selected =
+                    selectedElement?.id ===
+                    section.id;
+
+
+                return (
+
+                    <g
+                        key={section.id}
+                    >
+
+                        {/* Section */}
 
                         <g
-                            key={section.id}
-
                             onClick={(event) => {
 
                                 event.stopPropagation();
 
                                 onSelect({
-                                    id:
-                                        section.id,
+                                    id: section.id,
 
-                                    type:
-                                        "section",
+                                    type: "section",
 
-                                    x:
-                                        section.x,
+                                    x: section.x,
+                                    y: section.y,
 
-                                    y:
-                                        section.y,
-
-                                    width:
-                                        section.width,
-
-                                    height:
-                                        section.height
+                                    width: section.width,
+                                    height: section.height
                                 });
 
                             }}
@@ -57,26 +58,17 @@ export function InteriorLayer({
                                 event.stopPropagation();
 
                                 onSelect({
-                                    id:
-                                        section.id,
+                                    id: section.id,
 
-                                    type:
-                                        "section",
+                                    type: "section",
 
-                                    x:
-                                        section.x,
+                                    x: section.x,
+                                    y: section.y,
 
-                                    y:
-                                        section.y,
+                                    width: section.width,
+                                    height: section.height,
 
-                                    width:
-                                        section.width,
-
-                                    height:
-                                        section.height,
-
-                                    openSetup:
-                                        true
+                                    openSetup: true
                                 });
 
                             }}
@@ -131,16 +123,33 @@ export function InteriorLayer({
 
                                 pointerEvents="none"
                             >
-                                {section.index + 1}
+                                {sectionNumber}
                             </text>
 
                         </g>
 
-                    );
 
-                }
-            )}
+                        {/* Untersektionen */}
 
+                        {section.children?.length > 0 &&
+                            renderSections(
+                                section.children,
+                                sectionNumber
+                            )
+                        }
+
+                    </g>
+
+                );
+
+            }
+        );
+    };
+
+
+    return (
+        <g>
+            {renderSections(sections)}
         </g>
     );
 }
