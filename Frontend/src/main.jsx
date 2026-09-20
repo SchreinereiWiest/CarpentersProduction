@@ -25,6 +25,7 @@ import ShowStorage from "./pages/storage/home.storage.jsx";
 import TimeTracking from "./pages/projects/timetracking/timeTracking.project.jsx";
 import CreateProject from "./pages/projects/edit/create.project.jsx";
 import ProjectSettings from "./pages/projects/settings/settings.project.jsx";
+import CabinetEditor from "./pages/projects/cabinetConfigurator/components/cabinetEditor.jsx"
 import './index.css'
 
 import {
@@ -138,6 +139,12 @@ ReactDOM.createRoot(root).render(
 
             <Route path="/Projects/Settings/:projectId" element={ <ProtectedRoute requiredRole="user">
             <ProjectSettings/>
+            </ProtectedRoute>
+            }
+            />
+
+            <Route path="/Projects/Cabinet/:projectId" element={ <ProtectedRoute requiredRole="user">
+            <CabinetEditor/>
             </ProtectedRoute>
             }
             />
