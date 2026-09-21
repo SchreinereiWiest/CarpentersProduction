@@ -13,7 +13,9 @@ import { createInitialSections } from "../engine/sektions/interior/createInitial
 import { generateFronts } from "../engine/sektions/front/generateFronts.js"
 import { splitFront } from "../engine/sektions/front/splitFront.js";
 import { splitSection } from "../engine/sektions/splitSections.js";
-import {updateSelectedGeometry} from "../engine/sektions/geometryChange/updateSelectedGeometry.js"
+import { mergeSectionChildren, findSection, findParent } from "../engine/sektions/mergeSectionChildren.js";
+import { frontsToSections } from "../engine/parseFrontSections.js";
+import { findFrontParent, mergeFrontChildren } from "../engine/sektions/mergeFrontChildren.js";
 
 import axios from "axios";
 
@@ -94,15 +96,8 @@ export default function CabinetEditor() {
             depth: 580,
             thickness: 19,
 
-            sections:
-                createSections(
-                    1,
-                    {width: 600,
-            height: 2000,
-            depth: 580,
-
-            thickness: 19}
-                ),
+            sections: [],
+                
             fronts: []
         }
     ]);
@@ -231,7 +226,28 @@ export default function CabinetEditor() {
     );
 
     setSelectedElement(null);
-};
+
+    console.log(cabinets);
+    };
+
+    const createSectionsFromFronts = () => {
+
+    if (!activeCabinet) {
+        return;
+    }
+
+    const newSections =
+        frontsToSections(
+            activeCabinet.fronts ?? [],
+            activeCabinet
+        );
+
+    updateActiveCabinet({
+        sections: newSections
+    });
+
+    setSelectedElement(null);
+    };
 
 
     return (
@@ -750,8 +766,54 @@ export default function CabinetEditor() {
             min-h-0
         ">
 
-                        <CabinetViewport cabinet={activeCabinet} mode={viewMode} onSelect={setSelectedElement}
-                            selectedElement={selectedElement} />
+                        <div className="relative h-full w-full overflow-hidden">
+
+                            <CabinetViewport
+                                cabinet={activeCabinet}
+                                mode={viewMode}
+                                selectedElement={selectedElement}
+                                onSelect={setSelectedElement}
+                                showGrid={false}
+                            />
+
+
+                            {/* Floating Controls */}
+                            <div
+                                className="
+                                    absolute
+                                    right-3
+                                    top-3
+                                    z-20
+                                "
+                            >
+
+                                <div className="flex flex-col gap-2">
+
+                                    <button
+                                        type="button"
+                                        onClick={createSectionsFromFronts}
+                                        className="
+                                            rounded
+                                            border
+                                            border-gray-700
+                                            bg-gray-800/90
+                                            px-3
+                                            py-2
+                                            text-sm
+                                            text-gray-200
+                                            shadow-lg
+                                            backdrop-blur
+                                            hover:bg-gray-700
+                                        "
+                                    >
+                                        ParseFront
+                                    </button>
+
+                                </div>
+
+                            </div>
+
+                        </div>
 
                     </div>
 
@@ -836,36 +898,11 @@ export default function CabinetEditor() {
         {/* X */}
         <label>
 
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-gray-400 mr-2">
                 X
             </span>
 
-            <input
-                type="number"
-                value={
-                    selectedElement.x ?? ""
-                }
-                onChange={(e) =>
-                    updateSelectedGeometry(
-                        "x",
-                        e.target.value,
-                        selectedElement,
-                        activeCabinet,
-                        updateActiveCabinet,
-                        setSelectedElement
-                    )
-                }
-                className="
-                    mt-1
-                    w-full
-                    rounded
-                    border
-                    border-gray-700
-                    bg-gray-800
-                    px-3
-                    py-2
-                "
-            />
+            {selectedElement.x ?? ""}
 
         </label>
 
@@ -873,36 +910,11 @@ export default function CabinetEditor() {
         {/* Y */}
         <label>
 
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-gray-400 mr-2">
                 Y
             </span>
 
-            <input
-                type="number"
-                value={
-                    selectedElement.y ?? ""
-                }
-                onChange={(e) =>
-                    updateSelectedGeometry(
-                        "y",
-                        e.target.value,
-                        selectedElement,
-                        activeCabinet,
-                        updateActiveCabinet,
-                        setSelectedElement
-                    )
-                }
-                className="
-                    mt-1
-                    w-full
-                    rounded
-                    border
-                    border-gray-700
-                    bg-gray-800
-                    px-3
-                    py-2
-                "
-            />
+            {selectedElement.y ?? ""}
 
         </label>
 
@@ -910,36 +922,11 @@ export default function CabinetEditor() {
         {/* Breite */}
         <label>
 
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-gray-400 mr-2">
                 Breite
             </span>
 
-            <input
-                type="number"
-                value={
-                    selectedElement.width ?? ""
-                }
-                onChange={(e) =>
-                    updateSelectedGeometry(
-                        "width",
-                        e.target.value,
-                        selectedElement,
-                        activeCabinet,
-                        updateActiveCabinet,
-                        setSelectedElement
-                    )
-                }
-                className="
-                    mt-1
-                    w-full
-                    rounded
-                    border
-                    border-gray-700
-                    bg-gray-800
-                    px-3
-                    py-2
-                "
-            />
+            {selectedElement.width ?? ""}
 
         </label>
 
@@ -947,36 +934,11 @@ export default function CabinetEditor() {
         {/* Höhe */}
         <label>
 
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-gray-400 mr-2">
                 Höhe
             </span>
 
-            <input
-                type="number"
-                value={
-                    selectedElement.height ?? ""
-                }
-                onChange={(e) =>
-                    updateSelectedGeometry(
-                        "height",
-                        e.target.value,
-                        selectedElement,
-                        activeCabinet,
-                        updateActiveCabinet,
-                        setSelectedElement
-                    )
-                }
-                className="
-                    mt-1
-                    w-full
-                    rounded
-                    border
-                    border-gray-700
-                    bg-gray-800
-                    px-3
-                    py-2
-                "
-            />
+            {selectedElement.height ?? ""}
 
         </label>
 
@@ -1179,6 +1141,43 @@ export default function CabinetEditor() {
                         Front unterteilen
                     </button>
 
+                    <button
+                        type="button"
+                        disabled={
+                            !selectedElement ||
+                            (
+                                !(selectedElement.children?.length > 0) &&
+                                findFrontParent(
+                                    activeCabinet.fronts ?? [],
+                                    selectedElement.id
+                                ) === null
+                            )
+                        }
+                        onClick={() => {
+
+                            mergeFrontChildren(
+                                selectedElement.id,
+                                activeCabinet,
+                                updateActiveCabinet,
+                                setSelectedElement
+                            );
+
+                        }}
+                        className="
+                            w-full
+                            rounded
+                            border border-red-800
+                            px-3 py-2
+                            text-sm
+                            text-red-400
+                            hover:bg-red-950
+                            disabled:cursor-not-allowed
+                            disabled:opacity-30
+                        "
+                    >
+                        Unterteilungen aufheben
+                    </button>
+
                 </div>
 
             </section>
@@ -1326,6 +1325,42 @@ export default function CabinetEditor() {
             >
                 Sektion unterteilen
             </button>
+
+            <button
+                    type="button"
+                    disabled={
+    !selectedElement ||
+    (
+        !(selectedElement.children?.length > 0) &&
+        findParent(
+            activeCabinet.sections ?? [],
+            selectedElement.id
+        ) === null
+    )
+}
+                    onClick={() => {
+                        mergeSectionChildren(
+                            selectedElement.id,
+                            activeCabinet,
+                            updateActiveCabinet,
+                            setSelectedElement
+                        );}
+                        
+                    }
+                    className="
+                                w-full
+                                rounded
+                                border border-red-800
+                                px-3 py-2
+                                text-sm
+                                text-red-400
+                                hover:bg-red-950
+                                disabled:cursor-not-allowed
+                                disabled:opacity-30
+                            "
+                >
+                    Unterteilungen aufheben
+                </button>
 
         </div>
 

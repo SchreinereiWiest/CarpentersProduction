@@ -6,7 +6,6 @@ export function InteriorLayer({
 
     const sections = cabinet.sections ?? [];
 
-
     const renderSections = (
         sections,
         parentNumber = ""
