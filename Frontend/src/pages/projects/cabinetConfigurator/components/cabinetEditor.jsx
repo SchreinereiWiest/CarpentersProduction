@@ -7,7 +7,6 @@ import CabinetViewport from "./cabinetViewport.jsx";
 import ProjectBar from '../../../../components/projectBar.jsx';
 import SideBar from '../../../../components/sideBar.jsx';
 import { createSections } from "../engine/sektions/interior/createSections.js";
-import { CabinetList } from "./view/cabinetList.view.jsx";
 import { MaterialSelect } from "./view/materialSelect.view.jsx";
 import { createInitialSections } from "../engine/sektions/interior/createInitialSections.js"
 import { generateFronts } from "../engine/sektions/front/generateFronts.js"
@@ -16,6 +15,8 @@ import { splitSection } from "../engine/sektions/splitSections.js";
 import { mergeSectionChildren, findSection, findParent } from "../engine/sektions/mergeSectionChildren.js";
 import { frontsToSections } from "../engine/parseFrontSections.js";
 import { findFrontParent, mergeFrontChildren } from "../engine/sektions/mergeFrontChildren.js";
+import CabinetSidebar from "./editor/CabinetSidebar.jsx";
+import PropertiesSidebar from "./editor/PropertiesSidebar";
 
 import axios from "axios";
 
@@ -131,6 +132,11 @@ export default function CabinetEditor() {
 
         thickness: 19,
 
+        backPanel: {
+        construction: "butt",
+        continuous: "side"
+    },
+
         sections:
             createSections(
                 1,
@@ -157,26 +163,34 @@ export default function CabinetEditor() {
 
     const [selectedElement, setSelectedElement] = useState(null);
 
-    const updateActiveCabinet = (
-    changes
+   const updateActiveCabinet = (
+    changesOrUpdater
 ) => {
 
-    setCabinets(
-        prev =>
-            prev.map(
-                cabinet =>
-                    cabinet.id ===
-                    activeCabinetId
+    setCabinets(prev =>
 
-                        ? {
-                            ...cabinet,
-                            ...changes
-                        }
+        prev.map(cabinet => {
 
-                        : cabinet
-            )
+            if (
+                cabinet.id !== activeCabinetId
+            ) {
+                return cabinet;
+            }
+
+
+            const changes =
+                typeof changesOrUpdater === "function"
+                    ? changesOrUpdater(cabinet)
+                    : changesOrUpdater;
+
+
+            return {
+                ...cabinet,
+                ...changes
+            };
+        })
     );
-    };
+};
 
     const selectCabinet = (id) => {
         console.log(id);
@@ -271,376 +285,28 @@ export default function CabinetEditor() {
             ">
 
                 {/* LINKS */}
-                <aside className="flex h-full min-h-0 flex-col border-r border-gray-700 bg-gray-900">
+                <CabinetSidebar
+                    cabinets={cabinets}
+                    activeCabinetId={activeCabinetId}
+                    activeCabinet={activeCabinet}
 
-                    {/* Cabinet List */}
-                    <div className="shrink-0 border-t border-gray-700">
+                    addCabinet={addCabinet}
+                    selectCabinet={selectCabinet}
+                    deleteCabinet={deleteCabinet}
 
-                        <div className="
-                        flex
-                        items-center
-                        justify-between
-                        px-4
-                        py-3
-                        
-                    ">
+                    updateActiveCabinet={updateActiveCabinet}
 
-                            <h2 className="
-                            text-md
-                            font-semibold
-                            uppercase
-                            tracking-wide
-                            text-gray-200
-                        ">
-                                Korpusse
-                            </h2>
+                    sectionSplitSpec={sectionSplitSpec}
+                    setSectionSplitSpec={setSectionSplitSpec}
 
-                            <button type="button" onClick={addCabinet} className="
-                                flex
-                                h-7
-                                w-7
-                                items-center
-                                justify-center
-                                rounded
-                                bg-gray-800
-                                border
-                                border-gray-700
-                                text-gray-300
-                                hover:bg-gray-700
-                            ">
-                                +
-                            </button>
+                    sectionSplitDirection={sectionSplitDirection}
+                    setSectionSplitDirection={setSectionSplitDirection}
 
-                        </div>
+                    createInitialSections={createInitialSections}
+                    setSectionCount={setSectionCount}
 
-                        <div className="min-h-[200px] max-h-[200px] shrink-0 overflow-y-auto px-2 pb-3">
-                            <CabinetList cabinets={cabinets} activeCabinetId={activeCabinetId}
-                                onSelect={selectCabinet} />
-                        </div>
-
-                        <label className="block px-3">
-
-                            <span className="
-        text-xs
-        text-gray-400
-    ">
-                                Bezeichnung
-                            </span>
-
-                            <input type="text" value={ activeCabinet?.name ?? "" } onChange={(event)=> {
-
-                            const name =
-                            event.target.value;
-
-                            setCabinets(
-                            prev =>
-                            prev.map(
-                            cabinet =>
-                            cabinet.id ===
-                            activeCabinetId
-
-                            ? {
-                            ...cabinet,
-                            name
-                            }
-
-                            : cabinet
-                            )
-                            );
-
-                            }}
-
-                            className="
-                            w-full
-                            rounded
-                            border
-                            border-gray-700
-                            bg-gray-800
-                            px-3
-                            py-1
-                            text-sm
-                            text-gray-100
-                            outline-none
-                            focus:border-blue-500
-                            "
-                            />
-
-                        </label>
-
-                        <div className="mt-4 space-y-3 px-3">
-
-                            <label className="block">
-
-                                <span className="text-xs text-neutral-400">
-                                    Breite
-                                </span>
-
-                                <input type="number" value={activeCabinet.width} onChange={(event)=> {
-
-                                setCabinets(
-                                prev =>
-                                prev.map(
-                                cabinet =>
-                                cabinet.id ===
-                                activeCabinetId
-
-                                ? {
-                                ...cabinet,
-                                width: Number(
-                                event.target.value
-                                )
-                                }
-
-                                : cabinet
-                                )
-                                );
-
-                                }}
-
-                                className="
-                                w-full
-                                rounded
-                                border
-                                border-neutral-700
-                                bg-gray-800
-                                px-3
-                                py-1
-                                "
-                                />
-
-                            </label>
-
-                            <label className="block">
-
-                                <span className="text-xs text-neutral-400">
-                                    Höhe
-                                </span>
-
-                                <input type="number" value={activeCabinet.height} onChange={(event)=> {
-
-                                setCabinets(
-                                prev =>
-                                prev.map(
-                                cabinet =>
-                                cabinet.id ===
-                                activeCabinetId
-
-                                ? {
-                                ...cabinet,
-                                height: Number(
-                                event.target.value
-                                )
-                                }
-
-                                : cabinet
-                                )
-                                );
-
-                                }}
-
-                                className="
-                                w-full
-                                rounded
-                                border
-                                border-neutral-700
-                                bg-gray-800
-                                px-3
-                                py-1
-                                "
-                                />
-
-                            </label>
-
-                            <label className="block">
-
-                                <span className="text-xs text-neutral-400">
-                                    Tiefe
-                                </span>
-
-                                <input type="number" value={activeCabinet.depth} onChange={(event)=> {
-
-                                setCabinets(
-                                prev =>
-                                prev.map(
-                                cabinet =>
-                                cabinet.id ===
-                                activeCabinetId
-
-                                ? {
-                                ...cabinet,
-                                depth:Number(event.target.value)
-                                }
-
-                                : cabinet
-                                )
-                                );
-
-                                }}
-
-                                className="
-                                mt-1
-                                w-full
-                                rounded
-                                border
-                                border-neutral-700
-                                bg-gray-800
-                                px-3
-                                py-1
-                                "
-                                />
-
-                            </label>
-
-                        </div>
-
-                        <section className="mt-6 px-3">
-
-                            <div className="
-                                text-xs
-                                uppercase
-                                tracking-wide
-                                text-gray-500
-                            ">
-                                Unterteilungen
-                            </div>
-
-
-                            <div className="mt-3 space-y-3">
-
-                                <input
-                                    type="text"
-                                    value={sectionSplitSpec}
-                                    onChange={(e) =>
-                                        setSectionSplitSpec(
-                                            e.target.value
-                                        )
-                                    }
-                                    placeholder="1:1:1 oder 1:1:145mm"
-                                    className="
-                                        w-full
-                                        rounded-lg
-                                        border
-                                        border-gray-700
-                                        bg-gray-900
-                                        px-3
-                                        py-2
-                                        text-white
-                                        focus:border-blue-500
-                                        focus:outline-none
-                                    "
-                                />
-
-
-                                <div className="
-                                    grid
-                                    grid-cols-2
-                                    gap-2
-                                ">
-
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            setSectionSplitDirection(
-                                                "vertical"
-                                            )
-                                        }
-                                        className={`
-                                            rounded
-                                            border
-                                            px-3
-                                            py-2
-                                            text-sm
-
-                                            ${
-                                                sectionSplitDirection === "vertical"
-                                                    ? "border-blue-600 bg-blue-900 text-blue-200"
-                                                    : "border-gray-700 bg-gray-800 text-gray-400"
-                                            }
-                                        `}
-                                    >
-                                        Vertikal
-                                    </button>
-
-
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            setSectionSplitDirection(
-                                                "horizontal"
-                                            )
-                                        }
-                                        className={`
-                                            rounded
-                                            border
-                                            px-3
-                                            py-2
-                                            text-sm
-
-                                            ${
-                                                sectionSplitDirection === "horizontal"
-                                                    ? "border-blue-600 bg-blue-900 text-blue-200"
-                                                    : "border-gray-700 bg-gray-800 text-gray-400"
-                                            }
-                                        `}
-                                    >
-                                        Horizontal
-                                    </button>
-
-                                </div>
-
-
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        createInitialSections(
-                                            sectionSplitSpec,
-                                            sectionSplitDirection,
-                                            activeCabinet,
-                                            updateActiveCabinet,
-                                            setSectionCount,
-                                            setSelectedElement
-                                        )
-                                    }
-                                    className="
-                                        w-full
-                                        rounded
-                                        border
-                                        border-gray-700
-                                        bg-gray-800
-                                        px-3
-                                        py-2
-                                        text-sm
-                                        hover:bg-gray-700
-                                    "
-                                >
-                                    Unterteilungen erzeugen
-                                </button>
-
-                            </div>
-
-                        </section>
-
-                    </div>
-
-                    <div className="mt-6 border-t border-gray-700 pt-4 px-3">
-
-                        <button type="button" onClick={deleteCabinet} disabled={cabinets.length <=1} className="
-                                w-full
-                                rounded
-                                border border-red-800
-                                px-3 py-2
-                                text-sm
-                                text-red-400
-                                hover:bg-red-950
-                                disabled:cursor-not-allowed
-                                disabled:opacity-30
-                            ">
-                            Korpus löschen
-                        </button>
-
-                    </div>
-
-                </aside>
+                    setSelectedElement={setSelectedElement}
+                />
 
                 {/* MITTE */}
                 <main className="
@@ -819,925 +485,58 @@ export default function CabinetEditor() {
 
                 </main>
 
-               {/* RECHTS */}
-                <aside
-                    className="
-                        min-h-0
-                        border-l
-                        border-gray-700
-                        bg-gray-900
-                        overflow-y-auto
-                    "
-                >
-
-                    <div className="p-5">
-
-                        <h2 className="text-lg font-semibold">
-                            Eigenschaften
-                        </h2>
-
-
-                        {/* ================================================= */}
-                        {/* ELEMENT AUSGEWÄHLT */}
-                        {/* ================================================= */}
-
-                        {selectedElement ? (
-
-    <div className="mt-6 space-y-6">
-
-        {/* ============================================= */}
-        {/* AUSWAHL */}
-        {/* ============================================= */}
-
-        <section>
-
-            <div className="
-                text-xs
-                uppercase
-                tracking-wide
-                text-gray-500
-            ">
-                Auswahl
-            </div>
-
-            <div className="mt-2 text-base">
-                {selectedElement.name ??
-                    selectedElement.id}
-            </div>
-
-            <div className="text-sm text-gray-500">
-                {selectedElement.type}
-            </div>
-
-        </section>
-
-
-        {/* ============================================= */}
-        {/* POSITION / GRÖSSE */}
-        {/* ============================================= */}
-
-        <section>
-
-    <div className="
-        text-xs
-        uppercase
-        tracking-wide
-        text-gray-500
-    ">
-        Abmessungen
-    </div>
-
-
-    <div className="
-        mt-3
-        grid
-        grid-cols-2
-        gap-3
-    ">
-
-        {/* X */}
-        <label>
-
-            <span className="text-xs text-gray-400 mr-2">
-                X
-            </span>
-
-            {selectedElement.x ?? ""}
-
-        </label>
-
-
-        {/* Y */}
-        <label>
-
-            <span className="text-xs text-gray-400 mr-2">
-                Y
-            </span>
-
-            {selectedElement.y ?? ""}
-
-        </label>
-
-
-        {/* Breite */}
-        <label>
-
-            <span className="text-xs text-gray-400 mr-2">
-                Breite
-            </span>
-
-            {selectedElement.width ?? ""}
-
-        </label>
-
-
-        {/* Höhe */}
-        <label>
-
-            <span className="text-xs text-gray-400 mr-2">
-                Höhe
-            </span>
-
-            {selectedElement.height ?? ""}
-
-        </label>
-
-    </div>
-
-</section>
-
-
-        {/* ============================================= */}
-        {/* FRONT UNTERTEILEN */}
-        {/* ============================================= */}
-
-        {selectedElement.type === "front" ? (
-
-            <section>
-
-                <div className="
-                    text-xs
-                    uppercase
-                    tracking-wide
-                    text-gray-500
-                ">
-                    Front unterteilen
-                </div>
-
-
-                <div className="mt-4 space-y-4">
-
-                    {/* Aufteilung */}
-
-                    <label className="block">
-
-                        <span className="text-xs text-gray-400">
-                            Aufteilung
-                        </span>
-
-                        <input
-                            type="text"
-                            value={frontSplitSpec}
-                            onChange={(e) =>
-                                setFrontSplitSpec(
-                                    e.target.value
-                                )
-                            }
-                            placeholder="1:1:145mm"
-                            className="
-                                mt-1
-                                w-full
-                                rounded-lg
-                                border
-                                border-gray-700
-                                bg-gray-900
-                                px-3
-                                py-2
-                                text-white
-                                focus:border-blue-500
-                                focus:outline-none
-                            "
-                        />
-
-                    </label>
-
-
-                    {/* Richtung */}
-
-                    <div>
-
-                        <div className="text-xs text-gray-400">
-                            Richtung
-                        </div>
-
-
-                        <div className="
-                            mt-1
-                            grid
-                            grid-cols-2
-                            gap-2
-                        ">
-
-                            <button
-                                type="button"
-                                onClick={() =>
-                                    setFrontSplitDirection(
-                                        "vertical"
-                                    )
-                                }
-                                className={`
-                                    rounded
-                                    border
-                                    px-3
-                                    py-2
-                                    text-sm
-                                    ${
-                                        frontSplitDirection ===
-                                        "vertical"
-                                            ? "border-blue-600 bg-blue-900 text-blue-200"
-                                            : "border-gray-700 bg-gray-800 text-gray-400"
-                                    }
-                                `}
-                            >
-                                Vertikal
-                            </button>
-
-
-                            <button
-                                type="button"
-                                onClick={() =>
-                                    setFrontSplitDirection(
-                                        "horizontal"
-                                    )
-                                }
-                                className={`
-                                    rounded
-                                    border
-                                    px-3
-                                    py-2
-                                    text-sm
-                                    ${
-                                        frontSplitDirection ===
-                                        "horizontal"
-                                            ? "border-blue-600 bg-blue-900 text-blue-200"
-                                            : "border-gray-700 bg-gray-800 text-gray-400"
-                                    }
-                                `}
-                            >
-                                Horizontal
-                            </button>
-
-                        </div>
-
-                    </div>
-
-
-                    {/* Fuge */}
-
-                    <label className="block">
-
-                        <span className="text-xs text-gray-400">
-                            Fuge
-                        </span>
-
-                        <input
-                            type="number"
-                            min="0"
-                            step="0.5"
-                            value={
-                                activeCabinet.frontGap ??
-                                3
-                            }
-                            onChange={(e) =>
-                                updateActiveCabinet({
-                                    frontGap:
-                                        Number(
-                                            e.target.value
-                                        )
-                                })
-                            }
-                            className="
-                                mt-1
-                                w-full
-                                rounded-lg
-                                border
-                                border-gray-700
-                                bg-gray-900
-                                px-3
-                                py-2
-                                text-white
-                            "
-                        />
-
-                    </label>
-
-
-                    {/* Unterteilen */}
-
-                    <button
-                        type="button"
-                        onClick={() =>
-                            splitFront(
-                                selectedElement.id,
-                                frontSplitSpec,
-                                frontSplitDirection,
-                                activeCabinet,
-                                updateActiveCabinet,
-                                setSelectedElement
-                            )
-                        }
-                        className="
-                            w-full
-                            rounded
-                            bg-gray-800
-                            border
-                            border-gray-700
-                            px-3
-                            py-2
-                            text-sm
-                            hover:bg-gray-700
-                        "
-                    >
-                        Front unterteilen
-                    </button>
-
-                    <button
-                        type="button"
-                        disabled={
-                            !selectedElement ||
-                            (
-                                !(selectedElement.children?.length > 0) &&
-                                findFrontParent(
-                                    activeCabinet.fronts ?? [],
-                                    selectedElement.id
-                                ) === null
-                            )
-                        }
-                        onClick={() => {
-
-                            mergeFrontChildren(
-                                selectedElement.id,
-                                activeCabinet,
-                                updateActiveCabinet,
-                                setSelectedElement
-                            );
-
-                        }}
-                        className="
-                            w-full
-                            rounded
-                            border border-red-800
-                            px-3 py-2
-                            text-sm
-                            text-red-400
-                            hover:bg-red-950
-                            disabled:cursor-not-allowed
-                            disabled:opacity-30
-                        "
-                    >
-                        Unterteilungen aufheben
-                    </button>
-
-                </div>
-
-            </section>
-
-        ) : selectedElement.type === "section" && (
-
-    <section>
-
-        <div className="
-            text-xs
-            uppercase
-            tracking-wide
-            text-gray-500
-        ">
-            Sektion unterteilen
-        </div>
-
-
-        <div className="mt-4 space-y-4">
-
-            <label className="block">
-
-                <span className="text-xs text-gray-400">
-                    Aufteilung
-                </span>
-
-                <input
-                    type="text"
-                    value={sectionSplitSpec}
-                    onChange={(e) =>
-                        setSectionSplitSpec(
-                            e.target.value
-                        )
-                    }
-                    placeholder="1:1:145mm"
-                    className="
-                        mt-1
-                        w-full
-                        rounded-lg
-                        border
-                        border-gray-700
-                        bg-gray-900
-                        px-3
-                        py-2
-                        text-white
-                        focus:border-blue-500
-                        focus:outline-none
-                    "
-                />
-
-            </label>
-
-
-            <div>
-
-                <div className="text-xs text-gray-400">
-                    Richtung
-                </div>
-
-
-                <div className="
-                    mt-1
-                    grid
-                    grid-cols-2
-                    gap-2
-                ">
-
-                    <button
-                        type="button"
-                        onClick={() =>
-                            setSectionSplitDirection(
-                                "vertical"
-                            )
-                        }
-                        className={`
-                            rounded
-                            border
-                            px-3
-                            py-2
-                            text-sm
-                            ${
-                                sectionSplitDirection ===
-                                "vertical"
-                                    ? "border-blue-600 bg-blue-900 text-blue-200"
-                                    : "border-gray-700 bg-gray-800 text-gray-400"
-                            }
-                        `}
-                    >
-                        Vertikal
-                    </button>
-
-
-                    <button
-                        type="button"
-                        onClick={() =>
-                            setSectionSplitDirection(
-                                "horizontal"
-                            )
-                        }
-                        className={`
-                            rounded
-                            border
-                            px-3
-                            py-2
-                            text-sm
-                            ${
-                                sectionSplitDirection ===
-                                "horizontal"
-                                    ? "border-blue-600 bg-blue-900 text-blue-200"
-                                    : "border-gray-700 bg-gray-800 text-gray-400"
-                            }
-                        `}
-                    >
-                        Horizontal
-                    </button>
-
-                </div>
-
-            </div>
-
-
-            <button
-                type="button"
-                onClick={() =>
-                    splitSection(
-                        selectedElement.id,
-                        sectionSplitSpec,
-                        sectionSplitDirection,
-                        activeCabinet,
-                        updateActiveCabinet,
-                        setSelectedElement
-                    )
-                }
-                className="
-                    w-full
-                    rounded
-                    border
-                    border-gray-700
-                    bg-gray-800
-                    px-3
-                    py-2
-                    text-sm
-                    hover:bg-gray-700
-                "
-            >
-                Sektion unterteilen
-            </button>
-
-            <button
-                    type="button"
-                    disabled={
-    !selectedElement ||
-    (
-        !(selectedElement.children?.length > 0) &&
-        findParent(
-            activeCabinet.sections ?? [],
-            selectedElement.id
-        ) === null
-    )
-}
-                    onClick={() => {
-                        mergeSectionChildren(
-                            selectedElement.id,
-                            activeCabinet,
-                            updateActiveCabinet,
-                            setSelectedElement
-                        );}
-                        
-                    }
-                    className="
-                                w-full
-                                rounded
-                                border border-red-800
-                                px-3 py-2
-                                text-sm
-                                text-red-400
-                                hover:bg-red-950
-                                disabled:cursor-not-allowed
-                                disabled:opacity-30
-                            "
-                >
-                    Unterteilungen aufheben
-                </button>
-
-        </div>
-
-    </section>
-
-)}
-
-    </div>
-
-) : activeCabinet ? (
-
-                            /* ================================================= */
-                            /* KEIN ELEMENT -> AKTIVER KORPUS */
-                            /* ================================================= */
-                            viewMode==="front" ? (
-                                <section>
-
-                                    <div className="
-                                        text-xs
-                                        uppercase
-                                        tracking-wide
-                                        text-gray-500
-                                    ">
-                                        Frontaufteilung
-                                    </div>
-
-
-                                    <div className="mt-4 space-y-4">
-
-                                        <label className="block">
-
-                                            <span className="text-xs text-gray-400">
-                                                Aufteilung
-                                            </span>
-
-                                            <input
-                                                type="text"
-                                                value={frontSplitSpec}
-                                                onChange={(e) =>
-                                                    setFrontSplitSpec(e.target.value)
-                                                }
-                                                placeholder="1:145mm:300mm"
-                                                className="
-                                                    mt-1
-                                                    w-full
-                                                    rounded-lg
-                                                    border
-                                                    border-gray-700
-                                                    bg-gray-900
-                                                    px-3
-                                                    py-2
-                                                    text-white
-                                                    focus:border-blue-500
-                                                    focus:outline-none
-                                                "
-                                            />
-
-                                        </label>
-
-
-                                        <div>
-
-                                            <div className="text-xs text-gray-400">
-                                                Richtung
-                                            </div>
-
-                                            <div className="
-                                                mt-1
-                                                grid
-                                                grid-cols-2
-                                                gap-2
-                                            ">
-
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        setFrontSplitDirection("vertical")
-                                                    }
-                                                    className={`
-                                                        rounded
-                                                        border
-                                                        px-3
-                                                        py-2
-                                                        text-sm
-                                                        ${
-                                                            frontSplitDirection === "vertical"
-                                                                ? "border-blue-600 bg-blue-900 text-blue-200"
-                                                                : "border-gray-700 bg-gray-800 text-gray-400"
-                                                        }
-                                                    `}
-                                                >
-                                                    Vertikal
-                                                </button>
-
-
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        setFrontSplitDirection("horizontal")
-                                                    }
-                                                    className={`
-                                                        rounded
-                                                        border
-                                                        px-3
-                                                        py-2
-                                                        text-sm
-                                                        ${
-                                                            frontSplitDirection === "horizontal"
-                                                                ? "border-blue-600 bg-blue-900 text-blue-200"
-                                                                : "border-gray-700 bg-gray-800 text-gray-400"
-                                                        }
-                                                    `}
-                                                >
-                                                    Horizontal
-                                                </button>
-
-                                            </div>
-
-                                        </div>
-
-
-                                        <label className="block">
-
-                                            <span className="text-xs text-gray-400">
-                                                Fuge
-                                            </span>
-
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                step="0.5"
-                                                value={activeCabinet.frontGap ?? 3}
-                                                onChange={(e) =>
-                                                    updateActiveCabinet({
-                                                        frontGap:
-                                                            Number(e.target.value)
-                                                    })
-                                                }
-                                                className="
-                                                    mt-1
-                                                    w-full
-                                                    rounded-lg
-                                                    border
-                                                    border-gray-700
-                                                    bg-gray-900
-                                                    px-3
-                                                    py-2
-                                                    text-white
-                                                "
-                                            />
-
-                                        </label>
-
-
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                generateFronts(
-                                                    frontSplitSpec,
-                                                    frontSplitDirection,
-                                                    activeCabinet,
-                                                    updateActiveCabinet,
-                                                    setSelectedElement
-                                                )
-                                            }
-                                            className="
-                                                w-full
-                                                rounded
-                                                bg-gray-800
-                                                border
-                                                border-gray-700
-                                                px-3
-                                                py-2
-                                                text-sm
-                                                hover:bg-gray-700
-                                            "
-                                        >
-                                            Fronten erzeugen
-                                        </button>
-
-                                    </div>
-
-                                </section>
-                            ) :
-                            <div className="mt-6 space-y-6">
-
-
-                                {/* KORPUS */}
-
-                                <section>
-
-                                    <div className="
-                                        text-xs
-                                        uppercase
-                                        tracking-wide
-                                        text-gray-500
-                                    ">
-                                        Korpus
-                                    </div>
-
-                                    <div className="mt-2 text-base">
-                                        {activeCabinet.name}
-                                    </div>
-
-                                </section>
-
-
-                                {/* MATERIAL */}
-
-                                <section>
-
-                                    <div className="
-                                        text-xs
-                                        uppercase
-                                        tracking-wide
-                                        text-gray-500
-                                        mb-3
-                                    ">
-                                        Materialien
-                                    </div>
-
-
-                                    <div className="space-y-4">
-
-
-                                        <MaterialSelect
-                                            label="Korpusmaterial"
-                                            value={
-                                                activeCabinet.materialId
-                                            }
-                                            materials={materials}
-                                            loading={loadingMaterials}
-                                            error={materialError}
-                                            onChange={(value) =>
-                                                updateActiveCabinet({
-                                                    materialId: value
-                                                })
-                                            }
-                                        />
-
-
-                                        <MaterialSelect
-                                            label="Kante oben"
-                                            value={
-                                                activeCabinet.edgeTopMaterialId
-                                            }
-                                            materials={materials}
-                                            loading={loadingMaterials}
-                                            error={materialError}
-                                            onChange={(value) =>
-                                                updateActiveCabinet({
-                                                    edgeTopMaterialId: value
-                                                })
-                                            }
-                                        />
-
-
-                                        <MaterialSelect
-                                            label="Kante unten"
-                                            value={
-                                                activeCabinet.edgeBottomMaterialId
-                                            }
-                                            materials={materials}
-                                            loading={loadingMaterials}
-                                            error={materialError}
-                                            onChange={(value) =>
-                                                updateActiveCabinet({
-                                                    edgeBottomMaterialId: value
-                                                })
-                                            }
-                                        />
-
-
-                                        <MaterialSelect
-                                            label="Frontkante"
-                                            value={
-                                                activeCabinet.frontEdgeMaterialId
-                                            }
-                                            materials={materials}
-                                            loading={loadingMaterials}
-                                            error={materialError}
-                                            onChange={(value) =>
-                                                updateActiveCabinet({
-                                                    frontEdgeMaterialId: value
-                                                })
-                                            }
-                                        />
-
-                                    </div>
-
-                                </section>
-
-
-                                {/* OPTIONAL: INFORMATION */}
-
-                                <section className="
-                                    border-t
-                                    border-gray-800
-                                    pt-4
-                                ">
-
-                                    <div className="
-                                        text-xs
-                                        uppercase
-                                        tracking-wide
-                                        text-gray-500
-                                    ">
-                                        Abmessungen
-                                    </div>
-
-                                    <div className="
-                                        mt-3
-                                        grid
-                                        grid-cols-3
-                                        gap-2
-                                        text-sm
-                                    ">
-
-                                        <div>
-
-                                            <div className="text-xs text-gray-500">
-                                                Breite
-                                            </div>
-
-                                            <div className="mt-1">
-                                                {activeCabinet.width} mm
-                                            </div>
-
-                                        </div>
-
-
-                                        <div>
-
-                                            <div className="text-xs text-gray-500">
-                                                Höhe
-                                            </div>
-
-                                            <div className="mt-1">
-                                                {activeCabinet.height} mm
-                                            </div>
-
-                                        </div>
-
-
-                                        <div>
-
-                                            <div className="text-xs text-gray-500">
-                                                Tiefe
-                                            </div>
-
-                                            <div className="mt-1">
-                                                {activeCabinet.depth} mm
-                                            </div>
-
-                                        </div>
-
-                                    </div>
-
-                                </section>
-
-
-                            </div>
-
-
-                        ) : (
-
-                            <div className="mt-6 text-sm text-gray-500">
-
-                                Kein Korpus ausgewählt.
-
-                            </div>
-
-                        )}
-
-                    </div>
-
-                </aside>
+                {/* RECHTS */}
+                <PropertiesSidebar
+    selectedElement={selectedElement}
+    setSelectedElement={setSelectedElement}
+
+    activeCabinet={activeCabinet}
+    updateActiveCabinet={updateActiveCabinet}
+
+    viewMode={viewMode}
+
+    frontSplitSpec={frontSplitSpec}
+    setFrontSplitSpec={setFrontSplitSpec}
+
+    frontSplitDirection={frontSplitDirection}
+    setFrontSplitDirection={
+        setFrontSplitDirection
+    }
+
+    splitFront={splitFront}
+    mergeFrontChildren={
+        mergeFrontChildren
+    }
+    findFrontParent={
+        findFrontParent
+    }
+
+    generateFronts={generateFronts}
+
+    sectionSplitSpec={sectionSplitSpec}
+    setSectionSplitSpec={
+        setSectionSplitSpec
+    }
+
+    sectionSplitDirection={
+        sectionSplitDirection
+    }
+    setSectionSplitDirection={
+        setSectionSplitDirection
+    }
+
+    splitSection={splitSection}
+    mergeSectionChildren={
+        mergeSectionChildren
+    }
+    findParent={findParent}
+
+    materials={materials}
+    loadingMaterials={
+        loadingMaterials
+    }
+    materialError={materialError}
+/>
 
             </div>
 
