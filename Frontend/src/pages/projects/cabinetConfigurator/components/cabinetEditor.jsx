@@ -3,6 +3,8 @@ import React, {
     useEffect,
 } from "react";
 
+import { useLocation, useParams } from "react-router";
+
 import CabinetViewport from "./view/cabinetViewport.jsx";
 import ProjectBar from '../../../../components/projectBar.jsx';
 import SideBar from '../../../../components/sideBar.jsx';
@@ -17,6 +19,7 @@ import { frontsToSections } from "../engine/functions/parseFrontSections.js";
 import { findFrontParent, mergeFrontChildren } from "../engine/sektions/front/mergeFrontChildren.js";
 import CabinetSidebar from "./editor/CabinetSidebar.jsx";
 import PropertiesSidebar from "./editor/PropertiesSidebar";
+import { ProjectSave } from "../engine/projectSave.js";
 
 import axios from "axios";
 
@@ -26,20 +29,91 @@ export function createId() {
 
 export default function CabinetEditor() {
 
-    const [
-    materials,
-    setMaterials
-    ] = useState([]);
+    const { projectId } = useParams();
+    const location = useLocation();
 
-    const [
-        loadingMaterials,
-        setLoadingMaterials
-    ] = useState(false);
+    const cadData = location.state?.cadData;
 
-    const [
-        materialError,
-        setMaterialError
-    ] = useState(null);
+    const mode = location.state?.mode !== "create"
+        ? "edit"
+        : "create";
+
+    console.log(projectId, mode);
+
+    const [selectedCustomer, setSelectedCustomer] = useState(
+    location.state?.selectedCustomer ?? null
+    );
+
+    const [files, setFiles] = useState(
+        location.state?.files ?? []
+    );
+
+    const [projectDescription, setProjectDescription] =
+    useState(
+        location.state?.projectDescription ?? ""
+    );
+
+    const [projectName, setProjectName] =
+    useState(
+        location.state?.projectName ?? ""
+    );
+
+    const [materials, setMaterials] = useState([]);
+
+    const [loadingMaterials, setLoadingMaterials] = useState(false);
+
+    const [materialError, setMaterialError] = useState(null);
+
+    const [project, setProject] = useState();
+
+    useEffect(() => {
+
+        if (mode !== "edit" || !projectId) {
+            return;
+        }
+
+        const fetchProject = async () => {
+
+            try {
+
+                const { data } = await axios.get(
+                    `/api/projects/get/${projectId}`
+                );
+
+                const project = data.project;
+
+                setProject(project);
+
+                setProjectName(
+                    project.title ?? ""
+                );
+
+                setProjectDescription(
+                    project.description ?? ""
+                );
+
+                const customerResponse =
+                    await axios.get(
+                        `/api/customers/get/${project.customerId}`
+                    );
+
+                setSelectedCustomer(
+                    customerResponse.data.customer
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "Projekt konnte nicht geladen werden:",
+                    error
+                );
+
+            }
+        };
+
+        fetchProject();
+
+    }, [mode, projectId]);
 
 
     useEffect(() => {
@@ -87,23 +161,9 @@ export default function CabinetEditor() {
 
     const [sectionCount, setSectionCount] = useState(1);
 
-    const [cabinets, setCabinets] = useState([
-        {
-            id: createId(),
-            name: "Korpus 1",
+    const [cabinets, setCabinets] = useState([]);
 
-            width: 600,
-            height: 2000,
-            depth: 580,
-            thickness: 19,
-
-            sections: [],
-                
-            fronts: []
-        }
-    ]);
-
-    const [activeCabinetId, setActiveCabinetId] = useState(cabinets[0].id);
+    const [activeCabinetId, setActiveCabinetId] = useState();
 
     const activeCabinet = cabinets.find(
         cabinet =>
@@ -127,8 +187,8 @@ export default function CabinetEditor() {
             `Korpus ${cabinets.length + 1}`,
 
         width: 600,
-        height: 2000,
-        depth: 580,
+        height: 720,
+        depth: 535,
 
         thickness: 19,
 
@@ -137,15 +197,8 @@ export default function CabinetEditor() {
         continuous: "side"
     },
 
-        sections:
-            createSections(
-                1,
-                {width: 600,
-        height: 2000,
-        depth: 580,
-
-        thickness: 19}
-            ),
+        sections: [],
+            
         fronts: []
     };
 
@@ -240,8 +293,6 @@ export default function CabinetEditor() {
     );
 
     setSelectedElement(null);
-
-    console.log(cabinets);
     };
 
     const createSectionsFromFronts = () => {
@@ -262,6 +313,129 @@ export default function CabinetEditor() {
 
     setSelectedElement(null);
     };
+
+const [saving, setSaving] = useState(false);
+
+const [loadingGeneratedData, setLoadingGeneratedData] = useState(false);
+
+const handleSave = async () => {
+    try {
+        setSaving(true);
+
+        await ProjectSave(
+            cabinets,
+            materials,
+            selectedCustomer,
+            files,
+            projectDescription,
+            projectName,
+            mode,
+            projectId
+        );
+
+        console.log("Projekt erfolgreich gespeichert");
+    } catch (error) {
+        console.error(
+            "Fehler beim Speichern des Projekts:",
+            error
+        );
+    } finally {
+        setSaving(false);
+    }
+};
+
+    useEffect(() => {
+
+        if (!projectId) {
+            return;
+        }
+
+        const loadGeneratedData = async () => {
+
+            setLoadingGeneratedData(true);
+
+            try {
+
+                const response = await axios.get(
+
+                    `/api/projects/generated/${projectId}/cabinet`,
+
+                    {
+                        withCredentials: true
+                    }
+
+                );
+
+                const {
+
+                    exists,
+
+                    downloadUrl,
+
+                } = response.data;
+
+                console.log(response.data);
+
+
+                // Datei existiert bereits
+                if (exists) {
+
+                    try {
+                        const fileResponse = await fetch(
+                            downloadUrl
+                        );
+
+                        const data = await fileResponse.json();
+
+                        setCabinets(data);
+                        setActiveCabinetId(data[0].id);
+
+                        return;
+                    } catch (error) {
+                        console.warn("cant fetch data, try new upload");
+                    }
+
+                }
+
+                const newID = createId();
+                setCabinets([{
+                    id: newID,
+                    name: "Korpus 1",
+
+                    width: 600,
+                    height: 2000,
+                    depth: 580,
+                    thickness: 19,
+
+                    sections: [],
+                        
+                    fronts: []
+                }]);
+            setActiveCabinetId(newID);
+
+                //datei existiert nicht -> neu erstellen un hochladen
+                // await UploadData();
+
+
+            } catch (error) {
+
+                console.error(
+                    "Generated data konnte nicht geladen werden",
+                    error
+                );
+
+            } finally {
+
+                setLoadingGeneratedData(false);
+
+            }
+
+        };
+
+
+        loadGeneratedData();
+
+    }, [projectId, project]);
 
 
     return (
@@ -333,57 +507,25 @@ export default function CabinetEditor() {
             px-3
         ">
 
-                        <button type="button" className="
-                rounded
-                bg-gray-800
-                border
-                border-gray-700
-                px-3
-                py-2
-                text-sm
-                hover:bg-gray-700
-            ">
-                            + Fachboden
-                        </button>
-
-                        <button type="button" className="
-                rounded
-                bg-gray-800
-                border
-                border-gray-700
-                px-3
-                py-2
-                text-sm
-                hover:bg-gray-700
-            ">
-                            + Lochreihe
-                        </button>
-
-                        <button type="button" className="
-                rounded
-                bg-gray-800
-                border
-                border-gray-700
-                px-3
-                py-2
-                text-sm
-                hover:bg-gray-700
-            ">
-                            + Legrabox
-                        </button>
-
-                        <button type="button" className="
-                rounded
-                bg-gray-800
-                border
-                border-gray-700
-                px-3
-                py-2
-                text-sm
-                hover:bg-gray-700
-            ">
-                            + Trennwand
-                        </button>
+                        <button
+                                        type="button"
+                                        onClick={createSectionsFromFronts}
+                                        className="
+                                            rounded
+                                            border
+                                            border-gray-700
+                                            bg-gray-800/90
+                                            px-3
+                                            py-2
+                                            text-sm
+                                            text-gray-200
+                                            shadow-lg
+                                            backdrop-blur
+                                            hover:bg-gray-700
+                                        "
+                                    >
+                                        ParseFront
+                                    </button>
 
                         <div className="mx-2 h-6 w-px bg-gray-700" />
 
@@ -421,6 +563,15 @@ export default function CabinetEditor() {
                             Maße
                         </button>
 
+                        <button
+    type="button"
+    onClick={handleSave}
+    disabled={saving}
+    className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+>
+    {saving ? "Speichern..." : "Speichern"}
+</button>
+
                     </div>
 
                     {/* ====================================
@@ -455,7 +606,7 @@ export default function CabinetEditor() {
 
                                 <div className="flex flex-col gap-2">
 
-                                    <button
+                                    {/* <button
                                         type="button"
                                         onClick={createSectionsFromFronts}
                                         className="
@@ -473,7 +624,7 @@ export default function CabinetEditor() {
                                         "
                                     >
                                         ParseFront
-                                    </button>
+                                    </button> */}
 
                                 </div>
 
