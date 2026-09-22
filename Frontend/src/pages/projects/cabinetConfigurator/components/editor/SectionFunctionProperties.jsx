@@ -1,6 +1,6 @@
 import React from "react";
 import { updateSectionTree } from "../../engine/sektions/updateSectionTree";
-import { findSection } from "../../engine/sektions/mergeSectionChildren";
+import { findSection } from "../../engine/sektions/interior/mergeSectionChildren";
 
 
 const DRAWER_DEPTHS = [
@@ -107,11 +107,13 @@ const createDefaultFunctionConfig = (
 
         case "legrabox":
 
-            return {
+    return {
+
+        legraboxes: [
+            {
+                id: createId(),
 
                 variant: "M",
-
-                quantity: 1,
 
                 drawerDepth:
                     getDefaultDrawerDepth(
@@ -125,7 +127,9 @@ const createDefaultFunctionConfig = (
                     right: false,
                     thickness: 0
                 }
-            };
+            }
+        ]
+    };
 
 
         default:
@@ -665,6 +669,158 @@ export default function SectionFunctionProperties({
             Number(activeCabinet.depth ?? 0) -
             shelfFrontOffset
     );
+
+
+    // =========================================================
+// Legrabox aktualisieren
+// =========================================================
+
+const updateLegrabox = (
+    legraboxId,
+    changes
+) => {
+
+    updateFunctionConfig(
+        currentConfig => {
+
+            const legraboxes =
+                (currentConfig.legraboxes ?? [])
+                    .map(box => {
+
+                        if (
+                            box.id !== legraboxId
+                        ) {
+                            return box;
+                        }
+
+                        return {
+                            ...box,
+                            ...changes
+                        };
+                    });
+
+
+            return {
+                ...currentConfig,
+                legraboxes
+            };
+        }
+    );
+};
+
+
+const updateLegraboxDoubling = (
+    legraboxId,
+    changes
+) => {
+
+    updateFunctionConfig(
+        currentConfig => {
+
+            const legraboxes =
+                (currentConfig.legraboxes ?? [])
+                    .map(box => {
+
+                        if (
+                            box.id !== legraboxId
+                        ) {
+                            return box;
+                        }
+
+                        return {
+
+                            ...box,
+
+                            doubling: {
+                                ...(box.doubling ?? {}),
+                                ...changes
+                            }
+                        };
+                    });
+
+
+            return {
+                ...currentConfig,
+                legraboxes
+            };
+        }
+    );
+};
+
+
+const addLegrabox = () => {
+
+    updateFunctionConfig(
+        currentConfig => {
+
+            const legraboxes =
+                currentConfig.legraboxes ?? [];
+
+
+            const newLegrabox = {
+
+                id:
+                    createId(),
+
+                variant:
+                    "M",
+
+                drawerDepth:
+                    getDefaultDrawerDepth(
+                        activeCabinet.depth
+                    ),
+
+                positionFromBottom:
+                    40,
+
+                doubling: {
+                    left: false,
+                    right: false,
+                    thickness: 0
+                }
+            };
+
+
+            return {
+
+                ...currentConfig,
+
+                legraboxes: [
+                    ...legraboxes,
+                    newLegrabox
+                ]
+            };
+        }
+    );
+};
+
+
+const removeLegrabox = (
+    legraboxId
+) => {
+
+    updateFunctionConfig(
+        currentConfig => {
+
+            const legraboxes =
+                (
+                    currentConfig.legraboxes ?? []
+                ).filter(
+                    box =>
+                        box.id !==
+                        legraboxId
+                );
+
+
+            return {
+
+                ...currentConfig,
+
+                legraboxes
+            };
+        }
+    );
+};
 
 
     return (
@@ -1704,30 +1860,100 @@ export default function SectionFunctionProperties({
 
             {functionType === "legrabox" && (
 
-                <>
+    <>
 
-                    {/* =================================================
-                        Legrabox Grundeinstellungen
-                    ================================================= */}
+        {/* =====================================================
+            LEGRABOXEN
+        ===================================================== */}
 
-                    <section>
+        <section>
 
-                        <div className="
-                            text-xs
-                            uppercase
-                            tracking-wide
-                            text-gray-500
-                        ">
-                            Legrabox
-                        </div>
+            <div className="
+                text-xs
+                uppercase
+                tracking-wide
+                text-gray-500
+            ">
+                Legraboxen
+            </div>
 
 
-                        <div className="
-                            mt-4
-                            space-y-4
-                        ">
+            <div className="
+                mt-4
+                space-y-5
+            ">
 
-                            {/* Variante */}
+
+                {(
+                    functionConfig.legraboxes ?? []
+                ).map(
+                    (box, index) => (
+
+                        <div
+                            key={box.id}
+                            className="
+                                rounded-lg
+                                border
+                                border-gray-800
+                                bg-gray-800
+                                p-3
+                            "
+                        >
+
+                            {/* =================================
+                                Kopf
+                            ================================= */}
+
+                            <div className="
+                                mb-4
+                                flex
+                                items-center
+                                justify-between
+                            ">
+
+                                <div className="
+                                    text-sm
+                                    font-medium
+                                    text-gray-200
+                                ">
+                                    Legrabox {index + 1}
+                                </div>
+
+
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        removeLegrabox(
+                                            box.id
+                                        )
+                                    }
+                                    disabled={
+                                        (
+                                            functionConfig
+                                                .legraboxes
+                                                ?.length ?? 0
+                                        ) <= 1
+                                    }
+                                    className="
+                                        rounded
+                                        px-2
+                                        py-1
+                                        text-xs
+                                        text-red-400
+                                        hover:bg-red-950
+                                        disabled:cursor-not-allowed
+                                        disabled:opacity-30
+                                    "
+                                >
+                                    Entfernen
+                                </button>
+
+                            </div>
+
+
+                            {/* =================================
+                                Variante
+                            ================================= */}
 
                             <label className="block">
 
@@ -1741,14 +1967,16 @@ export default function SectionFunctionProperties({
 
                                 <select
                                     value={
-                                        functionConfig.variant ??
-                                        "M"
+                                        box.variant ?? "M"
                                     }
                                     onChange={(event) =>
-                                        updateFunctionConfig({
-                                            variant:
-                                                event.target.value
-                                        })
+                                        updateLegrabox(
+                                            box.id,
+                                            {
+                                                variant:
+                                                    event.target.value
+                                            }
+                                        )
                                     }
                                     className="
                                         mt-1
@@ -1756,7 +1984,7 @@ export default function SectionFunctionProperties({
                                         rounded-lg
                                         border
                                         border-gray-700
-                                        bg-gray-800
+                                        bg-gray-900
                                         px-3
                                         py-2
                                         text-sm
@@ -1787,55 +2015,14 @@ export default function SectionFunctionProperties({
                             </label>
 
 
-                            {/* Anzahl */}
+                            {/* =================================
+                                Auszugtiefe
+                            ================================= */}
 
-                            <label className="block">
-
-                                <span className="
-                                    text-xs
-                                    text-gray-400
-                                ">
-                                    Anzahl
-                                </span>
-
-
-                                <input
-                                    type="number"
-                                    min="1"
-                                    value={
-                                        functionConfig.quantity ??
-                                        1
-                                    }
-                                    onChange={(event) =>
-                                        updateFunctionConfig({
-                                            quantity:
-                                                Math.max(
-                                                    1,
-                                                    Number(
-                                                        event.target.value
-                                                    )
-                                                )
-                                        })
-                                    }
-                                    className="
-                                        mt-1
-                                        w-full
-                                        rounded-lg
-                                        border
-                                        border-gray-700
-                                        bg-gray-900
-                                        px-3
-                                        py-2
-                                        text-white
-                                    "
-                                />
-
-                            </label>
-
-
-                            {/* Auszugtiefe */}
-
-                            <label className="block">
+                            <label className="
+                                mt-3
+                                block
+                            ">
 
                                 <span className="
                                     text-xs
@@ -1847,19 +2034,21 @@ export default function SectionFunctionProperties({
 
                                 <select
                                     value={
-                                        functionConfig
-                                            .drawerDepth ??
+                                        box.drawerDepth ??
                                         getDefaultDrawerDepth(
                                             activeCabinet.depth
                                         )
                                     }
                                     onChange={(event) =>
-                                        updateFunctionConfig({
-                                            drawerDepth:
-                                                Number(
-                                                    event.target.value
-                                                )
-                                        })
+                                        updateLegrabox(
+                                            box.id,
+                                            {
+                                                drawerDepth:
+                                                    Number(
+                                                        event.target.value
+                                                    )
+                                            }
+                                        )
                                     }
                                     className="
                                         mt-1
@@ -1867,7 +2056,7 @@ export default function SectionFunctionProperties({
                                         rounded-lg
                                         border
                                         border-gray-700
-                                        bg-gray-800
+                                        bg-gray-900
                                         px-3
                                         py-2
                                         text-sm
@@ -1893,9 +2082,14 @@ export default function SectionFunctionProperties({
                             </label>
 
 
-                            {/* Position */}
+                            {/* =================================
+                                Position
+                            ================================= */}
 
-                            <label className="block">
+                            <label className="
+                                mt-3
+                                block
+                            ">
 
                                 <span className="
                                     text-xs
@@ -1911,17 +2105,19 @@ export default function SectionFunctionProperties({
                                     min="0"
                                     step="0.5"
                                     value={
-                                        functionConfig
-                                            .positionFromBottom ??
+                                        box.positionFromBottom ??
                                         40
                                     }
                                     onChange={(event) =>
-                                        updateFunctionConfig({
-                                            positionFromBottom:
-                                                Number(
-                                                    event.target.value
-                                                )
-                                        })
+                                        updateLegrabox(
+                                            box.id,
+                                            {
+                                                positionFromBottom:
+                                                    Number(
+                                                        event.target.value
+                                                    )
+                                            }
+                                        )
                                     }
                                     className="
                                         mt-1
@@ -1938,178 +2134,210 @@ export default function SectionFunctionProperties({
 
                             </label>
 
-                        </div>
 
-                    </section>
+                            {/* =================================
+                                Aufdopplungen
+                            ================================= */}
 
-
-                    {/* =================================================
-                        Aufdopplungen
-                    ================================================= */}
-
-                    <section>
-
-                        <div className="
-                            text-xs
-                            uppercase
-                            tracking-wide
-                            text-gray-500
-                        ">
-                            Aufdopplungen
-                        </div>
-
-
-                        <div className="
-                            mt-4
-                            space-y-4
-                        ">
-
-                            {/* Links */}
-
-                            <label className="
-                                flex
-                                items-center
-                                gap-2
-                                text-sm
-                                text-gray-300
+                            <div className="
+                                mt-5
+                                border-t
+                                border-gray-800
+                                pt-4
                             ">
 
-                                <input
-                                    type="checkbox"
-                                    checked={
-                                        functionConfig
-                                            .doubling
-                                            ?.left ??
-                                        false
-                                    }
-                                    onChange={(event) =>
-                                        updateNestedFunctionConfig(
-                                            "doubling",
-                                            {
-                                                left:
-                                                    event.target.checked
-                                            }
-                                        )
-                                    }
-                                    className="
-                                        h-4
-                                        w-4
-                                        rounded
-                                        border-gray-700
-                                        bg-gray-800
-                                    "
-                                />
-
-                                Aufdopplung links
-
-                            </label>
+                                <div className="
+                                    text-xs
+                                    uppercase
+                                    tracking-wide
+                                    text-gray-500
+                                ">
+                                    Aufdopplungen
+                                </div>
 
 
-                            {/* Rechts */}
-
-                            <label className="
-                                flex
-                                items-center
-                                gap-2
-                                text-sm
-                                text-gray-300
-                            ">
-
-                                <input
-                                    type="checkbox"
-                                    checked={
-                                        functionConfig
-                                            .doubling
-                                            ?.right ??
-                                        false
-                                    }
-                                    onChange={(event) =>
-                                        updateNestedFunctionConfig(
-                                            "doubling",
-                                            {
-                                                right:
-                                                    event.target.checked
-                                            }
-                                        )
-                                    }
-                                    className="
-                                        h-4
-                                        w-4
-                                        rounded
-                                        border-gray-700
-                                        bg-gray-800
-                                    "
-                                />
-
-                                Aufdopplung rechts
-
-                            </label>
+                                <div className="
+                                    mt-3
+                                    space-y-3
+                                ">
 
 
-                            {/* Stärke */}
+                                    {/* Links */}
 
-                            {(
-                                functionConfig
-                                    .doubling
-                                    ?.left ||
-                                functionConfig
-                                    .doubling
-                                    ?.right
-                            ) && (
-
-                                <label className="block">
-
-                                    <span className="
-                                        text-xs
-                                        text-gray-400
+                                    <label className="
+                                        flex
+                                        items-center
+                                        gap-2
+                                        text-sm
+                                        text-gray-300
                                     ">
-                                        Stärke der Aufdopplung
-                                    </span>
+
+                                        <input
+                                            type="checkbox"
+                                            checked={
+                                                box.doubling
+                                                    ?.left ??
+                                                false
+                                            }
+                                            onChange={(event) =>
+                                                updateLegraboxDoubling(
+                                                    box.id,
+                                                    {
+                                                        left:
+                                                            event.target.checked
+                                                    }
+                                                )
+                                            }
+                                            className="
+                                                h-4
+                                                w-4
+                                                rounded
+                                                border-gray-700
+                                                bg-gray-800
+                                            "
+                                        />
+
+                                        Aufdopplung links
+
+                                    </label>
 
 
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        step="0.5"
-                                        value={
-                                            functionConfig
-                                                .doubling
-                                                ?.thickness ??
-                                            0
-                                        }
-                                        onChange={(event) =>
-                                            updateNestedFunctionConfig(
-                                                "doubling",
-                                                {
-                                                    thickness:
-                                                        Number(
-                                                            event.target.value
-                                                        )
+                                    {/* Rechts */}
+
+                                    <label className="
+                                        flex
+                                        items-center
+                                        gap-2
+                                        text-sm
+                                        text-gray-300
+                                    ">
+
+                                        <input
+                                            type="checkbox"
+                                            checked={
+                                                box.doubling
+                                                    ?.right ??
+                                                false
+                                            }
+                                            onChange={(event) =>
+                                                updateLegraboxDoubling(
+                                                    box.id,
+                                                    {
+                                                        right:
+                                                            event.target.checked
+                                                    }
+                                                )
+                                            }
+                                            className="
+                                                h-4
+                                                w-4
+                                                rounded
+                                                border-gray-700
+                                                bg-gray-800
+                                            "
+                                        />
+
+                                        Aufdopplung rechts
+
+                                    </label>
+
+
+                                    {/* Stärke */}
+
+                                    {(
+                                        box.doubling?.left ||
+                                        box.doubling?.right
+                                    ) && (
+
+                                        <label className="
+                                            block
+                                        ">
+
+                                            <span className="
+                                                text-xs
+                                                text-gray-400
+                                            ">
+                                                Stärke der
+                                                Aufdopplung
+                                            </span>
+
+
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="0.5"
+                                                value={
+                                                    box.doubling
+                                                        ?.thickness ??
+                                                    0
                                                 }
-                                            )
-                                        }
-                                        className="
-                                            mt-1
-                                            w-full
-                                            rounded-lg
-                                            border
-                                            border-gray-700
-                                            bg-gray-900
-                                            px-3
-                                            py-2
-                                            text-white
-                                        "
-                                    />
+                                                onChange={(event) =>
+                                                    updateLegraboxDoubling(
+                                                        box.id,
+                                                        {
+                                                            thickness:
+                                                                Number(
+                                                                    event.target.value
+                                                                )
+                                                        }
+                                                    )
+                                                }
+                                                className="
+                                                    mt-1
+                                                    w-full
+                                                    rounded-lg
+                                                    border
+                                                    border-gray-700
+                                                    bg-gray-900
+                                                    px-3
+                                                    py-2
+                                                    text-white
+                                                "
+                                            />
 
-                                </label>
-                            )}
+                                        </label>
+                                    )}
+
+                                </div>
+
+                            </div>
 
                         </div>
 
-                    </section>
+                    )
+                )}
 
-                </>
-            )}
+
+                {/* =================================================
+                    Neue Legrabox
+                ================================================= */}
+
+                <button
+                    type="button"
+                    onClick={
+                        addLegrabox
+                    }
+                    className="
+                        w-full
+                        rounded
+                        border
+                        border-gray-700
+                        bg-gray-800
+                        px-3
+                        py-2
+                        text-sm
+                        hover:bg-gray-700
+                    "
+                >
+                    + Legrabox hinzufügen
+                </button>
+
+            </div>
+
+        </section>
+
+    </>
+)}
 
         </div>
     );

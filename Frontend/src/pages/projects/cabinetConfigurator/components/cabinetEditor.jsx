@@ -3,7 +3,7 @@ import React, {
     useEffect,
 } from "react";
 
-import CabinetViewport from "./cabinetViewport.jsx";
+import CabinetViewport from "./view/cabinetViewport.jsx";
 import ProjectBar from '../../../../components/projectBar.jsx';
 import SideBar from '../../../../components/sideBar.jsx';
 import { createSections } from "../engine/sektions/interior/createSections.js";
@@ -12,9 +12,9 @@ import { createInitialSections } from "../engine/sektions/interior/createInitial
 import { generateFronts } from "../engine/sektions/front/generateFronts.js"
 import { splitFront } from "../engine/sektions/front/splitFront.js";
 import { splitSection } from "../engine/sektions/splitSections.js";
-import { mergeSectionChildren, findSection, findParent } from "../engine/sektions/mergeSectionChildren.js";
-import { frontsToSections } from "../engine/parseFrontSections.js";
-import { findFrontParent, mergeFrontChildren } from "../engine/sektions/mergeFrontChildren.js";
+import { mergeSectionChildren, findSection, findParent } from "../engine/sektions/interior/mergeSectionChildren.js";
+import { frontsToSections } from "../engine/functions/parseFrontSections.js";
+import { findFrontParent, mergeFrontChildren } from "../engine/sektions/front/mergeFrontChildren.js";
 import CabinetSidebar from "./editor/CabinetSidebar.jsx";
 import PropertiesSidebar from "./editor/PropertiesSidebar";
 

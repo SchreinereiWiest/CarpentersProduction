@@ -6,11 +6,11 @@ import React, {
     useState
 } from "react";
 
-import {Grid} from "./view/grid.view";
-import {DimensionLayer} from "./view/messures.view";
-import {FrontLayer} from "./view/front.view";
-import {InteriorLayer} from "./view/interiorLayer.view";
-import {CarcassLayer} from "./view/corpus.view";
+import {Grid} from "./grid.view";
+import {DimensionLayer} from "./messures.view";
+import {FrontLayer} from "./front.view";
+import {InteriorLayer} from "./interiorLayer.view";
+import {CarcassLayer} from "./corpus.view";
 
 
 
