@@ -1,6 +1,6 @@
 import React from "react";
-import { updateSectionTree } from "../../engine/sektions/updateSectionTree";
-import { findSection } from "../../engine/sektions/interior/mergeSectionChildren";
+import { updateSectionTree } from "../../../engine/sektions/updateSectionTree";
+import { findSection } from "../../../engine/sektions/interior/mergeSectionChildren";
 
 
 const DRAWER_DEPTHS = [

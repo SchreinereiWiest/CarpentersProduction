@@ -171,52 +171,52 @@ export default function CabinetProperties({
     Rückwand
 ================================================= */}
 
-<section>
+            <section>
 
-    <div className="
+                <div className="
         text-xs
         uppercase
         tracking-wide
         text-gray-500
         mb-3
     ">
-        Rückwand
-    </div>
+                    Rückwand
+                </div>
 
 
-    <div className="space-y-4">
+                <div className="space-y-4">
 
-        {/* Rückwandkonstruktion */}
+                    {/* Rückwandkonstruktion */}
 
-        <label className="block">
+                    <label className="block">
 
-            <span className="
+                        <span className="
                 text-xs
                 text-gray-400
             ">
-                Ausführung
-            </span>
+                            Ausführung
+                        </span>
 
 
-            <select
-                value={
-                    activeCabinet.backPanel?.construction ??
-                    "butt"
-                }
-                onChange={(event) =>
-                    updateActiveCabinet({
+                        <select
+                            value={
+                                activeCabinet.backPanel?.construction ??
+                                "butt"
+                            }
+                            onChange={(event) =>
+                                updateActiveCabinet({
 
-                        backPanel: {
+                                    backPanel: {
 
-                            ...(activeCabinet.backPanel ?? {}),
+                                        ...(activeCabinet.backPanel ?? {}),
 
-                            construction:
-                                event.target.value
+                                        construction:
+                                            event.target.value
 
-                        }
-                    })
-                }
-                className="
+                                    }
+                                })
+                            }
+                            className="
                     mt-1
                     w-full
                     rounded-lg
@@ -230,60 +230,60 @@ export default function CabinetProperties({
                     outline-none
                     focus:border-blue-500
                 "
-            >
+                        >
 
-                <option value="butt">
-                    Stumpf
-                </option>
+                            <option value="butt">
+                                Stumpf
+                            </option>
 
-                <option value="rabbet">
-                    Falz
-                </option>
+                            <option value="rabbet">
+                                Falz
+                            </option>
 
-                <option value="groove">
-                    Nut geschlossen
-                </option>
+                            <option value="groove">
+                                Nut geschlossen
+                            </option>
 
-                <option value="grooveOpen">
-                    Nut oben offen
-                </option>
+                            <option value="grooveOpen">
+                                Nut oben offen
+                            </option>
 
-            </select>
+                        </select>
 
-        </label>
+                    </label>
 
 
-        {/* Durchgehendes Bauteil */}
+                    {/* Durchgehendes Bauteil */}
 
-        <label className="block">
+                    <label className="block">
 
-            <span className="
+                        <span className="
                 text-xs
                 text-gray-400
             ">
-                Durchgehend
-            </span>
+                            Durchgehend
+                        </span>
 
 
-            <select
-                value={
-                    activeCabinet.backPanel?.continuous ??
-                    "side"
-                }
-                onChange={(event) =>
-                    updateActiveCabinet({
+                        <select
+                            value={
+                                activeCabinet.backPanel?.continuous ??
+                                "side"
+                            }
+                            onChange={(event) =>
+                                updateActiveCabinet({
 
-                        backPanel: {
+                                    backPanel: {
 
-                            ...(activeCabinet.backPanel ?? {}),
+                                        ...(activeCabinet.backPanel ?? {}),
 
-                            continuous:
-                                event.target.value
+                                        continuous:
+                                            event.target.value
 
-                        }
-                    })
-                }
-                className="
+                                    }
+                                })
+                            }
+                            className="
                     mt-1
                     w-full
                     rounded-lg
@@ -297,23 +297,23 @@ export default function CabinetProperties({
                     outline-none
                     focus:border-blue-500
                 "
-            >
+                        >
 
-                <option value="side">
-                    Seite durchgehend
-                </option>
+                            <option value="side">
+                                Seite durchgehend
+                            </option>
 
-                <option value="bottom">
-                    Boden durchgehend
-                </option>
+                            <option value="bottom">
+                                Boden durchgehend
+                            </option>
 
-            </select>
+                        </select>
 
-        </label>
+                    </label>
 
-    </div>
+                </div>
 
-</section>
+            </section>
 
 
             {/* =================================================

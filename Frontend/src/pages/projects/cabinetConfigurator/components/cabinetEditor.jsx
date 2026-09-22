@@ -1,15 +1,8 @@
-import React, {
-    useState,
-    useEffect,
-} from "react";
-
+import React, {useState, useEffect,} from "react";
 import { useLocation, useParams } from "react-router";
-
 import CabinetViewport from "./view/cabinetViewport.jsx";
 import ProjectBar from '../../../../components/projectBar.jsx';
 import SideBar from '../../../../components/sideBar.jsx';
-import { createSections } from "../engine/sektions/interior/createSections.js";
-import { MaterialSelect } from "./view/materialSelect.view.jsx";
 import { createInitialSections } from "../engine/sektions/interior/createInitialSections.js"
 import { generateFronts } from "../engine/sektions/front/generateFronts.js"
 import { splitFront } from "../engine/sektions/front/splitFront.js";
@@ -17,17 +10,20 @@ import { splitSection } from "../engine/sektions/splitSections.js";
 import { mergeSectionChildren, findSection, findParent } from "../engine/sektions/interior/mergeSectionChildren.js";
 import { frontsToSections } from "../engine/functions/parseFrontSections.js";
 import { findFrontParent, mergeFrontChildren } from "../engine/sektions/front/mergeFrontChildren.js";
-import CabinetSidebar from "./editor/CabinetSidebar.jsx";
-import PropertiesSidebar from "./editor/PropertiesSidebar";
+import CabinetSidebar from "./editor/sidebar/CabinetSidebar.jsx";
+import PropertiesSidebar from "./editor/properties/PropertiesSidebar.jsx";
 import { ProjectSave } from "../engine/projectSave.js";
-
 import axios from "axios";
+
 
 export function createId() {
         return Date.now() + Math.random();
     }
 
+
 export default function CabinetEditor() {
+
+    // conmstant Section alle Editor daten
 
     const { projectId } = useParams();
     const location = useLocation();
@@ -65,6 +61,201 @@ export default function CabinetEditor() {
     const [materialError, setMaterialError] = useState(null);
 
     const [project, setProject] = useState();
+
+    const [viewMode, setViewMode] = useState("interior");
+
+    const [sectionCount, setSectionCount] = useState(1);
+
+    const [cabinets, setCabinets] = useState([]);
+
+    const [activeCabinetId, setActiveCabinetId] = useState();
+
+    const activeCabinet = cabinets.find(
+        cabinet =>
+            cabinet.id === activeCabinetId
+    );
+
+    const [frontSplitSpec, setFrontSplitSpec] = useState("1:145mm");
+    const [frontSplitDirection, setFrontSplitDirection] = useState("vertical");
+
+    const [sectionSplitSpec, setSectionSplitSpec] = useState("1:1");
+    const [sectionSplitDirection, setSectionSplitDirection] = useState("vertical");
+
+    const [saving, setSaving] = useState(false);
+    const [loadingGeneratedData, setLoadingGeneratedData] = useState(false);
+
+    const addCabinet = () => {
+
+    const newCabinet = {
+
+        id:
+            createId(),
+
+        name:
+            `Korpus ${cabinets.length + 1}`,
+
+        width: 600,
+        height: 720,
+        depth: 535,
+
+        thickness: 19,
+
+        backPanel: {
+        construction: "butt",
+        continuous: "side"
+    },
+
+        sections: [],
+            
+        fronts: []
+    };
+
+
+    setCabinets(
+        prev => [
+            ...prev,
+            newCabinet
+        ]
+
+    );
+
+    selectCabinet(newCabinet.id);
+    };
+
+    const [selectedElement, setSelectedElement] = useState(null);
+
+    // -----------------------------------------------------
+    // function bereich buttons, settings, updates
+    // -----------------------------------------------------
+
+
+    const updateActiveCabinet = (
+        changesOrUpdater
+    ) => {
+
+        setCabinets(prev =>
+
+            prev.map(cabinet => {
+
+                if (
+                    cabinet.id !== activeCabinetId
+                ) {
+                    return cabinet;
+                }
+
+
+                const changes =
+                    typeof changesOrUpdater === "function"
+                        ? changesOrUpdater(cabinet)
+                        : changesOrUpdater;
+
+
+                return {
+                    ...cabinet,
+                    ...changes
+                };
+            })
+        );
+    };
+
+    const selectCabinet = (id) => {
+        console.log(id);
+
+        setActiveCabinetId(id);
+
+        const cabinet = cabinets.find(cabinet => cabinet.id === id);
+
+        setSectionCount(cabinet?.sections?.length ?? 1);
+
+        console.log(cabinet?.sections);
+
+        setSelectedElement(null);
+    };
+
+    const deleteCabinet = () => {
+
+        if (cabinets.length <= 1) {
+            return;
+        }
+
+        const index = cabinets.findIndex(
+            cabinet => cabinet.id === activeCabinetId
+        );
+
+        const remainingCabinets = cabinets.filter(
+            cabinet => cabinet.id !== activeCabinetId
+        );
+
+        setCabinets(remainingCabinets);
+
+        // nächsten Korpus auswählen
+        const newIndex = Math.min(index, remainingCabinets.length - 1);
+        const newActiveCabinet = remainingCabinets[newIndex];
+
+        setActiveCabinetId(newActiveCabinet.id);
+        setSelectedElement(null);
+        setSectionCount(newActiveCabinet.sections?.length ?? 1);
+    };
+
+    const toggleViewMode = () => {
+
+    setViewMode(prev =>
+        prev === "interior"
+            ? "front"
+            : "interior"
+    );
+
+    setSelectedElement(null);
+    };
+
+    const createSectionsFromFronts = () => {
+
+    if (!activeCabinet) {
+        return;
+    }
+
+    const newSections =
+        frontsToSections(
+            activeCabinet.fronts ?? [],
+            activeCabinet
+        );
+
+    updateActiveCabinet({
+        sections: newSections
+    });
+
+    setSelectedElement(null);
+    };
+
+    const handleSave = async () => {
+        try {
+            setSaving(true);
+
+            await ProjectSave(
+                cabinets,
+                materials,
+                selectedCustomer,
+                files,
+                projectDescription,
+                projectName,
+                mode,
+                projectId
+            );
+
+            console.log("Projekt erfolgreich gespeichert");
+        } catch (error) {
+            console.error(
+                "Fehler beim Speichern des Projekts:",
+                error
+            );
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    //---------------------------------------------
+    //initial settings, project laden, material laden, customer laden
+    //---------------------------------------------
 
     useEffect(() => {
 
@@ -157,192 +348,6 @@ export default function CabinetEditor() {
 
     }, []);
 
-    const [viewMode, setViewMode] = useState("interior");
-
-    const [sectionCount, setSectionCount] = useState(1);
-
-    const [cabinets, setCabinets] = useState([]);
-
-    const [activeCabinetId, setActiveCabinetId] = useState();
-
-    const activeCabinet = cabinets.find(
-        cabinet =>
-            cabinet.id === activeCabinetId
-    );
-
-    const [frontSplitSpec, setFrontSplitSpec] = useState("1:145mm");
-    const [frontSplitDirection, setFrontSplitDirection] = useState("vertical");
-
-    const [sectionSplitSpec, setSectionSplitSpec] = useState("1:1");
-    const [sectionSplitDirection, setSectionSplitDirection] = useState("vertical");
-
-    const addCabinet = () => {
-
-    const newCabinet = {
-
-        id:
-            createId(),
-
-        name:
-            `Korpus ${cabinets.length + 1}`,
-
-        width: 600,
-        height: 720,
-        depth: 535,
-
-        thickness: 19,
-
-        backPanel: {
-        construction: "butt",
-        continuous: "side"
-    },
-
-        sections: [],
-            
-        fronts: []
-    };
-
-
-    setCabinets(
-        prev => [
-            ...prev,
-            newCabinet
-        ]
-
-    );
-
-    selectCabinet(newCabinet.id);
-    };
-
-    const [selectedElement, setSelectedElement] = useState(null);
-
-   const updateActiveCabinet = (
-    changesOrUpdater
-) => {
-
-    setCabinets(prev =>
-
-        prev.map(cabinet => {
-
-            if (
-                cabinet.id !== activeCabinetId
-            ) {
-                return cabinet;
-            }
-
-
-            const changes =
-                typeof changesOrUpdater === "function"
-                    ? changesOrUpdater(cabinet)
-                    : changesOrUpdater;
-
-
-            return {
-                ...cabinet,
-                ...changes
-            };
-        })
-    );
-};
-
-    const selectCabinet = (id) => {
-        console.log(id);
-
-        setActiveCabinetId(id);
-
-        const cabinet = cabinets.find(cabinet => cabinet.id === id);
-
-        setSectionCount(cabinet?.sections?.length ?? 1);
-
-        console.log(cabinet?.sections);
-
-        setSelectedElement(null);
-    };
-
-    const deleteCabinet = () => {
-
-        if (cabinets.length <= 1) {
-            return;
-        }
-
-        const index = cabinets.findIndex(
-            cabinet => cabinet.id === activeCabinetId
-        );
-
-        const remainingCabinets = cabinets.filter(
-            cabinet => cabinet.id !== activeCabinetId
-        );
-
-        setCabinets(remainingCabinets);
-
-        // nächsten Korpus auswählen
-        const newIndex = Math.min(index, remainingCabinets.length - 1);
-        const newActiveCabinet = remainingCabinets[newIndex];
-
-        setActiveCabinetId(newActiveCabinet.id);
-        setSelectedElement(null);
-        setSectionCount(newActiveCabinet.sections?.length ?? 1);
-    };
-
-    const toggleViewMode = () => {
-
-    setViewMode(prev =>
-        prev === "interior"
-            ? "front"
-            : "interior"
-    );
-
-    setSelectedElement(null);
-    };
-
-    const createSectionsFromFronts = () => {
-
-    if (!activeCabinet) {
-        return;
-    }
-
-    const newSections =
-        frontsToSections(
-            activeCabinet.fronts ?? [],
-            activeCabinet
-        );
-
-    updateActiveCabinet({
-        sections: newSections
-    });
-
-    setSelectedElement(null);
-    };
-
-const [saving, setSaving] = useState(false);
-
-const [loadingGeneratedData, setLoadingGeneratedData] = useState(false);
-
-const handleSave = async () => {
-    try {
-        setSaving(true);
-
-        await ProjectSave(
-            cabinets,
-            materials,
-            selectedCustomer,
-            files,
-            projectDescription,
-            projectName,
-            mode,
-            projectId
-        );
-
-        console.log("Projekt erfolgreich gespeichert");
-    } catch (error) {
-        console.error(
-            "Fehler beim Speichern des Projekts:",
-            error
-        );
-    } finally {
-        setSaving(false);
-    }
-};
 
     useEffect(() => {
 
