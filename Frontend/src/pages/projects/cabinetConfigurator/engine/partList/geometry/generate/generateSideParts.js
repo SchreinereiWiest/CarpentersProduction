@@ -15,14 +15,11 @@ export const generateSideParts = ({
             cabinet
         );
 
-
-    const parts = [];
-
-
     const edges =
         getDefaultEdges(
             cabinet,
             materials,
+            
             {
                 front: true,
                 top: true,
@@ -30,10 +27,7 @@ export const generateSideParts = ({
             }
         );
 
-
-    parts.push(
-
-        createPart({
+        return createPart({
 
             PID:
                 nextPID(),
@@ -63,23 +57,6 @@ export const generateSideParts = ({
 
             edges,
 
-            position: {
-                left: {
-                    x: 0,
-                    y: 0,
-                    z: 0
-                },
-
-                right: {
-                    x:
-                        Number(cabinet.width) -
-                        Number(cabinet.thickness),
-
-                    y: 0,
-                    z: 0
-                }
-            },
-
             source: {
                 type:
                     "cabinet",
@@ -87,9 +64,5 @@ export const generateSideParts = ({
                 role:
                     "side"
             }
-        })
-    );
-
-
-    return parts;
+        });
 };

@@ -26,6 +26,8 @@ export async function ProjectSave(
         };
     }
 
+    console.log(cabinets);
+
 
     // =========================================================
     // Part List + CNC erzeugen

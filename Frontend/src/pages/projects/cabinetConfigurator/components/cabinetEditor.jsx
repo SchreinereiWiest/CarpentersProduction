@@ -75,7 +75,7 @@ export default function CabinetEditor() {
             cabinet.id === activeCabinetId
     );
 
-    const [frontSplitSpec, setFrontSplitSpec] = useState("1:145mm");
+    const [frontSplitSpec, setFrontSplitSpec] = useState("1:1");
     const [frontSplitDirection, setFrontSplitDirection] = useState("vertical");
 
     const [sectionSplitSpec, setSectionSplitSpec] = useState("1:1");
@@ -511,6 +511,27 @@ export default function CabinetEditor() {
             gap-2
             px-3
         ">
+                        <button
+                            type="button"
+                            onClick={toggleViewMode}
+                            className={`
+                                rounded
+                                border
+                                px-3
+                                py-2
+                                text-sm
+                                transition
+
+                                ${
+                                    viewMode === "front"
+                                        ? "border-green-700 bg-green-900 text-green-300 hover:bg-green-800"
+                                        : "border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700"
+                                }
+                            `}
+                        >
+                            Fronten
+                        </button>
+                        
 
                         <button
                                         type="button"
@@ -534,28 +555,7 @@ export default function CabinetEditor() {
 
                         <div className="mx-2 h-6 w-px bg-gray-700" />
 
-                        <button
-                            type="button"
-                            onClick={toggleViewMode}
-                            className={`
-                                rounded
-                                border
-                                px-3
-                                py-2
-                                text-sm
-                                transition
-
-                                ${
-                                    viewMode === "front"
-                                        ? "border-green-700 bg-green-900 text-green-300 hover:bg-green-800"
-                                        : "border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700"
-                                }
-                            `}
-                        >
-                            Fronten
-                        </button>
-
-                        <button type="button" className="
+                        {/* <button type="button" className="
                 rounded
                 bg-gray-800
                 border
@@ -566,16 +566,30 @@ export default function CabinetEditor() {
                 hover:bg-gray-700
             ">
                             Maße
-                        </button>
+                        </button> */}
 
                         <button
-    type="button"
-    onClick={handleSave}
-    disabled={saving}
-    className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
->
-    {saving ? "Speichern..." : "Speichern"}
-</button>
+                            type="button"
+                            onClick={handleSave}
+                            disabled={saving}
+                            className="
+    ml-auto
+    rounded
+    border
+    border-blue-700
+    bg-blue-600
+    px-4
+    py-2
+    text-sm
+    text-white
+    shadow
+    hover:bg-blue-700
+    disabled:cursor-not-allowed
+    disabled:opacity-50
+"
+                        >
+                            {saving ? "Speichern..." : "Speichern"}
+                        </button>
 
                     </div>
 

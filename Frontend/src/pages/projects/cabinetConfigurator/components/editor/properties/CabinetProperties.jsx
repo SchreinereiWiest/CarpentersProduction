@@ -22,7 +22,7 @@ export default function CabinetProperties({
     return (
 
         <div className="
-            mt-6
+            mt-2
             space-y-6
         ">
 
@@ -59,7 +59,6 @@ export default function CabinetProperties({
             <section>
 
                 <div className="
-                    mb-3
                     text-xs
                     uppercase
                     tracking-wide
@@ -70,7 +69,7 @@ export default function CabinetProperties({
 
 
                 <div className="
-                    space-y-4
+                    space-y-2
                 ">
 
                     <MaterialSelect
@@ -90,6 +89,27 @@ export default function CabinetProperties({
                         onChange={(value) =>
                             updateActiveCabinet({
                                 materialId: value
+                            })
+                        }
+                    />
+
+                    <MaterialSelect
+                        label="Frontmaterial"
+                        value={
+                            activeCabinet.frontMaterialId
+                        }
+                        materials={
+                            materials
+                        }
+                        loading={
+                            loadingMaterials
+                        }
+                        error={
+                            materialError
+                        }
+                        onChange={(value) =>
+                            updateActiveCabinet({
+                                frontMaterialId: value
                             })
                         }
                     />
@@ -178,13 +198,12 @@ export default function CabinetProperties({
         uppercase
         tracking-wide
         text-gray-500
-        mb-3
     ">
                     Rückwand
                 </div>
 
 
-                <div className="space-y-4">
+                <div className="space-y-2">
 
                     {/* Rückwandkonstruktion */}
 
@@ -217,7 +236,7 @@ export default function CabinetProperties({
                                 })
                             }
                             className="
-                    mt-1
+                    
                     w-full
                     rounded-lg
                     border
@@ -323,7 +342,7 @@ export default function CabinetProperties({
             <section className="
                 border-t
                 border-gray-800
-                pt-4
+                pt-1
             ">
 
                 <div className="
@@ -337,7 +356,7 @@ export default function CabinetProperties({
 
 
                 <div className="
-                    mt-3
+                    mt-1
                     grid
                     grid-cols-3
                     gap-2

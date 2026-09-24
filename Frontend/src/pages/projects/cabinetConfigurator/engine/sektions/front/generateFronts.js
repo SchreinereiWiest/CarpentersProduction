@@ -112,6 +112,8 @@ export const generateFronts = (
                 name:
                     `Front ${index + 1}`,
 
+                materialId: cabinet.frontMaterialId,
+
 
                 /*
                  * Position

@@ -26,6 +26,8 @@ export const createPart = ({
     note = ""
 }) => {
 
+    console.log(cnc);
+
     const part = {
 
         PID,
@@ -92,7 +94,6 @@ export const createPart = ({
         part.CNC = cnc;
     }
 
-
     if (position) {
         part.Position = position;
     }
@@ -101,7 +102,6 @@ export const createPart = ({
     if (source) {
         part.Source = source;
     }
-
 
     return part;
 };

@@ -38,7 +38,7 @@ export const generateBottomPart = ({
             "Boden",
 
         quantity:
-            1,
+            2,
 
         L:
             geometry.bottom.L,

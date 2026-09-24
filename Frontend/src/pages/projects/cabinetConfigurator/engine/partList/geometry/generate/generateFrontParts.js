@@ -32,8 +32,7 @@ export const generateFrontParts = ({
                 cabinet.materialId;
 
 
-            const frontEdgeId =
-                cabinet.frontEdgeMaterialId;
+            const frontEdgeId = cabinet.frontMaterialId;
 
 
             const frontEdge =
@@ -41,7 +40,6 @@ export const generateFrontParts = ({
                     materials,
                     frontEdgeId
                 );
-
 
             parts.push(
 

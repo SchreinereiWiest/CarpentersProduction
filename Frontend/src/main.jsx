@@ -26,6 +26,7 @@ import TimeTracking from "./pages/projects/timetracking/timeTracking.project.jsx
 import CreateProject from "./pages/projects/edit/create.project.jsx";
 import ProjectSettings from "./pages/projects/settings/settings.project.jsx";
 import CabinetEditor from "./pages/projects/cabinetConfigurator/components/cabinetEditor.jsx"
+import CncEditor from "./pages/projects/cnc/cncEditor.jsx";
 import './index.css'
 
 import {
@@ -145,6 +146,12 @@ ReactDOM.createRoot(root).render(
 
             <Route path="/Projects/Cabinet/:projectId" element={ <ProtectedRoute requiredRole="user">
             <CabinetEditor/>
+            </ProtectedRoute>
+            }
+            />
+
+            <Route path="/Projects/Cnc/:projectId" element={ <ProtectedRoute requiredRole="user">
+            <CncEditor/>
             </ProtectedRoute>
             }
             />

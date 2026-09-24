@@ -1,69 +1,57 @@
-import { generateHoleRow } from "./generateHoleRow";
+import { flattenSections } from "../cncHelpers";
+import { sectionAbsolute } from "../sectionAbsolute";
 
-export const generateShelfCnc = ({
-    section,
+
+export const applyShelfCncToSides = (
     cabinet,
-    config
-}) => {
+    parts
+) => {
 
-    const holeRow =
-        config.holeRow ?? {};
-
-
-    const operations =
-        generateHoleRow({
-
-            section,
-
-            boardDepth:
-                Number(
-                    cabinet.depth
-                ),
-
-            frontOffset:
-                Number(
-                    holeRow.frontOffset ??
-                    37
-                ),
-
-            backOffset:
-                Number(
-                    holeRow.backOffset ??
-                    37
-                ),
-
-            spacing:
-                Number(
-                    holeRow.spacing ??
-                    32
-                ),
-
-            startFromBottom:
-                Number(
-                    holeRow.startFromBottom ??
-                    150
-                ),
-
-            endFromTop:
-                Number(
-                    holeRow.endFromTop ??
-                    150
-                ),
-
-            source: {
-                functionType:
-                    "shelf",
-
-                sectionId:
-                    section.id
-            }
-        });
+    const sections =
+        flattenSections(
+            cabinet.sections ?? []
+        );
 
 
-    return {
+        console.log(sections);
 
-        operations,
 
-        requirements: []
-    };
+    const side =
+        parts.find(
+            part =>
+                part.Source?.role === "side"
+        );
+
+
+    if (
+        !side
+    ) {
+        return parts;
+    }
+
+
+    sections.forEach(section => {
+
+        if (
+            section.functionType !== "shelf"
+        ) {
+            return;
+        }
+
+
+        const shelf = {
+            type: "shelf",
+            top: sectionAbsolute(section, "top", section.functionConfig.holeRow.endFromTop),
+            bottom: cabinet.height - sectionAbsolute(section, "bottom", section.functionConfig.holeRow.startFromBottom),
+            frontOffset: section.functionConfig.holeRow.frontOffset,
+            backOffset: section.functionConfig.holeRow.backOffset,
+            spacing: section.functionConfig.holeRow.spacing 
+        };
+
+        side.CNC.operations.push(shelf);
+
+    });
+
+
+    return parts;
 };
