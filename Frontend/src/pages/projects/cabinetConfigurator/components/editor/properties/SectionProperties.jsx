@@ -210,7 +210,8 @@ export default function SectionProperties({
                             sectionSplitDirection,
                             activeCabinet,
                             updateActiveCabinet,
-                            setSelectedElement
+                            setSelectedElement,
+                            0
                         )
                     }
                     className="

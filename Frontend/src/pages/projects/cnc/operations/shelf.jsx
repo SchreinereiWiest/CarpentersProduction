@@ -1,5 +1,5 @@
 import { Circle } from "./elements/circle";
-import { cncToSvg } from "../cncCoordinates";
+import { cncToSvg } from "../cncEngine/cncCoordinates";
 
 export default function Shelf({
     operation,

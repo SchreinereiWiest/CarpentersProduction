@@ -39,6 +39,79 @@ const getDefaultDrawerDepth = (
 };
 
 
+
+
+export default function SectionFunctionProperties({
+
+    selectedElement,
+
+    activeCabinet,
+    updateActiveCabinet,
+
+    setSelectedElement
+
+}) {
+
+    if (
+        !selectedElement ||
+        selectedElement.type !== "section" ||
+        !activeCabinet
+    ) {
+        return (
+            <div className="
+                mt-6
+                text-sm
+                text-gray-500
+            ">
+                Bitte eine Sektion auswählen.
+            </div>
+        );
+    }
+
+
+
+    // =========================================================
+    // Section aktualisieren
+    // =========================================================
+
+    const updateSection = (
+        changes
+    ) => {
+
+        const newSections =
+            updateSectionTree(
+                activeCabinet.sections ?? [],
+                selectedElement.id,
+                section => ({
+                    ...section,
+                    ...changes
+                })
+            );
+
+
+        updateActiveCabinet({
+            sections: newSections
+        });
+
+
+        const updatedSection =
+            findSection(
+                newSections,
+                selectedElement.id
+            );
+
+
+        if (updatedSection) {
+
+            setSelectedElement({
+                ...updatedSection,
+                type: "section"
+            });
+        }
+    };
+
+
+    
 const createDefaultMiddleWall = (
     selectedElement
 ) => {
@@ -55,6 +128,10 @@ const createDefaultMiddleWall = (
         // Standardmäßig ungefähr in der Mitte
         positionOffset:
             Math.max(
+                0,
+                height / 2
+            ),
+        absoluteOffset: selectedElement.y + selectedElement.height - Math.max(
                 0,
                 height / 2
             )
@@ -136,77 +213,6 @@ const createDefaultFunctionConfig = (
             return {};
     }
 };
-
-
-export default function SectionFunctionProperties({
-
-    selectedElement,
-
-    activeCabinet,
-    updateActiveCabinet,
-
-    setSelectedElement
-
-}) {
-
-    if (
-        !selectedElement ||
-        selectedElement.type !== "section" ||
-        !activeCabinet
-    ) {
-        return (
-            <div className="
-                mt-6
-                text-sm
-                text-gray-500
-            ">
-                Bitte eine Sektion auswählen.
-            </div>
-        );
-    }
-
-
-
-    // =========================================================
-    // Section aktualisieren
-    // =========================================================
-
-    const updateSection = (
-        changes
-    ) => {
-
-        const newSections =
-            updateSectionTree(
-                activeCabinet.sections ?? [],
-                selectedElement.id,
-                section => ({
-                    ...section,
-                    ...changes
-                })
-            );
-
-
-        updateActiveCabinet({
-            sections: newSections
-        });
-
-
-        const updatedSection =
-            findSection(
-                newSections,
-                selectedElement.id
-            );
-
-
-        if (updatedSection) {
-
-            setSelectedElement({
-                ...updatedSection,
-                type: "section"
-            });
-        }
-    };
-
 
     // =========================================================
     // Function Type ändern
@@ -605,7 +611,7 @@ export default function SectionFunctionProperties({
     // =========================================================
 
     const setMiddleWallPosition = (
-        wallId,
+        wall,
         reference,
         value
     ) => {
@@ -625,13 +631,18 @@ export default function SectionFunctionProperties({
 
 
         updateMiddleWall(
-            wallId,
+            wall.id,
             {
                 positionReference:
                     reference,
 
                 positionOffset:
-                    numericValue
+                    numericValue,
+
+                absoluteOffset: getMiddleWallOffset(
+                                        wall,
+                                        "cabinetTop"
+                                    )
             }
         );
     };
@@ -1536,7 +1547,7 @@ const removeLegrabox = (
                                                 }
                                                 onChange={(event) =>
                                                     setMiddleWallPosition(
-                                                        wall.id,
+                                                        wall,
                                                         "cabinetTop",
                                                         event.target.value
                                                     )
@@ -1585,7 +1596,7 @@ const removeLegrabox = (
                                                 }
                                                 onChange={(event) =>
                                                     setMiddleWallPosition(
-                                                        wall.id,
+                                                        wall,
                                                         "cabinetBottom",
                                                         event.target.value
                                                     )
@@ -1634,7 +1645,7 @@ const removeLegrabox = (
                                                 }
                                                 onChange={(event) =>
                                                     setMiddleWallPosition(
-                                                        wall.id,
+                                                        wall,
                                                         "sectionTop",
                                                         event.target.value
                                                     )
@@ -1683,7 +1694,7 @@ const removeLegrabox = (
                                                 }
                                                 onChange={(event) =>
                                                     setMiddleWallPosition(
-                                                        wall.id,
+                                                        wall,
                                                         "sectionBottom",
                                                         event.target.value
                                                     )
@@ -1798,7 +1809,7 @@ const removeLegrabox = (
                                                 }
                                                 onChange={(event) =>
                                                     setMiddleWallPosition(
-                                                        wall.id,
+                                                        wall,
                                                         wall.positionReference,
                                                         event.target.value
                                                     )

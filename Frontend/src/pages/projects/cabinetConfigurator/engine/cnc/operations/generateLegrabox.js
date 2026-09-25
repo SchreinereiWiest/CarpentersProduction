@@ -1,56 +1,110 @@
+import { createId } from "../cncHelpers";
+import { CNC_DEFAULTS } from "../cncDefaults";
+import { flattenSections } from "../../partList/geometry/flattenSections";
 
-
-export const generateLegraboxCnc = ({
-    section,
-    cabinet,
-    config
-}) => {
-
-    const legraboxes =
-        config.legraboxes ?? [];
-
+function createLgBox ({
+    x,
+    yOffset,
+    cabinet}) {
+    
+    const thickness =
+        Number(
+            cabinet.thickness
+        );
 
     return {
 
-        operations: [],
+        id: createId(),
+            
 
-        requirements:
-            legraboxes.map(
-                box => ({
+        type:
+            "LgBox",
 
-                    type:
-                        "legrabox",
+        x:
+            Number(
+                x?.toFixed(3)
+            ),
+        
+        yOffset: yOffset,
 
-                    legraboxId:
-                        box.id,
+        depth: CNC_DEFAULTS.holeDepth,
 
-                    variant:
-                        box.variant,
+        diameter: 5
 
-                    drawerDepth:
-                        Number(
-                            box.drawerDepth
-                        ),
-
-                    positionFromBottom:
-                        Number(
-                            box.positionFromBottom ??
-                            40
-                        ),
-
-                    doubling:
-                        box.doubling ?? {
-                            left: false,
-                            right: false,
-                            thickness: 0
-                        },
-
-                    sectionId:
-                        section.id,
-
-                    cabinetId:
-                        cabinet.id
-                })
-            )
     };
 };
+
+
+// ============================================================
+// applyJoints
+// ============================================================
+
+export const applyLgBox = (
+    cabinet,
+    parts
+) => {
+
+    // ========================================================
+    // Joint-Einstellungen
+    // ========================================================
+
+    const sections =
+            flattenSections(
+                cabinet.sections ?? []
+            );
+
+    const cabinetWidth =
+        Number(
+            cabinet.width
+        );
+
+
+    const cabinetHeight =
+        Number(
+            cabinet.height
+        );
+
+
+    const cabinetDepth =
+        Number(
+            cabinet.depth
+        );
+
+
+    const thickness =
+        Number(
+            cabinet.thickness
+        );
+
+
+    parts.forEach(
+        part => {
+
+            const role = part.Source?.role;
+
+             if (
+                role == "side"
+            ) {
+
+            sections.forEach(section => {
+
+                if (
+                    section.functionType !== "legrabox"
+                ) {
+                    return;
+                }
+
+                
+
+                for(const box of section.functionConfig.legraboxes) {
+                    const LgX = section.y + section.height - box.positionFromBottom;
+                    const yOffset = 0;
+                part.CNC.operations.push(createLgBox({x:LgX, yOffset: yOffset, cabinet:cabinet}));
+            }
+
+            });
+
+}});
+
+    return parts;
+};  

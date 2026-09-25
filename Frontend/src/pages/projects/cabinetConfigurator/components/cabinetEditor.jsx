@@ -104,6 +104,7 @@ export default function CabinetEditor() {
         construction: "butt",
         continuous: "side"
     },
+        spax: true,
 
         sections: [],
             

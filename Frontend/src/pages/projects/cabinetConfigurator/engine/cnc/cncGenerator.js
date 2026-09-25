@@ -2,6 +2,8 @@
 import { createId } from "./cncHelpers";
 import { applyShelfCncToSides } from "./operations/generateShelf";
 import { createEmptyCnc, ensureCnc, flattenSections } from "./cncHelpers";
+import { applyJoints } from "./operations/generateJoints";
+import { applyLgBox } from "./operations/generateLegrabox";
 // ============================================================
 // CNC Basis
 // ============================================================
@@ -58,7 +60,9 @@ export const applyCncToParts = (
         parts
     );
 
+    applyJoints(cabinet, parts);
 
+    applyLgBox(cabinet, parts);
 
     return parts;
 };

@@ -1,7 +1,7 @@
 import CncPartSidebar from "./cncPartsSidebar";
 import CncViewport from "./cncViewport";
 import CncPropertiesSidebar from "./cncPropertiesSidebar";
-import { groupCncParts } from "./groupCncParts.js";
+import { groupCncParts } from "./cncEngine/groupCncParts.js";
 import React, {useState, useEffect,} from "react";
 import { useLocation, useParams } from "react-router";
 import ProjectBar from '../../../components/projectBar.jsx';

@@ -1,5 +1,8 @@
 import Drill from "./operations/drill";
 import Shelf from "./operations/shelf";
+import VB from "./operations/vb";
+import VB2 from "./operations/vb2";
+import LgBox from "./operations/lgBox";
 import React, {useState, useEffect,} from "react";
 
 
@@ -103,6 +106,62 @@ export default function CncOperationsLayer({
                                 onSelectOperation
                             }
                         />
+
+                        <VB
+                                operation={
+                                    operation
+                                }
+                                height={
+                                    height
+                                }
+                                width={
+                                    width
+                                }
+                                operationId={
+                                    operationId
+                                }
+                                selectedOperationId={
+                                    selectedOperationId
+                                }
+                                onSelectOperation={
+                                    onSelectOperation
+                                }
+                            />
+
+
+                            <VB2
+                                operation={
+                                    operation
+                                }
+                                height={
+                                    height
+                                }
+                                width={
+                                    width
+                                }
+                                operationId={
+                                    operationId
+                                }
+                                selectedOperationId={
+                                    selectedOperationId
+                                }
+                                onSelectOperation={
+                                    onSelectOperation
+                                }
+                            />
+
+                            <LgBox
+                                operation={operation}
+                                height={height}
+                                width={width}
+                                operationId={operationId}
+                                selectedOperationId={
+                                    selectedOperationId
+                                }
+                                onSelectOperation={
+                                    onSelectOperation
+                                }
+                            />
 
                     </React.Fragment>
                 );

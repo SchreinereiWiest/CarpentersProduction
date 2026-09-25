@@ -9,16 +9,13 @@ export const splitSection = (
     direction,
     activeCabinet,
     updateActiveCabinet,
-    setSelectedElement
+    setSelectedElement,
+    gap
 ) => {
 
     if (!activeCabinet) {
         return;
     }
-
-
-    const gap =
-        Number(activeCabinet.sectionGap ?? 3);
 
 
     /*

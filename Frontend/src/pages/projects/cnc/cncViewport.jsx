@@ -1,4 +1,4 @@
-import CncPartsLayer from "./cncPartsLayer";
+import CncPartsLayer from "./view/cncPartsLayer";
 import CncOperationsLayer from "./cncOperationLayer";
 
 export default function CncViewport({

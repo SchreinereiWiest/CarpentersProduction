@@ -23,7 +23,7 @@ export default function CabinetProperties({
 
         <div className="
             mt-2
-            space-y-6
+            space-y-2
         ">
 
             {/* =================================================
@@ -32,22 +32,80 @@ export default function CabinetProperties({
 
             <section>
 
-                <div className="
-                    text-xs
-                    uppercase
-                    tracking-wide
-                    text-gray-500
-                ">
-                    Korpus
-                </div>
+                
 
 
                 <div className="
-                    mt-2
+                    mt-2 mb-2
                     text-base
                 ">
                     {activeCabinet.name}
                 </div>
+
+                <section className="
+                border-t
+                border-gray-800
+            ">
+
+
+                <div className="
+                    
+                    grid
+                    grid-cols-3
+                    gap-2
+                    text-sm
+                ">
+
+                    <div>
+
+                        <div className="
+                            text-xs
+                            text-gray-500
+                        ">
+                            Breite
+                        </div>
+
+                        <div className="mt-1">
+                            {activeCabinet.width} mm
+                        </div>
+
+                    </div>
+
+
+                    <div>
+
+                        <div className="
+                            text-xs
+                            text-gray-500
+                        ">
+                            Höhe
+                        </div>
+
+                        <div className="mt-1">
+                            {activeCabinet.height} mm
+                        </div>
+
+                    </div>
+
+
+                    <div>
+
+                        <div className="
+                            text-xs
+                            text-gray-500
+                        ">
+                            Tiefe
+                        </div>
+
+                        <div className="mt-1">
+                            {activeCabinet.depth} mm
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
 
             </section>
 
@@ -57,15 +115,6 @@ export default function CabinetProperties({
             ================================================= */}
 
             <section>
-
-                <div className="
-                    text-xs
-                    uppercase
-                    tracking-wide
-                    text-gray-500
-                ">
-                    Materialien
-                </div>
 
 
                 <div className="
@@ -339,80 +388,35 @@ export default function CabinetProperties({
                 Abmessungen
             ================================================= */}
 
-            <section className="
-                border-t
-                border-gray-800
-                pt-1
-            ">
+            <label className="
+                                        flex
+                                        items-center
+                                        gap-2
+                                        text-sm
+                                        text-gray-300
+                                        mt-4
+                                    ">
 
-                <div className="
-                    text-xs
-                    uppercase
-                    tracking-wide
-                    text-gray-500
-                ">
-                    Abmessungen
-                </div>
+                                        <input
+                                            type="checkbox"
+                                            checked={
+                                                activeCabinet.spax
+                                            }
+                                            onChange={(event) => updateActiveCabinet({
 
+                                    spax:event.target.checked })}
+                                            className="
+                                                h-4
+                                                w-4
+                                                rounded
+                                                border-gray-700
+                                                bg-gray-800
+                                            "
+                                        />
 
-                <div className="
-                    mt-1
-                    grid
-                    grid-cols-3
-                    gap-2
-                    text-sm
-                ">
+                                        Geschraubt
 
-                    <div>
-
-                        <div className="
-                            text-xs
-                            text-gray-500
-                        ">
-                            Breite
-                        </div>
-
-                        <div className="mt-1">
-                            {activeCabinet.width} mm
-                        </div>
-
-                    </div>
-
-
-                    <div>
-
-                        <div className="
-                            text-xs
-                            text-gray-500
-                        ">
-                            Höhe
-                        </div>
-
-                        <div className="mt-1">
-                            {activeCabinet.height} mm
-                        </div>
-
-                    </div>
-
-
-                    <div>
-
-                        <div className="
-                            text-xs
-                            text-gray-500
-                        ">
-                            Tiefe
-                        </div>
-
-                        <div className="mt-1">
-                            {activeCabinet.depth} mm
-                        </div>
-
-                    </div>
-
-                </div>
-
-            </section>
+                                    </label>
 
         </div>
     );
