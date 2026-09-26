@@ -4,14 +4,12 @@ import MaterialSelect from "./MaterialSelect";
 
 
 export default function CabinetProperties({
-
     activeCabinet,
     updateActiveCabinet,
-
+    onLayoutChange,
     materials,
     loadingMaterials,
     materialError
-
 }) {
 
     if (!activeCabinet) {
@@ -416,7 +414,246 @@ export default function CabinetProperties({
 
                                         Geschraubt
 
-                                    </label>
+</label>
+
+{/* ===================================================== */}
+{/* Korpusaufbau */}
+{/* ===================================================== */}
+
+<section className="border-t border-gray-800 pt-3">
+
+    <div className="
+        text-xs
+        uppercase
+        tracking-wide
+        text-gray-500
+        mb-2
+    ">
+        Korpusaufbau
+    </div>
+
+
+    {/* Boden */}
+
+    <div className="
+        rounded
+        border
+        border-gray-800
+        bg-gray-900/50
+        p-3
+        space-y-3
+    ">
+
+        <label className="block">
+
+            <span className="
+                text-xs
+                text-gray-400
+            ">
+                Bodenabstand
+            </span>
+
+            <div className="flex items-center gap-2">
+
+                <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={
+                        activeCabinet.bottomOffset ??
+                        0
+                    }
+                    onChange={(event) => {
+
+                        const value =
+                            Math.max(
+                                0,
+                                Number(
+                                    event.target.value
+                                ) || 0
+                            );
+
+                        onLayoutChange?.({
+                            bottomOffset: value
+                        });
+
+                    }}
+                    className="
+                        w-full
+                        rounded-lg
+                        border
+                        border-gray-700
+                        bg-gray-800
+                        px-3
+                        py-2
+                        text-sm
+                        text-white
+                        outline-none
+                        focus:border-blue-500
+                    "
+                />
+
+                <span className="
+                    text-xs
+                    text-gray-500
+                ">
+                    mm
+                </span>
+
+            </div>
+
+        </label>
+
+
+        <label className="
+            flex
+            items-center
+            gap-2
+            text-sm
+            text-gray-300
+        ">
+
+            <input
+                type="checkbox"
+                checked={
+                    activeCabinet.bottomExists ??
+                    true
+                }
+                onChange={(event) => {
+
+                    onLayoutChange?.({
+                        bottomExists:
+                            event.target.checked
+                    });
+
+                }}
+                className="
+                    h-4
+                    w-4
+                    rounded
+                    border-gray-700
+                    bg-gray-800
+                "
+            />
+
+            Boden vorhanden
+
+        </label>
+
+    </div>
+
+
+    {/* Deckel */}
+
+    <div className="
+        mt-2
+        rounded
+        border
+        border-gray-800
+        bg-gray-900/50
+        p-3
+        space-y-3
+    ">
+
+        <label className="block">
+
+            <span className="
+                text-xs
+                text-gray-400
+            ">
+                Deckelabstand
+            </span>
+
+            <div className="flex items-center gap-2">
+
+                <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={
+                        activeCabinet.topOffset ??
+                        0
+                    }
+                    onChange={(event) => {
+
+                        const value =
+                            Math.max(
+                                0,
+                                Number(
+                                    event.target.value
+                                ) || 0
+                            );
+
+                        onLayoutChange?.({
+                            topOffset: value
+                        });
+
+                    }}
+                    className="
+                        w-full
+                        rounded-lg
+                        border
+                        border-gray-700
+                        bg-gray-800
+                        px-3
+                        py-2
+                        text-sm
+                        text-white
+                        outline-none
+                        focus:border-blue-500
+                    "
+                />
+
+                <span className="
+                    text-xs
+                    text-gray-500
+                ">
+                    mm
+                </span>
+
+            </div>
+
+        </label>
+
+
+        <label className="
+            flex
+            items-center
+            gap-2
+            text-sm
+            text-gray-300
+        ">
+
+            <input
+                type="checkbox"
+                checked={
+                    activeCabinet.topExists ??
+                    true
+                }
+                onChange={(event) => {
+
+                    onLayoutChange?.({
+                        topExists:
+                            event.target.checked
+                    });
+
+                }}
+                className="
+                    h-4
+                    w-4
+                    rounded
+                    border-gray-700
+                    bg-gray-800
+                "
+            />
+
+            Deckel vorhanden
+
+        </label>
+
+    </div>
+
+</section>
 
         </div>
     );

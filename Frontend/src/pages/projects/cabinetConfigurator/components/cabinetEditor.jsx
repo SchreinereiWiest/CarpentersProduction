@@ -34,8 +34,6 @@ export default function CabinetEditor() {
         ? "edit"
         : "create";
 
-    console.log(projectId, mode);
-
     const [selectedCustomer, setSelectedCustomer] = useState(
     location.state?.selectedCustomer ?? null
     );
@@ -87,29 +85,39 @@ export default function CabinetEditor() {
     const addCabinet = () => {
 
     const newCabinet = {
+    id: createId(),
 
-        id:
-            createId(),
+    name:
+        `Korpus ${cabinets.length + 1}`,
 
-        name:
-            `Korpus ${cabinets.length + 1}`,
+    width: 600,
+    height: 720,
+    depth: 535,
+    thickness: 19,
 
-        width: 600,
-        height: 720,
-        depth: 535,
+    topOffset: 0,
+    bottomOffset: 0,
 
-        thickness: 19,
+    topExists: true,
+    bottomExists: true,
 
-        backPanel: {
+    frontGap: 3,
+
+    frontGapLeft: 0,
+    frontGapRight: 0,
+    frontGapTop: 0,
+    frontGapBottom: 0,
+
+    backPanel: {
         construction: "butt",
         continuous: "side"
     },
-        spax: true,
 
-        sections: [],
-            
-        fronts: []
-    };
+    spax: true,
+
+    sections: [],
+    fronts: []
+};
 
 
     setCabinets(
@@ -125,10 +133,159 @@ export default function CabinetEditor() {
 
     const [selectedElement, setSelectedElement] = useState(null);
 
-    // -----------------------------------------------------
-    // function bereich buttons, settings, updates
-    // -----------------------------------------------------
+    const createAvailableSection = (
+    cabinet
+) => {
 
+    const thickness =
+        Number(cabinet.thickness) || 0;
+
+    const width =
+        Number(cabinet.width) || 0;
+
+    const height =
+        Number(cabinet.height) || 0;
+
+    const topOffset =
+        Number(
+            cabinet.topOffset ?? 0
+        );
+
+    const bottomOffset =
+        Number(
+            cabinet.bottomOffset ?? 0
+        );
+
+    const topExists =
+        cabinet.topExists ?? true;
+
+    const bottomExists =
+        cabinet.bottomExists ?? true;
+
+
+    /*
+     * Oberkante der verfügbaren Section
+     */
+
+    const sectionTop =
+        topOffset +
+        (
+            topExists
+                ? thickness
+                : 0
+        );
+
+
+    /*
+     * Unterkante der verfügbaren Section
+     */
+
+    const sectionBottom =
+        height -
+        bottomOffset -
+        (
+            bottomExists
+                ? thickness
+                : 0
+        );
+
+
+    const sectionHeight =
+        sectionBottom -
+        sectionTop;
+
+
+    if (
+        width <= 2 * thickness ||
+        sectionHeight <= 0
+    ) {
+        return null;
+    }
+
+
+    return {
+
+        id:
+            createId(),
+
+        type:
+            "section",
+
+        parentId:
+            null,
+
+        name:
+            "Section 1",
+
+        x:
+            thickness,
+
+        y:
+            sectionTop,
+
+        width:
+            width -
+            2 * thickness,
+
+        height:
+            sectionHeight,
+
+        functionType:
+            "none",
+
+        functionConfig:
+            {},
+
+        children:
+            []
+    };
+    };
+
+    const updateCabinetLayout = (
+    changes
+) => {
+
+    setCabinets(
+        prev =>
+            prev.map(
+                cabinet => {
+
+                    if (
+                        cabinet.id !==
+                        activeCabinetId
+                    ) {
+                        return cabinet;
+                    }
+
+
+                    const updatedCabinet = {
+                        ...cabinet,
+                        ...changes
+                    };
+
+
+                    const newSection =
+                        createAvailableSection(
+                            updatedCabinet
+                        );
+
+
+                    return {
+                        ...updatedCabinet,
+
+                        sections:
+                            newSection
+                                ? [newSection]
+                                : []
+                    };
+
+                }
+            )
+    );
+
+    setSectionCount(1);
+    setSelectedElement(null);
+    };
 
     const updateActiveCabinet = (
         changesOrUpdater
@@ -160,7 +317,6 @@ export default function CabinetEditor() {
     };
 
     const selectCabinet = (id) => {
-        console.log(id);
 
         setActiveCabinetId(id);
 
@@ -379,8 +535,6 @@ export default function CabinetEditor() {
                     downloadUrl,
 
                 } = response.data;
-
-                console.log(response.data);
 
 
                 // Datei existiert bereits
@@ -707,6 +861,8 @@ export default function CabinetEditor() {
         loadingMaterials
     }
     materialError={materialError}
+
+    updateCabinetLayout={updateCabinetLayout}
 />
 
             </div>

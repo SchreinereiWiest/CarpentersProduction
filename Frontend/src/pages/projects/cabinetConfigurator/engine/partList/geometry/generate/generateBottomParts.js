@@ -26,6 +26,10 @@ export const generateBottomPart = ({
         );
 
 
+        let quantity = 0;
+        if(cabinet.topExists) {quantity+=1};
+        if(cabinet.bottomExists) {quantity+=1};
+
     return createPart({
 
         PID:
@@ -37,8 +41,7 @@ export const generateBottomPart = ({
         type:
             "Boden",
 
-        quantity:
-            2,
+        quantity: quantity,
 
         L:
             geometry.bottom.L,

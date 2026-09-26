@@ -12,9 +12,6 @@ import {FrontLayer} from "./front.view";
 import {InteriorLayer} from "./interiorLayer.view";
 import {CarcassLayer} from "./corpus.view";
 
-
-
-
 const DEFAULT_CABINET = {
     width: 600,
     height: 2000,
@@ -916,21 +913,16 @@ export default function CabinetViewport({
                         Korpus
                     --------------------------------- */}
 
-                    <CarcassLayer
-                        cabinet={cabinet}
-                    />
-
-
-                    {/* ---------------------------------
-                        Innenleben
-                    --------------------------------- */}
+                    <CarcassLayer cabinet={cabinet} />
 
                     {mode === "interior" && (
                         <InteriorLayer
-    cabinet={cabinet}
-    selectedElement={selectedElement}
-    onSelect={onSelect}
-/>
+                            cabinet={cabinet}
+                            selectedElement={
+                                selectedElement
+                            }
+                            onSelect={onSelect}
+                        />
                     )}
 
 

@@ -210,46 +210,252 @@ export default function FrontProperties({
                     Fuge
                 ================================================= */}
 
+                
+
                 <label className="block">
+    <span className="text-xs text-gray-400">
+        Fuge zwischen Fronten
+    </span>
 
-                    <span className="
-                        text-xs
-                        text-gray-400
-                    ">
-                        Fuge
-                    </span>
+    <input
+        type="number"
+        min="0"
+        step="0.5"
+        value={
+            activeCabinet.frontGap ?? 3
+        }
+        onChange={(event) =>
+            updateActiveCabinet({
+                frontGap:
+                    Math.max(
+                        0,
+                        Number(
+                            event.target.value
+                        ) || 0
+                    )
+            })
+        }
+        className="
+            mt-1
+            w-full
+            rounded-lg
+            border
+            border-gray-700
+            bg-gray-900
+            px-3
+            py-2
+            text-white
+        "
+    />
+</label>
 
 
-                    <input
-                        type="number"
-                        min="0"
-                        step="0.5"
-                        value={
-                            activeCabinet.frontGap ??
-                            3
-                        }
-                        onChange={(event) =>
-                            updateActiveCabinet({
-                                frontGap:
-                                    Number(
-                                        event.target.value
-                                    )
-                            })
-                        }
-                        className="
-                            mt-1
-                            w-full
-                            rounded-lg
-                            border
-                            border-gray-700
-                            bg-gray-900
-                            px-3
-                            py-2
-                            text-white
-                        "
-                    />
+{/* ================================================= */}
+{/* ÄUSSERE FUGEN */}
+{/* ================================================= */}
 
-                </label>
+<div>
+
+    <div className="
+        text-xs
+        text-gray-400
+        mb-2
+    ">
+        Äußere Fugen
+    </div>
+
+    <div className="
+        grid
+        grid-cols-2
+        gap-2
+    ">
+
+        {/* Links */}
+
+        <label className="block">
+
+            <span className="
+                text-xs
+                text-gray-500
+            ">
+                Links
+            </span>
+
+            <input
+                type="number"
+                min="0"
+                step="0.5"
+                value={
+                    activeCabinet.frontGapLeft ??
+                    0
+                }
+                onChange={(event) =>
+                    updateActiveCabinet({
+                        frontGapLeft:
+                            Math.max(
+                                0,
+                                Number(
+                                    event.target.value
+                                ) || 0
+                            )
+                    })
+                }
+                className="
+                    mt-1
+                    w-full
+                    rounded-lg
+                    border
+                    border-gray-700
+                    bg-gray-900
+                    px-3
+                    py-2
+                    text-white
+                "
+            />
+
+        </label>
+
+
+        {/* Rechts */}
+
+        <label className="block">
+
+            <span className="
+                text-xs
+                text-gray-500
+            ">
+                Rechts
+            </span>
+
+            <input
+                type="number"
+                min="0"
+                step="0.5"
+                value={
+                    activeCabinet.frontGapRight ??
+                    0
+                }
+                onChange={(event) =>
+                    updateActiveCabinet({
+                        frontGapRight:
+                            Math.max(
+                                0,
+                                Number(
+                                    event.target.value
+                                ) || 0
+                            )
+                    })
+                }
+                className="
+                    mt-1
+                    w-full
+                    rounded-lg
+                    border
+                    border-gray-700
+                    bg-gray-900
+                    px-3
+                    py-2
+                    text-white
+                "
+            />
+
+        </label>
+
+
+        {/* Oben */}
+
+        <label className="block">
+
+            <span className="
+                text-xs
+                text-gray-500
+            ">
+                Oben
+            </span>
+
+            <input
+                type="number"
+                min="0"
+                step="0.5"
+                value={
+                    activeCabinet.frontGapTop ??
+                    0
+                }
+                onChange={(event) =>
+                    updateActiveCabinet({
+                        frontGapTop:
+                            Math.max(
+                                0,
+                                Number(
+                                    event.target.value
+                                ) || 0
+                            )
+                    })
+                }
+                className="
+                    mt-1
+                    w-full
+                    rounded-lg
+                    border
+                    border-gray-700
+                    bg-gray-900
+                    px-3
+                    py-2
+                    text-white
+                "
+            />
+
+        </label>
+
+
+        {/* Unten */}
+
+        <label className="block">
+
+            <span className="
+                text-xs
+                text-gray-500
+            ">
+                Unten
+            </span>
+
+            <input
+                type="number"
+                min="0"
+                step="0.5"
+                value={
+                    activeCabinet.frontGapBottom ??
+                    0
+                }
+                onChange={(event) =>
+                    updateActiveCabinet({
+                        frontGapBottom:
+                            Math.max(
+                                0,
+                                Number(
+                                    event.target.value
+                                ) || 0
+                            )
+                    })
+                }
+                className="
+                    mt-1
+                    w-full
+                    rounded-lg
+                    border
+                    border-gray-700
+                    bg-gray-900
+                    px-3
+                    py-2
+                    text-white
+                "
+            />
+
+        </label>
+
+    </div>
+
+</div>
 
 
                 {/* =================================================

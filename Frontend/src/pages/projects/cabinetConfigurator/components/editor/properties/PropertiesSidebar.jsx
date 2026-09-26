@@ -71,7 +71,9 @@ export default function PropertiesSidebar({
 
     materials,
     loadingMaterials,
-    materialError
+    materialError,
+
+    updateCabinetLayout
 
 }) {
 
@@ -291,22 +293,17 @@ export default function PropertiesSidebar({
                                 ) : (
 
                                     <CabinetProperties
-                                        activeCabinet={
-                                            activeCabinet
-                                        }
-
+                                        activeCabinet={activeCabinet}
                                         updateActiveCabinet={
                                             updateActiveCabinet
                                         }
-
-                                        materials={
-                                            materials
+                                        onLayoutChange={
+                                            updateCabinetLayout
                                         }
-
+                                        materials={materials}
                                         loadingMaterials={
                                             loadingMaterials
                                         }
-
                                         materialError={
                                             materialError
                                         }

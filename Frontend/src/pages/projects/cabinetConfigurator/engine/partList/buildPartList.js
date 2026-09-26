@@ -109,15 +109,18 @@ export const buildPartList = (
                 })
             );
 
-            root.Children.push(
+            if(cabinet.topExists || cabinet.bottomExists) {
+                root.Children.push(
 
-                generateBottomPart({
-                    cabinet,
-                    materials,
-                    nextPID
-                })
+                    generateBottomPart({
+                        cabinet,
+                        materials,
+                        nextPID
+                    })
 
-            );
+                );
+            };
+            
 
 
             root.Children.push(
@@ -190,7 +193,7 @@ export const buildPartList = (
                 applyCncToParts(
                     cabinet,
                     root.Children
-                );
+                );  
                 
             return root;
 

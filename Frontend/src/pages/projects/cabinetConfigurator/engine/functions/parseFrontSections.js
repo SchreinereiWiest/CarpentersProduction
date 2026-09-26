@@ -1,7 +1,8 @@
+import { getAvailableCabinetArea } from "./getAvailableCabinetArea";
+
 export function createId() {
     return Date.now() + Math.random();
 }
-
 
 export const frontsToSections = (
     fronts = [],
@@ -17,12 +18,10 @@ export const frontsToSections = (
     }
 
 
-    // =========================================================
-    // Grundmaße
-    // =========================================================
-
     const thickness =
-        Number(cabinet.thickness ?? 0);
+        Number(
+            cabinet.thickness ?? 0
+        );
 
     const cabinetWidth =
         Number(cabinet.width);
@@ -31,7 +30,9 @@ export const frontsToSections = (
         Number(cabinet.height);
 
     const defaultGap =
-        Number(cabinet.sectionGap ?? 3);
+        Number(
+            cabinet.sectionGap ?? 3
+        );
 
 
     if (
@@ -43,30 +44,26 @@ export const frontsToSections = (
     }
 
 
-    // =========================================================
-    // Innenmaße des Korpus
-    // =========================================================
-
-    const innerWidth =
-        cabinetWidth -
-        2 * thickness;
-
-    const innerHeight =
-        cabinetHeight -
-        2 * thickness;
+    const availableArea =
+        getAvailableCabinetArea(
+            cabinet
+        );
 
 
     if (
-        innerWidth <= 0 ||
-        innerHeight <= 0
+        availableArea.width <= 0 ||
+        availableArea.height <= 0
     ) {
         return [];
     }
 
+    const innerWidth =
+        availableArea.width;
 
-    // =========================================================
-    // Rekursive Umwandlung
-    // =========================================================
+
+    const innerHeight =
+        availableArea.height;
+
 
     const convertLevel = (
         sourceFronts,
@@ -81,38 +78,34 @@ export const frontsToSections = (
         }
 
 
-        // -----------------------------------------------------
-        // Sortierung
-        // -----------------------------------------------------
+        const sortedFronts =
+            [...sourceFronts].sort(
+                (a, b) => {
 
-        const sortedFronts = [
-            ...sourceFronts
-        ].sort((a, b) => {
+                    if (
+                        Number(a.x) !==
+                        Number(b.x)
+                    ) {
+                        return (
+                            Number(a.x) -
+                            Number(b.x)
+                        );
+                    }
 
-            if (
-                Number(a.x) !== Number(b.x)
-            ) {
-                return (
-                    Number(a.x) -
-                    Number(b.x)
-                );
-            }
-
-            return (
-                Number(a.y) -
-                Number(b.y)
+                    return (
+                        Number(a.y) -
+                        Number(b.y)
+                    );
+                }
             );
-        });
 
-
-        // -----------------------------------------------------
-        // Orientierung bestimmen
-        // -----------------------------------------------------
 
         let direction = "vertical";
 
 
-        if (sortedFronts.length > 1) {
+        if (
+            sortedFronts.length > 1
+        ) {
 
             const first =
                 sortedFronts[0];
@@ -130,13 +123,13 @@ export const frontsToSections = (
         }
 
 
-        // -----------------------------------------------------
-        // Parent-Bereich bestimmen
-        // -----------------------------------------------------
-
         let totalStart;
         let totalEnd;
 
+
+        // =====================================================
+        // NESTED SECTION
+        // =====================================================
 
         if (parentSection) {
 
@@ -145,43 +138,67 @@ export const frontsToSections = (
             ) {
 
                 totalStart =
-                    Number(parentSection.y);
+                    Number(
+                        parentSection.y
+                    );
 
                 totalEnd =
-                    Number(parentSection.y) +
-                    Number(parentSection.height);
+                    Number(
+                        parentSection.y
+                    ) +
+                    Number(
+                        parentSection.height
+                    );
 
             } else {
 
                 totalStart =
-                    Number(parentSection.x);
+                    Number(
+                        parentSection.x
+                    );
 
                 totalEnd =
-                    Number(parentSection.x) +
-                    Number(parentSection.width);
+                    Number(
+                        parentSection.x
+                    ) +
+                    Number(
+                        parentSection.width
+                    );
             }
 
-        } else {
+        }
+
+
+        // =====================================================
+        // ROOT LEVEL
+        // =====================================================
+
+        else {
 
             if (
                 direction === "vertical"
             ) {
 
+                /*
+                 * Genau dieselbe Innengeometrie wie
+                 * createAvailableSection().
+                 */
+
                 totalStart =
-                    thickness;
+                    availableArea.top;
 
                 totalEnd =
-                    cabinetHeight -
-                    thickness;
+                    availableArea.bottom;
 
             } else {
 
                 totalStart =
-                    thickness;
+                    availableArea.x;
 
                 totalEnd =
-                    cabinetWidth -
-                    thickness;
+                    availableArea.x +
+                    availableArea.width;
+
             }
         }
 
@@ -199,17 +216,15 @@ export const frontsToSections = (
         }
 
 
-        // =====================================================
-        // Hilfsfunktion für Fugen
-        // =====================================================
-
         const getGap = (
             front,
             side
         ) => {
 
             const value =
-                Number(front?.[side]);
+                Number(
+                    front?.[side]
+                );
 
             if (
                 Number.isFinite(value) &&
@@ -222,15 +237,14 @@ export const frontsToSections = (
         };
 
 
-        // =====================================================
-        // Sections erzeugen
-        // =====================================================
-
         const sections = [];
 
 
         sortedFronts.forEach(
-            (front, index) => {
+            (
+                front,
+                index
+            ) => {
 
                 const isFirst =
                     index === 0;
@@ -239,10 +253,6 @@ export const frontsToSections = (
                     index ===
                     sortedFronts.length - 1;
 
-
-                // =============================================
-                // Front-Geometrie
-                // =============================================
 
                 const frontX =
                     Number(front.x);
@@ -267,9 +277,9 @@ export const frontsToSections = (
                 }
 
 
-                // =============================================
+                // =================================================
                 // VERTIKAL
-                // =============================================
+                // =================================================
 
                 if (
                     direction === "vertical"
@@ -283,113 +293,66 @@ export const frontsToSections = (
                         frontHeight;
 
 
-                    // -------------------------------------------------
-                    // Fuge oberhalb
-                    //
-                    // Bei der ersten Front kann hier eine Fuge
-                    // zwischen Korpus und Front liegen.
-                    //
-                    // Bei allen anderen Fronten liegt hier die
-                    // Fuge zwischen zwei Fronten.
-                    // -------------------------------------------------
-
                     let gapAbove = 0;
 
+if (!isFirst) {
 
-                    if (isFirst) {
+    const previous =
+        sortedFronts[index - 1];
 
-                        gapAbove =
-                            getGap(
-                                front,
-                                "gapTop"
-                            );
+    const previousBottom =
+        Number(previous.y) +
+        Number(previous.height);
 
-                    } else {
+    const geometricGap =
+        frontTop -
+        previousBottom;
 
-                        const previous =
-                            sortedFronts[
-                                index - 1
-                            ];
-
-                        const previousBottom =
-                            Number(previous.y) +
-                            Number(previous.height);
-
-
-                        const geometricGap =
-                            frontTop -
-                            previousBottom;
-
-
-                        gapAbove =
-                            geometricGap >= 0
-                                ? geometricGap
-                                : Math.max(
-                                    getGap(
-                                        previous,
-                                        "gapBottom"
-                                    ),
-                                    getGap(
-                                        front,
-                                        "gapTop"
-                                    )
-                                );
-                    }
+    gapAbove =
+        geometricGap >= 0
+            ? geometricGap
+            : Math.max(
+                getGap(
+                    previous,
+                    "gapBottom"
+                ),
+                getGap(
+                    front,
+                    "gapTop"
+                )
+            );
+}
 
 
-                    // -------------------------------------------------
-                    // Fuge unterhalb
-                    // -------------------------------------------------
+let gapBelow = 0;
 
-                    let gapBelow = 0;
+if (!isLast) {
 
+    const next =
+        sortedFronts[index + 1];
 
-                    if (isLast) {
+    const nextTop =
+        Number(next.y);
 
-                        gapBelow =
-                            getGap(
-                                front,
-                                "gapBottom"
-                            );
+    const geometricGap =
+        nextTop -
+        frontBottom;
 
-                    } else {
+    gapBelow =
+        geometricGap >= 0
+            ? geometricGap
+            : Math.max(
+                getGap(
+                    front,
+                    "gapBottom"
+                ),
+                getGap(
+                    next,
+                    "gapTop"
+                )
+            );
+}
 
-                        const next =
-                            sortedFronts[
-                                index + 1
-                            ];
-
-                        const nextTop =
-                            Number(next.y);
-
-
-                        const geometricGap =
-                            nextTop -
-                            frontBottom;
-
-
-                        gapBelow =
-                            geometricGap >= 0
-                                ? geometricGap
-                                : Math.max(
-                                    getGap(
-                                        front,
-                                        "gapBottom"
-                                    ),
-                                    getGap(
-                                        next,
-                                        "gapTop"
-                                    )
-                                );
-                    }
-
-
-                    // -------------------------------------------------
-                    // Section-Grenzen
-                    //
-                    // Die Trennung liegt jeweils in der Mitte
-                    // der Fuge.
-                    // -------------------------------------------------
 
                     const sectionY =
                         isFirst
@@ -409,39 +372,35 @@ export const frontsToSections = (
 
                     const x =
                         parentSection
-                            ? Number(parentSection.x)
-                            : thickness;
+                            ? Number(
+                                parentSection.x
+                            )
+                            : availableArea.x;
 
 
                     const width =
                         parentSection
-                            ? Number(parentSection.width)
+                            ? Number(
+                                parentSection.width
+                            )
                             : innerWidth;
 
 
-                    const height =
+                    const sectionHeight =
                         sectionBottom -
                         sectionY;
 
 
-                    // -------------------------------------------------
-                    // Ungültige Geometrie
-                    // -------------------------------------------------
-
                     if (
                         !Number.isFinite(sectionY) ||
                         !Number.isFinite(sectionBottom) ||
-                        !Number.isFinite(height) ||
+                        !Number.isFinite(sectionHeight) ||
                         width <= 0 ||
-                        height <= 0
+                        sectionHeight <= 0
                     ) {
                         return;
                     }
 
-
-                    // -------------------------------------------------
-                    // Section erzeugen
-                    // -------------------------------------------------
 
                     const section = {
 
@@ -462,17 +421,18 @@ export const frontsToSections = (
                             front.id,
 
                         x,
-                        y: sectionY,
+
+                        y:
+                            sectionY,
+
                         width,
-                        height,
+
+                        height:
+                            sectionHeight,
 
                         children: []
                     };
 
-
-                    // -------------------------------------------------
-                    // Verschachtelte Fronten
-                    // -------------------------------------------------
 
                     if (
                         front.children &&
@@ -487,15 +447,17 @@ export const frontsToSections = (
                     }
 
 
-                    sections.push(section);
+                    sections.push(
+                        section
+                    );
 
                     return;
                 }
 
 
-                // =============================================
+                // =================================================
                 // HORIZONTAL
-                // =============================================
+                // =================================================
 
                 const frontLeft =
                     frontX;
@@ -504,10 +466,6 @@ export const frontsToSections = (
                     frontX +
                     frontWidth;
 
-
-                // -------------------------------------------------
-                // Fuge links
-                // -------------------------------------------------
 
                 let gapLeft = 0;
 
@@ -528,9 +486,12 @@ export const frontsToSections = (
                         ];
 
                     const previousRight =
-                        Number(previous.x) +
-                        Number(previous.width);
-
+                        Number(
+                            previous.x
+                        ) +
+                        Number(
+                            previous.width
+                        );
 
                     const geometricGap =
                         frontLeft -
@@ -553,10 +514,6 @@ export const frontsToSections = (
                 }
 
 
-                // -------------------------------------------------
-                // Fuge rechts
-                // -------------------------------------------------
-
                 let gapRight = 0;
 
 
@@ -576,8 +533,9 @@ export const frontsToSections = (
                         ];
 
                     const nextLeft =
-                        Number(next.x);
-
+                        Number(
+                            next.x
+                        );
 
                     const geometricGap =
                         nextLeft -
@@ -600,10 +558,6 @@ export const frontsToSections = (
                 }
 
 
-                // -------------------------------------------------
-                // Section-Grenzen
-                // -------------------------------------------------
-
                 const sectionX =
                     isFirst
                         ? totalStart +
@@ -622,39 +576,35 @@ export const frontsToSections = (
 
                 const y =
                     parentSection
-                        ? Number(parentSection.y)
-                        : thickness;
+                        ? Number(
+                            parentSection.y
+                        )
+                        : availableArea.y;
 
 
                 const height =
                     parentSection
-                        ? Number(parentSection.height)
+                        ? Number(
+                            parentSection.height
+                        )
                         : innerHeight;
 
 
-                const width =
+                const sectionWidth =
                     sectionRight -
                     sectionX;
 
 
-                // -------------------------------------------------
-                // Ungültige Geometrie
-                // -------------------------------------------------
-
                 if (
                     !Number.isFinite(sectionX) ||
                     !Number.isFinite(sectionRight) ||
-                    !Number.isFinite(width) ||
-                    width <= 0 ||
+                    !Number.isFinite(sectionWidth) ||
+                    sectionWidth <= 0 ||
                     height <= 0
                 ) {
                     return;
                 }
 
-
-                // -------------------------------------------------
-                // Section erzeugen
-                // -------------------------------------------------
 
                 const section = {
 
@@ -674,18 +624,19 @@ export const frontsToSections = (
                     frontId:
                         front.id,
 
-                    x: sectionX,
+                    x:
+                        sectionX,
+
                     y,
-                    width,
+
+                    width:
+                        sectionWidth,
+
                     height,
 
                     children: []
                 };
 
-
-                // -------------------------------------------------
-                // Verschachtelte Fronten
-                // -------------------------------------------------
 
                 if (
                     front.children &&
@@ -700,7 +651,10 @@ export const frontsToSections = (
                 }
 
 
-                sections.push(section);
+                sections.push(
+                    section
+                );
+
             }
         );
 
@@ -709,9 +663,7 @@ export const frontsToSections = (
     };
 
 
-    // =========================================================
-    // Start
-    // =========================================================
-
-    return convertLevel(fronts);
+    return convertLevel(
+        fronts
+    );
 };
