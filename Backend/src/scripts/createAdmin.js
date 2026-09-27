@@ -15,7 +15,9 @@ const createUser = async () => {
 
         data: {
 
-            email: "admin",
+            email: "markus",
+
+            login: "markus",
 
             passwordHash,
 

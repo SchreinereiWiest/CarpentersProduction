@@ -27,6 +27,7 @@ import CreateProject from "./pages/projects/edit/create.project.jsx";
 import ProjectSettings from "./pages/projects/settings/settings.project.jsx";
 import CabinetEditor from "./pages/projects/cabinetConfigurator/components/cabinetEditor.jsx"
 import CncEditor from "./pages/projects/cnc/cncEditor.jsx";
+import CompanySettings from "./pages/settings/companySettings.jsx";
 import './index.css'
 
 import {
@@ -196,6 +197,12 @@ ReactDOM.createRoot(root).render(
 
             <Route path="/Kontakte/NewProject/:userid" element={ <ProtectedRoute requiredRole="admin">
             <NewProject />
+            </ProtectedRoute>
+            }
+            />
+
+            <Route path="/CompanySettings" element={ <ProtectedRoute requiredRole="admin">
+            <CompanySettings />
             </ProtectedRoute>
             }
             />

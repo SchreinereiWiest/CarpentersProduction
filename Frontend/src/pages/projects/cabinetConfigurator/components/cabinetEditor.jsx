@@ -82,15 +82,7 @@ export default function CabinetEditor() {
     const [saving, setSaving] = useState(false);
     const [loadingGeneratedData, setLoadingGeneratedData] = useState(false);
 
-    const addCabinet = () => {
-
-    const newCabinet = {
-    id: createId(),
-
-    name:
-        `Korpus ${cabinets.length + 1}`,
-
-    width: 600,
+    const [defaultCabinet, setDefaultCabinet] = useState({width: 600,
     height: 720,
     depth: 535,
     thickness: 19,
@@ -116,7 +108,17 @@ export default function CabinetEditor() {
     spax: true,
 
     sections: [],
-    fronts: []
+    fronts: []});
+
+    const addCabinet = () => {
+
+    const newCabinet = {
+    id: createId(),
+
+    name:
+        `Korpus ${cabinets.length + 1}`,
+
+    ...defaultCabinet
 };
 
 
@@ -562,14 +564,7 @@ export default function CabinetEditor() {
                     id: newID,
                     name: "Korpus 1",
 
-                    width: 600,
-                    height: 2000,
-                    depth: 580,
-                    thickness: 19,
-
-                    sections: [],
-                        
-                    fronts: []
+                    ...defaultCabinet
                 }]);
             setActiveCabinetId(newID);
 
@@ -595,7 +590,72 @@ export default function CabinetEditor() {
 
         loadGeneratedData();
 
-    }, [projectId, project]);
+    }, [projectId, project, defaultCabinet]);
+
+    useEffect(() => {
+
+        const loadGeneratedData = async () => {
+
+            try {
+
+                const response = await axios.get(
+
+                    `/api/settings/cabinet`,
+
+                    {
+                        withCredentials: true
+                    }
+
+                );
+
+                const {
+
+                    exists,
+
+                    downloadUrl,
+
+                } = response.data;
+
+
+                // Datei existiert bereits
+                if (exists) {
+
+                    try {
+                        const fileResponse = await fetch(
+                            downloadUrl
+                        );
+
+                        const data = await fileResponse.json();
+
+                        setDefaultCabinet(prev => ({
+                        ...prev,
+                        ...data,}));
+
+
+                        return;
+                    } catch (error) {
+                        console.warn("cant fetch data, try new upload");
+                    }
+
+                }
+
+               
+
+            } catch (error) {
+
+                console.error(
+                    "Generated data konnte nicht geladen werden",
+                    error
+                );
+
+            }
+
+        };
+
+
+        loadGeneratedData();
+
+    }, []);
 
 
     return (

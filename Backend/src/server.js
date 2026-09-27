@@ -10,6 +10,8 @@ import projectRoutes from "./routes/project.routes.js";
 import fileRoutes from "./routes/file.routes.js";
 import storageRoutes from "./routes/storage.routes.js"
 import timeRoutes from "./routes/time.routes.js";
+import userRoutes from "./routes/user.routes.js"
+import settingsRoutes from "./routes/settings.routes.js"
 
 dotenv.config();
 
@@ -26,7 +28,8 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use(express.json());
+app.use(express.json({ limit: "20mb" }));
+app.use(express.urlencoded({ limit: "20mb", extended: true }));
 
 app.use(cookieParser());
 
@@ -42,6 +45,10 @@ app.use("/api/files", fileRoutes);
 app.use("/api/materials", storageRoutes);
 
 app.use("/api/time", timeRoutes);
+
+app.use("/api/user", userRoutes);
+
+app.use("/api/settings", settingsRoutes);
 
 app.listen(5000, () => {
   console.log("Backend running on port 5000");

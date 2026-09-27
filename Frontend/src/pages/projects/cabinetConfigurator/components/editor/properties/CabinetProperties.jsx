@@ -16,7 +16,6 @@ export default function CabinetProperties({
         return null;
     }
 
-
     return (
 
         <div className="

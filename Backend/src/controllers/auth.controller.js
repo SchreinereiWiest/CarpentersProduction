@@ -15,12 +15,12 @@ export const login = async (req, res) => {
   try {
 
     //check login 
-    const { email, password } = req.body;
+    const { login, password } = req.body;
 
     const user = await prisma.user.findUnique({
       where: {
-        email,
-      },
+        login: login,
+      },  
     });
 
     if (!user) {
@@ -47,10 +47,11 @@ export const login = async (req, res) => {
         {
             id: user.id,
             email: user.email,
+            login: user.login,
             role: user.role
         },
         process.env.JWT_ACCESS_SECRET,
-        { expiresIn: "24h" }
+        { expiresIn: "72h" }
     );
 
     res.cookie("token", token, {
@@ -64,6 +65,7 @@ export const login = async (req, res) => {
         user: {
             id: user.id,
             email: user.email,
+            login: user.login,
             role: user.role
         }
     });
@@ -83,7 +85,7 @@ export const getAllUsers = async (req, res) => {
 
   try {
 
-    const users = await prisma.User.findMany({
+    const users = await prisma.user.findMany({
         orderBy: [
           {
             email: "asc",
