@@ -43,9 +43,8 @@ export const generateShelfParts = ({
                 return;
             }
 
-
             const depth =
-                config.depth;
+                config.depth - config.frontOffset;
 
 
             const shelfWidth =

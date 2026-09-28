@@ -112,31 +112,16 @@ export default function SectionFunctionProperties({
 
 
     
-const createDefaultMiddleWall = (
-    selectedElement
-) => {
+    const createDefaultMiddleWall = (section) => ({
+    id: createId(),
 
-    const height =
-        Number(selectedElement?.height ?? 0);
+    orientation: "horizontal",
 
-    return {
-        id:createId(),
+    positionReference: "sectionBottom",
+    positionOffset: 0,
 
-        // Bezug auf Unterkante der Sektion
-        positionReference: "sectionBottom",
-
-        // Standardmäßig ungefähr in der Mitte
-        positionOffset:
-            Math.max(
-                0,
-                height / 2
-            ),
-        absoluteOffset: selectedElement.y + selectedElement.height - Math.max(
-                0,
-                height / 2
-            )
-    };
-};
+    absoluteOffset: 0
+});
 
 
 const createDefaultFunctionConfig = (
@@ -225,8 +210,7 @@ const createDefaultFunctionConfig = (
         const existingConfig =
             selectedElement.functionConfig ?? {};
 
-            console.log(existingConfig);
-
+        console.log("existingConfig", existingConfig);
 
         const defaultConfig =
             createDefaultFunctionConfig(
@@ -306,11 +290,7 @@ const createDefaultFunctionConfig = (
 
 
                         const newConfig =
-                            typeof changes === "function"
-                                ? changes(
-                                    currentConfig
-                                )
-                                : {
+                             {
                                     ...currentConfig,
                                     ...changes
                                 };
@@ -377,12 +357,14 @@ const createDefaultFunctionConfig = (
     // =========================================================
 
     const updateMiddleWall = (
-        wallId,
+        wall,
         changes
     ) => {
 
-        const config =
-            selectedElement.functionConfig ?? {};
+        console.log(selectedElement, wall, changes);
+        const config = wall.functionConfig;
+
+        console.log(config);
 
 
         const middleWalls =
@@ -467,185 +449,149 @@ const createDefaultFunctionConfig = (
     // sinnvoll verwendbar.
     // =========================================================
 
-    const getMiddleWallCenterY = (
-        wall
-    ) => {
+    const getMiddleWallCenter = (wall) => {
 
-        const offset =
-            Number(
-                wall.positionOffset ?? 0
-            );
+    const orientation = wall.orientation ?? "horizontal";
+    const offset = Number(wall.positionOffset ?? 0);
 
-        const sectionY =
-            Number(
-                selectedElement.y
-            );
+    const sectionX = Number(selectedElement.x);
+    const sectionY = Number(selectedElement.y);
 
-        const sectionHeight =
-            Number(
-                selectedElement.height
-            );
+    const sectionWidth = Number(selectedElement.width);
+    const sectionHeight = Number(selectedElement.height);
 
-        const cabinetHeight =
-            Number(
-                activeCabinet.height
-            );
+    const cabinetWidth = Number(activeCabinet.width);
+    const cabinetHeight = Number(activeCabinet.height);
 
+    if (orientation === "vertical") {
 
-        switch (
-            wall.positionReference
-        ) {
+        switch (wall.positionReference) {
 
-            case "cabinetTop":
-
+            case "cabinetLeft":
                 return offset;
 
+            case "cabinetRight":
+                return cabinetWidth - offset;
 
-            case "cabinetBottom":
+            case "sectionLeft":
+                return sectionX + offset;
 
-                return (
-                    cabinetHeight -
-                    offset
-                );
-
-
-            case "sectionTop":
-
-                return (
-                    sectionY +
-                    offset
-                );
-
-
-            case "sectionBottom":
-
-                return (
-                    sectionY +
-                    sectionHeight -
-                    offset
-                );
-
+            case "sectionRight":
+                return sectionX + sectionWidth - offset;
 
             default:
-
-                return (
-                    sectionY +
-                    sectionHeight / 2
-                );
+                return sectionX + sectionWidth / 2;
         }
-    };
+    }
+
+    // bisherige horizontale Mittelwand
+    switch (wall.positionReference) {
+
+        case "cabinetTop":
+            return offset;
+
+        case "cabinetBottom":
+            return cabinetHeight - offset;
+
+        case "sectionTop":
+            return sectionY + offset;
+
+        case "sectionBottom":
+            return sectionY + sectionHeight - offset;
+
+        default:
+            return sectionY + sectionHeight / 2;
+    }
+};
 
 
     // =========================================================
     // Abstand der Mittelwand von einer Referenz berechnen
     // =========================================================
 
-    const getMiddleWallOffset = (
-        wall,
-        reference
-    ) => {
+    const getMiddleWallOffset = (wall, reference) => {
 
-        const centerY =
-            getMiddleWallCenterY(
-                wall
-            );
+    const orientation = wall.orientation ?? "horizontal";
+    const center = getMiddleWallCenter(wall);
 
+    const sectionX = Number(selectedElement.x);
+    const sectionY = Number(selectedElement.y);
 
-        const sectionY =
-            Number(
-                selectedElement.y
-            );
+    const sectionWidth = Number(selectedElement.width);
+    const sectionHeight = Number(selectedElement.height);
 
-        const sectionHeight =
-            Number(
-                selectedElement.height
-            );
+    const cabinetWidth = Number(activeCabinet.width);
+    const cabinetHeight = Number(activeCabinet.height);
 
-        const cabinetHeight =
-            Number(
-                activeCabinet.height
-            );
-
+    if (orientation === "vertical") {
 
         switch (reference) {
 
-            case "cabinetTop":
+            case "cabinetLeft":
+                return center;
 
-                return centerY;
+            case "cabinetRight":
+                return cabinetWidth - center;
 
+            case "sectionLeft":
+                return center - sectionX;
 
-            case "cabinetBottom":
-
-                return (
-                    cabinetHeight -
-                    centerY
-                );
-
-
-            case "sectionTop":
-
-                return (
-                    centerY -
-                    sectionY
-                );
-
-
-            case "sectionBottom":
-
-                return (
-                    sectionY +
-                    sectionHeight -
-                    centerY
-                );
-
+            case "sectionRight":
+                return sectionX + sectionWidth - center;
 
             default:
-
-                return centerY;
+                return center;
         }
-    };
+    }
+
+    // horizontal / Y
+    switch (reference) {
+
+        case "cabinetTop":
+            return center;
+
+        case "cabinetBottom":
+            return cabinetHeight - center;
+
+        case "sectionTop":
+            return center - sectionY;
+
+        case "sectionBottom":
+            return sectionY + sectionHeight - center;
+
+        default:
+            return center;
+    }
+};
 
 
     // =========================================================
     // Mittelwand über beliebige Referenz positionieren
     // =========================================================
 
-    const setMiddleWallPosition = (
-        wall,
-        reference,
-        value
-    ) => {
+    const setMiddleWallPosition = (wall, reference, value) => {
 
-        const numericValue =
-            Number(value);
+    const numericValue = Number(value);
 
+    if (
+        !Number.isFinite(numericValue) ||
+        numericValue < 0
+    ) {
+        return;
+    }
 
-        if (
-            !Number.isFinite(
-                numericValue
-            ) ||
-            numericValue < 0
-        ) {
-            return;
-        }
-
-
-        updateMiddleWall(
-            wall.id,
+    updateMiddleWall(wall, {
+        positionReference: reference,
+        positionOffset: numericValue,
+        absoluteOffset: getMiddleWallOffset(
             {
-                positionReference:
-                    reference,
-
-                positionOffset:
-                    numericValue,
-
-                absoluteOffset: getMiddleWallOffset(
-                                        wall,
-                                        "cabinetTop"
-                                    )
-            }
-        );
-    };
+                ...wall,
+                positionReference: reference,
+                positionOffset: numericValue
+            },
+        )
+    });
+};
 
 
     // =========================================================
@@ -1437,6 +1383,8 @@ const removeLegrabox = (
                         {middleWalls.map(
                             (wall, index) => {
 
+                                const isVerticalWall = (wall.orientation ?? "horizontal") === "vertical";
+
                                 const cabinetTop =
                                     getMiddleWallOffset(
                                         wall,
@@ -1479,304 +1427,303 @@ const removeLegrabox = (
                                             Kopf
                                         ================================= */}
 
-                                        <div className="
-                                            mb-4
-                                            flex
-                                            items-center
-                                            justify-between
-                                        ">
+                                        <div className="mb-4 flex items-center justify-between">
 
-                                            <div className="
-                                                text-sm
-                                                font-medium
-                                                text-gray-200
-                                            ">
+                                            <div className="text-sm font-medium text-gray-200">
                                                 Mittelwand {index + 1}
                                             </div>
 
+                                            <div className="flex gap-1">
 
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    removeMiddleWall(
-                                                        wall.id
-                                                    )
-                                                }
-                                                disabled={
-                                                    middleWalls.length <= 1
-                                                }
-                                                className="
-                                                    rounded
-                                                    px-2
-                                                    py-1
-                                                    text-xs
-                                                    text-red-400
-                                                    hover:bg-red-950
-                                                    disabled:cursor-not-allowed
-                                                    disabled:opacity-30
-                                                "
-                                            >
-                                                Entfernen
-                                            </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        updateMiddleWall(wall, {
+                                                            orientation: "horizontal",
+                                                        })
+                                                    }
+                                                    className={`rounded px-2 py-1 text-xs ${
+                                                        (wall.orientation ?? "horizontal") === "horizontal"
+                                                            ? "bg-gray-700 text-white"
+                                                            : "text-gray-500 hover:bg-gray-800"
+                                                    }`}
+                                                >
+                                                    Horizontal
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        updateMiddleWall(wall, {
+                                                            orientation: "vertical",
+                                                        })
+                                                    }
+                                                    className={`rounded px-2 py-1 text-xs ${
+                                                        (wall.orientation ?? "horizontal") === "vertical"
+                                                            ? "bg-gray-700 text-white"
+                                                            : "text-gray-500 hover:bg-gray-800"
+                                                    }`}
+                                                >
+                                                    Vertikal
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeMiddleWall(wall.id)}
+                                                    disabled={middleWalls.length <= 1}
+                                                    className="rounded px-2 py-1 text-xs text-red-400 hover:bg-red-950 disabled:cursor-not-allowed disabled:opacity-30"
+                                                >
+                                                    Entfernen
+                                                </button>
+
+                                            </div>
 
                                         </div>
 
 
-                                        {/* =================================
-                                            Position von Korpus oben
-                                        ================================= */}
+                                        {!isVerticalWall ? (
+    <>
+        <label className="block">
+            <span className="text-xs text-gray-400">
+                Korpusoberkante
+            </span>
 
-                                        <label className="block">
+            <input
+                type="number"
+                min="0"
+                step="0.5"
+                value={Number(
+                    getMiddleWallOffset(wall, "cabinetTop")
+                ).toFixed(1)}
+                onChange={(event) =>
+                    setMiddleWallPosition(
+                        wall,
+                        "cabinetTop",
+                        event.target.value
+                    )
+                }
+                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+            />
+        </label>
 
-                                            <span className="
-                                                text-xs
-                                                text-gray-400
-                                            ">
-                                                Korpusoberkante
-                                            </span>
+        <label className="mt-3 block">
+            <span className="text-xs text-gray-400">
+                Korpusunterkante
+            </span>
 
+            <input
+                type="number"
+                min="0"
+                step="0.5"
+                value={Number(
+                    getMiddleWallOffset(wall, "cabinetBottom")
+                ).toFixed(1)}
+                onChange={(event) =>
+                    setMiddleWallPosition(
+                        wall,
+                        "cabinetBottom",
+                        event.target.value
+                    )
+                }
+                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+            />
+        </label>
 
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                step="0.5"
-                                                value={
-                                                    Number(
-                                                        cabinetTop
-                                                    ).toFixed(1)
-                                                }
-                                                onChange={(event) =>
-                                                    setMiddleWallPosition(
-                                                        wall,
-                                                        "cabinetTop",
-                                                        event.target.value
-                                                    )
-                                                }
-                                                className="
-                                                    mt-1
-                                                    w-full
-                                                    rounded-lg
-                                                    border
-                                                    border-gray-700
-                                                    bg-gray-900
-                                                    px-3
-                                                    py-2
-                                                    text-white
-                                                "
-                                            />
+        <label className="mt-3 block">
+            <span className="text-xs text-gray-400">
+                Sektionoberkante
+            </span>
 
-                                        </label>
+            <input
+                type="number"
+                min="0"
+                step="0.5"
+                value={Number(
+                    getMiddleWallOffset(wall, "sectionTop")
+                ).toFixed(1)}
+                onChange={(event) =>
+                    setMiddleWallPosition(
+                        wall,
+                        "sectionTop",
+                        event.target.value
+                    )
+                }
+                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+            />
+        </label>
 
+        <label className="mt-3 block">
+            <span className="text-xs text-gray-400">
+                Sektionunterkante
+            </span>
 
-                                        {/* =================================
-                                            Position von Korpus unten
-                                        ================================= */}
+            <input
+                type="number"
+                min="0"
+                step="0.5"
+                value={Number(
+                    getMiddleWallOffset(wall, "sectionBottom")
+                ).toFixed(1)}
+                onChange={(event) =>
+                    setMiddleWallPosition(
+                        wall,
+                        "sectionBottom",
+                        event.target.value
+                    )
+                }
+                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+            />
+        </label>
+    </>
+                                        ) : (
+                                                <>
+                                                    <label className="block">
+                                                        <span className="text-xs text-gray-400">
+                                                            Korpus linke Kante
+                                                        </span>
 
-                                        <label className="
-                                            mt-3
-                                            block
-                                        ">
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            step="0.5"
+                                                            value={Number(
+                                                                getMiddleWallOffset(wall, "cabinetLeft")
+                                                            ).toFixed(1)}
+                                                            onChange={(event) =>
+                                                                setMiddleWallPosition(
+                                                                    wall,
+                                                                    "cabinetLeft",
+                                                                    event.target.value
+                                                                )
+                                                            }
+                                                            className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+                                                        />
+                                                    </label>
 
-                                            <span className="
-                                                text-xs
-                                                text-gray-400
-                                            ">
-                                                Korpusunterkante
-                                            </span>
+                                                    <label className="mt-3 block">
+                                                        <span className="text-xs text-gray-400">
+                                                            Korpus rechte Kante
+                                                        </span>
 
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            step="0.5"
+                                                            value={Number(
+                                                                getMiddleWallOffset(wall, "cabinetRight")
+                                                            ).toFixed(1)}
+                                                            onChange={(event) =>
+                                                                setMiddleWallPosition(
+                                                                    wall,
+                                                                    "cabinetRight",
+                                                                    event.target.value
+                                                                )
+                                                            }
+                                                            className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+                                                        />
+                                                    </label>
 
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                step="0.5"
-                                                value={
-                                                    Number(
-                                                        cabinetBottom
-                                                    ).toFixed(1)
-                                                }
-                                                onChange={(event) =>
-                                                    setMiddleWallPosition(
-                                                        wall,
-                                                        "cabinetBottom",
-                                                        event.target.value
-                                                    )
-                                                }
-                                                className="
-                                                    mt-1
-                                                    w-full
-                                                    rounded-lg
-                                                    border
-                                                    border-gray-700
-                                                    bg-gray-900
-                                                    px-3
-                                                    py-2
-                                                    text-white
-                                                "
-                                            />
+                                                    <label className="mt-3 block">
+                                                        <span className="text-xs text-gray-400">
+                                                            Sektion linke Kante
+                                                        </span>
 
-                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            step="0.5"
+                                                            value={Number(
+                                                                getMiddleWallOffset(wall, "sectionLeft")
+                                                            ).toFixed(1)}
+                                                            onChange={(event) =>
+                                                                setMiddleWallPosition(
+                                                                    wall,
+                                                                    "sectionLeft",
+                                                                    event.target.value
+                                                                )
+                                                            }
+                                                            className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+                                                        />
+                                                    </label>
 
+                                                    <label className="mt-3 block">
+                                                        <span className="text-xs text-gray-400">
+                                                            Sektion rechte Kante
+                                                        </span>
 
-                                        {/* =================================
-                                            Position von Sektion oben
-                                        ================================= */}
-
-                                        <label className="
-                                            mt-3
-                                            block
-                                        ">
-
-                                            <span className="
-                                                text-xs
-                                                text-gray-400
-                                            ">
-                                                Sektionoberkante
-                                            </span>
-
-
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                step="0.5"
-                                                value={
-                                                    Number(
-                                                        sectionTop
-                                                    ).toFixed(1)
-                                                }
-                                                onChange={(event) =>
-                                                    setMiddleWallPosition(
-                                                        wall,
-                                                        "sectionTop",
-                                                        event.target.value
-                                                    )
-                                                }
-                                                className="
-                                                    mt-1
-                                                    w-full
-                                                    rounded-lg
-                                                    border
-                                                    border-gray-700
-                                                    bg-gray-900
-                                                    px-3
-                                                    py-2
-                                                    text-white
-                                                "
-                                            />
-
-                                        </label>
-
-
-                                        {/* =================================
-                                            Position von Sektion unten
-                                        ================================= */}
-
-                                        <label className="
-                                            mt-3
-                                            block
-                                        ">
-
-                                            <span className="
-                                                text-xs
-                                                text-gray-400
-                                            ">
-                                                Sektionunterkante
-                                            </span>
-
-
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                step="0.5"
-                                                value={
-                                                    Number(
-                                                        sectionBottom
-                                                    ).toFixed(1)
-                                                }
-                                                onChange={(event) =>
-                                                    setMiddleWallPosition(
-                                                        wall,
-                                                        "sectionBottom",
-                                                        event.target.value
-                                                    )
-                                                }
-                                                className="
-                                                    mt-1
-                                                    w-full
-                                                    rounded-lg
-                                                    border
-                                                    border-gray-700
-                                                    bg-gray-900
-                                                    px-3
-                                                    py-2
-                                                    text-white
-                                                "
-                                            />
-
-                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            step="0.5"
+                                                            value={Number(
+                                                                getMiddleWallOffset(wall, "sectionRight")
+                                                            ).toFixed(1)}
+                                                            onChange={(event) =>
+                                                                setMiddleWallPosition(
+                                                                    wall,
+                                                                    "sectionRight",
+                                                                    event.target.value
+                                                                )
+                                                            }
+                                                            className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+                                                        />
+                                                    </label>
+                                                </>
+                                            )}
 
 
                                         {/* =================================
                                             Aktiver Bezug
                                         ================================= */}
 
-                                        <label className="
-                                            mt-3
-                                            block
-                                        ">
-
-                                            <span className="
-                                                text-xs
-                                                text-gray-400
-                                            ">
+                                        <label className="mt-3 block">
+                                            <span className="text-xs text-gray-400">
                                                 Aktiver Bezug
                                             </span>
 
-
                                             <select
-                                                value={
-                                                    wall.positionReference
-                                                }
+                                                value={wall.positionReference}
                                                 onChange={(event) =>
-                                                    updateMiddleWall(
-                                                        wall.id,
-                                                        {
-                                                            positionReference:
-                                                                event.target.value
-                                                        }
-                                                    )
+                                                    updateMiddleWall(wall, {
+                                                        positionReference: event.target.value
+                                                    })
                                                 }
-                                                className="
-                                                    mt-1
-                                                    w-full
-                                                    rounded-lg
-                                                    border
-                                                    border-gray-700
-                                                    bg-gray-800
-                                                    px-3
-                                                    py-2
-                                                    text-sm
-                                                    text-white
-                                                "
+                                                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white"
                                             >
 
-                                                <option value="sectionBottom">
-                                                    Sektion unten
-                                                </option>
-
-                                                <option value="sectionTop">
-                                                    Sektion oben
-                                                </option>
-
-                                                <option value="cabinetBottom">
-                                                    Korpus unten
-                                                </option>
-
-                                                <option value="cabinetTop">
-                                                    Korpus oben
-                                                </option>
+                                                {isVerticalWall ? (
+                                                    <>
+                                                        <option value="sectionLeft">
+                                                            Sektion links
+                                                        </option>
+                                                        <option value="sectionRight">
+                                                            Sektion rechts
+                                                        </option>
+                                                        <option value="cabinetLeft">
+                                                            Korpus links
+                                                        </option>
+                                                        <option value="cabinetRight">
+                                                            Korpus rechts
+                                                        </option>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <option value="sectionBottom">
+                                                            Sektion unten
+                                                        </option>
+                                                        <option value="sectionTop">
+                                                            Sektion oben
+                                                        </option>
+                                                        <option value="cabinetBottom">
+                                                            Korpus unten
+                                                        </option>
+                                                        <option value="cabinetTop">
+                                                            Korpus oben
+                                                        </option>
+                                                    </>
+                                                )}
 
                                             </select>
-
                                         </label>
 
 

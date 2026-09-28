@@ -237,13 +237,21 @@ export function InteriorLayer({
         // Mittelboden / Mittelwand
         // =====================================================
 
-        if (
-            functionType === "middleWall"
-        ) {
-       
+
+        if (functionType === "middleWall") {
 
             section.functionConfig.middleWalls.forEach(
                 (partition, index) => {
+
+                const orientation = partition.orientation ?? "horizontal";
+
+                if (orientation === "vertical") {
+
+
+                } else {
+
+
+                    
 
                     const positionFromBottom =
                         Number(
@@ -252,8 +260,7 @@ export function InteriorLayer({
                         );
 
 
-                    const y =
-                        positionFromBottom - thickness/2;
+                    const y = positionFromBottom - thickness/2;
 
                     elements.push(
 
@@ -280,8 +287,11 @@ export function InteriorLayer({
                     );
 
                 }
+            }
             );
-        }
+                }
+            
+        
 
 
         return elements;

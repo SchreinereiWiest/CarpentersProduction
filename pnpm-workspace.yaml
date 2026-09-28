@@ -1,0 +1,4 @@
+allowBuilds:
+  esbuild@0.28.2: true
+  prisma: true
+  workerd: true

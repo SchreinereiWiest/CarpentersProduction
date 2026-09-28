@@ -6,15 +6,16 @@ export const groupCncParts = (
     partList = []
 ) => {
 
-    const parts =
-        flattenPartList(partList);
+    const parts = flattenPartList(partList);
+
+    console.log(parts);
 
     const groups = new Map();
 
     parts.forEach(part => {
+        if(!part.CNC || part.CNC.operations.length == 0) {return;}
 
-        const signature =
-            getCncProgramSignature(part);
+        const signature = getCncProgramSignature(part);
 
         if (!groups.has(signature)) {
 
