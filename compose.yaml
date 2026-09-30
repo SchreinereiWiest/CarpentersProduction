@@ -97,9 +97,6 @@ services:
 
     networks:
       - carpenters-network
-    
-    ports:
-      - "5432:5432"
 
   garage:
     image: dxflrs/garage:v2.3.0

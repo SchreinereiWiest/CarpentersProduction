@@ -46,11 +46,11 @@ export function importCadData(cadData, materials) {
 
         quantity: Number(item.Anzahl),
 
-        width: Number(item.B),
+        width: item.B ? Number(item.B) : null,
 
-        height: Number(item.L),
+        height: item.L ?Number(item.L) : null,
 
-        depth: Number(item.T),
+        depth: item.T ? Number(item.T) : null,
 
         MID: getMaterialId(item.MID),
 

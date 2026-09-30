@@ -13,7 +13,7 @@ import ContactsAdmin from "./pages/contacts/contacts.admin.jsx";
 import ContactsNewAdmin from "./pages/contacts/newcontact.admin.jsx";
 import ShowContactsAdmin from "./pages/contacts/showcontact.admin.jsx";
 import EditContactsAdmin from "./pages/contacts/editcontact.admin.jsx";
-import NewProject from "./pages/projects/newproject.admin.jsx";
+import NewProject from "./pages/contacts/newproject.admin.jsx";
 import ShowProject from "./pages/projects/home.project.jsx";
 import Login from "./pages/public/Login";
 import CadViewer from "./pages/projects/cad/cad.project.jsx";
@@ -128,6 +128,12 @@ ReactDOM.createRoot(root).render(
             />
 
             <Route path="/Projects/Create" element={ <ProtectedRoute requiredRole="user">
+            <CabinetEditor/>
+            </ProtectedRoute>
+            }
+            />
+
+            <Route path="/Projects/Create/List" element={ <ProtectedRoute requiredRole="user">
             <CreateProject/>
             </ProtectedRoute>
             }
@@ -195,8 +201,8 @@ ReactDOM.createRoot(root).render(
             }
             />
 
-            <Route path="/Kontakte/NewProject/:userid" element={ <ProtectedRoute requiredRole="admin">
-            <NewProject />
+            <Route path="/Kontakte/NewProject/:userId" element={ <ProtectedRoute requiredRole="admin">
+            <CabinetEditor />
             </ProtectedRoute>
             }
             />

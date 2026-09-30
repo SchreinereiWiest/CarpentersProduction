@@ -32,7 +32,11 @@ function ProjectOverview() {
         <main className="xl:pt-10 pt-5 h-full flex-1 overflow-y-auto">
 
             <button
-             onClick={() => navigate(`/Projects/create`)}
+             onClick={() => navigate(`/projects/create`, {
+                    state: {
+                        mode: "create",
+                    }
+                })}
             className="
             ml-8
                 flex

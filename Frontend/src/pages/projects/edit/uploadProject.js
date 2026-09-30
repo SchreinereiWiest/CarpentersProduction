@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router';
 import { useParams } from 'react-router';
 
 
-export async function ProjectSave(corpuses, materials, selectedCustomer, files, projectDescription, projectName, mode, id) {
+export async function ProjectSave(corpuses, materials, selectedCustomer, files, projectDescription, projectName, mode, id, incomingCabinets) {
 
     if (selectedCustomer == null) {
         console.warn("No customer selected");
@@ -154,25 +154,6 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
                 }
             }
 
-            // const response = await axios.post("/api/files/upload-url",
-            //     {
-            //         entityId: project.data.id,
-            //         customerId: selectedCustomer.id,
-            //         entity: "project",
-            //         fileName: file.name,
-            //         mimeType: mimeType,
-            //         fileSize: file.size
-            //     });
-
-            // const s3response = await axios.put(
-            //     response.data.uploadUrl,
-            //     file,
-            //     {
-            //         headers: {
-            //             "Content-Type": jsonContent.type
-            //         }
-            //     }
-            // );
 
             const formData = new FormData();
 
@@ -231,5 +212,47 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
         );
 
     }
+
+    if(incomingCabinets) {
+        try {
+
+        const response =
+            await axios.post(
+
+                `/api/projects/generated/${projectId}/cabinet`,
+
+                incomingCabinets,
+
+                {
+                    withCredentials:
+                        true,
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    }
+                }
+            );
+
+
+        console.log(
+            "Upload response:",
+            response.data
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Error uploading cabinet.json:",
+            error
+        );
+
+        console.error(
+            "Response:",
+            error.response?.data
+        );
+    }
+    }
+    
 
 }

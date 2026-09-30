@@ -9,77 +9,52 @@ import { useCorpus } from "./useProjectEditor";
 import { ProjectSave } from './uploadProject';
 import CustomerSearch from './customerSearch.project';
 
-export default function CorpusRight({EditorState, mode, id}) {
+export default function CorpusRight({EditorState, mode, id, incomingCabinets, nCustomer}) {
 
     const [projectName, setProjectName] = useState("");
     const [projectDescription, setProjectDescription] = useState("");
     const [files, setFiles] = useState([]);
-    const [selectedCustomer, setSelectedCustomer] = useState(null);
+    const [selectedCustomer, setSelectedCustomer] = useState(nCustomer);
     
     const navigate = useNavigate();
 
-            const {
-    // Auswahl
+const {
     corpuses,
     setCorpuses,
-    
     activeCorpus,
     setActiveCorpus,
-
     activePlate,
     setActivePlate,
-
-    // Korpusdaten
     selectedQuantity,
     setSelectedQuantity,
-
     selectedWidth,
     setSelectedWidth,
-
     selectedHeigth,
     setSelectedHeigth,
-
     selectedDepth,
     setSelectedDepth,
-
     selectedName,
     setSelectedName,
-
     selectedPreset,
     setSelectedPreset,
-
-    // Material
     KorpusMaterialId,
     setKorpusMaterialId,
-
     EdgeMaterialId,
     setEdgeMaterialId,
-
-    // Bearbeitungsstatus
-    KorpusEdit,
-    setkorpusEdit,
-
-    // Materialdatenbank
     materials,
     setMaterials,
-
-    // Status
     loading,
     setLoading,
-
     error,
     setError,
-
     selectedEdges,
     setSelectedEdges,
-
     createCorpus,
     updateInput,
     addChildPlate,
     updateChildMaterial,
     updateChildren,
     deleteCorpus
-
 } = EditorState;
 return <>
     {/* =======================================
@@ -223,66 +198,38 @@ setProjectName(e.target.value)
         <div className={activeCorpus ? ` border-t border-gray-700 p-5 ` : <>
 </>}>
 
-{activeCorpus && KorpusEdit == false ? <button className="
-                            w-full
-                            rounded-lg
-                            bg-orange-600
-                            py-3
-                            font-semibold
-                            hover:bg-orange-500
-                        " onClick={(e)=> {setkorpusEdit(true);
-    setSelectedName(activeCorpus.name);
-    setSelectedHeigth(activeCorpus.height);
-    setSelectedWidth(activeCorpus.width);
-    setSelectedDepth(activeCorpus.depth);
-    setSelectedPreset(activeCorpus.preset);
-    setSelectedQuantity(activeCorpus.quantity);
-    }}>
+{activeCorpus?.type === "KO" && (
+    <div className="border-t border-gray-700 p-5">
+        <button
+            className="w-full rounded-lg bg-red-600 py-3 font-semibold hover:bg-red-500"
+            onClick={(e) => {
+                e.stopPropagation();
 
-    Korpus Editieren
+                deleteCorpus(activeCorpus.id);
 
-</button> : activeCorpus && KorpusEdit ? <div className='flex justify-between gap-4'><button className="
-                            w-full
-                            rounded-lg
-                            bg-orange-600
-                            py-3
-                            font-semibold
-                            hover:bg-orange-500
-                        " onClick={(e)=> {setkorpusEdit(false);
-    setSelectedName("");
-    setSelectedHeigth("");
-    setSelectedWidth("");
-    setSelectedDepth("");
-    setSelectedQuantity("");
-    setSelectedPreset("def");
-    setActivePlate(null);
-    }}>
+                setActiveCorpus(null);
+                setActivePlate(null);
 
-    Abbrechen
+                setSelectedName("");
+                setSelectedHeigth("");
+                setSelectedWidth("");
+                setSelectedDepth("");
+                setSelectedQuantity("1");
+                setSelectedPreset("def");
+                setKorpusMaterialId("");
 
-</button><button className="
-                            w-full
-                            rounded-lg
-                            bg-red-600
-                            py-3
-                            font-semibold
-                            hover:bg-red-500
-                        " onClick={(e)=> {
-                            console.log(activeCorpus, corpuses);
-    deleteCorpus(activeCorpus.id);
-    setkorpusEdit(false);
-    setSelectedName("");
-    setSelectedHeigth("");
-    setSelectedWidth("");
-    setSelectedDepth("");
-    setSelectedQuantity("");
-    setSelectedPreset("def");
-    setActivePlate(null);
-    }}>
-
-    Löschen
-
-</button></div> : <></>}
+                setSelectedEdges({
+                    top: "",
+                    right: "",
+                    bottom: "",
+                    left: ""
+                });
+            }}
+        >
+            Gruppe löschen
+        </button>
+    </div>
+)}
 
 </div>
 
@@ -292,73 +239,86 @@ setProjectName(e.target.value)
                         p-5
                     ">
 
-    {activePlate ? <button className="
-                            w-full
-                            rounded-lg
-                            bg-green-600
-                            py-3
-                            font-semibold
-                            hover:bg-green-500
-                        " onClick={(e)=> {addChildPlate(activePlate.id);
-                            setSelectedEdges({
-                    top: "",
-                    right: "",
-                    bottom: "",
-                    left: ""
-                });
-                        }}>
+    {activePlate ? (
+    <button
+        className="w-full rounded-lg bg-green-600 py-3 font-semibold hover:bg-green-500"
+        onClick={(e) => {
+            e.stopPropagation();
 
+            addChildPlate(activePlate.id);
+
+            setSelectedEdges({
+                top: "",
+                right: "",
+                bottom: "",
+                left: ""
+            });
+
+            setActivePlate(null);
+        }}
+    >
         Platte speichern
+    </button>
+) : activeCorpus ? (
+    <button
+        className="w-full rounded-lg bg-green-600 py-3 font-semibold hover:bg-green-500"
+        onClick={(e) => {
+            e.stopPropagation();
 
-    </button> : activeCorpus ? <button className="
-                            w-full
-                            rounded-lg
-                            bg-green-600
-                            py-3
-                            font-semibold
-                            hover:bg-green-500
-                        " onClick={(e)=>
-        {
-        if (KorpusEdit | activeCorpus.type !="KO") {
-        createCorpus(activeCorpus.id, activeCorpus.type);
-        }
-        setActiveCorpus(null);
-        setkorpusEdit(false);
+            setActiveCorpus(null);
+            setActivePlate(null);
 
-        }}>
+            setSelectedName("");
+            setSelectedHeigth("");
+            setSelectedWidth("");
+            setSelectedDepth("");
+            setSelectedQuantity("1");
+            setSelectedPreset("def");
 
-        Korpus speichern
+            setSelectedEdges({
+                top: "",
+                right: "",
+                bottom: "",
+                left: ""
+            });
+        }}
+    >
+        Gruppe speichern
+    </button>
+) : (
+    <button
+        className="w-full rounded-lg bg-green-600 py-3 font-semibold hover:bg-green-500"
+        onClick={(e) => {
+            e.stopPropagation();
 
-    </button> : <button className="
-                            w-full
-                            rounded-lg
-                            bg-green-600
-                            py-3
-                            font-semibold
-                            hover:bg-green-500
-                        " onClick={(e) => {
-                            console.log("corpus", corpuses);
-                            // if(selectedCustomer == null && mode == "create") {
-                            //     alert("Bitte wählen Sie einen Kunden aus.");
-                            //     return;
-                            // }
-                            if(projectName == "" && mode == "create") {
-                                alert("Bitte geben Sie einen Projektnamen ein.");
-                                return;
-                            }
-                            if(corpuses.length == 0) {
-                                alert("Bitte fügen Sie mindestens einen Korpus hinzu.");
-                                return;
-                            }
-                            console.log(selectedCustomer);
-                            console.log("save");
-                            ProjectSave(corpuses, materials, selectedCustomer, files, projectDescription, projectName, mode, id);
-                            navigate(`/Projects`);
-                        }}>
+            if (projectName === "" && mode === "create") {
+                alert("Bitte geben Sie einen Projektnamen ein.");
+                return;
+            }
 
+            if (corpuses.length === 0) {
+                alert("Bitte fügen Sie mindestens einen Korpus hinzu.");
+                return;
+            }
+
+            ProjectSave(
+                corpuses,
+                materials,
+                selectedCustomer,
+                files,
+                projectDescription,
+                projectName,
+                mode,
+                id,
+                incomingCabinets
+            );
+
+            navigate(`/Projects`);
+        }}
+    >
         Projekt speichern
-
-    </button>}
+    </button>
+)}
 
 </div>
 

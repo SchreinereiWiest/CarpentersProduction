@@ -13,6 +13,8 @@ import { findFrontParent, mergeFrontChildren } from "../engine/sektions/front/me
 import CabinetSidebar from "./editor/sidebar/CabinetSidebar.jsx";
 import PropertiesSidebar from "./editor/properties/PropertiesSidebar.jsx";
 import { ProjectSave } from "../engine/projectSave.js";
+import { buildPartList } from "../engine/partList/buildPartList.js";
+import { useNavigate } from 'react-router';
 import axios from "axios";
 
 
@@ -24,15 +26,19 @@ export function createId() {
 export default function CabinetEditor() {
 
     // conmstant Section alle Editor daten
+    const navigate = useNavigate();
 
     const { projectId } = useParams();
+    const { userId } = useParams();
     const location = useLocation();
 
     const cadData = location.state?.cadData;
 
-    const mode = location.state?.mode !== "create"
+    let mode = location.state?.mode !== "create"
         ? "edit"
         : "create";
+
+    if(userId) {mode="create";}
 
     const [selectedCustomer, setSelectedCustomer] = useState(
     location.state?.selectedCustomer ?? null
@@ -386,7 +392,22 @@ export default function CabinetEditor() {
     setSelectedElement(null);
     };
 
+    const loadDefualt = () => {
+        const newID = createId();
+                setCabinets([{
+                    id: newID,
+                    name: "Korpus 1",
+
+                    ...defaultCabinet
+                }]);
+            setActiveCabinetId(newID);
+    }
+
     const handleSave = async () => {
+        if (mode !== "edit") {
+        return;
+    }
+
         try {
             setSaving(true);
 
@@ -411,6 +432,61 @@ export default function CabinetEditor() {
             setSaving(false);
         }
     };
+
+    const handleNext = () => {
+
+    if (mode !== "create") {
+        return;
+    }
+
+    try {
+
+        // ==========================================
+        // PARTLIST ERZEUGEN
+        // ==========================================
+
+        const partList =
+                buildPartList(
+                    cabinets,
+                    materials
+                );
+        
+        
+            console.log(
+                "Generierte Part List:",
+                partList
+            );
+
+        // ==========================================
+        // ZUR NÄCHSTEN SEITE
+        // ==========================================
+
+        navigate(
+            "/projects/create/list",
+            {
+                state: {
+
+                    mode: "create",
+
+                    cabinets,
+
+                    partList,
+
+                    userId
+
+                }
+            }
+        );
+
+    } catch (error) {
+
+        console.error(
+            "PartList konnte nicht erstellt werden:",
+            error
+        );
+
+    }
+};
 
     //---------------------------------------------
     //initial settings, project laden, material laden, customer laden
@@ -511,6 +587,7 @@ export default function CabinetEditor() {
     useEffect(() => {
 
         if (!projectId) {
+            loadDefualt();
             return;
         }
 
@@ -559,18 +636,7 @@ export default function CabinetEditor() {
 
                 }
 
-                const newID = createId();
-                setCabinets([{
-                    id: newID,
-                    name: "Korpus 1",
-
-                    ...defaultCabinet
-                }]);
-            setActiveCabinetId(newID);
-
-                //datei existiert nicht -> neu erstellen un hochladen
-                // await UploadData();
-
+                loadDefualt();
 
             } catch (error) {
 
@@ -664,10 +730,10 @@ export default function CabinetEditor() {
     <SideBar selected={2} />
 
     <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-
-        <div className="shrink-0 bg-gray-900 border-b border-gray-700">
+        {mode != "create" && ( <div className="shrink-0 bg-gray-900 border-b border-gray-700">
             <ProjectBar selected={2} />
-        </div>
+        </div>)}
+        
 
         <div className="flex-1 min-h-0">
 
@@ -785,25 +851,20 @@ export default function CabinetEditor() {
 
                         <button
                             type="button"
-                            onClick={handleSave}
+                            onClick={
+                                mode === "create"
+                                    ? handleNext
+                                    : handleSave
+                            }
                             disabled={saving}
-                            className="
-    ml-auto
-    rounded
-    border
-    border-blue-700
-    bg-blue-600
-    px-4
-    py-2
-    text-sm
-    text-white
-    shadow
-    hover:bg-blue-700
-    disabled:cursor-not-allowed
-    disabled:opacity-50
-"
+                            className="ml-auto rounded border border-blue-700 bg-blue-600 px-4 py-2 text-sm text-white shadow hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                            {saving ? "Speichern..." : "Speichern"}
+                            {mode === "create"
+                                ? "Weiter"
+                                : saving
+                                    ? "Speichern..."
+                                    : "Speichern"
+                            }
                         </button>
 
                     </div>

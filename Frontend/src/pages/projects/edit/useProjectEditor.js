@@ -40,84 +40,242 @@ export function useCorpus() {
 
     }   
 
-    function createCorpus(override, type) {
+function createCorpus(override = null, type = "KO") {
 
-        let children = [];
+    /*
+     * Einheitliche Typen:
+     * "KO"    = Gruppe
+     * "plate" = einzelne Platte
+     */
+    const normalizedType =
+        type?.toLowerCase() === "plate"
+            ? "plate"
+            : "KO";
 
-        if(type==null) {
-            type="KO";
+    /*
+     * ------------------------------------------------------------
+     * NEUE GRUPPE
+     * ------------------------------------------------------------
+     *
+     * Eine neu angelegte KO-Gruppe hat bewusst:
+     * - keine Höhe
+     * - keine Breite
+     * - keine Tiefe
+     * - kein Preset
+     *
+     * Sie besteht nur aus Name, Anzahl und Children.
+     */
+    const isNewGroup =
+        override === null &&
+        normalizedType === "KO";
+
+
+    /*
+     * ------------------------------------------------------------
+     * Neue Gruppe erstellen
+     * ------------------------------------------------------------
+     */
+
+    if (isNewGroup) {
+
+        const corpus = {
+            id: Date.now() + Math.random(),
+
+            name: selectedName || "Neue Gruppe",
+
+            quantity:
+                selectedQuantity === "" ||
+                selectedQuantity === null ||
+                selectedQuantity === undefined
+                    ? 1
+                    : Number(selectedQuantity),
+
+            type: "KO",
+
+            groupOnly: true,
+
+            Children: []
+        };
+
+        setCorpuses(prev => [
+            ...prev,
+            corpus
+        ]);
+
+        /*
+         * Eingabefelder zurücksetzen.
+         * Es gibt bei einer Gruppe keine Maße und kein Preset.
+         */
+        setSelectedName("");
+        setSelectedHeigth("");
+        setSelectedWidth("");
+        setSelectedDepth("");
+        setSelectedQuantity("1");
+        setSelectedPreset("def");
+
+        /*
+         * Neue Gruppe direkt auswählen
+         */
+        setActiveCorpus(corpus);
+        setActivePlate(null);
+
+        return;
+    }
+
+
+    /*
+     * ------------------------------------------------------------
+     * Bestehende KO-Struktur bearbeiten
+     * ------------------------------------------------------------
+     *
+     * Dieser Teil bleibt vorerst für bestehende Daten bzw.
+     * bestehende Aufrufe mit override erhalten.
+     */
+    let children = [];
+
+    if (normalizedType === "KO") {
+
+        if (activeCorpus != null) {
+            children = activeCorpus.Children ?? [];
         }
 
-        if(type=="KO") {
+        const material = materials.find(
+            material => material.id === KorpusMaterialId
+        );
 
-                    if (activeCorpus != null) {
-                        children = activeCorpus.Children;
-                    }
+        switch (selectedPreset) {
 
-                    const material = materials.find(
-                material => material.id === KorpusMaterialId
-            );
+            case "kitchen_base":
+                // später
+                break;
 
-                    switch (selectedPreset) {
+            case "kitchen_sink":
+                // später
+                break;
 
-                    case "kitchen_base":
-                        // Küche Unterschrank erzeugen
-                        break;
+            case "corpus_horizontal":
+                // später
+                break;
 
-                    case "kitchen_sink":
-                        // Spülenschrank erzeugen
-                        break;
+            case "corpus_vertical":
 
-                    case "corpus_horizontal":
-                        // Korpus quer
-                        break;
-
-                    case "corpus_vertical":
-                        // Korpus längs
-                            children = [
-                                ...children.filter(child =>
-                    ![0, 1, 2].includes(child.id)
-                ),
-                                { id: Date.now() + Math.random(), name: "Seiten", quantity: 2 * selectedQuantity, width: selectedDepth, height: selectedHeigth, depth: material.thickness, type: "Seite", MID: "", EBID: "", ETID: "", ELID:"", ERID: KorpusMaterialId}, 
-                                { id: Date.now() + Math.random(), name: "Boden", quantity: 2 * selectedQuantity, width: selectedDepth, height: (selectedWidth - material.thickness * 2), depth: material.thickness, type: "Boden", MID: "", EBID: "", ETID: "", ELID:"", ERID: KorpusMaterialId}, 
-                                { id: Date.now() + Math.random(), name: "Rückwand", quantity: 1 * selectedQuantity, width: selectedWidth, height: selectedHeigth, depth: 8, type: "Back", MID: "", EBID: "", ETID: "", ELID:"", ERID: ""}
-                            ]
-                            break;
-
-                    default:
-                        
-                        break;
-
+                if (!material) {
+                    console.warn(
+                        "Kein Korpusmaterial gefunden."
+                    );
+                    break;
                 }
 
-                    if (KorpusMaterialId !== "") {
+                children = [
+                    ...children.filter(
+                        child =>
+                            ![0, 1, 2].includes(child.id)
+                    ),
 
-                children = children.map(child => ({
-                    ...child,
-                    MID: KorpusMaterialId
-                }));
+                    {
+                        id: Date.now() + Math.random(),
+                        name: "Seiten",
+                        quantity: 2 * Number(selectedQuantity || 1),
+                        width: selectedDepth,
+                        height: selectedHeigth,
+                        depth: material.thickness,
+                        type: "Seite",
+                        MID: "",
+                        EBID: "",
+                        ETID: "",
+                        ELID: "",
+                        ERID: KorpusMaterialId
+                    },
 
-            }
+                    {
+                        id: Date.now() + Math.random(),
+                        name: "Boden",
+                        quantity: 2 * Number(selectedQuantity || 1),
+                        width: selectedDepth,
+                        height:
+                            Number(selectedWidth) -
+                            material.thickness * 2,
+                        depth: material.thickness,
+                        type: "Boden",
+                        MID: "",
+                        EBID: "",
+                        ETID: "",
+                        ELID: "",
+                        ERID: KorpusMaterialId
+                    },
 
-            if (override != null) {
-                console.log(children);
+                    {
+                        id: Date.now() + Math.random(),
+                        name: "Rückwand",
+                        quantity: Number(selectedQuantity || 1),
+                        width: selectedWidth,
+                        height: selectedHeigth,
+                        depth: 8,
+                        type: "Back",
+                        MID: "",
+                        EBID: "",
+                        ETID: "",
+                        ELID: "",
+                        ERID: ""
+                    }
+                ];
 
-                
+                break;
 
-                children = updateChildren(children, materials);
-                console.log(children);
-            }
-
-            
+            default:
+                break;
         }
+
+
+        /*
+         * Korpusmaterial auf die Kinder übertragen
+         */
+        if (KorpusMaterialId !== "") {
+
+            children = children.map(child => ({
+                ...child,
+                MID: KorpusMaterialId
+            }));
+
+        }
+
+
+        /*
+         * Bei einem bestehenden Korpus Maße der
+         * abhängigen Platten neu berechnen.
+         */
+        if (override !== null) {
+            children = updateChildren(
+                children,
+                materials
+            );
+        }
+    }
+
+
+    /*
+     * ------------------------------------------------------------
+     * Einzelplatte
+     * ------------------------------------------------------------
+     */
+
+    if (normalizedType === "plate") {
 
         const corpus = {
 
-            id: override == null ? Date.now() + Math.random() : override,
+            id:
+                override === null
+                    ? Date.now() + Math.random()
+                    : override,
 
             name: selectedName,
 
-            quantity: selectedQuantity=="" ? 1 : selectedQuantity,
+            quantity:
+                selectedQuantity === "" ||
+                selectedQuantity === null ||
+                selectedQuantity === undefined
+                    ? 1
+                    : selectedQuantity,
 
             width: selectedWidth,
             height: selectedHeigth,
@@ -127,31 +285,142 @@ export function useCorpus() {
 
             MID: KorpusMaterialId,
 
-            type: type,
+            type: "plate",
 
-            Children: children
+            Children: []
 
         };
 
-        if(override == null) {
-            setCorpuses(prev => [...prev, corpus]);
+
+        if (override === null) {
+
+            setCorpuses(prev => [
+                ...prev,
+                corpus
+            ]);
+
             setSelectedName("");
             setSelectedHeigth("");
             setSelectedWidth("");
             setSelectedDepth("");
-            setSelectedQuantity("");
+            setSelectedQuantity("1");
             setSelectedPreset("def");
+
             setActiveCorpus(corpus);
-            
+
         } else {
 
-            const newentry = corpuses.map(item => item.id === override ? corpus : item);
+            const newentry = corpuses.map(item =>
+                item.id === override
+                    ? corpus
+                    : item
+            );
+
             setCorpuses(newentry);
 
-        setActiveCorpus(null);
+            setActiveCorpus(null);
         }
 
+        return;
     }
+
+
+    /*
+     * ------------------------------------------------------------
+     * Bestehenden KO-Datensatz aktualisieren
+     * ------------------------------------------------------------
+     *
+     * Wichtig:
+     * Wenn groupOnly gesetzt ist, werden die Maße weiterhin
+     * NICHT gespeichert.
+     */
+    if (normalizedType === "KO" && override !== null) {
+
+        const existingCorpus = corpuses.find(
+            item => item.id === override
+        );
+
+        /*
+         * Existiert bereits eine reine Gruppe,
+         * bleibt sie auch eine reine Gruppe.
+         */
+        if (existingCorpus?.groupOnly === true) {
+
+            const updatedCorpus = {
+                id: override,
+
+                name: selectedName || existingCorpus.name,
+
+                quantity:
+                    selectedQuantity === "" ||
+                    selectedQuantity === null ||
+                    selectedQuantity === undefined
+                        ? existingCorpus.quantity ?? 1
+                        : Number(selectedQuantity),
+
+                type: "KO",
+
+                groupOnly: true,
+
+                Children: children
+            };
+
+            setCorpuses(prev =>
+                prev.map(item =>
+                    item.id === override
+                        ? updatedCorpus
+                        : item
+                )
+            );
+
+            setActiveCorpus(null);
+
+            return;
+        }
+
+
+        /*
+         * Bestehender klassischer Korpus
+         *
+         * Dieser Pfad bleibt vorerst erhalten.
+         */
+        const corpus = {
+
+            id: override,
+
+            name: selectedName,
+
+            quantity:
+                selectedQuantity === ""
+                    ? 1
+                    : selectedQuantity,
+
+            width: selectedWidth,
+            height: selectedHeigth,
+            depth: selectedDepth,
+
+            preset: selectedPreset,
+
+            MID: KorpusMaterialId,
+
+            type: "KO",
+
+            Children: children
+        };
+
+        setCorpuses(prev =>
+            prev.map(item =>
+                item.id === override
+                    ? corpus
+                    : item
+            )
+        );
+
+        setActiveCorpus(null);
+
+        return;
+    }
+}
 
     function updateInput(preset) {
 

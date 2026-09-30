@@ -10,7 +10,7 @@ import { useParams } from 'react-router';
 import { corpusPresets, platePresets } from "./helper";
 import { useCorpus } from "./useProjectEditor";
 import CorpusLeft from "./corpusLeft.project";
-import CorpusMiddle from "./corpusMiddle/corpusMiddle.project";
+import CorpusMiddle from "./corpusMiddle.project";
 import CorpusRight from "./corpusRight.project";
 import { useLocation } from "react-router";
 import { importCadData } from "./importCAD";
@@ -20,12 +20,26 @@ function CreateProject() {
     const { id } = useParams();
     const location = useLocation();
 
-    const cadData = location.state?.cadData;
-    let mode = location.state?.mode;
+    const mode =
+        location.state?.mode === "edit"
+            ? "edit"
+            : "create";
 
-    if (mode != "edit") {
-        mode = "create";
-    }
+    // -------------------------------------------------
+    // Daten vom CabinetEditor
+    // -------------------------------------------------
+    const cadData = location.state?.cadData;
+
+    const incomingPartList =
+        location.state?.partList ?? null;
+
+    const incomingCabinets =
+        location.state?.cabinets ?? null;
+
+    const incomingUserId = location.state?.userId ?? null;
+
+    const [customer, setCustomer] = useState();
+
 
     const EditorState = useCorpus();
 
@@ -140,6 +154,41 @@ function CreateProject() {
     
     }, []);
 
+    useEffect(() => {
+        const fetchCustomer = async () => {
+        const { data } = await axios.get(`/api/customers/get/${incomingUserId}`);
+        setCustomer(data.customer);
+
+    if (mode !== "create") {
+        return;
+    }
+
+    // ==========================================
+    // PARTLIST ÜBERNEHMEN
+    // ==========================================
+
+    if (incomingPartList) {
+
+        const corpuses = importCadData(incomingPartList, materials);
+
+        setCorpuses(corpuses);
+        return;
+
+    }
+
+    if(incomingUserId) {
+        fetchCustomer();
+    };
+    }
+
+}, [
+    mode,
+    incomingPartList,
+    materials,
+    setCorpuses,
+    setActiveCorpus
+]);
+
     return <>
     <div className='bg-gray-900 text-white justify-left h-screen overflow-hidden flex'>
 
@@ -155,7 +204,7 @@ function CreateProject() {
 
                     <CorpusMiddle EditorState={EditorState} />
 
-                    <CorpusRight EditorState={EditorState} mode={mode} id={id} />
+                    <CorpusRight EditorState={EditorState} mode={mode} id={id} incomingCabinets={incomingCabinets} nCustomer={customer}/>
 
                 </div>
 
