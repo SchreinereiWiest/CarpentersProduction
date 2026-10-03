@@ -1,8 +1,7 @@
 import { getDefaultEdges } from "../get/getDefaultEdges";
 import { flattenSections } from "../flattenSections";
-import { getShelfConfig } from "../get/getShelfConfig";
 import { createPart } from "../createPart";
-
+import { getMaterialNumber } from "../../materials";
 
 export const generateShelfParts = ({
     cabinet,
@@ -12,62 +11,131 @@ export const generateShelfParts = ({
 
     const parts = [];
 
+    const sections = flattenSections(
+        cabinet.sections ?? []
+    );
 
-    const sections =
-        flattenSections(
-            cabinet.sections ?? []
+
+    sections.forEach((section) => {
+
+        /*
+         * Neue Struktur:
+         *
+         * functionConfig: [
+         *     {
+         *         id: ...,
+         *         type: "shelf",
+         *         compartmentCount: 3,
+         *         shelfFrontOffset: 20,
+         *         holeRow: {...}
+         *     },
+         *     {
+         *         id: ...,
+         *         type: "middleWall",
+         *         ...
+         *     }
+         * ]
+         */
+
+        const functions = Array.isArray(
+            section.functionConfig
+        )
+            ? section.functionConfig
+            : [];
+
+
+        /*
+         * Alle Shelf-Funktionen dieser Sektion
+         */
+        const shelfFunctions = functions.filter(
+            func => func.type === "shelf"
         );
 
 
-    sections.forEach(
-        section => {
+        shelfFunctions.forEach((config) => {
 
-            if (
-                section.functionType !==
-                "shelf"
-            ) {
+            /*
+             * Anzahl der Fächer
+             *
+             * 1 Fach  -> 0 Böden
+             * 2 Fächer -> 1 Boden
+             * 3 Fächer -> 2 Böden
+             */
+            const compartmentCount = Math.max(
+                1,
+                Number(config.compartmentCount ?? 1)
+            );
+
+            const quantity = Math.max(
+                0,
+                compartmentCount - 1
+            );
+
+
+            if (quantity <= 0) {
                 return;
             }
 
 
-            const config =
-                getShelfConfig(
-                    section,
-                    cabinet
-                );
+            /*
+             * Korpustiefe
+             */
+            const cabinetDepth =
+                Number(cabinet.depth ?? 0);
 
 
-            if (
-                config.quantity <= 0
-            ) {
-                return;
-            }
+            /*
+             * Abstand von vorne
+             *
+             * Beispiel:
+             * Korpustiefe = 535
+             * Abstand vorne = 20
+             *
+             * => Fachbodentiefe = 515
+             */
+            const frontOffset = Math.max(
+                0,
+                Number(config.shelfFrontOffset ?? 0)
+            );
 
-            const depth =
-                config.depth - config.frontOffset;
+
+            const depth = Math.max(
+                0,
+                cabinetDepth - frontOffset
+            );
 
 
+            /*
+             * Fachbodenbreite
+             */
             const shelfWidth =
-                Number(
-                    section.width
-                );
+                Number(section.width ?? 0);
 
 
+            /*
+             * Materialstärke
+             */
+            const thickness =
+                Number(cabinet.thickness ?? 0);
+
+
+            /*
+             * Jeden benötigten Fachboden erzeugen
+             */
             for (
                 let i = 0;
-                i < config.quantity;
+                i < quantity;
                 i++
             ) {
 
                 parts.push(
-
                     createPart({
-
-                        PID:
-                            nextPID(),
+                        PID: nextPID(),
 
                         name:
-                            `Fachboden ${i + 1}`,
+                            quantity === 1
+                                ? "Fachboden"
+                                : `Fachboden ${i + 1}`,
 
                         type:
                             "Fächer",
@@ -82,9 +150,7 @@ export const generateShelfParts = ({
                             depth,
 
                         T:
-                            Number(
-                                cabinet.thickness
-                            ),
+                            thickness,
 
                         materialId:
                             cabinet.materialId,
@@ -92,15 +158,23 @@ export const generateShelfParts = ({
                         materials,
 
                         edges:
-                            getDefaultEdges(
-                                cabinet,
-                                materials,
-                                {
-                                    front: true,
-                                    top: false,
-                                    bottom: false
-                                }
-                            ),
+                            {
+                            
+                                    ELID: "",
+                            
+                                    ERID:
+                                        getMaterialNumber(
+                                                materials,
+                                                cabinet.materialId
+                                            )
+                                            ,
+                            
+                                    ETID: "",
+                                       
+                            
+                                    EBID: "",
+                                        
+                                },
 
                         source: {
                             type:
@@ -110,13 +184,24 @@ export const generateShelfParts = ({
                                 "shelf",
 
                             sectionId:
-                                section.id
+                                section.id,
+
+                            functionId:
+                                config.id,
+
+                            functionIndex:
+                                functions.indexOf(config),
+
+                            shelfIndex:
+                                i
                         }
                     })
                 );
             }
-        }
-    );
+
+        });
+
+    });
 
 
     return parts;

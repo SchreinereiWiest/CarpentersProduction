@@ -26,14 +26,12 @@ export const generateFrontParts = ({
                     cabinet.thickness
                 );
 
-
             const frontMaterialId =
-                front.materialId ??
+                cabinet.frontMaterialId ??
                 cabinet.materialId;
 
 
             const frontEdgeId = cabinet.frontMaterialId;
-
 
             const frontEdge =
                 getMaterialNumber(

@@ -1,122 +1,124 @@
-import { Circle } from "./elements/circle";
-import { cncToSvg } from "../cncEngine/cncCoordinates";
+
+
+import React from "react";
+import {
+    isFiniteNumber,
+    getSelectedFill,
+    getSelectedStroke
+} from "./operationUtils";
 
 export default function Shelf({
     operation,
-    height,
-    width,
     operationId,
-    selectedOperationId,
-    onSelectOperation
+    selected,
+    onSelect
 }) {
 
-    const selected =
-        operationId === selectedOperationId;
-
-    if (
-        operation.type !== "shelf"
-    ) {
-        return null;
-    }
-
-    const diameter =
-        Number(operation.diameter) || 5;
-
-    const radius =
-        diameter / 2;
-
-    const top =
-        Number(operation.top) || 0;
-
-    const bottom =
-        Number(operation.bottom) || 0;
-
-    const spacing =
-        Number(operation.spacing) || 37;
-
-    /*
-     * CNC X = B / Tiefe
-     */
-    const cncX =
-        Number(operation.frontOffset) || 0;
-
-    const cncX2 =
-        Number(width - operation.backOffset) || 0;
+    const start =
+        Number(operation.start);
 
     const end =
-        Number(height) - bottom;
+        Number(operation.end);
+
+    const spacing =
+        Number(
+            operation.spacing ??
+            32
+        );
+
+    const y1 =
+        Number(
+            operation.frontOffset ??
+            operation.y ??
+            0
+        );
+
+    const y2 =
+        Number(
+            operation.backOffset ??
+            operation.y ??
+            0
+        );
+
 
     if (
-        end < top ||
+        !Number.isFinite(start) ||
+        !Number.isFinite(end) ||
+        !Number.isFinite(y1) ||
         spacing <= 0
     ) {
         return null;
     }
 
-    const circles = [];
 
-    for (
-        let cncY = top;
-        cncY <= end;
-        cncY += spacing
+    const holes = [];
+
+    const maxHoles = 1000;
+
+    let x = start;
+
+    let counter = 0;
+
+
+    while (
+        x <= end + 0.001 &&
+        counter < maxHoles
     ) {
 
-        const position =
-            cncToSvg(
-                cncX,
-                cncY,
-                {
-                    L: height,
-                    B: width
-                }
-            );
+        holes.push({x:x, y:y1});
+        holes.push({x:x, y:y2});
 
-        const position2 =
-            cncToSvg(
-                cncX2,
-                cncY,
-                {
-                    L: height,
-                    B: width
-                }
-            );
+        x += spacing;
 
-        if (!position) {
-            continue;
-        }
-
-        circles.push(
-            <g
-                key={`${operationId}-${cncY}`}
-                onClick={(event) => {
-
-                    event.stopPropagation();
-
-                    onSelectOperation?.(
-                        operation
-                    );
-                }}
-            >
-
-                <Circle
-                    position={position}
-                    radius={radius}
-                    selected={selected}
-                />
-
-                <Circle
-                    position={position2}
-                    radius={radius}
-                    selected={selected}
-                />
-
-            </g>
-        );
+        counter++;
     }
+
 
     return (
         <g>
-            {circles}
+
+            {holes.map(
+                (
+                    hole,
+                    index
+                ) => (
+
+                    <circle
+                        key={
+                            `${operationId}-${index}`
+                        }
+                        cx={hole.x}
+                        cy={hole.y}
+                        r={
+                            selected
+                                ? 3
+                                : 2.2
+                        }
+                        fill={
+                            getSelectedFill(
+                                selected
+                            )
+                        }
+                        stroke={
+                            getSelectedStroke(
+                                selected
+                            )
+                        }
+                        strokeWidth="1"
+                        className="cursor-pointer"
+                        onClick={(event) => {
+
+                            event.stopPropagation();
+
+                            onSelect?.(
+                                operationId
+                            );
+                        }}
+                    />
+
+                )
+            )}
+
         </g>
     );
 }

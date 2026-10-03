@@ -1,136 +1,219 @@
-import {getOperationPosition} from "../cncOperationLayer";
+import React from "react";
 
-export default function Drill({operation, height, operationId, selectedOperationId, onSelectOperation}) {
+import {
+    getPartWidth,
+    isFiniteNumber,
+    getSelectedFill,
+    getSelectedStroke
+} from "./operationUtils";
 
-    const selected =
-                        operationId ===
-                        selectedOperationId;
 
-    if (operation.type === "drill") {
+export default function Drill({
+    operation,
+    part,
+    operationId,
+    selected,
+    onSelect
+}) {
 
-                        const position =
-                            getOperationPosition(
-                                operation,
-                                height
-                            );
+    const partWidth =
+        getPartWidth(part);
 
-                        if (!position) {
-                            return null;
-                        }
 
-                        const diameter =
-                            Number(
-                                operation.diameter
-                            ) || 5;
+    /*
+     * =====================================================
+     * Erste Bohrung bestimmen
+     * =====================================================
+     */
 
-                        const radius =
-                            diameter / 2;
+    let x = null;
+    let y = null;
 
-                        return (
-                            <g
-                                key={operationId}
-                                onClick={(event) => {
 
-                                    event.stopPropagation();
+    /*
+     * X direkt angegeben
+     */
 
-                                    onSelectOperation?.(
-                                        operation
-                                    );
+    if (
+        isFiniteNumber(
+            operation.x
+        )
+    ) {
 
-                                }}
-                                style={{
-                                    cursor: "pointer"
-                                }}
-                            >
+        x =
+            Number(
+                operation.x
+            );
 
-                                {/* Außenkreis */}
+    }
 
-                                <circle
-                                    cx={position.x}
-                                    cy={position.y}
-                                    r={
-                                        radius +
-                                        (selected
-                                            ? 2
-                                            : 0)
-                                    }
-                                    fill={
-                                        selected
-                                            ? "rgb(59 130 246)"
-                                            : "rgb(239 68 68)"
-                                    }
-                                    fillOpacity={
-                                        selected
-                                            ? 0.35
-                                            : 0.2
-                                    }
-                                    stroke={
-                                        selected
-                                            ? "rgb(96 165 250)"
-                                            : "rgb(248 113 113)"
-                                    }
-                                    strokeWidth={
-                                        selected
-                                            ? 1.5
-                                            : 1
-                                    }
-                                />
 
-                                {/* Bohrungsmittelpunkt */}
+    /*
+     * Y direkt angegeben
+     */
 
-                                <line
-                                    x1={
-                                        position.x -
-                                        radius -
-                                        4
-                                    }
-                                    y1={
-                                        position.y
-                                    }
-                                    x2={
-                                        position.x +
-                                        radius +
-                                        4
-                                    }
-                                    y2={
-                                        position.y
-                                    }
-                                    stroke={
-                                        selected
-                                            ? "rgb(147 197 253)"
-                                            : "rgb(252 165 165)"
-                                    }
-                                    strokeWidth={0.5}
-                                    pointerEvents="none"
-                                />
+    if (
+        isFiniteNumber(
+            operation.y
+        )
+    ) {
 
-                                <line
-                                    x1={
-                                        position.x
-                                    }
-                                    y1={
-                                        position.y -
-                                        radius -
-                                        4
-                                    }
-                                    x2={
-                                        position.x
-                                    }
-                                    y2={
-                                        position.y +
-                                        radius +
-                                        4
-                                    }
-                                    stroke={
-                                        selected
-                                            ? "rgb(147 197 253)"
-                                            : "rgb(252 165 165)"
-                                    }
-                                    strokeWidth={0.5}
-                                    pointerEvents="none"
-                                />
+        y =
+            Number(
+                operation.y
+            );
 
-                            </g>
-                        );
-                    }
+    }
+
+    
+
+
+    if (
+        x === null ||
+        y === null
+    ) {
+
+        return null;
+
+    }
+
+
+    /* =====================================================
+     * Wiederholungsparameter
+     * ===================================================== */
+
+    const repeatCount =
+        Math.max(
+            1,
+            Math.floor(
+                Number(
+                    operation.R ??
+                    operation.r ??
+                    1
+                )
+            )
+        );
+
+
+    const xOffset =
+        Number(
+            operation.XOffset ??
+            operation.xOffset ??
+            0
+        );
+
+
+    const yOffset =
+        Number(
+            operation.YOffset ??
+            operation.yOffset ??
+            0
+        );
+
+
+    const diameter =
+        Math.max(
+            2,
+            Number(
+                operation.diameter ??
+                5
+            )
+        );
+
+
+    const radius =
+        diameter / 2;
+
+
+    /*
+     * =====================================================
+     * Alle berechneten Bohrungen erzeugen
+     * ===================================================== */
+
+    const holes =
+        Array.from(
+            {
+                length:
+                    repeatCount
+            },
+            (_, index) => ({
+
+                x:
+                    x +
+                    index *
+                    xOffset,
+
+                y:
+                    y +
+                    index *
+                    yOffset
+
+            })
+        );
+
+
+    return (
+        <>
+            {
+                holes.map(
+                    (
+                        hole,
+                        index
+                    ) => (
+
+                        <circle
+                            key={`${operationId}-${index}`}
+
+                            cx={
+                                hole.x
+                            }
+
+                            cy={
+                                hole.y
+                            }
+
+                            r={
+                                selected
+                                    ? radius + 2
+                                    : radius
+                            }
+
+                            fill={
+                                getSelectedFill(
+                                    selected
+                                )
+                            }
+
+                            stroke={
+                                getSelectedStroke(
+                                    selected
+                                )
+                            }
+
+                            strokeWidth={
+                                selected
+                                    ? 2
+                                    : 1
+                            }
+
+                            className="cursor-pointer"
+
+                            onClick={(event) => {
+
+                                event.stopPropagation();
+
+                                onSelect?.(
+                                    operationId
+                                );
+
+                            }}
+
+                        />
+
+                    )
+                )
+            }
+        </>
+    );
+
 }

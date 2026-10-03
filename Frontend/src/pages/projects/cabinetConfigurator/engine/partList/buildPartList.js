@@ -31,7 +31,6 @@ export const buildPartList = (
             .padStart(6, "0");
     };
 
-
     return cabinets.map(
         cabinet => {
 

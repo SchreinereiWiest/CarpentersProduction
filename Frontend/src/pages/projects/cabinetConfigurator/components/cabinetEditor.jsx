@@ -8,7 +8,7 @@ import { generateFronts } from "../engine/sektions/front/generateFronts.js"
 import { splitFront } from "../engine/sektions/front/splitFront.js";
 import { splitSection } from "../engine/sektions/splitSections.js";
 import { mergeSectionChildren, findSection, findParent } from "../engine/sektions/interior/mergeSectionChildren.js";
-import { frontsToSections } from "../engine/functions/parseFrontSections.js";
+import { frontsToSections } from "../engine/sektions/functions/parseFrontSections.js";
 import { findFrontParent, mergeFrontChildren } from "../engine/sektions/front/mergeFrontChildren.js";
 import CabinetSidebar from "./editor/sidebar/CabinetSidebar.jsx";
 import PropertiesSidebar from "./editor/properties/PropertiesSidebar.jsx";

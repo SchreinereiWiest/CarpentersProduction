@@ -332,20 +332,15 @@ export default function CabinetProperties({
 
                         <select
                             value={
-                                activeCabinet.backPanel?.continuous ??
+                                activeCabinet.continuous ??
                                 "side"
                             }
                             onChange={(event) =>
                                 updateActiveCabinet({
 
-                                    backPanel: {
-
-                                        ...(activeCabinet.backPanel ?? {}),
-
-                                        continuous:
-                                            event.target.value
-
-                                    }
+                                    continuous:
+                                        event.target.value
+                                    
                                 })
                             }
                             className="

@@ -26,13 +26,12 @@ export async function ProjectSave(
         };
     }
 
-    console.log(cabinets);
+    console.log("ca", cabinets);
 
 
     // =========================================================
     // Part List + CNC erzeugen
     // =========================================================
-
     const generatedData =
         buildPartList(
             cabinets,

@@ -1,173 +1,310 @@
+import React from "react";
+
 import Drill from "./operations/drill";
 import Shelf from "./operations/shelf";
 import VB from "./operations/vb";
-import VB2 from "./operations/vb2";
+import VBH from "./operations/vbh";
 import LgBox from "./operations/lgBox";
-import React, {useState, useEffect,} from "react";
+import Milling from "./operations/milling";
+import Groove from "./operations/groove";
 
-
-export const getOperationPosition = (
-    operation,
-    partHeight
-) => {
-
-    const x = Number(operation.x);
-    const y = Number(operation.y);
-
-    if (
-        !Number.isFinite(x) ||
-        !Number.isFinite(y)
-    ) {
-        return null;
-    }
-
-    return {
-        x,
-        y
-    };
-};
-
-
-const getOperationId = (
-    operation,
-    index
-) => {
-
-    return (
-        operation.id ??
-        `operation-${index}`
-    );
-};
+import {
+    getOperationId
+} from "./operations/operationUtils";
 
 
 export default function CncOperationsLayer({
     part,
     selectedOperationId,
-    onSelectOperation
+    onSelectOperation,
+    selectedFace = "A"
 }) {
 
     if (!part) {
         return null;
     }
 
-    const width = Number(part.B);
-    const height = Number(part.L);
 
-    const operations = part.CNC?.operations
+    const operations =
+        Array.isArray(
+            part.CNC?.operations
+        )
             ? part.CNC.operations
             : [];
 
-    if (
-        !Number.isFinite(width) ||
-        !Number.isFinite(height)
-    ) {
-        return null;
-    }
 
     return (
-    <g>
+        <g>
 
-        {operations.map(
-            (operation, index) => {
+            {operations.map(
+                (
+                    operation,
+                    index
+                ) => {
 
-                const operationId =
-                    getOperationId(
-                        operation,
-                        index
-                    );
+                    const operationId =
+                        getOperationId(
+                            operation,
+                            index
+                        );
 
-                return (
-                    <React.Fragment
-                        key={operationId}
-                    >
 
-                        <Drill
-                            operation={operation}
-                            height={height}
-                            width={width}
-                            operationId={operationId}
-                            selectedOperationId={
-                                selectedOperationId
-                            }
-                            onSelectOperation={
-                                onSelectOperation
-                            }
-                        />
+                    /*
+                     * ==================================================
+                     * FACE
+                     * ==================================================
+                     *
+                     * "A"     -> nur A
+                     * "B"     -> nur B
+                     * "both"  -> auf A UND B
+                     */
 
-                        <Shelf
-                            operation={operation}
-                            height={height}
-                            width={width}
-                            operationId={operationId}
-                            selectedOperationId={
-                                selectedOperationId
-                            }
-                            onSelectOperation={
-                                onSelectOperation
-                            }
-                        />
+                    const operationFace =
+                        operation.face ??
+                        "A";
 
-                        <VB
+
+                    if (
+                        operationFace !== "both" &&
+                        operationFace !== selectedFace
+                    ) {
+                        return null;
+                    }
+
+
+                    const selected =
+                        selectedOperationId ===
+                        operationId;
+
+
+                    /*
+                     * ==================================================
+                     * BO
+                     * ==================================================
+                     */
+
+                    if (
+                        operation.type ===
+                        "BO"
+                    ) {
+
+                        return (
+                            <Drill
+                                key={operationId}
                                 operation={
                                     operation
                                 }
-                                height={
-                                    height
-                                }
-                                width={
-                                    width
+                                part={
+                                    part
                                 }
                                 operationId={
                                     operationId
                                 }
-                                selectedOperationId={
-                                    selectedOperationId
+                                selected={
+                                    selected
                                 }
-                                onSelectOperation={
+                                onSelect={
                                     onSelectOperation
                                 }
                             />
+                        );
+                    }
 
 
-                            <VB2
+                    /*
+                     * ==================================================
+                     * LR
+                     * ==================================================
+                     */
+
+                    if (
+                        operation.type ===
+                        "LR"
+                    ) {
+
+                        return (
+                            <Shelf
+                                key={operationId}
                                 operation={
                                     operation
-                                }
-                                height={
-                                    height
-                                }
-                                width={
-                                    width
                                 }
                                 operationId={
                                     operationId
                                 }
-                                selectedOperationId={
-                                    selectedOperationId
+                                selected={
+                                    selected
                                 }
-                                onSelectOperation={
+                                onSelect={
                                     onSelectOperation
                                 }
                             />
+                        );
+                    }
 
+
+                    /*
+                     * ==================================================
+                     * VB
+                     * ==================================================
+                     */
+
+                    if (
+                        operation.type ===
+                        "VB"
+                    ) {
+
+                        return (
+                            <VB
+                                key={operationId}
+                                operation={
+                                    operation
+                                }
+                                part={
+                                    part
+                                }
+                                operationId={
+                                    operationId
+                                }
+                                selected={
+                                    selected
+                                }
+                                onSelect={
+                                    onSelectOperation
+                                }
+                            />
+                        );
+                    }
+
+
+                    /*
+                     * ==================================================
+                     * VBH
+                     * ==================================================
+                     */
+
+                    if (
+                        operation.type ===
+                        "VBH"
+                    ) {
+
+                        return (
+                            <VBH
+                                key={operationId}
+                                operation={
+                                    operation
+                                }
+                                part={
+                                    part
+                                }
+                                operationId={
+                                    operationId
+                                }
+                                selected={
+                                    selected
+                                }
+                                onSelect={
+                                    onSelectOperation
+                                }
+                            />
+                        );
+                    }
+
+
+                    /*
+                     * ==================================================
+                     * Legrabox
+                     * ==================================================
+                     */
+
+                    if (
+                        operation.type ===
+                        "LGBOX"
+                    ) {
+
+                        return (
                             <LgBox
-                                operation={operation}
-                                height={height}
-                                width={width}
-                                operationId={operationId}
-                                selectedOperationId={
-                                    selectedOperationId
+                                key={operationId}
+                                operation={
+                                    operation
                                 }
-                                onSelectOperation={
+                                part={
+                                    part
+                                }
+                                operationId={
+                                    operationId
+                                }
+                                selected={
+                                    selected
+                                }
+                                onSelect={
                                     onSelectOperation
                                 }
                             />
+                        );
+                    }
 
-                    </React.Fragment>
-                );
-            }
-        )}
 
-    </g>
-);
+                    /*
+                     * ==================================================
+                     * Fräsungen
+                     * ==================================================
+                     */
+
+                    if (
+                        operation.type ===
+                            "XG0" ||
+                        operation.type ===
+                            "XL2P"
+                    ) {
+
+                        return (
+                            <Milling
+                                key={operationId}
+                                operation={
+                                    operation
+                                }
+                                part={
+                                    part
+                                }
+                                operationId={
+                                    operationId
+                                }
+                                selected={
+                                    selected
+                                }
+                                onSelect={
+                                    onSelectOperation
+                                }
+                            />
+                        );
+                    }
+
+                    if (
+                        operation.type === "RNT"
+                    ) {
+
+                        return (
+                            <Groove
+                                key={operationId}
+                                operation={operation}
+                                part={part}
+                                operationId={operationId}
+                                selected={
+                                    selectedOperationId === operationId
+                                }
+                                onSelect={
+                                    onSelectOperation
+                                }
+                            />
+                        );
+
+                    }
+
+
+                    return null;
+                }
+            )}
+
+        </g>
+    );
 }

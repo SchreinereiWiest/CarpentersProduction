@@ -1,60 +1,63 @@
 
 
-import { Circle } from "./elements/circle";
-import { getSplitPositions } from "../cncEngine/getSplitPosition";
+import React from "react";
+import {
+    getPartHeight,
+    isFiniteNumber,
+    getSelectedFill,
+    getSelectedStroke
+} from "./operationUtils";
 
 export default function VB({
     operation,
-    height,
-    width,
+    part,
     operationId,
-    selectedOperationId,
-    onSelectOperation
+    selected,
+    onSelect
 }) {
 
+    const partHeight =
+        getPartHeight(part);
+
+
+    /*
+     * ========================================================
+     * X-Position
+     * ========================================================
+     *
+     * Die Verbindung liegt an einer bestimmten Position
+     * entlang L.
+     */
+
+    let x = null;
+
+
     if (
-        operation.type !== "vb"
+        isFiniteNumber(
+            operation.x
+        )
     ) {
-        return null;
+
+        x =
+            Number(
+                operation.x
+            );
+
+    } else if (
+        isFiniteNumber(
+            operation.position
+        )
+    ) {
+
+        x =
+            Number(
+                operation.position
+            );
     }
 
 
-    const selected =
-        operationId ===
-        selectedOperationId;
-
-
-    const diameter =
-        Number(
-            operation.diameter ??
-            operation.d
-        ) || 8;
-
-
-    const radius =
-        diameter / 2;
-
-
-    const x =
-        Number(
-            operation.x
-        );
-
-
-    const depth =
-        Number(
-            operation.depth
-        ) || 0;
-
-
-    const f =
-        Number(
-            operation.f
-        ) || 0;
-
-
     if (
-        !Number.isFinite(x)
+        x === null
     ) {
         return null;
     }
@@ -62,158 +65,181 @@ export default function VB({
 
     /*
      * ========================================================
-     * F = 0
+     * Y-Start
+     * ========================================================
      *
-     * Bearbeitung von oben.
-     * X = Abstand von links.
-     * Y-Positionen kommen aus dem Split-Spec.
+     * Neuer Wert:
+     *
+     * rowStart
+     *
+     * Fallback:
+     *
+     * connector = 50
+     * screw     = 60
+     *
+     * Das entspricht dem alten CNC-Programm:
+     *
+     * Dübel:
+     *     y=50
+     *
+     * Schraube:
+     *     y=60
+     */
+
+    let rowStart;
+
+
+    if (
+        isFiniteNumber(
+            operation.rowStart
+        )
+    ) {
+
+        rowStart =
+            Number(
+                operation.rowStart
+            );
+
+    } else if (
+        isFiniteNumber(
+            operation.y
+        )
+    ) {
+
+        rowStart =
+            Number(
+                operation.y
+            );
+
+    } else {
+
+        rowStart =
+            operation.pattern ===
+                "spax"
+                ? 60
+                : 50;
+    }
+
+
+    /*
+     * ========================================================
+     * Anzahl / Raster
      * ========================================================
      */
 
-    if (f === 0) {
+    const count =
+        Math.max(
+            1,
+            Number(
+                operation.count ??
+                3
+            )
+        );
 
-        const positions =
-            getSplitPositions(
-                width,
-                operation.spec
+
+    /*
+     * Original:
+     *
+     * R=(DY-100)/3
+     *
+     * Deshalb:
+     */
+
+    const spacing =
+        isFiniteNumber(
+            operation.spacing
+        )
+            ? Number(
+                operation.spacing
+            )
+            : Math.max(
+                0,
+                (
+                    partHeight -
+                    100
+                ) / 3
             );
 
 
-        if (
-            positions.length === 0
-        ) {
-            return null;
-        }
-
-
-        return (
-            <g
-                onClick={(event) => {
-
-                    event.stopPropagation();
-
-                    onSelectOperation?.(
-                        operation
-                    );
-                }}
-                style={{
-                    cursor: "pointer"
-                }}
-            >
-
-                {positions.map(
-                    (y, index) => {
-
-                        return (
-                            <Circle
-                                key={
-                                    `${operationId}-${index}`
-                                }
-                                position={{
-                                    x,
-                                    y
-                                }}
-                                radius={
-                                    radius
-                                }
-                                selected={
-                                    selected
-                                }
-                            />
-                        );
-
-                    }
-                )}
-
-            </g>
-        );
-    }
-
-
     /*
      * ========================================================
-     * F = 1
-     *
-     * Bearbeitung von der gegenüberliegenden Seite.
-     *
-     * Die Bearbeitung wird als vertikale Linie
-     * von der Außenkante in das Bauteil gezeichnet.
-     *
-     * Länge der Linie = depth
+     * Bohrungen
      * ========================================================
      */
 
-    if (f === 1) {
-
-    const positions =
-        getSplitPositions(
-            width,
-            operation.spec
+    const points =
+        Array.from(
+            {
+                length: count
+            },
+            (_, index) => ({
+                x,
+                y:
+                    rowStart +
+                    index * spacing
+            })
         );
 
-    if (
-        positions.length === 0
-    ) {
-        return null;
-    }
+
+    const diameter =
+        Math.max(
+            2,
+            Number(
+                operation.diameter ??
+                5
+            )
+        );
+
 
     return (
-        <g
-            onClick={(event) => {
+        <g>
 
-                event.stopPropagation();
+            {points.map(
+                (
+                    point,
+                    index
+                ) => (
 
-                onSelectOperation?.(
-                    operation
-                );
-
-            }}
-            style={{
-                cursor: "pointer"
-            }}
-        >
-
-            {positions.map(
-                (yPosition, index) => {
-
-                    return (
-                        <g>
-                        
-                        <line
-                            key={
-                                `${operationId}-${index}`
-                            }
-                            x1={height-depth}
-                            y1={yPosition}
-                            x2={height}
-                            y2={yPosition}
-                            stroke={
+                    <circle
+                        key={
+                            `${operationId}-${index}`
+                        }
+                        cx={
+                            point.x
+                        }
+                        cy={
+                            point.y
+                        }
+                        r={
+                            selected
+                                ? diameter / 2 + 2
+                                : diameter / 2
+                        }
+                        fill={
+                            getSelectedFill(
                                 selected
-                                    ? "rgb(59 130 246)"
-                        : "rgb(239 68 68)"
-                            }
-                            strokeWidth={
-                                Math.max(
-                                    0.5,
-                                    diameter
-                                )
-                            }
-                            strokeOpacity={
+                            )
+                        }
+                        stroke={
+                            getSelectedStroke(
                                 selected
-                                    ? 1
-                                    : 0.75
-                            }
-                        />
-                        </g>
-                    );
+                            )
+                        }
+                        strokeWidth="1"
+                        className="cursor-pointer"
+                        onClick={(event) => {
 
-                }
+                            event.stopPropagation();
+
+                            onSelect?.(
+                                operationId
+                            );
+                        }}
+                    />
+
+                )
             )}
 
         </g>
     );
-}
-
-
-    return null;
 }

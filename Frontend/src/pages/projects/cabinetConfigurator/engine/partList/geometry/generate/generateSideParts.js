@@ -1,8 +1,6 @@
-import { getCarcassPartsGeometry } from "../partGeometry";
+
+import { createPart } from "../createPart.js";
 import { getDefaultEdges } from "../get/getDefaultEdges";
-import { createPart } from "../createPart";
-
-
 
 export const generateSideParts = ({
     cabinet,
@@ -10,10 +8,19 @@ export const generateSideParts = ({
     nextPID
 }) => {
 
-    const geometry =
-        getCarcassPartsGeometry(
-            cabinet
-        );
+    const width = Number(cabinet.width) || 0;
+    const height = Number(cabinet.height) || 0;
+    const depth = Number(cabinet.depth) || 0;
+    const thickness = Number(cabinet.thickness) || 0;
+
+    const continuous =
+    String(
+        cabinet.continuous ??
+        "side"
+    ).toLowerCase();
+
+    const bottomIsContinuous =
+        continuous === "bottom";
 
     const edges =
         getDefaultEdges(
@@ -27,7 +34,8 @@ export const generateSideParts = ({
             }
         );
 
-        return createPart({
+
+    return createPart({
 
             PID:
                 nextPID(),
@@ -42,13 +50,13 @@ export const generateSideParts = ({
                 2,
 
             L:
-                geometry.side.L,
+                bottomIsContinuous ? height - 2 * thickness : height,
 
             B:
-                geometry.side.B,
+                depth  ,
 
             T:
-                geometry.side.T,
+               thickness  ,
 
             materialId:
                 cabinet.materialId,
@@ -58,11 +66,48 @@ export const generateSideParts = ({
             edges,
 
             source: {
-                type:
-                    "cabinet",
 
-                role:
-                    "side"
-            }
+            type: "cabinet",
+
+            role: "side",
+
+            continuous: !bottomIsContinuous,
+
+            instances: [
+                {
+                    id: "left",
+                    side: "left",
+
+                    mirrorX: false,
+
+                    x: 0,
+                    y: 0,
+
+                    width: thickness,
+                    height: bottomIsContinuous ? height - 2 * thickness : height,
+
+                    continuous: !bottomIsContinuous
+
+                },
+
+                {
+                    id: "right",
+                    side: "right",
+
+                    mirrorX: true,
+
+                    x:
+                        width -
+                        thickness,
+
+                    y: 0,
+
+                    width: thickness,
+                    height: bottomIsContinuous ? height - 2 * thickness : height,
+
+                    continuous: !bottomIsContinuous
+                }
+            ]
+        }
         });
 };

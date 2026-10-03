@@ -28,10 +28,7 @@ function CreateProject() {
     // -------------------------------------------------
     // Daten vom CabinetEditor
     // -------------------------------------------------
-    const cadData = location.state?.cadData;
-
-    const incomingPartList =
-        location.state?.partList ?? null;
+    const cadData = location.state?.cadData ?? location.state?.partList;
 
     const incomingCabinets =
         location.state?.cabinets ?? null;
@@ -155,38 +152,32 @@ function CreateProject() {
     }, []);
 
     useEffect(() => {
-        const fetchCustomer = async () => {
-        const { data } = await axios.get(`/api/customers/get/${incomingUserId}`);
-        setCustomer(data.customer);
 
     if (mode !== "create") {
         return;
     }
 
-    // ==========================================
-    // PARTLIST ÜBERNEHMEN
-    // ==========================================
+    // console.log("list", incomingPartList);
+    // if (incomingPartList) {
 
-    if (incomingPartList) {
+    //     const corpuses = importCadData(incomingPartList, materials);
+    //     console.log(corpuses);
 
-        const corpuses = importCadData(incomingPartList, materials);
+    //     setCorpuses(corpuses);
+    //     return;
 
-        setCorpuses(corpuses);
-        return;
-
-    }
+    // }
 
     if(incomingUserId) {
+        const fetchCustomer = async () => {
+        const { data } = await axios.get(`/api/customers/get/${incomingUserId}`);
+        setCustomer(data.customer);
         fetchCustomer();
     };
     }
 
 }, [
-    mode,
-    incomingPartList,
-    materials,
-    setCorpuses,
-    setActiveCorpus
+    mode
 ]);
 
     return <>

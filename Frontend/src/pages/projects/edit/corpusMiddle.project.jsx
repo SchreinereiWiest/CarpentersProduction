@@ -94,110 +94,303 @@ export default function CorpusMiddle({ EditorState }) {
    *
    * Alte Daten:
    *   Standardmäßig wird MID verwendet.
-   */
-  const getEdgeMaterialsFromPlate = (plate) => {
+   */const getEdgeMaterialsFromPlate = (plate) => {
+
     if (!plate) {
-      return {
-        primary: "",
-        secondary: "",
-      };
+
+        return {
+            primary: "",
+            secondary: ""
+        };
+
     }
+
+
+    /*
+     * =====================================================
+     * Materialien direkt aus den tatsächlichen Kanten
+     *
+     * Hauptkante = untere / vordere Kante
+     *               => EBID
+     *
+     * Abweichende obere Kante
+     *               => ETID
+     * =====================================================
+     */
+
+    const frontMaterial =
+        plate.EBID ??
+        "";
+
+    const topMaterial =
+        plate.ETID ??
+        "";
+
+
+    /*
+     * Gibt es keine untere Kante, verwenden wir
+     * ersatzweise die obere als Hauptkante.
+     */
 
     const primary =
-      plate.EdgeMaterialId ??
-      plate.edgeMaterialPrimary ??
-      plate.MID ??
-      "";
+        frontMaterial !== ""
+            ? frontMaterial
+            : topMaterial;
+
+
+    let secondary = "";
+
+
+    /*
+     * Obere Kante unterscheidet sich von der
+     * Hauptkante -> zweite Materialgruppe
+     */
+
+    if (
+        topMaterial !== "" &&
+        String(topMaterial) !== String(primary)
+    ) {
+
+        secondary =
+            topMaterial;
+
+    }
+
+
+    /*
+     * Falls die obere Kante identisch mit der
+     * Hauptkante ist, aber eine Seitenkante ein
+     * anderes Material verwendet, wird dieses
+     * Material als sekundäres Material übernommen.
+     */
+
+    if (
+        secondary === ""
+    ) {
+
+        const sideMaterials = [
+            plate.ELID,
+            plate.ERID
+        ]
+            .filter(
+                value =>
+                    value !== null &&
+                    value !== undefined &&
+                    value !== ""
+            )
+            .filter(
+                (value, index, array) =>
+                    array.findIndex(
+                        candidate =>
+                            String(candidate) ===
+                            String(value)
+                    ) === index
+            );
+
+
+        const differentSideMaterial =
+            sideMaterials.find(
+                material =>
+                    String(material) !==
+                    String(primary)
+            );
+
+
+        if (
+            differentSideMaterial
+        ) {
+
+            secondary =
+                differentSideMaterial;
+
+        }
+
+    }
+
+
+    return {
+
+        primary:
+            primary ?? "",
+
+        secondary:
+            secondary ?? ""
+
+    };
+
+};
+
+
+const getEdgeStatesFromPlate = (
+    plate,
+    edgeMaterialValues
+) => {
+
+    if (!plate) {
+
+        return {
+            top: "",
+            right: "",
+            bottom: "",
+            left: ""
+        };
+
+    }
+
+
+    const primary =
+        String(
+            edgeMaterialValues.primary ??
+            ""
+        );
+
 
     const secondary =
-      plate.EdgeMaterialId2 ??
-      plate.edgeMaterialSecondary ??
-      primary ??
-      "";
+        String(
+            edgeMaterialValues.secondary ??
+            ""
+        );
 
-    return {
-      primary,
-      secondary,
-    };
-  };
 
-  /*
-   * Ermittelt aus den bisherigen ELID/ERID/ETID/EBID
-   * den Darstellungszustand der Kante.
-   */
-  const getEdgeStatesFromPlate = (plate, edgeMaterialValues) => {
-    if (!plate) {
-      return {
-        top: "",
-        right: "",
-        bottom: "",
-        left: "",
-      };
-    }
+    const getState = (
+        materialId
+    ) => {
 
-    const getState = (materialId) => {
-      if (
-        materialId === null ||
-        materialId === undefined ||
-        materialId === ""
-      ) {
+        if (
+            materialId === null ||
+            materialId === undefined ||
+            materialId === ""
+        ) {
+
+            return "";
+
+        }
+
+
+        const material =
+            String(
+                materialId
+            );
+
+
+        /*
+         * Sekundäres Material
+         */
+
+        if (
+            secondary !== "" &&
+            material === secondary &&
+            material !== primary
+        ) {
+
+            return "secondary";
+
+        }
+
+
+        /*
+         * Hauptkante
+         */
+
+        if (
+            primary !== "" &&
+            material === primary
+        ) {
+
+            return "primary";
+
+        }
+
+
         return "";
-      }
 
-      if (
-        String(materialId) === String(edgeMaterialValues.secondary) &&
-        String(materialId) !== String(edgeMaterialValues.primary)
-      ) {
-        return "secondary";
-      }
-
-      return "primary";
     };
+
 
     return {
-      top: getState(plate.ETID),
-      right: getState(plate.ERID),
-      bottom: getState(plate.EBID),
-      left: getState(plate.ELID),
+
+        top:
+            getState(
+                plate.ETID
+            ),
+
+        right:
+            getState(
+                plate.ERID
+            ),
+
+        bottom:
+            getState(
+                plate.EBID
+            ),
+
+        left:
+            getState(
+                plate.ELID
+            )
+
     };
-  };
 
-  /*
-   * ------------------------------------------------------------
-   * Active Plate synchronisieren
-   * ------------------------------------------------------------
-   */
+};
 
-  useEffect(() => {
+
+useEffect(() => {
+
     const plate =
-      activePlate ??
-      (activeCorpus?.type === "plate" ? activeCorpus : null);
+        activePlate ??
+        (
+            activeCorpus?.type === "plate"
+                ? activeCorpus
+                : null
+        );
+
 
     if (!plate) {
-      setEdgeMaterials({
-        primary: "",
-        secondary: "",
-      });
 
-      setSelectedEdges({
-        top: "",
-        right: "",
-        bottom: "",
-        left: "",
-      });
+        setEdgeMaterials({
+            primary: "",
+            secondary: ""
+        });
 
-      return;
+        setSelectedEdges({
+            top: "",
+            right: "",
+            bottom: "",
+            left: ""
+        });
+
+        return;
+
     }
 
-    const materialValues = getEdgeMaterialsFromPlate(plate);
 
-    setEdgeMaterials(materialValues);
+    const materialValues =
+        getEdgeMaterialsFromPlate(
+            plate
+        );
+
+
+    setEdgeMaterials(
+        materialValues
+    );
+
 
     setSelectedEdges(
-      getEdgeStatesFromPlate(plate, materialValues)
+        getEdgeStatesFromPlate(
+            plate,
+            materialValues
+        )
     );
-  }, [activePlate, activeCorpus, materials]);
 
+}, [
+    activePlate?.id ??
+    activePlate?.PID,
+
+    activeCorpus?.id ??
+    activeCorpus?.PID,
+
+    activeCorpus?.type
+]);
   /*
    * ------------------------------------------------------------
    * Gemeinsames Update eines Blechs

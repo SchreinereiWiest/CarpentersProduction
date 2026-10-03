@@ -1,21 +1,91 @@
 
 
 
+export const DEFAULT_CNC = {
 
-export const CNC_DEFAULTS = {
+    spax: {
 
-    holeDiameter: 5,
+        enabled: true,
 
-    holeDepth: 12,
+        screw: {
+            diameter: 5.1,
+            depth: 15,
+            startOffset: 40,
+            endOffset: 60
+        },
 
-    min4: 350,
+        connector: {
+            diameter: 8,
+            depth: 15,
+            startOffset: 50,
+            endOffset: 50,
+            holeCountThreshold: 300
+        },
 
-    joint4: "50mm:1:1:1:50mm",
+        horizontal: {
+            diameter: 8,
+            depth: 15,
+            startOffset: 50,
+            endOffset: 50
+        }
 
-    screw4: "40mm:1:1:1:60mm",
+    },
 
-    joint3: "50mm:1:1:50mm",
+    shelf: {
+        diameter: 5,
+        depth: 16,
+        frontOffset: 37,
+        backOffset: 37
+    },
 
-    screw3: "40mm:1:1:60mm"
-    
+    legrabox: {
+        diameter: 5.1,
+        depth: 15,
+        depthPattern: [
+            37,
+            69,
+            192,
+            224,
+            256
+        ]
+    },
+
+    backPanel: {
+
+        groove: {
+
+            frontOffset: 42,
+            backOffset: 42,
+
+            depth: 8.3,
+
+            rnt: {
+                startOffset: 3,
+                endOffset: 3,
+                openStartOffset: -20,
+
+                intermediateStartOffset: -20,
+                intermediateEndOffset: 20,
+
+                y: 20,
+                z: 9,
+                width: 8.3,
+                tool: 81,
+                c: 0
+            }
+
+        },
+
+        rabbet: {
+            startOffset: 16,
+            depth: 16
+        },
+
+        insertedRabbet: {
+            startOffset: 16,
+            depth: 16
+        }
+
+    }
+
 };

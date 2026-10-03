@@ -120,13 +120,12 @@ export function FrontLayer({
 
                                     fill="#bbf7d0"
 
-                                    fontSize="16"
+                                    fontSize="30"
 
                                     pointerEvents="none"
                                 >
                                     {number}
                                 </text>
-
 
                                 <text
                                     x={
@@ -137,7 +136,7 @@ export function FrontLayer({
                                     y={
                                         front.y +
                                         front.height / 2 +
-                                        22
+                                        40
                                     }
 
                                     textAnchor="middle"
@@ -145,7 +144,7 @@ export function FrontLayer({
 
                                     fill="#86efac"
 
-                                    fontSize="12"
+                                    fontSize="28"
 
                                     pointerEvents="none"
                                 >

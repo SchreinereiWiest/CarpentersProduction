@@ -1,7 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { updateSectionTree } from "../../../engine/sektions/updateSectionTree";
 import { findSection } from "../../../engine/sektions/interior/mergeSectionChildren";
-
 
 const DRAWER_DEPTHS = [
     270,
@@ -15,21 +14,15 @@ const DRAWER_DEPTHS = [
 ];
 
 export function createId() {
-        return Date.now() + Math.random();
-    }
+    return Date.now() + Math.random();
+}
 
+const getDefaultDrawerDepth = (cabinetDepth) => {
+    const depth = Number(cabinetDepth);
 
-const getDefaultDrawerDepth = (
-    cabinetDepth
-) => {
-
-    const depth =
-        Number(cabinetDepth);
-
-    const available =
-        DRAWER_DEPTHS.filter(
-            value => value <= depth
-        );
+    const available = DRAWER_DEPTHS.filter(
+        value => value <= depth
+    );
 
     if (available.length > 0) {
         return available[available.length - 1];
@@ -40,66 +33,117 @@ const getDefaultDrawerDepth = (
 
 
 
+/*
+ * ------------------------------------------------------------
+ * Funktionsnamen
+ * ------------------------------------------------------------
+ */
+
+const getFunctionLabel = (type) => {
+
+    switch (type) {
+
+        case "shelf":
+            return "Einlegeböden + Lochreihe";
+
+        case "middleWall":
+            return "Mittelwand";
+
+        case "legrabox":
+            return "Legrabox";
+
+        default:
+            return type;
+    }
+};
+
 
 export default function SectionFunctionProperties({
-
     selectedElement,
-
     activeCabinet,
     updateActiveCabinet,
-
     setSelectedElement
-
 }) {
+
+    const [newFunctionType, setNewFunctionType] = useState("");
+
+
+    /*
+     * ------------------------------------------------------------
+     * Keine Sektion ausgewählt
+     * ------------------------------------------------------------
+     */
 
     if (
         !selectedElement ||
         selectedElement.type !== "section" ||
         !activeCabinet
     ) {
+
         return (
-            <div className="
-                mt-6
-                text-sm
-                text-gray-500
-            ">
+            <div className="mt-6 text-sm text-gray-500">
                 Bitte eine Sektion auswählen.
             </div>
         );
     }
 
 
+    /*
+     * ------------------------------------------------------------
+     * Aktuelle Sektion
+     * ------------------------------------------------------------
+     */
 
-    // =========================================================
-    // Section aktualisieren
-    // =========================================================
+    const currentSection = findSection(
+        activeCabinet.sections ?? [],
+        selectedElement.id
+    );
 
-    const updateSection = (
-        changes
-    ) => {
+    if (!currentSection) {
 
-        const newSections =
-            updateSectionTree(
-                activeCabinet.sections ?? [],
-                selectedElement.id,
-                section => ({
-                    ...section,
-                    ...changes
-                })
-            );
+        return (
+            <div className="mt-6 text-sm text-red-400">
+                Sektion konnte nicht gefunden werden.
+            </div>
+        );
+    }
 
+
+    /*
+     * ------------------------------------------------------------
+     * Funktionen
+     * ------------------------------------------------------------
+     */
+
+    const functions = currentSection.functionConfig ?? [];
+
+
+
+    /*
+     * ------------------------------------------------------------
+     * Section aktualisieren
+     * ------------------------------------------------------------
+     */
+
+    const updateSection = (changes) => {
+
+        const newSections = updateSectionTree(
+            activeCabinet.sections ?? [],
+            selectedElement.id,
+            section => ({
+                ...section,
+                ...changes
+            })
+        );
 
         updateActiveCabinet({
             sections: newSections
         });
 
-
-        const updatedSection =
-            findSection(
-                newSections,
-                selectedElement.id
-            );
-
+        const updatedSection = findSection(
+            newSections,
+            selectedElement.id
+        );
 
         if (updatedSection) {
 
@@ -111,725 +155,518 @@ export default function SectionFunctionProperties({
     };
 
 
-    
-    const createDefaultMiddleWall = (section) => ({
-    id: createId(),
+    /*
+     * ------------------------------------------------------------
+     * FunctionType für Legacy-Kompatibilität
+     * ------------------------------------------------------------
+     *
+     * none     = keine Funktion
+     * shelf    = genau eine Funktion
+     * multiple = mehrere Funktionen
+     */
+    const getSectionFunctionType = (functionList) => {
 
-    orientation: "horizontal",
-
-    positionReference: "sectionBottom",
-    positionOffset: 0,
-
-    absoluteOffset: 0
-});
-
-
-const createDefaultFunctionConfig = (
-    functionType,
-    selectedElement,
-    activeCabinet
-) => {
-
-    const cabinetDepth =
-        Number(
-            activeCabinet?.depth ?? 0
-        );
-
-
-    switch (functionType) {
-
-        case "shelf":
-
-    return {
-
-        compartmentCount: 2,
-
-        shelfFrontOffset: 0,
-
-        holeRow: {
-            spacing: 32,
-            frontOffset: 37,
-            backOffset: 37,
-            startFromBottom: 150,
-            endFromTop: 150
+        if (functionList.length === 0) {
+            return "none";
         }
-    };
 
-        case "middleWall":
+        if (functionList.length === 1) {
+            return functionList[0].type;
+        }
 
-            return {
-
-                middleWalls: [
-                    createDefaultMiddleWall(
-                        selectedElement
-                    )
-                ]
-            };
-
-
-        case "legrabox":
-
-    return {
-
-        legraboxes: [
-            {
-                id: createId(),
-
-                variant: "M",
-
-                drawerDepth:
-                    getDefaultDrawerDepth(
-                        cabinetDepth
-                    ),
-
-                positionFromBottom: 40,
-
-                doubling: {
-                    left: false,
-                    right: false,
-                    thickness: 0
-                }
-            }
-        ]
+        return "multiple";
     };
 
 
-        default:
-            return {};
-    }
-};
+    /*
+     * ------------------------------------------------------------
+     * Neue Funktion erstellen
+     * ------------------------------------------------------------
+     */
 
-    // =========================================================
-    // Function Type ändern
-    // =========================================================
+    const createDefaultFunction = (type) => {
 
-    const setFunctionType = (
-        functionType
-    ) => {
-
-        const existingConfig =
-            selectedElement.functionConfig ?? {};
-
-        console.log("existingConfig", existingConfig);
-
-        const defaultConfig =
-            createDefaultFunctionConfig(
-                functionType,
-                selectedElement,
-                activeCabinet
-            );
+        const cabinetDepth =
+            Number(activeCabinet?.depth ?? 0);
 
 
-        const functionConfig = {
-            ...defaultConfig,
-            ...existingConfig
-        };
+        switch (type) {
+
+            case "shelf":
+
+                return {
+                    id: createId(),
+
+                    type: "shelf",
+
+                    compartmentCount: 2,
+
+                    shelfFrontOffset: 0,
+
+                    holeRow: {
+                        spacing: 32,
+                        frontOffset: 37,
+                        backOffset: 37,
+                        startFromBottom: 150,
+                        endFromTop: 150
+                    }
+                };
 
 
-        // Verschachtelte Defaults sauber ergänzen
+            case "middleWall":
 
-        if (
-            functionType === "shelf"
-        ) {
+                return {
+                    id: createId(),
 
-            functionConfig.holeRow = {
-                ...defaultConfig.holeRow,
-                ...(existingConfig.holeRow ?? {})
-            };
+                    type: "middleWall",
+
+                    orientation: "horizontal",
+
+                    /*
+                     * Intern weiterhin vorhanden.
+                     * Wird nicht mehr als Auswahl angezeigt.
+                     */
+                    positionReference: "sectionBottom",
+
+                    positionOffset: 0,
+
+                    absoluteOffset: 0
+                };
+
+
+            case "legrabox":
+
+                return {
+                    id: createId(),
+
+                    type: "legrabox",
+
+                    variant: "M",
+
+                    drawerDepth:
+                        getDefaultDrawerDepth(cabinetDepth),
+
+                    positionFromBottom: 40,
+
+                    doubling: {
+                        left: false,
+                        right: false,
+                        thickness: 0
+                    }
+                };
+
+
+            default:
+                return null;
+        }
+    };
+
+
+    /*
+     * ------------------------------------------------------------
+     * Funktion hinzufügen
+     * ------------------------------------------------------------
+     */
+
+    const addFunction = (type) => {
+
+        if (!type || type === "none") {
+            return;
         }
 
+        const newFunction =
+            createDefaultFunction(type);
 
-        if (
-            functionType === "legrabox"
-        ) {
-
-            functionConfig.doubling = {
-                ...defaultConfig.doubling,
-                ...(existingConfig.doubling ?? {})
-            };
+        if (!newFunction) {
+            return;
         }
 
-
-        if (
-            functionType === "middleWall"
-        ) {
-
-            functionConfig.middleWalls =
-                existingConfig.middleWalls?.length
-                    ? existingConfig.middleWalls
-                    : defaultConfig.middleWalls;
-        }
-
+        const newFunctions = [
+            ...functions,
+            newFunction
+        ];
 
         updateSection({
-            functionType,
-            functionConfig
+            functionType:
+                getSectionFunctionType(newFunctions),
+
+            functionConfig:
+                newFunctions
+        });
+
+        /*
+         * Dropdown wieder zurücksetzen
+         */
+        setNewFunctionType("");
+    };
+
+
+    /*
+     * ------------------------------------------------------------
+     * Funktion löschen
+     * ------------------------------------------------------------
+     */
+
+    const removeFunction = (functionId) => {
+
+        const newFunctions = functions.filter(
+            func => func.id !== functionId
+        );
+
+        updateSection({
+            functionType:
+                getSectionFunctionType(newFunctions),
+
+            functionConfig:
+                newFunctions
         });
     };
 
 
-    // =========================================================
-    // Function Config aktualisieren
-    // =========================================================
+    /*
+     * ------------------------------------------------------------
+     * Allgemeine Funktion aktualisieren
+     * ------------------------------------------------------------
+     */
 
-    const updateFunctionConfig = (
-    changes
-) => {
+    const updateFunction = (functionId, changes) => {
 
-    updateActiveCabinet(
-        cabinet => {
+        const newFunctions = functions.map(func => {
 
-            const newSections =
-                updateSectionTree(
-                    cabinet.sections ?? [],
-                    selectedElement.id,
-                    section => {
+            if (func.id !== functionId) {
+                return func;
+            }
 
-                        const currentConfig =
-                            section.functionConfig ?? {};
-
-
-                        const newConfig =
-                             {
-                                    ...currentConfig,
-                                    ...changes
-                                };
-
-
-                        return {
-                            ...section,
-
-                            functionConfig:
-                                newConfig
-                        };
-                    }
-                );
-
-
-            return {
-                sections:
-                    newSections
-            };
-        }
-    );
-};
-
-
-    // =========================================================
-    // Verschachtelte Config aktualisieren
-    // =========================================================
-
-    const updateNestedFunctionConfig = (
-    key,
-    changes
-) => {
-
-    updateFunctionConfig(
-        currentConfig => {
-
-            const currentNested =
-                currentConfig[key] ?? {};
-
-
-            const newNested =
+            const nextChanges =
                 typeof changes === "function"
-                    ? changes(currentNested)
-                    : {
-                        ...currentNested,
-                        ...changes
-                    };
-
+                    ? changes(func)
+                    : changes;
 
             return {
-
-                ...currentConfig,
-
-                [key]:
-                    newNested
+                ...func,
+                ...nextChanges
             };
-        }
-    );
-};
+        });
+
+        updateSection({
+            functionType:
+                getSectionFunctionType(newFunctions),
+
+            functionConfig:
+                newFunctions
+        });
+    };
 
 
-    // =========================================================
-    // Mittelwand aktualisieren
-    // =========================================================
+    /*
+     * ------------------------------------------------------------
+     * Nested Config aktualisieren
+     * ------------------------------------------------------------
+     */
 
-    const updateMiddleWall = (
-        wall,
+    const updateFunctionNested = (
+        functionId,
+        key,
         changes
     ) => {
 
-        console.log(selectedElement, wall, changes);
-        const config = wall.functionConfig;
+        updateFunction(
+            functionId,
+            func => {
 
-        console.log(config);
+                const currentValue =
+                    func[key] ?? {};
 
+                const newValue =
+                    typeof changes === "function"
+                        ? changes(currentValue)
+                        : {
+                            ...currentValue,
+                            ...changes
+                        };
 
-        const middleWalls =
-            (config.middleWalls ?? [])
-                .map(wall => {
-
-                    if (
-                        wall.id !== wallId
-                    ) {
-                        return wall;
-                    }
-
-                    return {
-                        ...wall,
-                        ...changes
-                    };
-                });
-
-
-        updateFunctionConfig({
-            middleWalls
-        });
+                return {
+                    [key]: newValue
+                };
+            }
+        );
     };
 
 
-    // =========================================================
-    // Mittelwand hinzufügen
-    // =========================================================
-
-    const addMiddleWall = () => {
-
-        const config =
-            selectedElement.functionConfig ?? {};
-
-
-        const middleWalls =
-            [
-                ...(config.middleWalls ?? []),
-                createDefaultMiddleWall(
-                    selectedElement
-                )
-            ];
-
-
-        updateFunctionConfig({
-            middleWalls
-        });
-    };
-
-
-    // =========================================================
-    // Mittelwand entfernen
-    // =========================================================
-
-    const removeMiddleWall = (
-        wallId
-    ) => {
-
-        const config =
-            selectedElement.functionConfig ?? {};
-
-
-        const middleWalls =
-            (config.middleWalls ?? [])
-                .filter(
-                    wall =>
-                        wall.id !== wallId
-                );
-
-
-        updateFunctionConfig({
-            middleWalls
-        });
-    };
-
-
-    // =========================================================
-    // Position einer Mittelwand berechnen
-    //
-    // positionOffset ist immer relativ zu der gewählten
-    // Referenz und damit auch bei Geometrieänderungen
-    // sinnvoll verwendbar.
-    // =========================================================
+    /*
+     * ------------------------------------------------------------
+     * Mittelwand
+     * ------------------------------------------------------------
+     */
 
     const getMiddleWallCenter = (wall) => {
 
-    const orientation = wall.orientation ?? "horizontal";
-    const offset = Number(wall.positionOffset ?? 0);
+        const orientation =
+            wall.orientation ?? "horizontal";
 
-    const sectionX = Number(selectedElement.x);
-    const sectionY = Number(selectedElement.y);
+        const offset =
+            Number(wall.positionOffset ?? 0);
 
-    const sectionWidth = Number(selectedElement.width);
-    const sectionHeight = Number(selectedElement.height);
+        const sectionX =
+            Number(selectedElement.x);
 
-    const cabinetWidth = Number(activeCabinet.width);
-    const cabinetHeight = Number(activeCabinet.height);
+        const sectionY =
+            Number(selectedElement.y);
 
-    if (orientation === "vertical") {
+        const sectionWidth =
+            Number(selectedElement.width);
+
+        const sectionHeight =
+            Number(selectedElement.height);
+
+        const cabinetWidth =
+            Number(activeCabinet.width);
+
+        const cabinetHeight =
+            Number(activeCabinet.height);
+
+
+        if (orientation === "vertical") {
+
+            switch (wall.positionReference) {
+
+                case "cabinetLeft":
+                    return offset;
+
+                case "cabinetRight":
+                    return cabinetWidth - offset;
+
+                case "sectionLeft":
+                    return sectionX + offset;
+
+                case "sectionRight":
+                    return sectionX + sectionWidth - offset;
+
+                default:
+                    return (
+                        sectionX +
+                        sectionWidth / 2
+                    );
+            }
+        }
+
 
         switch (wall.positionReference) {
 
-            case "cabinetLeft":
+            case "cabinetTop":
                 return offset;
 
-            case "cabinetRight":
-                return cabinetWidth - offset;
+            case "cabinetBottom":
+                return cabinetHeight - offset;
 
-            case "sectionLeft":
-                return sectionX + offset;
+            case "sectionTop":
+                return sectionY + offset;
 
-            case "sectionRight":
-                return sectionX + sectionWidth - offset;
+            case "sectionBottom":
+                return (
+                    sectionY +
+                    sectionHeight -
+                    offset
+                );
 
             default:
-                return sectionX + sectionWidth / 2;
+                return (
+                    sectionY +
+                    sectionHeight / 2
+                );
         }
-    }
-
-    // bisherige horizontale Mittelwand
-    switch (wall.positionReference) {
-
-        case "cabinetTop":
-            return offset;
-
-        case "cabinetBottom":
-            return cabinetHeight - offset;
-
-        case "sectionTop":
-            return sectionY + offset;
-
-        case "sectionBottom":
-            return sectionY + sectionHeight - offset;
-
-        default:
-            return sectionY + sectionHeight / 2;
-    }
-};
+    };
 
 
-    // =========================================================
-    // Abstand der Mittelwand von einer Referenz berechnen
-    // =========================================================
+    const getMiddleWallOffset = (
+        wall,
+        reference
+    ) => {
 
-    const getMiddleWallOffset = (wall, reference) => {
+        const orientation =
+            wall.orientation ?? "horizontal";
 
-    const orientation = wall.orientation ?? "horizontal";
-    const center = getMiddleWallCenter(wall);
+        const center =
+            getMiddleWallCenter(wall);
 
-    const sectionX = Number(selectedElement.x);
-    const sectionY = Number(selectedElement.y);
+        const sectionX =
+            Number(selectedElement.x);
 
-    const sectionWidth = Number(selectedElement.width);
-    const sectionHeight = Number(selectedElement.height);
+        const sectionY =
+            Number(selectedElement.y);
 
-    const cabinetWidth = Number(activeCabinet.width);
-    const cabinetHeight = Number(activeCabinet.height);
+        const sectionWidth =
+            Number(selectedElement.width);
 
-    if (orientation === "vertical") {
+        const sectionHeight =
+            Number(selectedElement.height);
+
+        const cabinetWidth =
+            Number(activeCabinet.width);
+
+        const cabinetHeight =
+            Number(activeCabinet.height);
+
+
+        if (orientation === "vertical") {
+
+            switch (reference) {
+
+                case "cabinetLeft":
+                    return center;
+
+                case "cabinetRight":
+                    return cabinetWidth - center;
+
+                case "sectionLeft":
+                    return center - sectionX;
+
+                case "sectionRight":
+                    return (
+                        sectionX +
+                        sectionWidth -
+                        center
+                    );
+
+                default:
+                    return center;
+            }
+        }
+
 
         switch (reference) {
 
-            case "cabinetLeft":
+            case "cabinetTop":
                 return center;
 
-            case "cabinetRight":
-                return cabinetWidth - center;
+            case "cabinetBottom":
+                return cabinetHeight - center;
 
-            case "sectionLeft":
-                return center - sectionX;
+            case "sectionTop":
+                return center - sectionY;
 
-            case "sectionRight":
-                return sectionX + sectionWidth - center;
+            case "sectionBottom":
+                return (
+                    sectionY +
+                    sectionHeight -
+                    center
+                );
 
             default:
                 return center;
         }
-    }
-
-    // horizontal / Y
-    switch (reference) {
-
-        case "cabinetTop":
-            return center;
-
-        case "cabinetBottom":
-            return cabinetHeight - center;
-
-        case "sectionTop":
-            return center - sectionY;
-
-        case "sectionBottom":
-            return sectionY + sectionHeight - center;
-
-        default:
-            return center;
-    }
-};
+    };
 
 
-    // =========================================================
-    // Mittelwand über beliebige Referenz positionieren
-    // =========================================================
+    /*
+     * Beim Ändern eines der vier Felder wird automatisch
+     * dieser Bezug aktiv.
+     */
+    const setMiddleWallPosition = (
+        functionId,
+        wall,
+        reference,
+        value
+    ) => {
 
-    const setMiddleWallPosition = (wall, reference, value) => {
+        const numericValue =
+            Number(value);
 
-    const numericValue = Number(value);
+        if (
+            !Number.isFinite(numericValue) ||
+            numericValue < 0
+        ) {
+            return;
+        }
 
-    if (
-        !Number.isFinite(numericValue) ||
-        numericValue < 0
-    ) {
-        return;
-    }
-
-    updateMiddleWall(wall, {
-        positionReference: reference,
-        positionOffset: numericValue,
-        absoluteOffset: getMiddleWallOffset(
+        updateFunction(
+            functionId,
             {
-                ...wall,
                 positionReference: reference,
-                positionOffset: numericValue
-            },
-        )
-    });
-};
 
+                positionOffset: numericValue,
 
-    // =========================================================
-    // Aktuelle Funktion
-    // =========================================================
-
-    const currentSection =
-        findSection(
-            activeCabinet.sections ?? [],
-            selectedElement.id
+                absoluteOffset:
+                    getMiddleWallOffset(
+                        {
+                            ...wall,
+                            positionReference: reference,
+                            positionOffset: numericValue
+                        },
+                        reference
+                    )
+            }
         );
-
-    const functionType =
-        currentSection?.functionType ??
-        "none";
-
-    const functionConfig =
-        currentSection?.functionConfig ?? {};
+    };
 
 
-    const middleWalls =
-        functionConfig.middleWalls ?? [];
+    /*
+     * ------------------------------------------------------------
+     * Legrabox
+     * ------------------------------------------------------------
+     */
 
-    const shelfFrontOffset =
-    Number(
-        functionConfig.shelfFrontOffset ?? 0
-    );
+    const updateLegrabox = (
+        functionId,
+        changes
+    ) => {
 
-    const shelfDepth =
-        Math.max(
-            0,
-            Number(activeCabinet.depth ?? 0) -
-            shelfFrontOffset
-    );
-
-
-    // =========================================================
-// Legrabox aktualisieren
-// =========================================================
-
-const updateLegrabox = (
-    legraboxId,
-    changes
-) => {
-
-    updateFunctionConfig(
-        currentConfig => {
-
-            const legraboxes =
-                (currentConfig.legraboxes ?? [])
-                    .map(box => {
-
-                        if (
-                            box.id !== legraboxId
-                        ) {
-                            return box;
-                        }
-
-                        return {
-                            ...box,
-                            ...changes
-                        };
-                    });
+        updateFunction(
+            functionId,
+            changes
+        );
+    };
 
 
-            return {
-                ...currentConfig,
-                legraboxes
-            };
-        }
-    );
-};
+    const updateLegraboxDoubling = (
+        functionId,
+        changes
+    ) => {
+
+        updateFunctionNested(
+            functionId,
+            "doubling",
+            changes
+        );
+    };
 
 
-const updateLegraboxDoubling = (
-    legraboxId,
-    changes
-) => {
-
-    updateFunctionConfig(
-        currentConfig => {
-
-            const legraboxes =
-                (currentConfig.legraboxes ?? [])
-                    .map(box => {
-
-                        if (
-                            box.id !== legraboxId
-                        ) {
-                            return box;
-                        }
-
-                        return {
-
-                            ...box,
-
-                            doubling: {
-                                ...(box.doubling ?? {}),
-                                ...changes
-                            }
-                        };
-                    });
-
-
-            return {
-                ...currentConfig,
-                legraboxes
-            };
-        }
-    );
-};
-
-
-const addLegrabox = () => {
-
-    updateFunctionConfig(
-        currentConfig => {
-
-            const legraboxes =
-                currentConfig.legraboxes ?? [];
-
-
-            const newLegrabox = {
-
-                id:
-                    createId(),
-
-                variant:
-                    "M",
-
-                drawerDepth:
-                    getDefaultDrawerDepth(
-                        activeCabinet.depth
-                    ),
-
-                positionFromBottom:
-                    40,
-
-                doubling: {
-                    left: false,
-                    right: false,
-                    thickness: 0
-                }
-            };
-
-
-            return {
-
-                ...currentConfig,
-
-                legraboxes: [
-                    ...legraboxes,
-                    newLegrabox
-                ]
-            };
-        }
-    );
-};
-
-
-const removeLegrabox = (
-    legraboxId
-) => {
-
-    updateFunctionConfig(
-        currentConfig => {
-
-            const legraboxes =
-                (
-                    currentConfig.legraboxes ?? []
-                ).filter(
-                    box =>
-                        box.id !==
-                        legraboxId
-                );
-
-
-            return {
-
-                ...currentConfig,
-
-                legraboxes
-            };
-        }
-    );
-};
-
+    /*
+     * ------------------------------------------------------------
+     * Render
+     * ------------------------------------------------------------
+     */
 
     return (
+        <div className="mt-6 space-y-6">
 
-        <div className="
-            mt-6
-            space-y-6
-        ">
-
-            {/* =================================================
-                Funktion auswählen
-            ================================================= */}
+            {/* ==================================================
+                FUNKTION HINZUFÜGEN
+                ================================================== */}
 
             <section>
 
-                <div className="
-                    text-xs
-                    uppercase
-                    tracking-wide
-                    text-gray-500
-                ">
-                    Funktion
+                <div className="text-xs uppercase tracking-wide text-gray-500">
+                    Funktion hinzufügen
                 </div>
 
-
                 <select
-                    value={
-                        functionType
-                    }
-                    onChange={(event) =>
-                        setFunctionType(
-                            event.target.value
-                        )
-                    }
-                    className="
-                        mt-3
-                        w-full
-                        rounded-lg
-                        border
-                        border-gray-700
-                        bg-gray-800
-                        px-3
-                        py-2
-                        text-sm
-                        text-white
-                        outline-none
-                        focus:border-blue-500
-                    "
+                    value={newFunctionType}
+                    onChange={(event) => {
+                        const type =
+                            event.target.value;
+
+                        setNewFunctionType(type);
+
+                        if (type) {
+                            addFunction(type);
+                        }
+                    }}
+                    className="mt-3 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
                 >
 
-                    <option value="none">
-                        Keine Funktion
+                    <option value="">
+                        Funktion auswählen...
                     </option>
 
                     <option value="shelf">
@@ -849,1453 +686,1016 @@ const removeLegrabox = (
             </section>
 
 
-            {/* =================================================
-                Keine Funktion
-            ================================================= */}
+            {/* ==================================================
+                KEINE FUNKTIONEN
+                ================================================== */}
 
-            {functionType === "none" && (
+            {functions.length === 0 && (
 
                 <section>
 
-                    <div className="
-                        text-sm
-                        text-gray-500
-                    ">
-                        Für diese Sektion ist keine
-                        Funktion hinterlegt.
+                    <div className="text-sm text-gray-500">
+                        Für diese Sektion sind keine Funktionen
+                        hinterlegt.
                     </div>
 
                 </section>
+
             )}
 
 
-            {/* =================================================
-                EINLEGEBÖDEN + LOCHREIHE
-            ================================================= */}
+            {/* ==================================================
+                FUNKTIONSLISTE
+                ================================================== */}
 
-            {functionType === "shelf" && (
+            {functions.map(
+                (func, functionIndex) => (
 
-                <>
+                    <section
+                        key={func.id}
+                        className="rounded-lg border border-gray-800 bg-gray-950 p-4"
+                    >
 
-                    {/* =================================================
-                        Einlegeböden
-                    ================================================= */}
+                        {/* --------------------------------------
+                            Header
+                            -------------------------------------- */}
 
-                    <section>
+                        <div className="flex items-center justify-between gap-3 mb-4">
 
-                        <div className="
-                            text-xs
-                            uppercase
-                            tracking-wide
-                            text-gray-500
-                        ">
-                            Einlegeböden
-                        </div>
+                            <div>
 
+                                <div className="text-xs uppercase tracking-wide text-gray-500">
+                                    Funktion {functionIndex + 1}
+                                </div>
 
-                        <div className="
-                            mt-4
-                            space-y-4
-                        ">
+                                <div className="text-sm font-medium text-gray-200">
+                                    {getFunctionLabel(func.type)}
+                                </div>
 
-                            {/* Fächeranzahl */}
+                            </div>
 
-                            <label className="block">
-
-                                <span className="
-                                    text-xs
-                                    text-gray-400
-                                ">
-                                    Fächeranzahl
-                                </span>
-
-
-                                <input
-                                    type="number"
-                                    min="1"
-                                    value={
-                                        functionConfig
-                                            .compartmentCount ??
-                                        2
-                                    }
-                                    onChange={(event) =>
-                                        updateFunctionConfig({
-                                            compartmentCount:
-                                                Math.max(
-                                                    1,
-                                                    Number(
-                                                        event.target.value
-                                                    )
-                                                )
-                                        })
-                                    }
-                                    className="
-                                        mt-1
-                                        w-full
-                                        rounded-lg
-                                        border
-                                        border-gray-700
-                                        bg-gray-900
-                                        px-3
-                                        py-2
-                                        text-white
-                                        focus:border-blue-500
-                                        focus:outline-none
-                                    "
-                                />
-
-                            </label>
-
-
-                            {/* Fachtiefe */}
-
-                            <label className="block">
-
-    <span className="
-        text-xs
-        text-gray-400
-    ">
-        Fachtiefe
-    </span>
-
-
-    <input
-        type="number"
-        min="0"
-        max={Number(activeCabinet.depth ?? 0)}
-        step="1"
-        value={shelfDepth}
-        onChange={(event) => {
-
-            const depth =
-                Number(event.target.value);
-
-            if (!Number.isFinite(depth)) {
-                return;
-            }
-
-
-            const cabinetDepth =
-                Number(activeCabinet.depth ?? 0);
-
-
-            const clampedDepth =
-                Math.max(
-                    0,
-                    Math.min(
-                        cabinetDepth,
-                        depth
-                    )
-                );
-
-
-            updateFunctionConfig({
-
-                shelfFrontOffset:
-                    cabinetDepth -
-                    clampedDepth
-            });
-        }}
-        className="
-            mt-1
-            w-full
-            rounded-lg
-            border
-            border-gray-700
-            bg-gray-900
-            px-3
-            py-2
-            text-white
-            focus:border-blue-500
-            focus:outline-none
-        "
-    />
-
-</label>
-
-
-                            {/* Abstand von vorne */}
-
-                            <label className="block">
-
-    <span className="
-        text-xs
-        text-gray-400
-    ">
-        Abstand von vorne
-    </span>
-
-
-    <input
-        type="number"
-        min="0"
-        max={Number(activeCabinet.depth ?? 0)}
-        step="1"
-        value={shelfFrontOffset}
-        onChange={(event) => {
-
-            const frontOffset =
-                Number(event.target.value);
-
-            if (!Number.isFinite(frontOffset)) {
-                return;
-            }
-
-
-            const cabinetDepth =
-                Number(activeCabinet.depth ?? 0);
-
-
-            const clampedOffset =
-                Math.max(
-                    0,
-                    Math.min(
-                        cabinetDepth,
-                        frontOffset
-                    )
-                );
-
-
-            updateFunctionConfig({
-
-                shelfFrontOffset:
-                    clampedOffset
-            });
-        }}
-        className="
-            mt-1
-            w-full
-            rounded-lg
-            border
-            border-gray-700
-            bg-gray-900
-            px-3
-            py-2
-            text-white
-            focus:border-blue-500
-            focus:outline-none
-        "
-    />
-
-</label>
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    removeFunction(func.id)
+                                }
+                                className="rounded px-2 py-1 text-xs text-red-400 hover:bg-red-950"
+                            >
+                                Löschen
+                            </button>
 
                         </div>
 
-                    </section>
 
+                        {/* ==================================================
+                            SHELF
+                            ================================================== */}
 
-                    {/* =================================================
-                        Lochreihe
-                    ================================================= */}
+                        {func.type === "shelf" && (
 
-                    <section>
+                            <div className="space-y-5">
 
-                        <div className="
-                            text-xs
-                            uppercase
-                            tracking-wide
-                            text-gray-500
-                        ">
-                            Lochreihe
-                        </div>
+                                {/* --------------------------------
+                                    Einlegeböden
+                                    -------------------------------- */}
 
+                                <div>
 
-                        <div className="
-                            mt-4
-                            space-y-4
-                        ">
+                                    <div className="text-xs uppercase tracking-wide text-gray-500">
+                                        Einlegeböden
+                                    </div>
 
-                            {/* Lochabstand */}
+                                    <div className="mt-4 space-y-4">
 
-                            <label className="block">
+                                        {/* Fächeranzahl */}
+                                        <label className="block">
 
-                                <span className="
-                                    text-xs
-                                    text-gray-400
-                                ">
-                                    Lochabstand
-                                </span>
-
-
-                                <input
-                                    type="number"
-                                    min="1"
-                                    step="0.1"
-                                    value={
-                                        functionConfig
-                                            .holeRow
-                                            ?.spacing ??
-                                        32
-                                    }
-                                    onChange={(event) =>
-                                        updateNestedFunctionConfig(
-                                            "holeRow",
-                                            {
-                                                spacing:
-                                                    Number(
-                                                        event.target.value
-                                                    )
-                                            }
-                                        )
-                                    }
-                                    className="
-                                        mt-1
-                                        w-full
-                                        rounded-lg
-                                        border
-                                        border-gray-700
-                                        bg-gray-900
-                                        px-3
-                                        py-2
-                                        text-white
-                                    "
-                                />
-
-                            </label>
-
-
-                            {/* Abstand vorne */}
-
-                            <label className="block">
-
-                                <span className="
-                                    text-xs
-                                    text-gray-400
-                                ">
-                                    Abstand von vorne
-                                </span>
-
-
-                                <input
-                                    type="number"
-                                    min="0"
-                                    step="0.5"
-                                    value={
-                                        functionConfig
-                                            .holeRow
-                                            ?.frontOffset ??
-                                        ""
-                                    }
-                                    onChange={(event) =>
-                                        updateNestedFunctionConfig(
-                                            "holeRow",
-                                            {
-                                                frontOffset:
-                                                    Number(
-                                                        event.target.value
-                                                    )
-                                            }
-                                        )
-                                    }
-                                    className="
-                                        mt-1
-                                        w-full
-                                        rounded-lg
-                                        border
-                                        border-gray-700
-                                        bg-gray-900
-                                        px-3
-                                        py-2
-                                        text-white
-                                    "
-                                />
-
-                            </label>
-
-
-                            {/* Abstand hinten */}
-
-                            <label className="block">
-
-                                <span className="
-                                    text-xs
-                                    text-gray-400
-                                ">
-                                    Abstand von hinten
-                                </span>
-
-
-                                <input
-                                    type="number"
-                                    min="0"
-                                    step="0.5"
-                                    value={
-                                        functionConfig
-                                            .holeRow
-                                            ?.backOffset ??
-                                        ""
-                                    }
-                                    onChange={(event) =>
-                                        updateNestedFunctionConfig(
-                                            "holeRow",
-                                            {
-                                                backOffset:
-                                                    Number(
-                                                        event.target.value
-                                                    )
-                                            }
-                                        )
-                                    }
-                                    className="
-                                        mt-1
-                                        w-full
-                                        rounded-lg
-                                        border
-                                        border-gray-700
-                                        bg-gray-900
-                                        px-3
-                                        py-2
-                                        text-white
-                                    "
-                                />
-
-                            </label>
-
-
-                            {/* Start unten */}
-
-                            <label className="block">
-
-                                <span className="
-                                    text-xs
-                                    text-gray-400
-                                ">
-                                    Lochreihe Start von unten
-                                </span>
-
-
-                                <input
-                                    type="number"
-                                    min="0"
-                                    step="1"
-                                    value={
-                                        functionConfig
-                                            .holeRow
-                                            ?.startFromBottom ??
-                                        150
-                                    }
-                                    onChange={(event) =>
-                                        updateNestedFunctionConfig(
-                                            "holeRow",
-                                            {
-                                                startFromBottom:
-                                                    Number(
-                                                        event.target.value
-                                                    )
-                                            }
-                                        )
-                                    }
-                                    className="
-                                        mt-1
-                                        w-full
-                                        rounded-lg
-                                        border
-                                        border-gray-700
-                                        bg-gray-900
-                                        px-3
-                                        py-2
-                                        text-white
-                                    "
-                                />
-
-                            </label>
-
-
-                            {/* Ende oben */}
-
-                            <label className="block">
-
-                                <span className="
-                                    text-xs
-                                    text-gray-400
-                                ">
-                                    Lochreihe Ende von oben
-                                </span>
-
-
-                                <input
-                                    type="number"
-                                    min="0"
-                                    step="1"
-                                    value={
-                                        functionConfig
-                                            .holeRow
-                                            ?.endFromTop ??
-                                        150
-                                    }
-                                    onChange={(event) =>
-                                        updateNestedFunctionConfig(
-                                            "holeRow",
-                                            {
-                                                endFromTop:
-                                                    Number(
-                                                        event.target.value
-                                                    )
-                                            }
-                                        )
-                                    }
-                                    className="
-                                        mt-1
-                                        w-full
-                                        rounded-lg
-                                        border
-                                        border-gray-700
-                                        bg-gray-900
-                                        px-3
-                                        py-2
-                                        text-white
-                                    "
-                                />
-
-                            </label>
-
-                        </div>
-
-                    </section>
-
-                </>
-            )}
-
-
-            {/* =================================================
-                MITTELWAND
-            ================================================= */}
-
-            {functionType === "middleWall" && (
-
-                <section>
-
-                    <div className="
-                        text-xs
-                        uppercase
-                        tracking-wide
-                        text-gray-500
-                    ">
-                        Mittelwände
-                    </div>
-
-
-                    <div className="
-                        mt-4
-                        space-y-6
-                    ">
-
-                        {middleWalls.map(
-                            (wall, index) => {
-
-                                const isVerticalWall = (wall.orientation ?? "horizontal") === "vertical";
-
-                                const cabinetTop =
-                                    getMiddleWallOffset(
-                                        wall,
-                                        "cabinetTop"
-                                    );
-
-                                const cabinetBottom =
-                                    getMiddleWallOffset(
-                                        wall,
-                                        "cabinetBottom"
-                                    );
-
-                                const sectionTop =
-                                    getMiddleWallOffset(
-                                        wall,
-                                        "sectionTop"
-                                    );
-
-                                const sectionBottom =
-                                    getMiddleWallOffset(
-                                        wall,
-                                        "sectionBottom"
-                                    );
-
-
-                                return (
-
-                                    <div
-                                        key={wall.id}
-                                        className="
-                                            rounded-lg
-                                            border
-                                            border-gray-800
-                                            bg-gray-950
-                                            p-3
-                                        "
-                                    >
-
-                                        {/* =================================
-                                            Kopf
-                                        ================================= */}
-
-                                        <div className="mb-4 flex items-center justify-between">
-
-                                            <div className="text-sm font-medium text-gray-200">
-                                                Mittelwand {index + 1}
-                                            </div>
-
-                                            <div className="flex gap-1">
-
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        updateMiddleWall(wall, {
-                                                            orientation: "horizontal",
-                                                        })
-                                                    }
-                                                    className={`rounded px-2 py-1 text-xs ${
-                                                        (wall.orientation ?? "horizontal") === "horizontal"
-                                                            ? "bg-gray-700 text-white"
-                                                            : "text-gray-500 hover:bg-gray-800"
-                                                    }`}
-                                                >
-                                                    Horizontal
-                                                </button>
-
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        updateMiddleWall(wall, {
-                                                            orientation: "vertical",
-                                                        })
-                                                    }
-                                                    className={`rounded px-2 py-1 text-xs ${
-                                                        (wall.orientation ?? "horizontal") === "vertical"
-                                                            ? "bg-gray-700 text-white"
-                                                            : "text-gray-500 hover:bg-gray-800"
-                                                    }`}
-                                                >
-                                                    Vertikal
-                                                </button>
-
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeMiddleWall(wall.id)}
-                                                    disabled={middleWalls.length <= 1}
-                                                    className="rounded px-2 py-1 text-xs text-red-400 hover:bg-red-950 disabled:cursor-not-allowed disabled:opacity-30"
-                                                >
-                                                    Entfernen
-                                                </button>
-
-                                            </div>
-
-                                        </div>
-
-
-                                        {!isVerticalWall ? (
-    <>
-        <label className="block">
-            <span className="text-xs text-gray-400">
-                Korpusoberkante
-            </span>
-
-            <input
-                type="number"
-                min="0"
-                step="0.5"
-                value={Number(
-                    getMiddleWallOffset(wall, "cabinetTop")
-                ).toFixed(1)}
-                onChange={(event) =>
-                    setMiddleWallPosition(
-                        wall,
-                        "cabinetTop",
-                        event.target.value
-                    )
-                }
-                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
-            />
-        </label>
-
-        <label className="mt-3 block">
-            <span className="text-xs text-gray-400">
-                Korpusunterkante
-            </span>
-
-            <input
-                type="number"
-                min="0"
-                step="0.5"
-                value={Number(
-                    getMiddleWallOffset(wall, "cabinetBottom")
-                ).toFixed(1)}
-                onChange={(event) =>
-                    setMiddleWallPosition(
-                        wall,
-                        "cabinetBottom",
-                        event.target.value
-                    )
-                }
-                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
-            />
-        </label>
-
-        <label className="mt-3 block">
-            <span className="text-xs text-gray-400">
-                Sektionoberkante
-            </span>
-
-            <input
-                type="number"
-                min="0"
-                step="0.5"
-                value={Number(
-                    getMiddleWallOffset(wall, "sectionTop")
-                ).toFixed(1)}
-                onChange={(event) =>
-                    setMiddleWallPosition(
-                        wall,
-                        "sectionTop",
-                        event.target.value
-                    )
-                }
-                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
-            />
-        </label>
-
-        <label className="mt-3 block">
-            <span className="text-xs text-gray-400">
-                Sektionunterkante
-            </span>
-
-            <input
-                type="number"
-                min="0"
-                step="0.5"
-                value={Number(
-                    getMiddleWallOffset(wall, "sectionBottom")
-                ).toFixed(1)}
-                onChange={(event) =>
-                    setMiddleWallPosition(
-                        wall,
-                        "sectionBottom",
-                        event.target.value
-                    )
-                }
-                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
-            />
-        </label>
-    </>
-                                        ) : (
-                                                <>
-                                                    <label className="block">
-                                                        <span className="text-xs text-gray-400">
-                                                            Korpus linke Kante
-                                                        </span>
-
-                                                        <input
-                                                            type="number"
-                                                            min="0"
-                                                            step="0.5"
-                                                            value={Number(
-                                                                getMiddleWallOffset(wall, "cabinetLeft")
-                                                            ).toFixed(1)}
-                                                            onChange={(event) =>
-                                                                setMiddleWallPosition(
-                                                                    wall,
-                                                                    "cabinetLeft",
-                                                                    event.target.value
-                                                                )
-                                                            }
-                                                            className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
-                                                        />
-                                                    </label>
-
-                                                    <label className="mt-3 block">
-                                                        <span className="text-xs text-gray-400">
-                                                            Korpus rechte Kante
-                                                        </span>
-
-                                                        <input
-                                                            type="number"
-                                                            min="0"
-                                                            step="0.5"
-                                                            value={Number(
-                                                                getMiddleWallOffset(wall, "cabinetRight")
-                                                            ).toFixed(1)}
-                                                            onChange={(event) =>
-                                                                setMiddleWallPosition(
-                                                                    wall,
-                                                                    "cabinetRight",
-                                                                    event.target.value
-                                                                )
-                                                            }
-                                                            className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
-                                                        />
-                                                    </label>
-
-                                                    <label className="mt-3 block">
-                                                        <span className="text-xs text-gray-400">
-                                                            Sektion linke Kante
-                                                        </span>
-
-                                                        <input
-                                                            type="number"
-                                                            min="0"
-                                                            step="0.5"
-                                                            value={Number(
-                                                                getMiddleWallOffset(wall, "sectionLeft")
-                                                            ).toFixed(1)}
-                                                            onChange={(event) =>
-                                                                setMiddleWallPosition(
-                                                                    wall,
-                                                                    "sectionLeft",
-                                                                    event.target.value
-                                                                )
-                                                            }
-                                                            className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
-                                                        />
-                                                    </label>
-
-                                                    <label className="mt-3 block">
-                                                        <span className="text-xs text-gray-400">
-                                                            Sektion rechte Kante
-                                                        </span>
-
-                                                        <input
-                                                            type="number"
-                                                            min="0"
-                                                            step="0.5"
-                                                            value={Number(
-                                                                getMiddleWallOffset(wall, "sectionRight")
-                                                            ).toFixed(1)}
-                                                            onChange={(event) =>
-                                                                setMiddleWallPosition(
-                                                                    wall,
-                                                                    "sectionRight",
-                                                                    event.target.value
-                                                                )
-                                                            }
-                                                            className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
-                                                        />
-                                                    </label>
-                                                </>
-                                            )}
-
-
-                                        {/* =================================
-                                            Aktiver Bezug
-                                        ================================= */}
-
-                                        <label className="mt-3 block">
                                             <span className="text-xs text-gray-400">
-                                                Aktiver Bezug
+                                                Fächeranzahl
                                             </span>
 
-                                            <select
-                                                value={wall.positionReference}
-                                                onChange={(event) =>
-                                                    updateMiddleWall(wall, {
-                                                        positionReference: event.target.value
-                                                    })
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                value={
+                                                    func.compartmentCount ?? 2
                                                 }
-                                                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white"
-                                            >
+                                                onChange={(event) =>
+                                                    updateFunction(
+                                                        func.id,
+                                                        {
+                                                            compartmentCount:
+                                                                Math.max(
+                                                                    1,
+                                                                    Number(
+                                                                        event.target.value
+                                                                    )
+                                                                )
+                                                        }
+                                                    )
+                                                }
+                                                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                                            />
 
-                                                {isVerticalWall ? (
-                                                    <>
-                                                        <option value="sectionLeft">
-                                                            Sektion links
-                                                        </option>
-                                                        <option value="sectionRight">
-                                                            Sektion rechts
-                                                        </option>
-                                                        <option value="cabinetLeft">
-                                                            Korpus links
-                                                        </option>
-                                                        <option value="cabinetRight">
-                                                            Korpus rechts
-                                                        </option>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <option value="sectionBottom">
-                                                            Sektion unten
-                                                        </option>
-                                                        <option value="sectionTop">
-                                                            Sektion oben
-                                                        </option>
-                                                        <option value="cabinetBottom">
-                                                            Korpus unten
-                                                        </option>
-                                                        <option value="cabinetTop">
-                                                            Korpus oben
-                                                        </option>
-                                                    </>
-                                                )}
-
-                                            </select>
                                         </label>
 
 
-                                        {/* =================================
-                                            Aktueller Abstand
-                                        ================================= */}
+                                        {/* Fachtiefe */}
+                                        <label className="block">
 
-                                        <label className="
-                                            mt-3
-                                            block
-                                        ">
-
-                                            <span className="
-                                                text-xs
-                                                text-gray-400
-                                            ">
-                                                Abstand des Mittelpunktes
+                                            <span className="text-xs text-gray-400">
+                                                Fachtiefe
                                             </span>
-
 
                                             <input
                                                 type="number"
                                                 min="0"
-                                                step="0.5"
-                                                value={
+                                                max={
                                                     Number(
-                                                        wall.positionOffset ??
-                                                        0
-                                                    ).toFixed(1)
-                                                }
-                                                onChange={(event) =>
-                                                    setMiddleWallPosition(
-                                                        wall,
-                                                        wall.positionReference,
-                                                        event.target.value
+                                                        activeCabinet.depth ?? 0
                                                     )
                                                 }
-                                                className="
-                                                    mt-1
-                                                    w-full
-                                                    rounded-lg
-                                                    border
-                                                    border-gray-700
-                                                    bg-gray-900
-                                                    px-3
-                                                    py-2
-                                                    text-white
-                                                "
+                                                step="1"
+                                                value={
+                                                    Math.max(
+                                                        0,
+                                                        Number(
+                                                            activeCabinet.depth ?? 0
+                                                        ) -
+                                                        Number(
+                                                            func.shelfFrontOffset ?? 0
+                                                        )
+                                                    )
+                                                }
+                                                onChange={(event) => {
+
+                                                    const depth =
+                                                        Number(
+                                                            event.target.value
+                                                        );
+
+                                                    if (
+                                                        !Number.isFinite(
+                                                            depth
+                                                        )
+                                                    ) {
+                                                        return;
+                                                    }
+
+                                                    const cabinetDepth =
+                                                        Number(
+                                                            activeCabinet.depth ?? 0
+                                                        );
+
+                                                    const clampedDepth =
+                                                        Math.max(
+                                                            0,
+                                                            Math.min(
+                                                                cabinetDepth,
+                                                                depth
+                                                            )
+                                                        );
+
+                                                    updateFunction(
+                                                        func.id,
+                                                        {
+                                                            shelfFrontOffset:
+                                                                cabinetDepth -
+                                                                clampedDepth
+                                                        }
+                                                    );
+
+                                                }}
+                                                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                                            />
+
+                                        </label>
+
+
+                                        {/* Abstand vorne */}
+                                        <label className="block">
+
+                                            <span className="text-xs text-gray-400">
+                                                Abstand von vorne
+                                            </span>
+
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max={
+                                                    Number(
+                                                        activeCabinet.depth ?? 0
+                                                    )
+                                                }
+                                                step="1"
+                                                value={
+                                                    func.shelfFrontOffset ?? 0
+                                                }
+                                                onChange={(event) => {
+
+                                                    const frontOffset =
+                                                        Number(
+                                                            event.target.value
+                                                        );
+
+                                                    if (
+                                                        !Number.isFinite(
+                                                            frontOffset
+                                                        )
+                                                    ) {
+                                                        return;
+                                                    }
+
+                                                    const cabinetDepth =
+                                                        Number(
+                                                            activeCabinet.depth ?? 0
+                                                        );
+
+                                                    const clampedOffset =
+                                                        Math.max(
+                                                            0,
+                                                            Math.min(
+                                                                cabinetDepth,
+                                                                frontOffset
+                                                            )
+                                                        );
+
+                                                    updateFunction(
+                                                        func.id,
+                                                        {
+                                                            shelfFrontOffset:
+                                                                clampedOffset
+                                                        }
+                                                    );
+
+                                                }}
+                                                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
                                             />
 
                                         </label>
 
                                     </div>
-                                );
-                            }
-                        )}
 
-
-                        {/* =================================================
-                            Weitere Mittelwand
-                        ================================================= */}
-
-                        <button
-                            type="button"
-                            onClick={
-                                addMiddleWall
-                            }
-                            className="
-                                w-full
-                                rounded
-                                border
-                                border-gray-700
-                                bg-gray-800
-                                px-3
-                                py-2
-                                text-sm
-                                hover:bg-gray-700
-                            "
-                        >
-                            + Mittelwand hinzufügen
-                        </button>
-
-                    </div>
-
-                </section>
-            )}
-
-
-            {/* =================================================
-                LEGRABOX
-            ================================================= */}
-
-            {functionType === "legrabox" && (
-
-    <>
-
-        {/* =====================================================
-            LEGRABOXEN
-        ===================================================== */}
-
-        <section>
-
-            <div className="
-                text-xs
-                uppercase
-                tracking-wide
-                text-gray-500
-            ">
-                Legraboxen
-            </div>
-
-
-            <div className="
-                mt-4
-                space-y-5
-            ">
-
-
-                {(
-                    functionConfig.legraboxes ?? []
-                ).map(
-                    (box, index) => (
-
-                        <div
-                            key={box.id}
-                            className="
-                                rounded-lg
-                                border
-                                border-gray-800
-                                bg-gray-800
-                                p-3
-                            "
-                        >
-
-                            {/* =================================
-                                Kopf
-                            ================================= */}
-
-                            <div className="
-                                mb-4
-                                flex
-                                items-center
-                                justify-between
-                            ">
-
-                                <div className="
-                                    text-sm
-                                    font-medium
-                                    text-gray-200
-                                ">
-                                    Legrabox {index + 1}
                                 </div>
 
 
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        removeLegrabox(
-                                            box.id
-                                        )
-                                    }
-                                    disabled={
-                                        (
-                                            functionConfig
-                                                .legraboxes
-                                                ?.length ?? 0
-                                        ) <= 1
-                                    }
-                                    className="
-                                        rounded
-                                        px-2
-                                        py-1
-                                        text-xs
-                                        text-red-400
-                                        hover:bg-red-950
-                                        disabled:cursor-not-allowed
-                                        disabled:opacity-30
-                                    "
-                                >
-                                    Entfernen
-                                </button>
+                                {/* --------------------------------
+                                    Lochreihe
+                                    -------------------------------- */}
 
-                            </div>
+                                <div>
 
+                                    <div className="text-xs uppercase tracking-wide text-gray-500">
+                                        Lochreihe
+                                    </div>
 
-                            {/* =================================
-                                Variante
-                            ================================= */}
+                                    <div className="mt-4 space-y-4">
 
-                            <label className="block">
+                                        {/* Lochabstand */}
+                                        <label className="block">
 
-                                <span className="
-                                    text-xs
-                                    text-gray-400
-                                ">
-                                    Variante
-                                </span>
-
-
-                                <select
-                                    value={
-                                        box.variant ?? "M"
-                                    }
-                                    onChange={(event) =>
-                                        updateLegrabox(
-                                            box.id,
-                                            {
-                                                variant:
-                                                    event.target.value
-                                            }
-                                        )
-                                    }
-                                    className="
-                                        mt-1
-                                        w-full
-                                        rounded-lg
-                                        border
-                                        border-gray-700
-                                        bg-gray-900
-                                        px-3
-                                        py-2
-                                        text-sm
-                                        text-white
-                                        focus:border-blue-500
-                                        focus:outline-none
-                                    "
-                                >
-
-                                    <option value="M">
-                                        M
-                                    </option>
-
-                                    <option value="C">
-                                        C
-                                    </option>
-
-                                    <option value="K">
-                                        K
-                                    </option>
-
-                                    <option value="L">
-                                        L
-                                    </option>
-
-                                </select>
-
-                            </label>
-
-
-                            {/* =================================
-                                Auszugtiefe
-                            ================================= */}
-
-                            <label className="
-                                mt-3
-                                block
-                            ">
-
-                                <span className="
-                                    text-xs
-                                    text-gray-400
-                                ">
-                                    Auszugtiefe
-                                </span>
-
-
-                                <select
-                                    value={
-                                        box.drawerDepth ??
-                                        getDefaultDrawerDepth(
-                                            activeCabinet.depth
-                                        )
-                                    }
-                                    onChange={(event) =>
-                                        updateLegrabox(
-                                            box.id,
-                                            {
-                                                drawerDepth:
-                                                    Number(
-                                                        event.target.value
-                                                    )
-                                            }
-                                        )
-                                    }
-                                    className="
-                                        mt-1
-                                        w-full
-                                        rounded-lg
-                                        border
-                                        border-gray-700
-                                        bg-gray-900
-                                        px-3
-                                        py-2
-                                        text-sm
-                                        text-white
-                                    "
-                                >
-
-                                    {DRAWER_DEPTHS.map(
-                                        depth => (
-
-                                            <option
-                                                key={depth}
-                                                value={depth}
-                                            >
-                                                {depth} mm
-                                            </option>
-
-                                        )
-                                    )}
-
-                                </select>
-
-                            </label>
-
-
-                            {/* =================================
-                                Position
-                            ================================= */}
-
-                            <label className="
-                                mt-3
-                                block
-                            ">
-
-                                <span className="
-                                    text-xs
-                                    text-gray-400
-                                ">
-                                    Position über
-                                    Sektionunterkante
-                                </span>
-
-
-                                <input
-                                    type="number"
-                                    min="0"
-                                    step="0.5"
-                                    value={
-                                        box.positionFromBottom ??
-                                        40
-                                    }
-                                    onChange={(event) =>
-                                        updateLegrabox(
-                                            box.id,
-                                            {
-                                                positionFromBottom:
-                                                    Number(
-                                                        event.target.value
-                                                    )
-                                            }
-                                        )
-                                    }
-                                    className="
-                                        mt-1
-                                        w-full
-                                        rounded-lg
-                                        border
-                                        border-gray-700
-                                        bg-gray-900
-                                        px-3
-                                        py-2
-                                        text-white
-                                    "
-                                />
-
-                            </label>
-
-
-                            {/* =================================
-                                Aufdopplungen
-                            ================================= */}
-
-                            <div className="
-                                mt-5
-                                border-t
-                                border-gray-800
-                                pt-4
-                            ">
-
-                                <div className="
-                                    text-xs
-                                    uppercase
-                                    tracking-wide
-                                    text-gray-500
-                                ">
-                                    Aufdopplungen
-                                </div>
-
-
-                                <div className="
-                                    mt-3
-                                    space-y-3
-                                ">
-
-
-                                    {/* Links */}
-
-                                    <label className="
-                                        flex
-                                        items-center
-                                        gap-2
-                                        text-sm
-                                        text-gray-300
-                                    ">
-
-                                        <input
-                                            type="checkbox"
-                                            checked={
-                                                box.doubling
-                                                    ?.left ??
-                                                false
-                                            }
-                                            onChange={(event) =>
-                                                updateLegraboxDoubling(
-                                                    box.id,
-                                                    {
-                                                        left:
-                                                            event.target.checked
-                                                    }
-                                                )
-                                            }
-                                            className="
-                                                h-4
-                                                w-4
-                                                rounded
-                                                border-gray-700
-                                                bg-gray-800
-                                            "
-                                        />
-
-                                        Aufdopplung links
-
-                                    </label>
-
-
-                                    {/* Rechts */}
-
-                                    <label className="
-                                        flex
-                                        items-center
-                                        gap-2
-                                        text-sm
-                                        text-gray-300
-                                    ">
-
-                                        <input
-                                            type="checkbox"
-                                            checked={
-                                                box.doubling
-                                                    ?.right ??
-                                                false
-                                            }
-                                            onChange={(event) =>
-                                                updateLegraboxDoubling(
-                                                    box.id,
-                                                    {
-                                                        right:
-                                                            event.target.checked
-                                                    }
-                                                )
-                                            }
-                                            className="
-                                                h-4
-                                                w-4
-                                                rounded
-                                                border-gray-700
-                                                bg-gray-800
-                                            "
-                                        />
-
-                                        Aufdopplung rechts
-
-                                    </label>
-
-
-                                    {/* Stärke */}
-
-                                    {(
-                                        box.doubling?.left ||
-                                        box.doubling?.right
-                                    ) && (
-
-                                        <label className="
-                                            block
-                                        ">
-
-                                            <span className="
-                                                text-xs
-                                                text-gray-400
-                                            ">
-                                                Stärke der
-                                                Aufdopplung
+                                            <span className="text-xs text-gray-400">
+                                                Lochabstand
                                             </span>
-
 
                                             <input
                                                 type="number"
-                                                min="0"
-                                                step="0.5"
+                                                min="1"
+                                                step="0.1"
                                                 value={
-                                                    box.doubling
-                                                        ?.thickness ??
-                                                    0
+                                                    func.holeRow?.spacing ?? 32
                                                 }
                                                 onChange={(event) =>
-                                                    updateLegraboxDoubling(
-                                                        box.id,
+                                                    updateFunctionNested(
+                                                        func.id,
+                                                        "holeRow",
                                                         {
-                                                            thickness:
+                                                            spacing:
                                                                 Number(
                                                                     event.target.value
                                                                 )
                                                         }
                                                     )
                                                 }
-                                                className="
-                                                    mt-1
-                                                    w-full
-                                                    rounded-lg
-                                                    border
-                                                    border-gray-700
-                                                    bg-gray-900
-                                                    px-3
-                                                    py-2
-                                                    text-white
-                                                "
+                                                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
                                             />
 
                                         </label>
-                                    )}
+
+
+                                        {/* Vorne */}
+                                        <label className="block">
+
+                                            <span className="text-xs text-gray-400">
+                                                Abstand von vorne
+                                            </span>
+
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="0.5"
+                                                value={
+                                                    func.holeRow?.frontOffset ?? 37
+                                                }
+                                                onChange={(event) =>
+                                                    updateFunctionNested(
+                                                        func.id,
+                                                        "holeRow",
+                                                        {
+                                                            frontOffset:
+                                                                Number(
+                                                                    event.target.value
+                                                                )
+                                                        }
+                                                    )
+                                                }
+                                                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+                                            />
+
+                                        </label>
+
+
+                                        {/* Hinten */}
+                                        <label className="block">
+
+                                            <span className="text-xs text-gray-400">
+                                                Abstand von hinten
+                                            </span>
+
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="0.5"
+                                                value={
+                                                    func.holeRow?.backOffset ?? 37
+                                                }
+                                                onChange={(event) =>
+                                                    updateFunctionNested(
+                                                        func.id,
+                                                        "holeRow",
+                                                        {
+                                                            backOffset:
+                                                                Number(
+                                                                    event.target.value
+                                                                )
+                                                        }
+                                                    )
+                                                }
+                                                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+                                            />
+
+                                        </label>
+
+
+                                        {/* Start unten */}
+                                        <label className="block">
+
+                                            <span className="text-xs text-gray-400">
+                                                Lochreihe Start von unten
+                                            </span>
+
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="1"
+                                                value={
+                                                    func.holeRow?.startFromBottom ?? 150
+                                                }
+                                                onChange={(event) =>
+                                                    updateFunctionNested(
+                                                        func.id,
+                                                        "holeRow",
+                                                        {
+                                                            startFromBottom:
+                                                                Number(
+                                                                    event.target.value
+                                                                )
+                                                        }
+                                                    )
+                                                }
+                                                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+                                            />
+
+                                        </label>
+
+
+                                        {/* Ende oben */}
+                                        <label className="block">
+
+                                            <span className="text-xs text-gray-400">
+                                                Lochreihe Ende von oben
+                                            </span>
+
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="1"
+                                                value={
+                                                    func.holeRow?.endFromTop ?? 150
+                                                }
+                                                onChange={(event) =>
+                                                    updateFunctionNested(
+                                                        func.id,
+                                                        "holeRow",
+                                                        {
+                                                            endFromTop:
+                                                                Number(
+                                                                    event.target.value
+                                                                )
+                                                        }
+                                                    )
+                                                }
+                                                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+                                            />
+
+                                        </label>
+
+                                    </div>
 
                                 </div>
 
                             </div>
 
-                        </div>
-
-                    )
-                )}
+                        )}
 
 
-                {/* =================================================
-                    Neue Legrabox
-                ================================================= */}
+                        {func.type === "middleWall" && (
+                            <div className="space-y-5">
 
-                <button
-                    type="button"
-                    onClick={
-                        addLegrabox
-                    }
-                    className="
-                        w-full
-                        rounded
-                        border
-                        border-gray-700
-                        bg-gray-800
-                        px-3
-                        py-2
-                        text-sm
-                        hover:bg-gray-700
-                    "
-                >
-                    + Legrabox hinzufügen
-                </button>
+                                {/* =====================================================
+                                    AUSRICHTUNG
+                                    ===================================================== */}
 
-            </div>
+                                <div>
+                                    <div className="text-xs uppercase tracking-wide text-gray-500">
+                                        Ausrichtung
+                                    </div>
 
-        </section>
+                                    <div className="mt-3 grid grid-cols-2 gap-2">
 
-    </>
-)}
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                updateFunction(func.id, {
+                                                    orientation: "horizontal",
+                                                    positionReference: "sectionBottom",
+                                                    positionOffset: 0,
+                                                    absoluteOffset: 0
+                                                })
+                                            }
+                                            className={`
+                                                rounded-lg px-3 py-2 text-sm transition
+                                                ${
+                                                    (func.orientation ?? "horizontal") === "horizontal"
+                                                        ? "bg-blue-600 text-white"
+                                                        : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                                                }
+                                            `}
+                                        >
+                                            Horizontal
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                updateFunction(func.id, {
+                                                    orientation: "vertical",
+                                                    positionReference: "sectionLeft",
+                                                    positionOffset: 0,
+                                                    absoluteOffset: 0
+                                                })
+                                            }
+                                            className={`
+                                                rounded-lg px-3 py-2 text-sm transition
+                                                ${
+                                                    (func.orientation ?? "horizontal") === "vertical"
+                                                        ? "bg-blue-600 text-white"
+                                                        : "bg-gray-800 text-gray-400 hover:bg-gray-700"
+                                                }
+                                            `}
+                                        >
+                                            Vertikal
+                                        </button>
+
+                                    </div>
+                                </div>
+
+
+                                {/* =====================================================
+                                    POSITION
+                                    ===================================================== */}
+
+                                <div>
+
+                                    <div className="text-xs uppercase tracking-wide text-gray-500">
+                                        Position
+                                    </div>
+
+
+                                    {/* =================================================
+                                        HORIZONTAL
+                                        ================================================= */}
+
+                                    {(func.orientation ?? "horizontal") === "horizontal" ? (
+
+                                        <div className="mt-4 grid grid-cols-1 gap-4">
+
+                                            {/* Korpusoberkante */}
+                                            <label className="block">
+
+                                                <span className="text-xs text-gray-400">
+                                                    Abstand zur Korpusoberkante
+                                                </span>
+
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.5"
+                                                    value={Number(
+                                                        getMiddleWallOffset(
+                                                            func,
+                                                            "cabinetTop"
+                                                        )
+                                                    ).toFixed(1)}
+                                                    onChange={(event) =>
+                                                        setMiddleWallPosition(
+                                                            func.id,
+                                                            func,
+                                                            "cabinetTop",
+                                                            event.target.value
+                                                        )
+                                                    }
+                                                    className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                                                />
+
+                                            </label>
+
+
+                                            {/* Korpusunterkante */}
+                                            <label className="block">
+
+                                                <span className="text-xs text-gray-400">
+                                                    Abstand zur Korpusunterkante
+                                                </span>
+
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.5"
+                                                    value={Number(
+                                                        getMiddleWallOffset(
+                                                            func,
+                                                            "cabinetBottom"
+                                                        )
+                                                    ).toFixed(1)}
+                                                    onChange={(event) =>
+                                                        setMiddleWallPosition(
+                                                            func.id,
+                                                            func,
+                                                            "cabinetBottom",
+                                                            event.target.value
+                                                        )
+                                                    }
+                                                    className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                                                />
+
+                                            </label>
+
+
+                                            {/* Sektionoberkante */}
+                                            <label className="block">
+
+                                                <span className="text-xs text-gray-400">
+                                                    Abstand zur Sektionoberkante
+                                                </span>
+
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.5"
+                                                    value={Number(
+                                                        getMiddleWallOffset(
+                                                            func,
+                                                            "sectionTop"
+                                                        )
+                                                    ).toFixed(1)}
+                                                    onChange={(event) =>
+                                                        setMiddleWallPosition(
+                                                            func.id,
+                                                            func,
+                                                            "sectionTop",
+                                                            event.target.value
+                                                        )
+                                                    }
+                                                    className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                                                />
+
+                                            </label>
+
+
+                                            {/* Sektionunterkante */}
+                                            <label className="block">
+
+                                                <span className="text-xs text-gray-400">
+                                                    Abstand zur Sektionunterkante
+                                                </span>
+
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.5"
+                                                    value={Number(
+                                                        getMiddleWallOffset(
+                                                            func,
+                                                            "sectionBottom"
+                                                        )
+                                                    ).toFixed(1)}
+                                                    onChange={(event) =>
+                                                        setMiddleWallPosition(
+                                                            func.id,
+                                                            func,
+                                                            "sectionBottom",
+                                                            event.target.value
+                                                        )
+                                                    }
+                                                    className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                                                />
+
+                                            </label>
+
+                                        </div>
+
+                                    ) : (
+
+                                        /* =================================================
+                                        VERTIKAL
+                                        ================================================= */
+
+                                        <div className="mt-4 grid grid-cols-1 gap-4">
+
+                                            {/* Korpus linke Kante */}
+                                            <label className="block">
+
+                                                <span className="text-xs text-gray-400">
+                                                    Abstand zur Korpus linke Kante
+                                                </span>
+
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.5"
+                                                    value={Number(
+                                                        getMiddleWallOffset(
+                                                            func,
+                                                            "cabinetLeft"
+                                                        )
+                                                    ).toFixed(1)}
+                                                    onChange={(event) =>
+                                                        setMiddleWallPosition(
+                                                            func.id,
+                                                            func,
+                                                            "cabinetLeft",
+                                                            event.target.value
+                                                        )
+                                                    }
+                                                    className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                                                />
+
+                                            </label>
+
+
+                                            {/* Korpus rechte Kante */}
+                                            <label className="block">
+
+                                                <span className="text-xs text-gray-400">
+                                                    Abstand zur Korpus rechten Kante
+                                                </span>
+
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.5"
+                                                    value={Number(
+                                                        getMiddleWallOffset(
+                                                            func,
+                                                            "cabinetRight"
+                                                        )
+                                                    ).toFixed(1)}
+                                                    onChange={(event) =>
+                                                        setMiddleWallPosition(
+                                                            func.id,
+                                                            func,
+                                                            "cabinetRight",
+                                                            event.target.value
+                                                        )
+                                                    }
+                                                    className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                                                />
+
+                                            </label>
+
+
+                                            {/* Sektion linke Kante */}
+                                            <label className="block">
+
+                                                <span className="text-xs text-gray-400">
+                                                    Abstand zur Sektion linken Kante
+                                                </span>
+
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.5"
+                                                    value={Number(
+                                                        getMiddleWallOffset(
+                                                            func,
+                                                            "sectionLeft"
+                                                        )
+                                                    ).toFixed(1)}
+                                                    onChange={(event) =>
+                                                        setMiddleWallPosition(
+                                                            func.id,
+                                                            func,
+                                                            "sectionLeft",
+                                                            event.target.value
+                                                        )
+                                                    }
+                                                    className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                                                />
+
+                                            </label>
+
+
+                                            {/* Sektion rechte Kante */}
+                                            <label className="block">
+
+                                                <span className="text-xs text-gray-400">
+                                                    Abstand zur Sektion rechten Kante
+                                                </span>
+
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.5"
+                                                    value={Number(
+                                                        getMiddleWallOffset(
+                                                            func,
+                                                            "sectionRight"
+                                                        )
+                                                    ).toFixed(1)}
+                                                    onChange={(event) =>
+                                                        setMiddleWallPosition(
+                                                            func.id,
+                                                            func,
+                                                            "sectionRight",
+                                                            event.target.value
+                                                        )
+                                                    }
+                                                    className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                                                />
+
+                                            </label>
+
+                                        </div>
+                                    )}
+
+                                </div>
+                            </div>
+                        )}
+
+
+                        {/* ==================================================
+                            LEGRABOX
+                            ================================================== */}
+
+                        {func.type === "legrabox" && (
+
+                            <div className="space-y-5">
+
+                                {/* Variante */}
+                                <label className="block">
+
+                                    <span className="text-xs text-gray-400">
+                                        Variante
+                                    </span>
+
+                                    <select
+                                        value={func.variant ?? "M"}
+                                        onChange={(event) =>
+                                            updateLegrabox(
+                                                func.id,
+                                                {
+                                                    variant:
+                                                        event.target.value
+                                                }
+                                            )
+                                        }
+                                        className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+                                    >
+
+                                        <option value="M">
+                                            M
+                                        </option>
+
+                                        <option value="C">
+                                            C
+                                        </option>
+
+                                        <option value="K">
+                                            K
+                                        </option>
+
+                                        <option value="L">
+                                            L
+                                        </option>
+
+                                    </select>
+
+                                </label>
+
+
+                                {/* Auszugtiefe */}
+                                <label className="block">
+
+                                    <span className="text-xs text-gray-400">
+                                        Auszugtiefe
+                                    </span>
+
+                                    <select
+                                        value={
+                                            func.drawerDepth ??
+                                            getDefaultDrawerDepth(
+                                                activeCabinet.depth
+                                            )
+                                        }
+                                        onChange={(event) =>
+                                            updateLegrabox(
+                                                func.id,
+                                                {
+                                                    drawerDepth:
+                                                        Number(
+                                                            event.target.value
+                                                        )
+                                                }
+                                            )
+                                        }
+                                        className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white"
+                                    >
+
+                                        {DRAWER_DEPTHS.map(
+                                            depth => (
+                                                <option
+                                                    key={depth}
+                                                    value={depth}
+                                                >
+                                                    {depth} mm
+                                                </option>
+                                            )
+                                        )}
+
+                                    </select>
+
+                                </label>
+
+
+                                {/* Position */}
+                                <label className="block">
+
+                                    <span className="text-xs text-gray-400">
+                                        Position über Sektionunterkante
+                                    </span>
+
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.5"
+                                        value={
+                                            func.positionFromBottom ??
+                                            40
+                                        }
+                                        onChange={(event) =>
+                                            updateLegrabox(
+                                                func.id,
+                                                {
+                                                    positionFromBottom:
+                                                        Number(
+                                                            event.target.value
+                                                        )
+                                                }
+                                            )
+                                        }
+                                        className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+                                    />
+
+                                </label>
+
+
+                                {/* Aufdopplungen */}
+                                <div className="border-t border-gray-800 pt-4">
+
+                                    <div className="text-xs uppercase tracking-wide text-gray-500">
+                                        Aufdopplungen
+                                    </div>
+
+                                    <div className="mt-3 space-y-3">
+
+                                        <label className="flex items-center gap-2 text-sm text-gray-300">
+
+                                            <input
+                                                type="checkbox"
+                                                checked={
+                                                    func.doubling?.left ??
+                                                    false
+                                                }
+                                                onChange={(event) =>
+                                                    updateLegraboxDoubling(
+                                                        func.id,
+                                                        {
+                                                            left:
+                                                                event.target.checked
+                                                        }
+                                                    )
+                                                }
+                                                className="h-4 w-4 rounded border-gray-700 bg-gray-800"
+                                            />
+
+                                            Aufdopplung links
+
+                                        </label>
+
+
+                                        <label className="flex items-center gap-2 text-sm text-gray-300">
+
+                                            <input
+                                                type="checkbox"
+                                                checked={
+                                                    func.doubling?.right ??
+                                                    false
+                                                }
+                                                onChange={(event) =>
+                                                    updateLegraboxDoubling(
+                                                        func.id,
+                                                        {
+                                                            right:
+                                                                event.target.checked
+                                                        }
+                                                    )
+                                                }
+                                                className="h-4 w-4 rounded border-gray-700 bg-gray-800"
+                                            />
+
+                                            Aufdopplung rechts
+
+                                        </label>
+
+
+                                        {(func.doubling?.left ||
+                                            func.doubling?.right) && (
+
+                                            <label className="block">
+
+                                                <span className="text-xs text-gray-400">
+                                                    Stärke der Aufdopplung
+                                                </span>
+
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    step="0.5"
+                                                    value={
+                                                        func.doubling?.thickness ??
+                                                        0
+                                                    }
+                                                    onChange={(event) =>
+                                                        updateLegraboxDoubling(
+                                                            func.id,
+                                                            {
+                                                                thickness:
+                                                                    Number(
+                                                                        event.target.value
+                                                                    )
+                                                            }
+                                                        )
+                                                    }
+                                                    className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+                                                />
+
+                                            </label>
+
+                                        )}
+
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        )}
+
+                    </section>
+
+                )
+            )}
 
         </div>
     );
