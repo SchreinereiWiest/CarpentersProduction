@@ -1,293 +1,348 @@
 import React, {
-    useMemo,
-    useState
+    useState,
+    useEffect
 } from "react";
 
-const initialOperations = [
+import {
+    DEFAULT_CNC
+} from "../../projects/cabinetConfigurator/engine/cnc/cncDefaults";
+import axios from "axios";
 
-    {
-        id: "shelf",
-        name: "Einlegeboden",
-        description:
-            "Lochreihe für Einlegeböden",
+const cloneConfig = (value) => {
 
-        parameters: {
-            diameter: 5,
-            depth: 12,
-            spacing: 32,
-            frontOffset: 37,
-            backOffset: 37,
-            top: 150,
-            bottom: 150
-        }
-    },
+    return JSON.parse(
+        JSON.stringify(value)
+    );
 
-
-    {
-        id: "vb",
-        name: "VB",
-        description:
-            "Verbindungsbohrung",
-
-        parameters: {
-            diameter: 8,
-            depth: 15,
-            f: 0,
-            spec:
-                "50mm:1:1:1:50mm"
-        }
-    },
-
-
-    {
-        id: "vb2",
-        name: "VB2",
-        description:
-            "Gespiegelte Verbindungsbohrung",
-
-        parameters: {
-            diameter: 8,
-            depth: 15,
-            f: 0,
-            spec:
-                "50mm:1:1:1:50mm"
-        }
-    },
-
-
-    {
-        id: "LgBox",
-        name: "Legrabox",
-        description:
-            "Bohrbild für Legrabox",
-
-        parameters: {
-            diameter: 5,
-            depth: 12,
-            offset: 0
-        }
-    }
-
-];
-
-
-const initialLinks = [
-    {
-        id: "legrabox",
-        name: "Legrabox",
-        operation: "LgBox"
-    },
-    {
-        id: "shelf",
-        name: "Einlegeboden",
-        operation: "shelf"
-    },
-    {
-        id: "vb",
-        name: "Verbindung VB",
-        operation: "vb"
-    },
-    {
-        id: "vb2",
-        name: "Verbindung VB2",
-        operation: "vb2"
-    }
-];
+};
 
 
 export default function CncSettingsPanel() {
 
-    const [operations, setOperations] =
-        useState(initialOperations);
-
-    const [links, setLinks] =
-        useState(initialLinks);
-
-
-    const [selectedOperationId, setSelectedOperationId] =
-        useState(
-            initialOperations[0]?.id ?? null
-        );
+    const [
+        config,
+        setConfig
+    ] = useState(
+        () =>
+            cloneConfig(
+                DEFAULT_CNC
+            )
+    );
 
 
-    const [tab, setTab] =
-        useState("parameters");
+    const [
+        selectedSection,
+        setSelectedSection
+    ] = useState("spax");
 
 
-    const [saving, setSaving] =
-        useState(false);
+    const [
+        saving,
+        setSaving
+    ] = useState(false);
 
 
-    const selectedOperation =
-        operations.find(
-            operation =>
-                operation.id ===
-                selectedOperationId
-        );
+    /* =====================================================
+     * Verschachtelte Werte ändern
+     * ===================================================== */
 
-
-    const updateParameter =
-        (
-            key,
-            value
-        ) => {
-
-            setOperations(
-                prev =>
-                    prev.map(
-                        operation =>
-                            operation.id !==
-                            selectedOperationId
-                                ? operation
-                                : {
-                                    ...operation,
-
-                                    parameters: {
-                                        ...operation.parameters,
-
-                                        [key]:
-                                            value
-                                }
-                            }
-                    )
-            );
-        };
-
-
-    const addOperation = () => {
-
-        const operation = {
-
-            id:
-                crypto.randomUUID(),
-
-            name:
-                "Neue Bearbeitung",
-
-            description:
-                "",
-
-            parameters: {
-                diameter: 5,
-                depth: 10
-            }
-
-        };
-
-
-        setOperations(
-            prev => [
-                ...prev,
-                operation
-            ]
-        );
-
-
-        setSelectedOperationId(
-            operation.id
-        );
-    };
-
-
-    const deleteOperation = () => {
-
-        if (!selectedOperation) {
-            return;
-        }
-
-
-        setOperations(
-            prev =>
-                prev.filter(
-                    operation =>
-                        operation.id !==
-                        selectedOperation.id
-                )
-        );
-
-
-        setSelectedOperationId(
-            operations.find(
-                operation =>
-                    operation.id !==
-                    selectedOperation.id
-            )?.id ?? null
-        );
-    };
-
-
-    const updateLink = (
-        linkId,
-        operationId
+    const updateConfig = (
+        path,
+        value
     ) => {
 
-        setLinks(
-            prev =>
-                prev.map(
-                    link =>
-                        link.id !== linkId
-                            ? link
-                            : {
-                                ...link,
-                                operation:
-                                    operationId ||
-                                    null
-                            }
-                )
+        setConfig(
+            previous => {
+
+                const next =
+                    cloneConfig(
+                        previous
+                    );
+
+
+                let target =
+                    next;
+
+
+                for (
+                    let i = 0;
+                    i < path.length - 1;
+                    i++
+                ) {
+
+                    target =
+                        target[
+                            path[i]
+                        ];
+
+                }
+
+
+                target[
+                    path[path.length - 1]
+                ] =
+                    value;
+
+
+                return next;
+
+            }
         );
+
     };
 
 
-    const saveSettings = async () => {
+    const updateNumber = (
+        path,
+        value
+    ) => {
 
-        setSaving(true);
+        updateConfig(
+            path,
+            Number(value) || 0
+        );
 
-        try {
-
-            const data = {
-
-                schemaVersion: 1,
-
-                operations,
-
-                links
-
-            };
+    };
 
 
-            /*
-             * Später beispielsweise:
-             *
-             * await axios.put(
-             *   "/api/company-settings/cnc",
-             *   data
-             * );
-             */
+    const updateBoolean = (
+        path,
+        value
+    ) => {
 
-            console.log(
-                "CNC Settings:",
-                data
+        updateConfig(
+            path,
+            Boolean(value)
+        );
+
+    };
+
+
+    /* =====================================================
+     * Depth Pattern
+     * ===================================================== */
+
+    const updateDepthPattern = (
+        index,
+        value
+    ) => {
+
+        const pattern =
+            [
+                ...(config.legrabox.depthPattern ??
+                    [])
+            ];
+
+
+        pattern[index] =
+            Number(value) || 0;
+
+
+        updateConfig(
+            [
+                "legrabox",
+                "depthPattern"
+            ],
+            pattern
+        );
+
+    };
+
+
+    /* =====================================================
+     * Speichern
+     * ===================================================== */
+
+    const saveSettings =
+        async () => {
+
+            setSaving(true);
+
+
+            try {
+
+                const data = {
+
+                    schemaVersion:
+                        1,
+
+                    cncDefault:
+                        config
+
+                };
+
+
+                console.log(
+                    "CNC Settings:",
+                    data
+                );
+
+
+                const response =
+                    await axios.post(
+
+                        `/api/settings/cnc`,
+
+                        config,
+
+                        {
+                            withCredentials:
+                                true,
+
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            }
+                        }
+                    );
+
+
+                console.log(
+                    "Upload response:",
+                    response.data
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "Error uploading cabinet.json:",
+                    error
+                );
+
+                console.error(
+                    "Response:",
+                    error.response?.data
+                );
+            }
+            setSaving(false);
+        };
+
+
+    const resetSettings =
+        () => {
+
+            setConfig(
+                cloneConfig(
+                    DEFAULT_CNC
+                )
             );
 
-        } finally {
+        };
 
-            setSaving(false);
+
+    const sections = [
+
+        {
+            id:
+                "spax",
+
+            name:
+                "Spax / Verbinder"
+
+        },
+
+        {
+            id:
+                "shelf",
+
+            name:
+                "Fachboden"
+
+        },
+
+        {
+            id:
+                "legrabox",
+
+            name:
+                "Legrabox"
+
+        },
+
+        {
+            id:
+                "backPanel",
+
+            name:
+                "Rückwand"
 
         }
-    };
+
+    ];
+
+        useEffect(() => {
+            const loadGeneratedData = async () => {
+            
+                    try {
+            
+                        const response = await axios.get(
+            
+                            `/api/settings/cnc`,
+            
+                            {
+                                withCredentials: true
+                            }
+            
+                        );
+            
+                        const {
+            
+                            exists,
+            
+                            downloadUrl,
+            
+                        } = response.data;
+            
+            
+                        // Datei existiert bereits
+                        if (exists) {
+            
+                            try {
+                                const fileResponse = await fetch(
+                                    downloadUrl
+                                );
+            
+                                const data = await fileResponse.json();
+            
+                                setConfig(data);
+            
+                                return;
+                            } catch (error) {
+                                console.warn("cant fetch data, try new upload");
+                            }
+            
+                        }
+            
+                    } catch (error) {
+            
+                        console.error(
+                            "Generated data konnte nicht geladen werden",
+                            error
+                        );
+            
+                    }
+            
+                };
+    
+            loadGeneratedData();
+        }, []);
 
 
     return (
+
         <div className="
             h-full
             min-h-0
             flex
             flex-col
+            bg-gray-900
+            text-white
         ">
 
-            {/* ========================================== */}
-            {/* Header */}
-            {/* ========================================== */}
+
+            {/* =================================================
+             * Header
+             * ================================================= */}
 
             <div className="
                 h-16
@@ -313,51 +368,83 @@ export default function CncSettingsPanel() {
                         text-xs
                         text-gray-500
                     ">
-                        Bearbeitungen und Verknüpfungen
+                        Bearbeitungsparameter
                     </div>
 
                 </div>
 
 
-                <button
-                    type="button"
-                    onClick={
-                        saveSettings
-                    }
-                    disabled={saving}
-                    className="
-                        rounded
-                        bg-blue-600
-                        px-4
-                        py-2
-                        text-sm
-                        hover:bg-blue-700
-                        disabled:opacity-50
-                    "
-                >
-                    {saving
-                        ? "Speichern..."
-                        : "Speichern"}
-                </button>
+                <div className="
+                    flex
+                    items-center
+                    gap-2
+                ">
+
+                    <button
+                        type="button"
+                        onClick={
+                            resetSettings
+                        }
+                        className="
+                            rounded
+                            border
+                            border-gray-700
+                            px-4
+                            py-2
+                            text-sm
+                            text-gray-400
+                            hover:bg-gray-800
+                        "
+                    >
+                        Standardwerte
+                    </button>
+
+
+                    <button
+                        type="button"
+                        onClick={
+                            saveSettings
+                        }
+                        disabled={
+                            saving
+                        }
+                        className="
+                            rounded
+                            bg-blue-600
+                            px-4
+                            py-2
+                            text-sm
+                            hover:bg-blue-700
+                            disabled:opacity-50
+                        "
+                    >
+                        {
+                            saving
+                                ? "Speichern..."
+                                : "Speichern"
+                        }
+                    </button>
+
+                </div>
 
             </div>
 
 
-            {/* ========================================== */}
-            {/* Inhalt */}
-            {/* ========================================== */}
+            {/* =================================================
+             * Hauptbereich
+             * ================================================= */}
 
             <div className="
                 flex-1
                 min-h-0
                 grid
-                grid-cols-[280px_minmax(0,1fr)]
+                grid-cols-[240px_minmax(0,1fr)]
             ">
 
 
-                {/* ====================================== */}
-                {/* CNC Operationen */}
-                {/* ====================================== */}
+                {/* =================================================
+                 * Navigation
+                 * ================================================= */}
 
                 <aside className="
                     min-h-0
@@ -375,105 +462,78 @@ export default function CncSettingsPanel() {
                         tracking-wide
                         text-gray-500
                     ">
-                        Bearbeitungen
+                        Bereiche
                     </div>
 
 
-                    {operations.map(
-                        operation => {
+                    <div className="
+                        space-y-1
+                    ">
 
-                            const selected =
-                                operation.id ===
-                                selectedOperationId;
+                        {
+                            sections.map(
+                                section => {
+
+                                    const selected =
+                                        selectedSection ===
+                                        section.id;
 
 
-                            return (
-                                <button
-                                    key={
-                                        operation.id
-                                    }
-                                    type="button"
-                                    onClick={() => {
+                                    return (
 
-                                        setSelectedOperationId(
-                                            operation.id
-                                        );
+                                        <button
+                                            key={
+                                                section.id
+                                            }
 
-                                        setTab(
-                                            "parameters"
-                                        );
+                                            type="button"
 
-                                    }}
-                                    className={`
-                                        w-full
-                                        rounded-lg
-                                        border
-                                        px-3
-                                        py-3
-                                        mb-1
-                                        text-left
+                                            onClick={() =>
+                                                setSelectedSection(
+                                                    section.id
+                                                )
+                                            }
 
-                                        ${
-                                            selected
-                                                ? "border-blue-700 bg-gray-800"
-                                                : "border-transparent hover:bg-gray-800"
-                                        }
-                                    `}
-                                >
+                                            className={`
+                                                w-full
+                                                rounded-lg
+                                                border
+                                                px-3
+                                                py-3
+                                                text-left
+                                                text-sm
+                                                transition
 
-                                    <div className="
-                                        text-sm
-                                        text-gray-200
-                                    ">
-                                        {
-                                            operation.name
-                                        }
-                                    </div>
+                                                ${
+                                                    selected
 
-                                    <div className="
-                                        mt-1
-                                        text-xs
-                                        text-gray-500
-                                    ">
-                                        {
-                                            operation.id
-                                        }
-                                    </div>
+                                                        ? "border-blue-700 bg-gray-800 text-blue-200"
 
-                                </button>
-                            );
+                                                        : "border-transparent text-gray-300 hover:bg-gray-800"
+                                                }
+                                            `}
+                                        >
+
+                                            {
+                                                section.name
+                                            }
+
+                                        </button>
+
+                                    );
+
+                                }
+                            )
                         }
-                    )}
 
-
-                    <button
-                        type="button"
-                        onClick={
-                            addOperation
-                        }
-                        className="
-                            mt-3
-                            w-full
-                            rounded
-                            border
-                            border-dashed
-                            border-gray-700
-                            px-3
-                            py-2
-                            text-sm
-                            text-gray-400
-                            hover:bg-gray-800
-                        "
-                    >
-                        + Bearbeitung
-                    </button>
+                    </div>
 
                 </aside>
 
 
-                {/* ====================================== */}
-                {/* Editor */}
-                {/* ====================================== */}
+                {/* =================================================
+                 * Inhalt
+                 * ================================================= */}
 
                 <main className="
                     min-w-0
@@ -482,451 +542,1226 @@ export default function CncSettingsPanel() {
                     p-6
                 ">
 
-                    {!selectedOperation ? (
 
-                        <div className="
-                            text-gray-500
-                        ">
-                            Keine Bearbeitung ausgewählt.
-                        </div>
-
-                    ) : (
-
-                        <div className="
-                            max-w-5xl
-                            space-y-6
-                        ">
-
-                            {/* Name */}
-
-                            <section className="
-                                rounded-xl
-                                border
-                                border-gray-700
-                                bg-gray-800
-                                p-5
-                            ">
-
-                                <div className="
-                                    text-xs
-                                    text-gray-500
-                                ">
-                                    Bearbeitung
-                                </div>
-
-                                <div className="
-                                    mt-1
-                                    text-xl
-                                    font-semibold
-                                ">
-                                    {
-                                        selectedOperation.name
-                                    }
-                                </div>
-
-                                <div className="
-                                    mt-1
-                                    text-sm
-                                    text-gray-500
-                                ">
-                                    {
-                                        selectedOperation.description
-                                    }
-                                </div>
-
-                            </section>
-
-
-                            {/* Tabs */}
-
-                            <div className="
-                                flex
-                                gap-1
-                                border-b
-                                border-gray-700
-                            ">
-
-                                <Tab
-                                    active={
-                                        tab ===
-                                        "parameters"
-                                    }
-                                    onClick={() =>
-                                        setTab(
-                                            "parameters"
-                                        )
-                                    }
-                                >
-                                    Parameter
-                                </Tab>
-
-                                <Tab
-                                    active={
-                                        tab ===
-                                        "pattern"
-                                    }
-                                    onClick={() =>
-                                        setTab(
-                                            "pattern"
-                                        )
-                                    }
-                                >
-                                    Bohrbild
-                                </Tab>
-
-                                <Tab
-                                    active={
-                                        tab ===
-                                        "links"
-                                    }
-                                    onClick={() =>
-                                        setTab(
-                                            "links"
-                                        )
-                                    }
-                                >
-                                    Verknüpfungen
-                                </Tab>
-
-                            </div>
-
-
-                            {/* ================================= */}
-                            {/* Parameter */}
-                            {/* ================================= */}
-
-                            {tab ===
-                                "parameters" && (
-
-                                <section className="
-                                    rounded-xl
-                                    border
-                                    border-gray-700
-                                    bg-gray-800
-                                    p-5
-                                ">
-
-                                    <div className="
-                                        grid
-                                        grid-cols-3
-                                        gap-4
-                                    ">
-
-                                        {Object.entries(
-                                            selectedOperation.parameters ??
-                                            {}
-                                        ).map(
-                                            ([key, value]) => {
-
-                                                if (
-                                                    typeof value ===
-                                                    "number"
-                                                ) {
-
-                                                    return (
-                                                        <NumberField
-                                                            key={key}
-                                                            label={key}
-                                                            value={value}
-                                                            onChange={
-                                                                next =>
-                                                                    updateParameter(
-                                                                        key,
-                                                                        next
-                                                                    )
-                                                            }
-                                                        />
-                                                    );
-
-                                                }
-
-
-                                                return (
-                                                    <label
-                                                        key={key}
-                                                        className="
-                                                            block
-                                                            col-span-1
-                                                        "
-                                                    >
-
-                                                        <span className="
-                                                            block
-                                                            text-xs
-                                                            text-gray-500
-                                                            mb-1
-                                                        ">
-                                                            {key}
-                                                        </span>
-
-                                                        <input
-                                                            value={
-                                                                value ??
-                                                                ""
-                                                            }
-                                                            onChange={
-                                                                event =>
-                                                                    updateParameter(
-                                                                        key,
-                                                                        event.target.value
-                                                                    )
-                                                            }
-                                                            className="
-                                                                w-full
-                                                                rounded
-                                                                border
-                                                                border-gray-700
-                                                                bg-gray-900
-                                                                px-3
-                                                                py-2
-                                                                text-sm
-                                                            "
-                                                        />
-
-                                                    </label>
-                                                );
-                                            }
-                                        )}
-
-                                    </div>
-
-                                </section>
-
-                            )}
-
-
-                            {/* ================================= */}
-                            {/* Bohrbild */}
-                            {/* ================================= */}
-
-                            {tab ===
-                                "pattern" && (
-
-                                <section className="
-                                    rounded-xl
-                                    border
-                                    border-gray-700
-                                    bg-gray-800
-                                    p-5
-                                ">
-
-                                    <div className="
-                                        text-sm
-                                        text-gray-300
-                                        mb-3
-                                    ">
-                                        Bohrbild-Konfiguration
-                                    </div>
-
-                                    <div className="
-                                        rounded
-                                        bg-gray-900
-                                        border
-                                        border-gray-700
-                                        p-4
-                                        font-mono
-                                        text-sm
-                                        text-gray-400
-                                    ">
-                                        {
-                                            JSON.stringify(
-                                                selectedOperation.parameters,
-                                                null,
-                                                2
-                                            )
-                                        }
-                                    </div>
-
-                                </section>
-
-                            )}
-
-
-                            {/* ================================= */}
-                            {/* Links */}
-                            {/* ================================= */}
-
-                            {tab ===
-                                "links" && (
-
-                                <section className="
-                                    rounded-xl
-                                    border
-                                    border-gray-700
-                                    bg-gray-800
-                                    p-5
-                                ">
-
-                                    <div className="
-                                        space-y-3
-                                    ">
-
-                                        {links.map(
-                                            link => (
-
-                                                <div
-                                                    key={
-                                                        link.id
-                                                    }
-                                                    className="
-                                                        grid
-                                                        grid-cols-[1fr_240px]
-                                                        gap-4
-                                                        items-center
-                                                    "
-                                                >
-
-                                                    <div>
-
-                                                        <div className="
-                                                            text-sm
-                                                            text-gray-200
-                                                        ">
-                                                            {
-                                                                link.name
-                                                            }
-                                                        </div>
-
-                                                        <div className="
-                                                            text-xs
-                                                            text-gray-500
-                                                        ">
-                                                            {
-                                                                link.id
-                                                            }
-                                                        </div>
-
-                                                    </div>
-
-
-                                                    <select
-                                                        value={
-                                                            link.operation ??
-                                                            ""
-                                                        }
-                                                        onChange={
-                                                            event =>
-                                                                updateLink(
-                                                                    link.id,
-                                                                    event.target.value
-                                                                )
-                                                        }
-                                                        className="
-                                                            rounded
-                                                            border
-                                                            border-gray-700
-                                                            bg-gray-900
-                                                            px-3
-                                                            py-2
-                                                            text-sm
-                                                        "
-                                                    >
-
-                                                        <option value="">
-                                                            Keine
-                                                        </option>
-
-                                                        {operations.map(
-                                                            operation => (
-
-                                                                <option
-                                                                    key={
-                                                                        operation.id
-                                                                    }
-                                                                    value={
-                                                                        operation.id
-                                                                    }
-                                                                >
-                                                                    {
-                                                                        operation.name
-                                                                    }
-                                                                </option>
-
-                                                            )
-                                                        )}
-
-                                                    </select>
-
-                                                </div>
-
-                                            )
-                                        )}
-
-                                    </div>
-
-                                </section>
-
-                            )}
-
-
-                            {/* Löschen */}
-
-                            <div className="
-                                border-t
-                                border-gray-800
-                                pt-4
-                            ">
-
-                                <button
-                                    type="button"
-                                    onClick={
-                                        deleteOperation
-                                    }
-                                    className="
-                                        rounded
-                                        border
-                                        border-red-800
-                                        px-4
-                                        py-2
-                                        text-sm
-                                        text-red-400
-                                        hover:bg-red-950
-                                    "
-                                >
-                                    Bearbeitung löschen
-                                </button>
-
-                            </div>
-
-                        </div>
-
-                    )}
+                    {
+                        selectedSection ===
+                            "spax" && (
+
+                            <SpaxSettings
+                                config={
+                                    config
+                                }
+                                updateNumber={
+                                    updateNumber
+                                }
+                                updateBoolean={
+                                    updateBoolean
+                                }
+                            />
+
+                        )
+                    }
+
+
+                    {
+                        selectedSection ===
+                            "shelf" && (
+
+                            <ShelfSettings
+                                config={
+                                    config
+                                }
+                                updateNumber={
+                                    updateNumber
+                                }
+                            />
+
+                        )
+                    }
+
+
+                    {
+                        selectedSection ===
+                            "legrabox" && (
+
+                            <LegraboxSettings
+                                config={
+                                    config
+                                }
+                                updateNumber={
+                                    updateNumber
+                                }
+                                updateDepthPattern={
+                                    updateDepthPattern
+                                }
+                            />
+
+                        )
+                    }
+
+
+                    {
+                        selectedSection ===
+                            "backPanel" && (
+
+                            <BackPanelSettings
+                                config={
+                                    config
+                                }
+                                updateNumber={
+                                    updateNumber
+                                }
+                            />
+
+                        )
+                    }
 
                 </main>
 
             </div>
 
         </div>
+
     );
+
 }
 
 
-function Tab({
-    active,
-    children,
-    onClick
+/* =========================================================
+ * SPAX
+ * ========================================================= */
+
+function SpaxSettings({
+    config,
+    updateNumber,
+    updateBoolean
 }) {
 
     return (
-        <button
-            type="button"
-            onClick={onClick}
-            className={`
-                px-4
-                py-2
-                text-sm
-                border-b-2
 
-                ${
-                    active
-                        ? "border-blue-500 text-white"
-                        : "border-transparent text-gray-500 hover:text-gray-300"
-                }
-            `}
-        >
-            {children}
-        </button>
+        <div className="
+            max-w-5xl
+            space-y-6
+        ">
+
+
+            <SettingsHeader
+                title="Spax / Verbinder"
+                description="
+                    Einstellungen für VB, VBH und Spax-Bohrungen
+                "
+            />
+
+
+            {/* =================================================
+             * Geschraubt
+             * ================================================= */}
+
+            <SettingsCard
+                title="Allgemein"
+            >
+
+                <ToggleField
+                    label="Geschraubt"
+                    value={
+                        config.spax.enabled
+                    }
+                    onChange={
+                        value =>
+                            updateBoolean(
+                                [
+                                    "spax",
+                                    "enabled"
+                                ],
+                                value
+                            )
+                    }
+                />
+
+            </SettingsCard>
+
+
+            {/* =================================================
+             * Schraube
+             * ================================================= */}
+
+            <SettingsCard
+                title="Spax"
+            >
+
+                <div className="
+                    grid
+                    grid-cols-4
+                    gap-4
+                ">
+
+                    <NumberField
+                        label="Durchmesser"
+                        value={
+                            config.spax.screw
+                                .diameter
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "spax",
+                                        "screw",
+                                        "diameter"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                    <NumberField
+                        label="Tiefe"
+                        value={
+                            config.spax.screw
+                                .depth
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "spax",
+                                        "screw",
+                                        "depth"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                    <NumberField
+                        label="Startabstand"
+                        value={
+                            config.spax.screw
+                                .startOffset
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "spax",
+                                        "screw",
+                                        "startOffset"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                    <NumberField
+                        label="Endabstand"
+                        value={
+                            config.spax.screw
+                                .endOffset
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "spax",
+                                        "screw",
+                                        "endOffset"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                </div>
+
+            </SettingsCard>
+
+
+            {/* =================================================
+             * Verbinder
+             * ================================================= */}
+
+            <SettingsCard
+                title="Verbinder Ø 8 mm"
+            >
+
+                <div className="
+                    grid
+                    grid-cols-4
+                    gap-4
+                ">
+
+                    <NumberField
+                        label="Durchmesser"
+                        value={
+                            config.spax.connector
+                                .diameter
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "spax",
+                                        "connector",
+                                        "diameter"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                    <NumberField
+                        label="Tiefe"
+                        value={
+                            config.spax.connector
+                                .depth
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "spax",
+                                        "connector",
+                                        "depth"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                    <NumberField
+                        label="Startabstand"
+                        value={
+                            config.spax.connector
+                                .startOffset
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "spax",
+                                        "connector",
+                                        "startOffset"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                    <NumberField
+                        label="Endabstand"
+                        value={
+                            config.spax.connector
+                                .endOffset
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "spax",
+                                        "connector",
+                                        "endOffset"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                    <NumberField
+                        label="Schwellenwert 3 Löcher"
+                        value={
+                            config.spax.connector
+                                .holeCountThreshold
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "spax",
+                                        "connector",
+                                        "holeCountThreshold"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                </div>
+
+            </SettingsCard>
+
+
+            {/* =================================================
+             * Horizontal
+             * ================================================= */}
+
+            <SettingsCard
+                title="Horizontale Verbinder"
+            >
+
+                <div className="
+                    grid
+                    grid-cols-4
+                    gap-4
+                ">
+
+                    <NumberField
+                        label="Durchmesser"
+                        value={
+                            config.spax.horizontal
+                                .diameter
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "spax",
+                                        "horizontal",
+                                        "diameter"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                    <NumberField
+                        label="Tiefe"
+                        value={
+                            config.spax.horizontal
+                                .depth
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "spax",
+                                        "horizontal",
+                                        "depth"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                    <NumberField
+                        label="Startabstand"
+                        value={
+                            config.spax.horizontal
+                                .startOffset
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "spax",
+                                        "horizontal",
+                                        "startOffset"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                    <NumberField
+                        label="Endabstand"
+                        value={
+                            config.spax.horizontal
+                                .endOffset
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "spax",
+                                        "horizontal",
+                                        "endOffset"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                </div>
+
+            </SettingsCard>
+
+        </div>
+
     );
+
+}
+
+
+/* =========================================================
+ * FACHBODEN
+ * ========================================================= */
+
+function ShelfSettings({
+    config,
+    updateNumber
+}) {
+
+    return (
+
+        <div className="
+            max-w-5xl
+            space-y-6
+        ">
+
+            <SettingsHeader
+                title="Fachboden"
+                description="
+                    Einstellungen für die Lochreihen der Fachböden
+                "
+            />
+
+
+            <SettingsCard
+                title="Lochreihe"
+            >
+
+                <div className="
+                    grid
+                    grid-cols-5
+                    gap-4
+                ">
+
+                    <NumberField
+                        label="Durchmesser"
+                        value={
+                            config.shelf
+                                .diameter
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "shelf",
+                                        "diameter"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                    <NumberField
+                        label="Tiefe"
+                        value={
+                            config.shelf
+                                .depth
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "shelf",
+                                        "depth"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                    <NumberField
+                        label="Vorne"
+                        value={
+                            config.shelf
+                                .frontOffset
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "shelf",
+                                        "frontOffset"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                    <NumberField
+                        label="Hinten"
+                        value={
+                            config.shelf
+                                .backOffset
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "shelf",
+                                        "backOffset"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                </div>
+
+            </SettingsCard>
+
+        </div>
+
+    );
+
+}
+
+
+/* =========================================================
+ * LEGRABOX
+ * ========================================================= */
+
+function LegraboxSettings({
+    config,
+    updateNumber,
+    updateDepthPattern
+}) {
+
+    const depthPattern =
+        config.legrabox.depthPattern ??
+        [];
+
+
+    return (
+
+        <div className="
+            max-w-5xl
+            space-y-6
+        ">
+
+            <SettingsHeader
+                title="Legrabox"
+                description="
+                    Einstellungen für das Legrabox-Bohrbild
+                "
+            />
+
+
+            <SettingsCard
+                title="Allgemein"
+            >
+
+                <div className="
+                    grid
+                    grid-cols-3
+                    gap-4
+                ">
+
+                    <NumberField
+                        label="Durchmesser"
+                        value={
+                            config.legrabox
+                                .diameter
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "legrabox",
+                                        "diameter"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                    <NumberField
+                        label="Tiefe"
+                        value={
+                            config.legrabox
+                                .depth
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "legrabox",
+                                        "depth"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                </div>
+
+            </SettingsCard>
+
+
+            <SettingsCard
+                title="Tiefenpositionen"
+            >
+
+                <div className="
+                    grid
+                    grid-cols-5
+                    gap-4
+                ">
+
+                    {
+                        depthPattern.map(
+                            (
+                                value,
+                                index
+                            ) => (
+
+                                <NumberField
+                                    key={
+                                        index
+                                    }
+
+                                    label={
+                                        `Loch ${index + 1}`
+                                    }
+
+                                    value={
+                                        value
+                                    }
+
+                                    onChange={
+                                        next =>
+                                            updateDepthPattern(
+                                                index,
+                                                next
+                                            )
+                                    }
+                                />
+
+                            )
+                        )
+                    }
+
+                </div>
+
+
+                <div className="
+                    mt-3
+                    text-xs
+                    text-gray-500
+                ">
+
+                    Diese Positionen werden in der Reihenfolge
+                    der CNC-Bohrungen verwendet.
+
+                </div>
+
+            </SettingsCard>
+
+        </div>
+
+    );
+
+}
+
+
+/* =========================================================
+ * RÜCKWAND
+ * ========================================================= */
+
+function BackPanelSettings({
+    config,
+    updateNumber
+}) {
+
+    return (
+
+        <div className="
+            max-w-5xl
+            space-y-6
+        ">
+
+            <SettingsHeader
+                title="Rückwand"
+                description="
+                    Einstellungen für Nut, Falz und Rückwandbearbeitung
+                "
+            />
+
+
+            {/* =================================================
+             * Nut
+             * ================================================= */}
+
+            <SettingsCard
+                title="Rückwandnut"
+            >
+
+                <div className="
+                    grid
+                    grid-cols-4
+                    gap-4
+                ">
+
+                    <NumberField
+                        label="Vorne"
+                        value={
+                            config.backPanel.groove
+                                .frontOffset
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "backPanel",
+                                        "groove",
+                                        "frontOffset"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                    <NumberField
+                        label="Hinten"
+                        value={
+                            config.backPanel.groove
+                                .backOffset
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "backPanel",
+                                        "groove",
+                                        "backOffset"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                    <NumberField
+                        label="Nut-Tiefe"
+                        value={
+                            config.backPanel.groove
+                                .depth
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "backPanel",
+                                        "groove",
+                                        "depth"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                </div>
+
+            </SettingsCard>
+
+
+            {/* =================================================
+             * RNT
+             * ================================================= */}
+
+            <SettingsCard
+                title="RNT"
+            >
+
+                <div className="
+                    grid
+                    grid-cols-4
+                    gap-4
+                ">
+
+                    <NumberField
+                        label="Start"
+                        value={
+                            config.backPanel.groove.rnt
+                                .startOffset
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "backPanel",
+                                        "groove",
+                                        "rnt",
+                                        "startOffset"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                    <NumberField
+                        label="Ende"
+                        value={
+                            config.backPanel.groove.rnt
+                                .endOffset
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "backPanel",
+                                        "groove",
+                                        "rnt",
+                                        "endOffset"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                    <NumberField
+                        label="Offen Start"
+                        value={
+                            config.backPanel.groove.rnt
+                                .openStartOffset
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "backPanel",
+                                        "groove",
+                                        "rnt",
+                                        "openStartOffset"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                    <NumberField
+                        label="Zwischen Start"
+                        value={
+                            config.backPanel.groove.rnt
+                                .intermediateStartOffset
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "backPanel",
+                                        "groove",
+                                        "rnt",
+                                        "intermediateStartOffset"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                    <NumberField
+                        label="Zwischen Ende"
+                        value={
+                            config.backPanel.groove.rnt
+                                .intermediateEndOffset
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "backPanel",
+                                        "groove",
+                                        "rnt",
+                                        "intermediateEndOffset"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                    <NumberField
+                        label="Y"
+                        value={
+                            config.backPanel.groove.rnt
+                                .y
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "backPanel",
+                                        "groove",
+                                        "rnt",
+                                        "y"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                    <NumberField
+                        label="Z"
+                        value={
+                            config.backPanel.groove.rnt
+                                .z
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "backPanel",
+                                        "groove",
+                                        "rnt",
+                                        "z"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                    <NumberField
+                        label="Breite"
+                        value={
+                            config.backPanel.groove.rnt
+                                .width
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "backPanel",
+                                        "groove",
+                                        "rnt",
+                                        "width"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                    <NumberField
+                        label="Werkzeug"
+                        value={
+                            config.backPanel.groove.rnt
+                                .tool
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "backPanel",
+                                        "groove",
+                                        "rnt",
+                                        "tool"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                    <NumberField
+                        label="C"
+                        value={
+                            config.backPanel.groove.rnt
+                                .c
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "backPanel",
+                                        "groove",
+                                        "rnt",
+                                        "c"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                </div>
+
+            </SettingsCard>
+
+
+            {/* =================================================
+             * Falz
+             * ================================================= */}
+
+            <SettingsCard
+                title="Falz"
+            >
+
+                <div className="
+                    grid
+                    grid-cols-3
+                    gap-4
+                ">
+
+                    <NumberField
+                        label="Startabstand"
+                        value={
+                            config.backPanel.rabbet
+                                .startOffset
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "backPanel",
+                                        "rabbet",
+                                        "startOffset"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                    <NumberField
+                        label="Tiefe"
+                        value={
+                            config.backPanel.rabbet
+                                .depth
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "backPanel",
+                                        "rabbet",
+                                        "depth"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                </div>
+
+            </SettingsCard>
+
+
+            {/* =================================================
+             * Eingesetzter Falz
+             * ================================================= */}
+
+            <SettingsCard
+                title="Eingesetzter Falz"
+            >
+
+                <div className="
+                    grid
+                    grid-cols-3
+                    gap-4
+                ">
+
+                    <NumberField
+                        label="Startabstand"
+                        value={
+                            config.backPanel
+                                .insertedRabbet
+                                .startOffset
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "backPanel",
+                                        "insertedRabbet",
+                                        "startOffset"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                    <NumberField
+                        label="Tiefe"
+                        value={
+                            config.backPanel
+                                .insertedRabbet
+                                .depth
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "backPanel",
+                                        "insertedRabbet",
+                                        "depth"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                </div>
+
+            </SettingsCard>
+
+        </div>
+
+    );
+
+}
+
+
+/* =========================================================
+ * UI-Helfer
+ * ========================================================= */
+
+function SettingsHeader({
+    title,
+    description
+}) {
+
+    return (
+
+        <div>
+
+            <h2 className="
+                text-xl
+                font-semibold
+                text-gray-100
+            ">
+                {title}
+            </h2>
+
+            <div className="
+                mt-1
+                text-sm
+                text-gray-500
+            ">
+                {description}
+            </div>
+
+        </div>
+
+    );
+
+}
+
+
+function SettingsCard({
+    title,
+    children
+}) {
+
+    return (
+
+        <section className="
+            rounded-xl
+            border
+            border-gray-700
+            bg-gray-800
+            p-5
+        ">
+
+            <div className="
+                mb-4
+                text-sm
+                font-medium
+                text-gray-300
+            ">
+                {title}
+            </div>
+
+            {children}
+
+        </section>
+
+    );
+
 }
 
 
@@ -937,27 +1772,28 @@ function NumberField({
 }) {
 
     return (
+
         <label className="block">
 
             <span className="
+                mb-1
                 block
                 text-xs
                 text-gray-500
-                mb-1
             ">
                 {label}
             </span>
 
             <input
                 type="number"
-                value={value ?? 0}
-                onChange={
-                    event =>
-                        onChange(
-                            Number(
-                                event.target.value
-                            ) || 0
-                        )
+                step="any"
+                value={
+                    value ?? 0
+                }
+                onChange={event =>
+                    onChange(
+                        event.target.value
+                    )
                 }
                 className="
                     w-full
@@ -975,5 +1811,57 @@ function NumberField({
             />
 
         </label>
+
     );
+
+}
+
+
+function ToggleField({
+    label,
+    value,
+    onChange
+}) {
+
+    return (
+
+        <label className="
+            flex
+            items-center
+            justify-between
+            cursor-pointer
+        ">
+
+            <span className="
+                text-sm
+                text-gray-300
+            ">
+                {label}
+            </span>
+
+
+            <input
+                type="checkbox"
+                checked={
+                    value === true
+                }
+                onChange={event =>
+                    onChange(
+                        event.target.checked
+                    )
+                }
+                className="
+                    h-4
+                    w-4
+                    rounded
+                    border-gray-600
+                    bg-gray-900
+                    text-blue-600
+                "
+            />
+
+        </label>
+
+    );
+
 }

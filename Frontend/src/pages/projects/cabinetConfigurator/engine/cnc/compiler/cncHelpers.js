@@ -1,4 +1,5 @@
 import { DEFAULT_CNC } from "../cncDefaults";
+import axios from "axios";
 
 export const getOperationSignature = (operation) => {
 
@@ -135,11 +136,11 @@ export function flattenSections(
  * Allgemeine Helfer
  * ========================================================= */
 
-export const getCncConfig = (cabinet) => {
 
-    const custom =
-        cabinet?.cncDefault ??
-        {};
+
+export const getCncConfig = (cabinet, defaultConfig) => {
+
+    const custom = defaultConfig ?? {};
 
     return {
 

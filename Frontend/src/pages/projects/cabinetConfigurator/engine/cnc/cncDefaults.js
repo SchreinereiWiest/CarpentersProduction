@@ -57,7 +57,7 @@ export const DEFAULT_CNC = {
             frontOffset: 42,
             backOffset: 42,
 
-            depth: 8.3,
+            depth: 9,
 
             rnt: {
                 startOffset: 3,

@@ -30,8 +30,9 @@ export const getSettingsData = async (req, res) => {
         break;
 
       default:
-        fileName="";
-        break;
+        return res.status(400).json({
+            message: "Invalid settings name"
+        });
     }
 
     try {

@@ -9,7 +9,8 @@ export async function ProjectSave(
     projectDescription,
     projectName,
     mode,
-    id
+    id,
+    defaultConfig
 ) {
 
     if (
@@ -33,9 +34,10 @@ export async function ProjectSave(
     // Part List + CNC erzeugen
     // =========================================================
     const generatedData =
-        buildPartList(
+        await buildPartList(
             cabinets,
-            materials
+            materials,
+            defaultConfig
         );
 
 

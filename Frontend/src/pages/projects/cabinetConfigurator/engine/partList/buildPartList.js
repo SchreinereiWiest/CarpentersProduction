@@ -13,11 +13,12 @@ import { generateMiddleWallParts } from "./geometry/generate/generateMiddleWall"
 import { generateFrontParts } from "./geometry/generate/generateFrontParts";
 import { generateLegraboxHardware } from "./hardware/generateLegraboxHardware";
 
-import { applyCncToParts } from "../cnc/cncGenerator";
+import { compileCnc } from "../cnc/compiler/cncCompiler";
 
-export const buildPartList = (
+export const buildPartList = async (
     cabinets = [],
-    materials = []
+    materials = [],
+    defaultConfig = {}
 ) => {
 
     let pid = 0;
@@ -189,10 +190,11 @@ export const buildPartList = (
             // =================================================
 
             root.Children =
-                applyCncToParts(
-                    cabinet,
-                    root.Children
-                );  
+                compileCnc(
+                cabinet,
+                root.Children,
+                defaultConfig
+            );
                 
             return root;
 

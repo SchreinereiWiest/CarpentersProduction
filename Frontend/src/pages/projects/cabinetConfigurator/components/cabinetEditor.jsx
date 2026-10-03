@@ -88,6 +88,8 @@ export default function CabinetEditor() {
     const [saving, setSaving] = useState(false);
     const [loadingGeneratedData, setLoadingGeneratedData] = useState(false);
 
+    const [defaultConfig, setDefaultConfig] = useState();
+
     const [defaultCabinet, setDefaultCabinet] = useState({width: 600,
     height: 720,
     depth: 535,
@@ -419,7 +421,8 @@ export default function CabinetEditor() {
                 projectDescription,
                 projectName,
                 mode,
-                projectId
+                projectId,
+                defaultConfig
             );
 
             console.log("Projekt erfolgreich gespeichert");
@@ -721,6 +724,64 @@ export default function CabinetEditor() {
 
         loadGeneratedData();
 
+
+    }, []);
+
+    useEffect(() => {
+        const loadGeneratedData = async () => {
+        
+                try {
+        
+                    const response = await axios.get(
+        
+                        `/api/settings/cnc`,
+        
+                        {
+                            withCredentials: true
+                        }
+        
+                    );
+        
+                    const {
+        
+                        exists,
+        
+                        downloadUrl,
+        
+                    } = response.data;
+        
+        
+                    // Datei existiert bereits
+                    if (exists) {
+        
+                        try {
+                            const fileResponse = await fetch(
+                                downloadUrl
+                            );
+        
+                            const data = await fileResponse.json();
+        
+                            setDefaultConfig(data);
+        
+                            return;
+                        } catch (error) {
+                            console.warn("cant fetch data, try new upload");
+                        }
+        
+                    }
+        
+                } catch (error) {
+        
+                    console.error(
+                        "Generated data konnte nicht geladen werden",
+                        error
+                    );
+        
+                }
+        
+            };
+
+        loadGeneratedData();
     }, []);
 
 
