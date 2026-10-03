@@ -8,7 +8,8 @@ import {
     isBottomPart,
     isSidePart,
     isMiddleWallPart,
-    getConnectorHoleCount
+    getConnectorHoleCount,
+    isTopPart
 } from "./cncHelpers";
 
 import { compileSectionFunctions } from "./sections/compileSectionFunctions";

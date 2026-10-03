@@ -49,7 +49,7 @@ export const compileLegrabox = ({
     Number(section.height) -
     positionFromBottom + Number(section.y) -
     (
-        boundary.part?.Source?.continuous === true
+        boundary.part?.Source?.continuous === false
             ? 19
             : 0
     );

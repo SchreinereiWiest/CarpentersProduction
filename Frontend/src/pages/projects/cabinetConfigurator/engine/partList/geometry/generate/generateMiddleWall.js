@@ -218,7 +218,6 @@ export const generateMiddleWallParts = ({
     const depth =
         Number(cabinet.depth) || 0;
 
-
     const sections =
         flattenSections(
             cabinet.sections ?? []

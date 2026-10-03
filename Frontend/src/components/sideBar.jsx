@@ -289,7 +289,7 @@ return (
                     clipRule="evenodd" />
             </svg>
 
-            <span className={SideBarCollapsed ? "hidden" : "pl-2 block" }>Einkalppen</span>
+            <span className={SideBarCollapsed ? "hidden" : "pl-2 block" }>Einklappen</span>
         </a>
 
                 <button

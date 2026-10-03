@@ -677,10 +677,9 @@ const getHorizontalSideForMember = ({
 
     }
 
-    console.log(panel, memberGeometry, member, panel);
+    // console.log(panel, memberGeometry, member, panel);
     if (
-        isMiddleWallPart(member) &&
-        panel.continuous === true
+        isMiddleWallPart(member)
     ) {
 
         const insidePanel =
@@ -1151,7 +1150,7 @@ const compileHorizontalJoint = ({
         !panel?.part ||
         !boundary?.part
     ) {
-
+        console.log("Missing panel or boundary part for horizontal joint compilation.");
         return;
 
     }
@@ -1177,7 +1176,7 @@ const compileHorizontalJoint = ({
             panel.centerY
         );
 
-        console.log(boundary);
+        // console.log(boundary);
 
     /*
      * Lokale Position auf dem vertikalen Bauteil.
@@ -1234,33 +1233,17 @@ const compileHorizontalJoint = ({
      * =====================================================
      */
 
-    if (
-        panel.type === "bottom"  &&
-        isMiddleWallPart(
-            verticalPart
-        )
-    ) {
+    // if (
+    //     panel.type === "bottom"  &&
+    //     isMiddleWallPart(
+    //         verticalPart
+    //     )
+    // ) {
 
-        verticalContinuous =
-            false;
+    //     verticalContinuous =
+    //         false;
 
-    }
-
-
-    /*
-     * Beide gleich:
-     *
-     * kein eindeutiger konstruktiver Joint.
-     */
-
-    if (
-        verticalContinuous ===
-        horizontalContinuous
-    ) {
-
-        return;
-
-    }
+    // }
 
 
     /* =====================================================
@@ -1268,6 +1251,8 @@ const compileHorizontalJoint = ({
      *
      * Vertikales Bauteil ist durchgehend
      * ===================================================== */
+
+    // console.log("panel:", panel, "boundary:", boundary);
 
     if (
         verticalContinuous
@@ -1286,7 +1271,6 @@ const compileHorizontalJoint = ({
                 verticalPart.B,
                 connectorThreshold
             );
-
 
         const connectorPattern =
             createDrillPattern({
@@ -1633,7 +1617,7 @@ const compileHorizontalJoint = ({
     let continuousPosition =
         null;
 
-
+    console.log("panel:", panel, "boundary:", boundary.horizontalSide);
     if (
         boundary.horizontalSide ===
         "left"
