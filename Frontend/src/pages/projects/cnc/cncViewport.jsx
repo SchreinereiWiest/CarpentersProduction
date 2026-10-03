@@ -1,21 +1,30 @@
-import { useState } from "react";
-import CncPartsLayer from "./view/cncPartsLayer";
-import CncOperationsLayer from "./cncOperationLayer";
+import React, {
+    useState
+} from "react";
+
+import CncPartsLayer
+    from "./view/cncPartsLayer";
+
+import CncOperationsLayer
+    from "./cncOperationLayer";
+
+import CncDimensionLayer
+    from "./view/cncDimensionLayer";
+
 
 export default function CncViewport({
     part,
     selectedOperationId,
     onSelectOperation,
-    onSelectPart
+    onSelectPart,
+    operations,
+    selectedFace
 }) {
 
-    const [
-        selectedFace,
-        setSelectedFace
-    ] = useState("A");
 
-
-    if (!part) {
+    if (
+        !part
+    ) {
 
         return (
             <div className="
@@ -26,148 +35,110 @@ export default function CncViewport({
                 justify-center
                 text-gray-500
             ">
+
                 Kein Bauteil ausgewählt
+
             </div>
         );
+
     }
 
 
-    /*
-     * ------------------------------------------------------------
-     * Geometrie
-     * ------------------------------------------------------------
-     *
-     * L = horizontal
-     * B = vertikal
-     */
-
     const width =
-        Number(part.L) || 600;
+        Number(
+            part.L
+        ) || 600;
+
 
     const height =
-        Number(part.B) || 600;
-
-    const padding = 100;
+        Number(
+            part.B
+        ) || 600;
 
 
     /*
-     * ------------------------------------------------------------
-     * Anzahl Operationen pro Seite
-     * ------------------------------------------------------------
+     * Etwas mehr Platz, damit die
+     * Maßlinien nicht abgeschnitten werden.
      */
 
-    const operations =
-        Array.isArray(
-            part.CNC?.operations
-        )
-            ? part.CNC.operations
-            : [];
+    const padding =
+        100;
 
 
-    const faceAOperations =
-        operations.filter(
-            operation =>
-                (operation.face ?? "A") === "A"
-        );
 
 
-    const faceBOperations =
-        operations.filter(
-            operation =>
-                (operation.face ?? "A") === "B"
-        );
+
+    /*
+     * =====================================================
+     * Ausgewählte Operation ermitteln
+     * =====================================================
+     */
+
+    const selectedOperation =
+        operations.find(
+            (
+                operation,
+                index
+            ) => {
+
+                const operationId =
+                    operation.id ??
+                    `operation-${index}`;
+
+
+                return (
+                    String(
+                        operationId
+                    ) ===
+                    String(
+                        selectedOperationId
+                    )
+                );
+
+            }
+        ) ?? null;
 
 
     return (
-        <div className="relative h-full w-full">
 
-            {/* =================================================
-                Seitenumschaltung
-                ================================================= */}
+        <div className="
+            relative
+            h-full
+            w-full
+        ">
 
-            <div className="
-                absolute
-                top-3
-                left-3
-                z-10
-                flex
-                gap-1
-                rounded-lg
-                border
-                border-gray-700
-                bg-gray-900
-                p-1
-            ">
 
-                <button
-                    type="button"
-                    onClick={() =>
-                        setSelectedFace("A")
-                    }
-                    className={`
-                        rounded px-3 py-1.5
-                        text-xs font-medium
-                        transition
-                        ${
-                            selectedFace === "A"
-                                ? "bg-blue-600 text-white"
-                                : "text-gray-400 hover:bg-gray-800"
-                        }
-                    `}
-                >
-                    Seite A
-                    <span className="ml-1 text-gray-400">
-                        ({faceAOperations.length})
-                    </span>
-                </button>
 
-                <button
-                    type="button"
-                    onClick={() =>
-                        setSelectedFace("B")
-                    }
-                    className={`
-                        rounded px-3 py-1.5
-                        text-xs font-medium
-                        transition
-                        ${
-                            selectedFace === "B"
-                                ? "bg-blue-600 text-white"
-                                : "text-gray-400 hover:bg-gray-800"
-                        }
-                    `}
-                >
-                    Seite B
-                    <span className="ml-1 text-gray-400">
-                        ({faceBOperations.length})
-                    </span>
-                </button>
-
-            </div>
 
 
             {/* =================================================
-                SVG
-                ================================================= */}
+             * SVG
+             * ================================================= */}
 
             <svg
+
                 className="
                     h-full
                     w-full
                     bg-gray-950
                 "
+
                 viewBox={`
                     ${-padding}
                     ${-padding}
                     ${width + padding * 2}
                     ${height + padding * 2}
                 `}
-                preserveAspectRatio="xMidYMid meet"
+
+                preserveAspectRatio="
+                    xMidYMid meet
+                "
             >
 
-                {/* =============================================
-                    Grid
-                    ============================================= */}
+
+                {/* =================================================
+                 * Raster
+                 * ================================================= */}
 
                 <defs>
 
@@ -179,7 +150,11 @@ export default function CncViewport({
                     >
 
                         <path
-                            d="M 50 0 L 0 0 0 50"
+                            d="
+                                M 50 0
+                                L 0 0
+                                0 50
+                            "
                             fill="none"
                             stroke="rgb(31 41 55)"
                             strokeWidth="0.5"
@@ -191,49 +166,93 @@ export default function CncViewport({
 
 
                 <rect
-                    x={-padding}
-                    y={-padding}
+
+                    x={
+                        -padding
+                    }
+
+                    y={
+                        -padding
+                    }
+
                     width={
                         width +
                         padding * 2
                     }
+
                     height={
                         height +
                         padding * 2
                     }
+
                     fill="url(#cnc-grid)"
+
                 />
 
 
-                {/* =============================================
-                    Bauteil
-                    ============================================= */}
+                {/* =================================================
+                 * Bauteil
+                 * ================================================= */}
 
                 <CncPartsLayer
-                    part={part}
-                    onSelect={onSelectPart}
+                    part={
+                        part
+                    }
+
+                    onSelect={
+                        onSelectPart
+                    }
+
                 />
 
 
-                {/* =============================================
-                    CNC
-                    ============================================= */}
+                {/* =================================================
+                 * CNC Bearbeitungen
+                 * ================================================= */}
 
                 <CncOperationsLayer
-                    part={part}
+                    part={
+                        part
+                    }
+
                     selectedOperationId={
                         selectedOperationId
                     }
+
                     onSelectOperation={
                         onSelectOperation
                     }
+
                     selectedFace={
                         selectedFace
                     }
+
+                />
+
+
+                {/* =================================================
+                 * Maßlinien der ausgewählten Bearbeitung
+                 *
+                 * Ganz zum Schluss zeichnen, damit sie
+                 * immer sichtbar bleiben.
+                 * ================================================= */}
+
+                <CncDimensionLayer
+
+                    part={
+                        part
+                    }
+
+                    operation={
+                        selectedOperation
+                    }
+
                 />
 
             </svg>
 
         </div>
+
     );
+
 }

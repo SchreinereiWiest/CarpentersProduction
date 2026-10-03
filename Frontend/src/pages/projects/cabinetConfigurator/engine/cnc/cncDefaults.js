@@ -8,7 +8,7 @@ export const DEFAULT_CNC = {
         enabled: true,
 
         screw: {
-            diameter: 5.1,
+            diameter: 5,
             depth: 15,
             startOffset: 40,
             endOffset: 60
@@ -39,7 +39,7 @@ export const DEFAULT_CNC = {
     },
 
     legrabox: {
-        diameter: 5.1,
+        diameter: 5,
         depth: 15,
         depthPattern: [
             37,
@@ -71,7 +71,7 @@ export const DEFAULT_CNC = {
                 z: 9,
                 width: 8.3,
                 tool: 81,
-                c: 0
+                c: 3
             }
 
         },
