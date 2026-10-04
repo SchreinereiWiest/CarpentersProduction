@@ -10,6 +10,8 @@ import { loadCadFile } from '../cad/cadLoader.project.js';
 import { processContent } from './listProcess.project.js';
 import { importCadData } from '../edit/importCAD.js';
 import { createPartsListPDF } from './createPDF.project.js';
+import {getProjectFile} from "../../../services/projectMemoryCache.js";
+import {downloadFile, uploadJSONFile} from "../../../services/apiTemplates.js";
 
 function ListMaterial() {
     const navigate = useNavigate();
@@ -24,6 +26,7 @@ function ListMaterial() {
 
     const [loadingGeneratedData, setLoadingGeneratedData] = useState(false);
 
+    // Fetch project and customer data when projectId changes
     useEffect(() => {
         const fetchProject = async () => {
         const { data } = await axios.get(`/api/projects/get/${projectId}`);
@@ -36,6 +39,7 @@ function ListMaterial() {
 
     fetchProject();
     }, [projectId]);
+
 
     async function UploadData() {
         // Datei existiert nicht
@@ -69,28 +73,26 @@ function ListMaterial() {
 
                 if(!contentData) return;
                 
-                console.log(contentData);
                 const generatedData = processContent(contentData);
                 setProcessedContent(generatedData);
                 
                 if (!generatedData) return;
 
-                const response = await axios.post(
-                    `/api/projects/generated/${projectId}/list`,
-                    generatedData,
-                    {
-                        withCredentials: true,
-                        headers: {
-                            "Content-Type": "application/json"
-                        }
-                    }
-                );
+                const response = await uploadProjectFile({
+                
+                            projectId,
+                
+                            file: "list.json",
+                
+                            data: generatedData,
+                            
+                            uploadFunction: {upload: uploadJSONFile, path:`/api/projects/generated/${projectId}/list`}
+                        });
 
-                console.log("Upload response:", response.data);
 
     }
 
-
+    //load generated data from server if exists, otherwise create and upload new data
     useEffect(() => {
 
         if (!projectId) {
@@ -103,50 +105,27 @@ function ListMaterial() {
 
             try {
 
-                const response = await axios.get(
+                const data =
+                    await getProjectFile({
 
-                    `/api/projects/generated/${projectId}/list`,
+                        projectId,
 
-                    {
-                        withCredentials: true
-                    }
+                        file: "list.json",
 
-                );
+                        loadFromServer: {download: downloadFile, path:`/api/projects/generated/${projectId}/list`}
 
-                const {
-
-                    exists,
-
-                    downloadUrl,
-
-                } = response.data;
-
-                console.log(response.data);
-
+                    });
 
                 // Datei existiert bereits
-                if (exists) {
+                if (data) {
+        
+                    setProcessedContent(data);
 
-                    try {
-                        const fileResponse = await fetch(
-                            downloadUrl
-                        );
-
-                        const data = await fileResponse.json();
-
-
-                        setProcessedContent(data);
-
-                        return;
-                    } catch (error) {
-                        console.warn("cant fetch data, try new upload");
-                    }
+                    return;
 
                 }
-
                 //datei existiert nicht -> neu erstellen un hochladen
                 await UploadData();
-
 
             } catch (error) {
 
@@ -167,9 +146,6 @@ function ListMaterial() {
         loadGeneratedData();
 
     }, [projectId, project]);
-
-
-console.log(processedContent);
 
 
 const leftItems = processedContent?.filter(

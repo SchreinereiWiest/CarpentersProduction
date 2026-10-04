@@ -8,7 +8,7 @@ import { AuthProvider } from "./routes/AuthContext";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import PublicRoute from "./routes/PublicRoute";
 
-import HomeAdmin from "./pages/home.admin";
+import HomeAdmin from "./pages/app/home.admin";
 import ContactsAdmin from "./pages/contacts/contacts.admin.jsx";
 import ContactsNewAdmin from "./pages/contacts/newcontact.admin.jsx";
 import ShowContactsAdmin from "./pages/contacts/showcontact.admin.jsx";
@@ -25,7 +25,7 @@ import ShowStorage from "./pages/storage/home.storage.jsx";
 import TimeTracking from "./pages/projects/timetracking/timeTracking.project.jsx";
 import CreateProject from "./pages/projects/edit/create.project.jsx";
 import ProjectSettings from "./pages/projects/settings/settings.project.jsx";
-import CabinetEditor from "./pages/projects/cabinetConfigurator/components/cabinetEditor.jsx"
+import CabinetEditor from "./pages/projects/cabinetConfigurator/cabinetEditor.jsx"
 import CncEditor from "./pages/projects/cnc/cncEditor.jsx";
 import CompanySettings from "./pages/settings/companySettings.jsx";
 import './index.css'

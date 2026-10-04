@@ -4,7 +4,8 @@ import React, {
     useState, useEffect
 } from "react";
 import axios from "axios";
-
+import { getGlobalFile, uploadGlobalFile } from "../../../services/globalMemoryCache";
+import { downloadFile, uploadJSONFile } from "../../../services/apiTemplates";
 import MaterialSelect from "../../projects/cabinetConfigurator/components/editor/properties/MaterialSelect.jsx";
 
 
@@ -84,29 +85,15 @@ export default function CabinetSettingsPanel() {
 
         try {
 
-        const response =
-            await axios.post(
+       const response = await uploadGlobalFile({
+                                
+                    file: "settings-cabinet.json",
+        
+                    data: cabinet,
+                    
+                    uploadFunction: {upload: uploadJSONFile, path:"/api/settings/cabinet"}
+                });
 
-                `/api/settings/cabinet`,
-
-                cabinet,
-
-                {
-                    withCredentials:
-                        true,
-
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    }
-                }
-            );
-
-
-        console.log(
-            "Upload response:",
-            response.data
-        );
 
     } catch (error) {
 
@@ -129,6 +116,7 @@ export default function CabinetSettingsPanel() {
 
     const [materialError, setMaterialError] = useState(null);
 
+    //fetch config json file
     useEffect(() => {
     
             const loadGeneratedData = async () => {
@@ -137,42 +125,23 @@ export default function CabinetSettingsPanel() {
     
                 try {
     
-                    const response = await axios.get(
+                   const data =
+                        await getGlobalFile({
     
-                        `/api/settings/cabinet`,
+                            file: "settings-cabinet.json",
     
-                        {
-                            withCredentials: true
-                        }
+                            loadFromServer: {download: downloadFile, path:"/api/settings/cabinet"}
     
-                    );
-    
-                    const {
-    
-                        exists,
-    
-                        downloadUrl,
-    
-                    } = response.data;
+                        });
     
     
                     // Datei existiert bereits
-                    if (exists) {
+                    if (data) {
     
-                        try {
-                            const fileResponse = await fetch(
-                                downloadUrl
-                            );
-    
-                            const data = await fileResponse.json();
-    
-                            setCabinet(data);
-    
-                            return;
-                        } catch (error) {
-                            console.warn("cant fetch data, try new upload");
-                        }
-    
+                        setCabinet(data);
+
+                        return;
+                      
                     }
 
                     setCabinet(DEFAULT_CABINET);
@@ -198,6 +167,7 @@ export default function CabinetSettingsPanel() {
     
         }, []);
 
+    //load materials
     useEffect(() => {
 
         const loadMaterials =
@@ -280,7 +250,6 @@ export default function CabinetSettingsPanel() {
                         </p>
 
                     </div>
-
 
                     <button
                         type="button"

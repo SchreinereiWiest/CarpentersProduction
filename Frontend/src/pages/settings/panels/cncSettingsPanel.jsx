@@ -6,6 +6,8 @@ import React, {
 import {
     DEFAULT_CNC
 } from "../../projects/cabinetConfigurator/engine/cnc/cncDefaults";
+import { getGlobalFile, uploadGlobalFile } from "../../../services/globalMemoryCache";
+import { downloadFile, uploadJSONFile } from "../../../services/apiTemplates";
 import axios from "axios";
 
 const cloneConfig = (value) => {
@@ -15,7 +17,6 @@ const cloneConfig = (value) => {
     );
 
 };
-
 
 export default function CncSettingsPanel() {
 
@@ -178,29 +179,14 @@ export default function CncSettingsPanel() {
                 );
 
 
-                const response =
-                    await axios.post(
-
-                        `/api/settings/cnc`,
-
-                        config,
-
-                        {
-                            withCredentials:
-                                true,
-
-                            headers: {
-                                "Content-Type":
-                                    "application/json"
-                            }
-                        }
-                    );
-
-
-                console.log(
-                    "Upload response:",
-                    response.data
-                );
+                const response = await uploadGlobalFile({
+                                
+                    file: "settings-cnc.json",
+        
+                    data: data,
+                    
+                    uploadFunction: {upload: uploadJSONFile, path:"/api/settings/cnc"}
+                });
 
             } catch (error) {
 
@@ -275,42 +261,22 @@ export default function CncSettingsPanel() {
             
                     try {
             
-                        const response = await axios.get(
-            
-                            `/api/settings/cnc`,
-            
-                            {
-                                withCredentials: true
-                            }
-            
-                        );
-            
-                        const {
-            
-                            exists,
-            
-                            downloadUrl,
-            
-                        } = response.data;
-            
+                        const data =
+                            await getGlobalFile({
+        
+                                file: "settings-cnc.json",
+        
+                                loadFromServer: {download: downloadFile, path:"/api/settings/cnc"}
+        
+                            });
             
                         // Datei existiert bereits
-                        if (exists) {
-            
-                            try {
-                                const fileResponse = await fetch(
-                                    downloadUrl
-                                );
-            
-                                const data = await fileResponse.json();
-            
-                                setConfig(data);
-            
-                                return;
-                            } catch (error) {
-                                console.warn("cant fetch data, try new upload");
-                            }
-            
+                        if (data) {
+                                   
+                            setConfig(data);
+        
+                            return;
+               
                         }
             
                     } catch (error) {

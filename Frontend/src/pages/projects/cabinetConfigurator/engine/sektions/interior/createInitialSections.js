@@ -1,5 +1,5 @@
 import { calculateSplitSizes } from "../calcSplitSizes";
-import { createId } from "../../../components/cabinetEditor";
+import { createId } from "../../../cabinetEditor";
 
 export const createInitialSections = (
     spec,

@@ -1,20 +1,22 @@
 import React, {useState, useEffect,} from "react";
 import { useLocation, useParams } from "react-router";
-import CabinetViewport from "./view/cabinetViewport.jsx";
-import ProjectBar from '../../../../components/projectBar.jsx';
-import SideBar from '../../../../components/sideBar.jsx';
-import { createInitialSections } from "../engine/sektions/interior/createInitialSections.js"
-import { generateFronts } from "../engine/sektions/front/generateFronts.js"
-import { splitFront } from "../engine/sektions/front/splitFront.js";
-import { splitSection } from "../engine/sektions/splitSections.js";
-import { mergeSectionChildren, findSection, findParent } from "../engine/sektions/interior/mergeSectionChildren.js";
-import { frontsToSections } from "../engine/sektions/functions/parseFrontSections.js";
-import { findFrontParent, mergeFrontChildren } from "../engine/sektions/front/mergeFrontChildren.js";
-import CabinetSidebar from "./editor/sidebar/CabinetSidebar.jsx";
-import PropertiesSidebar from "./editor/properties/PropertiesSidebar.jsx";
-import { ProjectSave } from "../engine/projectSave.js";
-import { buildPartList } from "../engine/partList/buildPartList.js";
+import CabinetViewport from "./components/view/cabinetViewport.jsx";
+import ProjectBar from '../../../components/projectBar.jsx';
+import SideBar from '../../../components/sideBar.jsx';
+import { createInitialSections } from "./engine/sektions/interior/createInitialSections.js"
+import { generateFronts } from "./engine/sektions/front/generateFronts.js"
+import { splitFront } from "./engine/sektions/front/splitFront.js";
+import { splitSection } from "./engine/sektions/splitSections.js";
+import { mergeSectionChildren, findSection, findParent } from "./engine/sektions/interior/mergeSectionChildren.js";
+import { frontsToSections } from "./engine/sektions/functions/parseFrontSections.js";
+import { findFrontParent, mergeFrontChildren } from "./engine/sektions/front/mergeFrontChildren.js";
+import CabinetSidebar from "./components/editor/sidebar/CabinetSidebar.jsx";
+import PropertiesSidebar from "./components/editor/properties/PropertiesSidebar.jsx";
+import { ProjectSave } from "./engine/projectSave.js";
+import { buildPartList } from "./engine/partList/buildPartList.js";
 import { useNavigate } from 'react-router';
+import {getProjectFile} from "../../../services/projectMemoryCache.js";
+import {downloadFile} from "../../../services/apiTemplates.js";
 import axios from "axios";
 
 
@@ -334,8 +336,6 @@ export default function CabinetEditor() {
 
         setSectionCount(cabinet?.sections?.length ?? 1);
 
-        console.log(cabinet?.sections);
-
         setSelectedElement(null);
     };
 
@@ -495,6 +495,7 @@ export default function CabinetEditor() {
     //initial settings, project laden, material laden, customer laden
     //---------------------------------------------
 
+    //fetchProject + customer data
     useEffect(() => {
 
         if (mode !== "edit" || !projectId) {
@@ -544,7 +545,7 @@ export default function CabinetEditor() {
 
     }, [mode, projectId]);
 
-
+    //load Materials
     useEffect(() => {
 
         const loadMaterials =
@@ -586,7 +587,7 @@ export default function CabinetEditor() {
 
     }, []);
 
-
+    //fetch cabinet json file
     useEffect(() => {
 
         if (!projectId) {
@@ -599,43 +600,24 @@ export default function CabinetEditor() {
             setLoadingGeneratedData(true);
 
             try {
+                const data =
+                    await getProjectFile({
 
-                const response = await axios.get(
+                        projectId,
 
-                    `/api/projects/generated/${projectId}/cabinet`,
+                        file: "cabinet.json",
 
-                    {
-                        withCredentials: true
-                    }
+                        loadFromServer: {download: downloadFile, path:`/api/projects/generated/${projectId}/cabinet`}
 
-                );
-
-                const {
-
-                    exists,
-
-                    downloadUrl,
-
-                } = response.data;
-
+                    });
 
                 // Datei existiert bereits
-                if (exists) {
+                if (data) {
 
-                    try {
-                        const fileResponse = await fetch(
-                            downloadUrl
-                        );
+                    setCabinets(data);
+                    setActiveCabinetId(data[0].id);
 
-                        const data = await fileResponse.json();
-
-                        setCabinets(data);
-                        setActiveCabinetId(data[0].id);
-
-                        return;
-                    } catch (error) {
-                        console.warn("cant fetch data, try new upload");
-                    }
+                    return;
 
                 }
 
@@ -661,54 +643,34 @@ export default function CabinetEditor() {
 
     }, [projectId, project, defaultCabinet]);
 
+    //fetch cabinet default config file
     useEffect(() => {
 
         const loadGeneratedData = async () => {
 
             try {
 
-                const response = await axios.get(
+                const data =
+                    await getGlobalFile({
 
-                    `/api/settings/cabinet`,
+                        file: "settings-cabinet.json",
 
-                    {
-                        withCredentials: true
-                    }
+                        loadFromServer: {download: downloadFile, path:"/api/settings/cabinet"}
 
-                );
-
-                const {
-
-                    exists,
-
-                    downloadUrl,
-
-                } = response.data;
+                    });
 
 
                 // Datei existiert bereits
-                if (exists) {
+                if (data) {
 
-                    try {
-                        const fileResponse = await fetch(
-                            downloadUrl
-                        );
-
-                        const data = await fileResponse.json();
-
-                        setDefaultCabinet(prev => ({
-                        ...prev,
-                        ...data,}));
+                    setDefaultCabinet(prev => ({
+                    ...prev,
+                    ...data,}));
 
 
-                        return;
-                    } catch (error) {
-                        console.warn("cant fetch data, try new upload");
-                    }
-
+                    return;
+             
                 }
-
-               
 
             } catch (error) {
 
@@ -727,6 +689,7 @@ export default function CabinetEditor() {
 
     }, []);
 
+    //fetch cnc default config file
     useEffect(() => {
         const loadGeneratedData = async () => {
         
@@ -741,33 +704,24 @@ export default function CabinetEditor() {
                         }
         
                     );
-        
-                    const {
-        
-                        exists,
-        
-                        downloadUrl,
-        
-                    } = response.data;
-        
+
+                    const data =
+                        await getGlobalFile({
+    
+                            file: "settings-cnc.json",
+    
+                            loadFromServer: {download: downloadFile, path:"/api/settings/cnc"}
+    
+                        });
+               
         
                     // Datei existiert bereits
-                    if (exists) {
+                    if (data) {
         
-                        try {
-                            const fileResponse = await fetch(
-                                downloadUrl
-                            );
-        
-                            const data = await fileResponse.json();
-        
-                            setDefaultConfig(data);
-        
-                            return;
-                        } catch (error) {
-                            console.warn("cant fetch data, try new upload");
-                        }
-        
+                        setDefaultConfig(data);
+    
+                        return;
+                               
                     }
         
                 } catch (error) {
@@ -1057,6 +1011,5 @@ export default function CabinetEditor() {
 
 
     );
-
 
 }

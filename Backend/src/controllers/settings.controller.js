@@ -29,6 +29,10 @@ export const getSettingsData = async (req, res) => {
         fileName = "settings-cnc.json";
         break;
 
+        case "cache":
+        fileName = "settings-cache.json";
+        break;
+
       default:
         return res.status(400).json({
             message: "Invalid settings name"
@@ -108,9 +112,14 @@ export async function createSettingsData(req,res){
         fileName = "settings-cnc.json";
         break;
 
-      default:
-        fileName="";
+        case "cache":
+        fileName = "settings-cache.json";
         break;
+
+      default:
+        return res.status(400).json({
+            message: "Invalid settings name"
+        });
     }
 
     const prefix = `settings`;

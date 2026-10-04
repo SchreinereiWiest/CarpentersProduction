@@ -1,4 +1,6 @@
 import { buildPartList } from "./partList/buildPartList";
+import {uploadProjectFile} from "../../../../services/projectMemoryCache.js";
+import {uploadJSONFile} from "../../../../services/apiTemplates.js";
 import axios from "axios";
 
 export async function ProjectSave(
@@ -63,24 +65,17 @@ export async function ProjectSave(
 
     try {
 
-        const response =
-            await axios.post(
+        const response = await uploadProjectFile({
 
-                `/api/projects/generated/${projectId}/list`,
+            projectId,
 
-                generatedData,
+            file: "list.json",
 
-                {
-                    withCredentials:
-                        true,
+            data: generatedData,
 
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    }
-                }
-            );
-
+            uploadFunction: {upload: uploadJSONFile, path:`/api/projects/generated/${projectId}/list`}
+        });
+            
 
         console.log(
             "Upload response:",
@@ -102,24 +97,16 @@ export async function ProjectSave(
 
     try {
 
-        const response =
-            await axios.post(
+        const response = await uploadProjectFile({
 
-                `/api/projects/generated/${projectId}/cabinet`,
+            projectId,
 
-                cabinets,
+            file: "list.json",
 
-                {
-                    withCredentials:
-                        true,
-
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    }
-                }
-            );
-
+            data: cabinets,
+            
+            uploadFunction: {upload: uploadJSONFile, path:`/api/projects/generated/${projectId}/cabinet`}
+        });
 
         console.log(
             "Upload response:",

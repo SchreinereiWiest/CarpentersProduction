@@ -20,6 +20,8 @@ import { useControls } from 'leva'
 import * as THREE from "three";
 import { MapControls } from "@react-three/drei";
 import {MOUSE} from "three";
+import {getProjectFile} from "../../../services/projectMemoryCache.js";
+import {downloadFile, uploadJSONFile} from "../../../services/apiTemplates.js";
 
 
 function NestingView() {
@@ -47,45 +49,23 @@ function NestingView() {
 
             try {
 
-                const response = await axios.get(
+                const data =
+                    await getProjectFile({
 
-                    `/api/projects/generated/${projectId}/list`,
+                        projectId,
 
-                    {
-                        withCredentials: true
-                    }
+                        file: "list.json",
 
-                );
+                        loadFromServer: {download: downloadFile, path:`/api/projects/generated/${projectId}/list`}
 
-                const {
-
-                    exists,
-
-                    downloadUrl,
-
-                } = response.data;
-
-                // console.log(response.data, "list");
+                    });
 
 
                 // Datei existiert bereits
-                if (exists) {
+                if (data) {
+                    setProcessedContent(data);                       
 
-                    try {
-                        const fileResponse = await fetch(
-                            downloadUrl
-                        );
-
-                        const data = await fileResponse.json();
-
-
-                        setProcessedContent(data);                       
-
-                        return data;
-                    } catch (error) {
-                        console.warn("cant fetch data, try new upload");
-                    }
-
+                    return data;
                 }
 
                 //datei existiert nicht -> neu erstellen und hochladen
@@ -143,22 +123,20 @@ function NestingView() {
 
                 if (!generatedData) return;
 
-                const response = await axios.post(
-                    `/api/projects/generated/${projectId}/nesting`,
-                    generatedData,
-                    {
-                        withCredentials: true,
-                        headers: {
-                            "Content-Type": "application/json"
-                        }
-                    }
-                );
-
-                console.log("Upload response:", response.data);
+                const response = await uploadProjectFile({
+                
+                    projectId,
+        
+                    file: "nesting.json",
+        
+                    data: generatedData,
+                    
+                    uploadFunction: {upload: uploadJSONFile, path:`/api/projects/generated/${projectId}/nesting`}
+                });
 
             }
 
-
+    //fetch project and customer data
     useEffect(() => {
         const fetchProject = async () => {
             const { data } = await axios.get(`/api/projects/get/${projectId}`);
@@ -173,7 +151,7 @@ function NestingView() {
         fetchProject();
     }, [projectId]);
 
-
+    //fetch nesting json file
     useEffect(() => {
 
         if (!projectId) {
@@ -186,55 +164,37 @@ function NestingView() {
 
             try {
 
-                const response = await axios.get(
+                const data =
+                    await getProjectFile({
 
-                    `/api/projects/generated/${projectId}/nesting`,
+                        projectId,
 
-                    {
-                        withCredentials: true
-                    }
+                        file: "nesting.json",
 
-                );
+                        loadFromServer: {download: downloadFile, path:`/api/projects/generated/${projectId}/nesting`}
 
-                const {
-
-                    exists,
-
-                    downloadUrl,
-
-                } = response.data;
+                    });
 
 
                 // Datei existiert bereits
-                if (exists) {
+                if (data) {
 
-                    try {
-                        const fileResponse = await fetch(
-                            downloadUrl
-                        );
+                    setNestingResult(data);
 
-                        const data = await fileResponse.json();
+                    setSettings(prev => {
+                        const newSettings = [...prev];
 
-
-                        setNestingResult(data);
-
-                        setSettings(prev => {
-                            const newSettings = [...prev];
-
-                            data.forEach((sheet, index) => {
-                                newSettings[index] = {
-                                    ...defaultSettings,
-                                    ...sheet.settings
-                                };
-                            });
-
-                            return newSettings;
+                        data.forEach((sheet, index) => {
+                            newSettings[index] = {
+                                ...defaultSettings,
+                                ...sheet.settings
+                            };
                         });
 
-                        return;
-                    } catch (error) {
-                        console.warn("cant fetch data, try new upload");
-                    }
+                        return newSettings;
+                    });
+
+                    return;
 
                 }
 

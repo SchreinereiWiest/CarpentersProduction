@@ -4,34 +4,27 @@ import axios from 'axios';
 import { useNavigate } from 'react-router';
 import { useParams } from 'react-router';
 import { useEffect } from "react";
-import { Link } from "react-router";
 import ProjectBar from '../../../components/projectBar.jsx';
-import { loadCadFile } from '../cad/cadLoader.project.js';
-import { processContent } from '../list/listProcess.project.js';
-import { calculateNesting } from "../nesting/algorythm/nestingAlgorythm.js"
-import NestingScene from '../nesting/nestingscene.project.jsx';
-import { defaultSettings } from '../nesting/algorythm/helper/defaults.js';
-import NestingSettingsModal from "../nesting/nestingSettingsModal.project.jsx"
 import CutScene from "./cutScene.project.jsx"
 
 import { Canvas, useFrame, useLoader } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
-import { useControls } from 'leva'
-import * as THREE from "three";
-import { MapControls } from "@react-three/drei";
-import {MOUSE} from "three";
+import {getProjectFile} from "../../../services/projectMemoryCache.js";
+import {downloadFile, uploadJSONFile} from "../../../services/apiTemplates.js";
+
+
 
 function CutingView() {
     const navigate = useNavigate();
     const { projectId } = useParams();
 
     const [project, setProject] = useState(null);
-    const [customer, setCustomer] = useState(null);
 
     const [nestingResult, setNestingResult] = useState();
 
     const [loadingGeneratedData, setLoadingGeneratedData] = useState(false);
 
+    //fetch nesting json file
     useEffect(() => {
 
         if (!projectId) {
@@ -44,49 +37,28 @@ function CutingView() {
 
             try {
 
-                const response = await axios.get(
+                const data =
+                    await getProjectFile({
 
-                    `/api/projects/generated/${projectId}/nesting`,
+                        projectId,
 
-                    {
-                        withCredentials: true
-                    }
+                        file: "nesting.json",
 
-                );
+                        loadFromServer: {download: downloadFile, path:`/api/projects/generated/${projectId}/nesting`}
 
-                const {
-
-                    exists,
-
-                    downloadUrl,
-
-                } = response.data;
-
-                console.log(response.data);
+                    });
 
 
                 // Datei existiert bereits
-                if (exists) {
-
-                    try {
-                        const fileResponse = await fetch(
-                            downloadUrl
-                        );
-
-                        const data = await fileResponse.json();
-
-
+                if (data) {
+ 
                         setNestingResult(data);
 
                         return;
-                    } catch (error) {
-                        console.warn("cant fetch data, try new upload");
                     }
 
-                }
-
                 //datei existiert nicht -> neu erstellen un hochladen
-                console.warn("data not loaded");
+
 
 
             } catch (error) {
@@ -108,8 +80,6 @@ function CutingView() {
         loadGeneratedData();
 
     }, [projectId, project]);
-
-    console.log(nestingResult);
 
     const [activeSheetIndex, setActiveSheetIndex] = useState(0);
     const activeSheet = nestingResult?.[activeSheetIndex];

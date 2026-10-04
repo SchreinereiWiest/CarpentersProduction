@@ -2,6 +2,8 @@ import { useState } from 'react'
 import axios from 'axios';
 import { useNavigate } from 'react-router';
 import { useParams } from 'react-router';
+import {getProjectFile} from "../../../services/projectMemoryCache.js";
+import {downloadFile, uploadJSONFile} from "../../../services/apiTemplates.js";
 
 
 export async function ProjectSave(corpuses, materials, selectedCustomer, files, projectDescription, projectName, mode, id, incomingCabinets) {
@@ -186,16 +188,16 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
         
     try {
 
-        const response = await axios.post(
-            `/api/projects/generated/${projectId}/list`,
-            generatedData,
-            {
-                withCredentials: true,
-                headers: {
-                    "Content-Type": "application/json"
-                }
-            }
-        );
+        const response = await uploadProjectFile({
+
+            projectId,
+
+            file: "list.json",
+
+            data: generatedData,
+            
+            uploadFunction: {upload: uploadJSONFile, path:`/api/projects/generated/${projectId}/list`}
+        });
 
         console.log("Upload response:", response.data);
 
@@ -216,29 +218,16 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
     if(incomingCabinets) {
         try {
 
-        const response =
-            await axios.post(
+        const response = await uploadProjectFile({
+        
+            projectId,
 
-                `/api/projects/generated/${projectId}/cabinet`,
+            file: "list.json",
 
-                incomingCabinets,
-
-                {
-                    withCredentials:
-                        true,
-
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    }
-                }
-            );
-
-
-        console.log(
-            "Upload response:",
-            response.data
-        );
+            data: cabinets,
+            
+            uploadFunction: {upload: uploadJSONFile, path:`/api/projects/generated/${projectId}/cabinet`}
+        });
 
     } catch (error) {
 

@@ -31,9 +31,7 @@ function ShowProject() {
 fetchProject();
 }, [projectId]);
 
-    // console.log(project);
 
-console.log(customer);
   return (
     <>
         <div className="bg-gray-900 text-white h-dvh w-full flex overflow-hidden">

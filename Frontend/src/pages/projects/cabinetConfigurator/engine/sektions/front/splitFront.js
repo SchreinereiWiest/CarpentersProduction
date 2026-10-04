@@ -1,6 +1,6 @@
 
 
-import { createId } from "../../../components/cabinetEditor";
+import { createId } from "../../../cabinetEditor";
 import { calculateSplitSizes } from "../calcSplitSizes";
 
 

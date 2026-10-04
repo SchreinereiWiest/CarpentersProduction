@@ -1,6 +1,6 @@
 import { calculateSplitSizes } from "./calcSplitSizes";
 import { updateSectionTree } from "./updateSectionTree";
-import { createId } from "../../components/cabinetEditor";
+import { createId } from "../../cabinetEditor";
 
 
 export const splitSection = (

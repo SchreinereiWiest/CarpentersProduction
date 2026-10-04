@@ -28,6 +28,8 @@ import ProjectBar
 
 import SideBar
     from "../../../components/sideBar.jsx";
+    import {getProjectFile} from "../../../services/projectMemoryCache.js";
+import {downloadFile, uploadJSONFile} from "../../../services/apiTemplates.js";
 
 
 export default function CncEditor() {
@@ -205,6 +207,7 @@ export default function CncEditor() {
      * =====================================================
      */
 
+    //fetch list .json from server and set partList and groups
     useEffect(() => {
 
         if (
@@ -219,106 +222,67 @@ export default function CncEditor() {
 
                 try {
 
-                    const response =
-                        await axios.get(
-                            `/api/projects/generated/${projectId}/list`,
-                            {
-                                withCredentials:
-                                    true
-                            }
-                        );
+                    const data =
+                        await getProjectFile({
+
+                            projectId,
+
+                            file: "list.json",
+
+                            loadFromServer: { download: downloadFile, path: `/api/projects/generated/${projectId}/list` }
+
+                        });
 
 
-                    const {
-                        exists,
-                        downloadUrl
-                    } = response.data;
-
-
-                    console.log(
-                        response.data
-                    );
-
-
-                    if (
-                        !exists
-                    ) {
-
+                    if (!data) {
                         return;
-
                     }
 
-
-                    try {
-
-                        const fileResponse =
-                            await fetch(
-                                downloadUrl
-                            );
-
-
-                        const data =
-                            await fileResponse.json();
-
-
-                        setPartList(
+                    setPartList(
                             data
                         );
 
 
-                        const grouped =
-                            groupCncParts(
-                                data
-                            );
-
-
-                        setGroups(
-                            grouped
+                    const grouped =
+                        groupCncParts(
+                            data
                         );
 
 
+                    setGroups(
+                        grouped
+                    );
+
+
+                    /*
+                        * Erste Gruppe auswählen
+                        */
+
+                    if (
+                        grouped.length > 0
+                    ) {
+
+                        const firstGroup =
+                            grouped[0];
+
+
+                        setSelectedGroupId(
+                            firstGroup.id
+                        );
+
                         /*
-                         * Erste Gruppe auswählen
+                         * Erstes Bauteil auswählen
                          */
 
                         if (
-                            grouped.length > 0
+                            firstGroup.parts?.length > 0
                         ) {
 
-                            const firstGroup =
-                                grouped[0];
-
-
-                            setSelectedGroupId(
-                                firstGroup.id
+                            setSelectedPart(
+                                firstGroup.parts[0]
                             );
-
-
-                            /*
-                             * Erstes Bauteil auswählen
-                             */
-
-                            if (
-                                firstGroup.parts?.length > 0
-                            ) {
-
-                                setSelectedPart(
-                                    firstGroup.parts[0]
-                                );
-
-                            } else {
-
-                                setSelectedPart(
-                                    null
-                                );
-
-                            }
 
                         } else {
-
-                            setSelectedGroupId(
-                                null
-                            );
 
                             setSelectedPart(
                                 null
@@ -326,22 +290,27 @@ export default function CncEditor() {
 
                         }
 
+                    } else {
 
-                        setSelectedOperation(
+                        setSelectedGroupId(
                             null
                         );
 
-
-                        return;
-
-                    } catch (error) {
-
-                        console.warn(
-                            "cant fetch data, try new upload",
-                            error
+                        setSelectedPart(
+                            null
                         );
 
                     }
+
+
+                    setSelectedOperation(
+                        null
+                    );
+
+
+                    return;
+
+
 
                 } catch (error) {
 
