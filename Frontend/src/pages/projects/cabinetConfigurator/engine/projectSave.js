@@ -101,7 +101,7 @@ export async function ProjectSave(
 
             projectId,
 
-            file: "list.json",
+            file: "cabinet.json",
 
             data: cabinets,
             

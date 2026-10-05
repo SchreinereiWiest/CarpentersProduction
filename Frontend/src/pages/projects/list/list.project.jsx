@@ -10,7 +10,7 @@ import { loadCadFile } from '../cad/cadLoader.project.js';
 import { processContent } from './listProcess.project.js';
 import { importCadData } from '../edit/importCAD.js';
 import { createPartsListPDF } from './createPDF.project.js';
-import {getProjectFile} from "../../../services/projectMemoryCache.js";
+import {getProjectFile, uploadProjectFile} from "../../../services/projectMemoryCache.js";
 import {downloadFile, uploadJSONFile} from "../../../services/apiTemplates.js";
 
 function ListMaterial() {

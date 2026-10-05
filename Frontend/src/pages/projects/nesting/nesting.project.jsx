@@ -20,7 +20,7 @@ import { useControls } from 'leva'
 import * as THREE from "three";
 import { MapControls } from "@react-three/drei";
 import {MOUSE} from "three";
-import {getProjectFile} from "../../../services/projectMemoryCache.js";
+import {getProjectFile, uploadProjectFile} from "../../../services/projectMemoryCache.js";
 import {downloadFile, uploadJSONFile} from "../../../services/apiTemplates.js";
 
 

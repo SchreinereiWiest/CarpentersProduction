@@ -2,7 +2,7 @@ import { useState } from 'react'
 import axios from 'axios';
 import { useNavigate } from 'react-router';
 import { useParams } from 'react-router';
-import {getProjectFile} from "../../../services/projectMemoryCache.js";
+import {getProjectFile, uploadProjectFile} from "../../../services/projectMemoryCache.js";
 import {downloadFile, uploadJSONFile} from "../../../services/apiTemplates.js";
 
 
@@ -222,9 +222,9 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
         
             projectId,
 
-            file: "list.json",
+            file: "cabinet.json",
 
-            data: cabinets,
+            data: incomingCabinets,
             
             uploadFunction: {upload: uploadJSONFile, path:`/api/projects/generated/${projectId}/cabinet`}
         });

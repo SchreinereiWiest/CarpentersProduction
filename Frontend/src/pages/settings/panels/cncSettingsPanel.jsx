@@ -269,11 +269,13 @@ export default function CncSettingsPanel() {
                                 loadFromServer: {download: downloadFile, path:"/api/settings/cnc"}
         
                             });
+
+                        console.log(data);
             
                         // Datei existiert bereits
                         if (data) {
                                    
-                            setConfig(data);
+                            setConfig(data.cncDefault);
         
                             return;
                
@@ -602,7 +604,6 @@ function SpaxSettings({
     updateNumber,
     updateBoolean
 }) {
-
     return (
 
         <div className="

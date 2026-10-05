@@ -17,6 +17,7 @@ import { buildPartList } from "./engine/partList/buildPartList.js";
 import { useNavigate } from 'react-router';
 import {getProjectFile} from "../../../services/projectMemoryCache.js";
 import {downloadFile} from "../../../services/apiTemplates.js";
+import { getGlobalFile } from "../../../services/globalMemoryCache.js";
 import axios from "axios";
 
 
@@ -436,7 +437,7 @@ export default function CabinetEditor() {
         }
     };
 
-    const handleNext = () => {
+    const handleNext = async () => {
 
     if (mode !== "create") {
         return;
@@ -449,7 +450,7 @@ export default function CabinetEditor() {
         // ==========================================
 
         const partList =
-                buildPartList(
+                await buildPartList(
                     cabinets,
                     materials
                 );

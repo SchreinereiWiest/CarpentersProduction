@@ -553,10 +553,11 @@ export function InteriorLayer({
                 if (func.type === "legrabox") {
 
                     const heights = {
-                        M: 60,
-                        K: 100,
-                        C: 130,
-                        L: 200
+                        N: 78,
+                        M: 104,
+                        K: 142,
+                        C: 191,
+                        L: 255
                     };
 
 
