@@ -209,7 +209,8 @@ const flattenSections = (
 export const generateMiddleWallParts = ({
     cabinet,
     materials,
-    nextPID
+    nextPID,
+    color
 }) => {
 
     const thickness =
@@ -308,6 +309,8 @@ export const generateMiddleWallParts = ({
                                         cabinet.materialId,
             
                                     materials,
+
+                                    color: color,
             
                                     edges:
                                         getDefaultEdges(

@@ -5,7 +5,8 @@ import { getMaterialNumber } from "../../materials";
 export const generateFrontParts = ({
     cabinet,
     materials,
-    nextPID
+    nextPID,
+    color
 }) => {
 
     const parts = [];
@@ -73,6 +74,8 @@ export const generateFrontParts = ({
                         frontMaterialId,
 
                     materials,
+
+                    color: color,
 
                     edges: {
 

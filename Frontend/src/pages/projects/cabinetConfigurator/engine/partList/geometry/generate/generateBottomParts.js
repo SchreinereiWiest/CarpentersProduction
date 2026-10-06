@@ -4,7 +4,8 @@ import { getDefaultEdges } from "../get/getDefaultEdges";
 export const generateBottomPart = ({
     cabinet,
     materials,
-    nextPID
+    nextPID,
+    color
 }) => {
 
     const width =
@@ -189,6 +190,8 @@ export const generateBottomPart = ({
         materials,
 
         edges,
+
+        color: color,
 
         source: {
 

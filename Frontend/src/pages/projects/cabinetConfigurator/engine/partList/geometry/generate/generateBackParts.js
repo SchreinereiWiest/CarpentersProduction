@@ -4,7 +4,8 @@ import { createPart } from "../createPart";
 export const generateBackPart = ({
     cabinet,
     materials,
-    nextPID
+    nextPID,
+    color
 }) => {
 
     const geometry =
@@ -41,6 +42,8 @@ export const generateBackPart = ({
             cabinet.materialId,
 
         materials,
+
+        color: color,
 
         edges: {
             ELID: "",

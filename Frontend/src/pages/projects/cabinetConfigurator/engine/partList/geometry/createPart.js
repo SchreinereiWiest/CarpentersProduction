@@ -23,10 +23,10 @@ export const createPart = ({
 
     source = null,
 
-    note = ""
-}) => {
+    note = "",
 
-    console.log(cnc);
+    color
+}) => {
 
     const part = {
 
@@ -86,7 +86,7 @@ export const createPart = ({
             note,
 
         color:
-            "#25a7b3"
+            color
     };
 
 

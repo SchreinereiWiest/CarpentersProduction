@@ -93,9 +93,12 @@ export default function CabinetEditor() {
 
     const [defaultConfig, setDefaultConfig] = useState();
 
-    const [defaultCabinet, setDefaultCabinet] = useState({width: 600,
+    const [defaultCabinet, setDefaultCabinet] = useState({
+
+    width: 600,
     height: 720,
     depth: 535,
+
     thickness: 19,
 
     topOffset: 0,
@@ -118,8 +121,21 @@ export default function CabinetEditor() {
 
     spax: true,
 
+    partListSettings: {
+        grouping: "cabinet",
+
+        separate: {
+            fronts: false,
+            shelves: false,
+            middleWalls: false,
+            legrabox: false
+    }
+},
+
+
     sections: [],
-    fronts: []});
+    fronts: []
+});
 
     const addCabinet = () => {
 

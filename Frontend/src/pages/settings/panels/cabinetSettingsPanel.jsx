@@ -36,6 +36,17 @@ const DEFAULT_CABINET = {
     },
 
     spax: true,
+
+    partListSettings: {
+        grouping: "cabinet",
+
+        separate: {
+            fronts: false,
+            shelves: false,
+            middleWalls: false,
+            legrabox: false
+    }
+},
 };
 
 
@@ -650,6 +661,263 @@ export default function CabinetSettingsPanel() {
                             })
                         }
                     />
+
+                </section>
+                    {/* List edit */}
+                <section className="
+                    rounded-xl
+                    border
+                    border-gray-700
+                    bg-gray-800
+                    p-5
+                ">
+
+                    <h2 className="font-medium mb-4">
+                        Teileliste
+                    </h2>
+
+
+                    <div className="
+                        grid
+                        grid-cols-2
+                        gap-4
+                    ">
+
+                        <SelectField
+                            label="Ausgabe"
+                            value={
+                                cabinet.partListSettings?.grouping ??
+                                "cabinet"
+                            }
+
+                            options={[
+                                [
+                                    "cabinet",
+                                    "Alle Teile in Korpusse gruppieren"
+                                ],
+                                [
+                                    "separate",
+                                    "Gruppen getrennt ausgeben"
+                                ]
+                            ]}
+
+                            onChange={
+                                value =>
+                                    update({
+                                        partListSettings: {
+                                            ...(cabinet.partListSettings ?? {}),
+                                            grouping: value,
+
+                                            separate: {
+                                                ...(cabinet.partListSettings?.separate ?? {}),
+                                            }
+                                        }
+                                    })
+                            }
+                        />
+
+                    </div>
+
+
+                    {/* =====================================================
+                    * Getrennte Gruppen
+                    * ===================================================== */}
+
+                    {
+                        (
+                            cabinet.partListSettings?.grouping ??
+                            "cabinet"
+                        ) === "separate" && (
+
+                            <div className="
+                                mt-5
+                                rounded-lg
+                                border
+                                border-gray-700
+                                bg-gray-900
+                                p-4
+                            ">
+
+                                <div className="
+                                    mb-3
+                                    text-xs
+                                    uppercase
+                                    tracking-wide
+                                    text-gray-500
+                                ">
+                                    Getrennte Gruppen
+                                </div>
+
+
+                                <div className="
+                                    grid
+                                    grid-cols-2
+                                    gap-x-6
+                                    gap-y-3
+                                ">
+
+                                    <Checkbox
+                                        checked={
+                                            cabinet.partListSettings?.separate?.fronts ??
+                                            false
+                                        }
+
+                                        label="Fronten"
+
+                                        onChange={
+                                            value =>
+                                                update({
+                                                    partListSettings: {
+
+                                                        ...(cabinet.partListSettings ?? {}),
+
+                                                        grouping:
+                                                            cabinet.partListSettings?.grouping ??
+                                                            "separate",
+
+                                                        separate: {
+
+                                                            ...(cabinet.partListSettings?.separate ?? {}),
+
+                                                            fronts:
+                                                                value
+
+                                                        }
+
+                                                    }
+                                                })
+                                        }
+                                    />
+
+
+                                    <Checkbox
+                                        checked={
+                                            cabinet.partListSettings?.separate?.shelves ??
+                                            false
+                                        }
+
+                                        label="Fächer"
+
+                                        onChange={
+                                            value =>
+                                                update({
+                                                    partListSettings: {
+
+                                                        ...(cabinet.partListSettings ?? {}),
+
+                                                        grouping:
+                                                            cabinet.partListSettings?.grouping ??
+                                                            "separate",
+
+                                                        separate: {
+
+                                                            ...(cabinet.partListSettings?.separate ?? {}),
+
+                                                            shelves:
+                                                                value
+
+                                                        }
+
+                                                    }
+                                                })
+                                        }
+                                    />
+
+
+                                    <Checkbox
+                                        checked={
+                                            cabinet.partListSettings?.separate?.middleWalls ??
+                                            false
+                                        }
+
+                                        label="Mittelwände"
+
+                                        onChange={
+                                            value =>
+                                                update({
+                                                    partListSettings: {
+
+                                                        ...(cabinet.partListSettings ?? {}),
+
+                                                        grouping:
+                                                            cabinet.partListSettings?.grouping ??
+                                                            "separate",
+
+                                                        separate: {
+
+                                                            ...(cabinet.partListSettings?.separate ?? {}),
+
+                                                            middleWalls:
+                                                                value
+
+                                                        }
+
+                                                    }
+                                                })
+                                        }
+                                    />
+
+
+                                    <Checkbox
+                                        checked={
+                                            cabinet.partListSettings?.separate?.legrabox ??
+                                            false
+                                        }
+
+                                        label="Legraboxen"
+
+                                        onChange={
+                                            value =>
+                                                update({
+                                                    partListSettings: {
+
+                                                        ...(cabinet.partListSettings ?? {}),
+
+                                                        grouping:
+                                                            cabinet.partListSettings?.grouping ??
+                                                            "separate",
+
+                                                        separate: {
+
+                                                            ...(cabinet.partListSettings?.separate ?? {}),
+
+                                                            legrabox:
+                                                                value
+
+                                                        }
+
+                                                    }
+                                                })
+                                        }
+                                    />
+
+                                </div>
+
+                            </div>
+
+                        )
+                    }
+
+
+                    {
+                        (
+                            cabinet.partListSettings?.grouping ??
+                            "cabinet"
+                        ) === "cabinet" && (
+
+                            <div className="
+                                mt-3
+                                text-xs
+                                text-gray-500
+                            ">
+
+                                Alle Teile werden in der Teileliste
+                                dem jeweiligen Korpus zugeordnet.
+
+                            </div>
+
+                        )
+                    }
 
                 </section>
 

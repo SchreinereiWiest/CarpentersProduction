@@ -1,46 +1,70 @@
+export const flattenPartList = (partList = []) => {
 
+  const result = [];
 
-export const flattenPartList = (
-    partList = []
-) => {
+  const walk = (
+    node,
+    parent = null,
+    cabinetName = null,
+    cabinetPID = null
+  ) => {
 
-    const result = [];
+    if (!node) {
+      return;
+    }
 
-    const walk = (
-        node,
-        parent = null
-    ) => {
+    /*
+     * Wenn es sich um einen Korpus-Root handelt,
+     * übernehmen wir dessen Namen und PID für alle
+     * darunterliegenden Bauteile.
+     */
+    let currentCabinetName = cabinetName;
+    let currentCabinetPID = cabinetPID;
 
-        if (!node) {
-            return;
-        }
+    if (
+      node.Plattentyp === "KO" &&
+      node.PID &&
+      node.Objektname
+    ) {
+      currentCabinetName = node.Objektname;
+      currentCabinetPID = node.PID;
+    }
 
-        const isPart =
-            node.PID &&
-            (
-                node.Plattentyp ||
-                node.Objektname
-            );
+    const isPart =
+      node.PID &&
+      (node.Plattentyp || node.Objektname);
 
-        if (isPart) {
-            result.push({
-                ...node,
-                parentPID: parent?.PID ?? null
-            });
-        }
+    if (isPart) {
 
-        if (
-            Array.isArray(node.Children)
-        ) {
-            node.Children.forEach(child => {
-                walk(child, node);
-            });
-        }
-    };
+      result.push({
+        ...node,
 
-    partList.forEach(root => {
-        walk(root);
-    });
+        parentPID: parent?.PID ?? null,
 
-    return result;
+        cabinetName: node.cabinetName ?? currentCabinetName,
+
+        cabinetPID: node.cabinetPID ?? currentCabinetPID
+      });
+    }
+
+    if (Array.isArray(node.Children)) {
+
+      node.Children.forEach((child) => {
+
+        walk(
+          child,
+          node,
+          currentCabinetName,
+          currentCabinetPID
+        );
+
+      });
+    }
+  };
+
+  partList.forEach((root) => {
+    walk(root);
+  });
+
+  return result;
 };
