@@ -8,6 +8,7 @@ export function placeStrip(
     freeSpaces,
     settings
 ) {
+    // Übernimmt den Strip, erzeugt Guillotine-Schnitte und aktualisiert Freiflächen.
     strip.x =
         bestSpace.x;
 
@@ -21,9 +22,10 @@ export function placeStrip(
     strip.x = bestSpace.x;
     strip.y = bestSpace.y;
 
-    nestingPlates[bestSpace.space.sheet].strips.push(
-        strip
+    const nestingPlate = nestingPlates.find(
+        (plate) => plate.id === bestSpace.space.sheet
     );
+    nestingPlate.strips.push(strip);
 
     const split = splitRect(
         bestSpace.space,
@@ -32,6 +34,7 @@ export function placeStrip(
     );
 
     const newSpaces = split.freeRects;
+    nestingPlate.cuts = [...(nestingPlate.cuts ?? []), ...split.cuts];
 
     const spaceIndex =
         freeSpaces.indexOf(

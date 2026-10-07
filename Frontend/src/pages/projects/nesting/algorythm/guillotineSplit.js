@@ -13,13 +13,9 @@ export function splitRect(rect, strip, settings) {
         strip.placedHeight -
         settings.cutGap;
 
-    let cut = true;
-
-    if (strip.type == "horizontal") {
-        cut = true;
-    } else {
-        cut = false;
-    }
+    // Schnittlage steuert die Freiflächen-Aufteilung unabhängig von der Strip-Drehung.
+    const cutOrientation = strip.cutOrientation ?? strip.type;
+    const cut = cutOrientation === "horizontal";
 
     let rightHeight = rect.height
     if (cut) {

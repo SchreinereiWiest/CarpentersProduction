@@ -1,6 +1,24 @@
 import { canFit } from "../helper/helpers";
 import { placeStrip } from "../placement/placeStrip";
 
+export function createEmptyNestingPlate(defaultPlate, settings, id = 0) {
+    // Neue manuelle Zielplatten starten mit der gesamten Innenfläche als Freiraum.
+    const width = defaultPlate.width - settings.margin * 2;
+    const height = defaultPlate.height - settings.margin * 2;
+
+    return {
+        id,
+        width,
+        height,
+        placedWidth: defaultPlate.width,
+        placedHeight: defaultPlate.height,
+        strips: [],
+        plates: [],
+        cuts: [],
+        freeSpaces: [{ sheet: id, x: 0, y: 0, width, height }]
+    };
+}
+
 export function nestStrips(
     strips,
     defaultPlate,
@@ -26,56 +44,9 @@ export function nestStrips(
         if (
             !currentPlate
         ) {
-
-            currentPlate = {
-
-                id:
-                    nestingPlates.length,
-
-                width: defaultPlate.width - settings.margin*2,
-
-                height: defaultPlate.height - settings.margin*2,
-
-                placedWidth: defaultPlate.width,
-
-                placedHeight: defaultPlate.height,
-
-                strips: [],
-
-                plates: [],
-
-                freeSpaces: [{
-
-                    sheet: nestingPlates.length,
-
-                    x: 0,
-
-                    y: 0,
-
-                    width: defaultPlate.width - settings.margin*2,
-
-                    height: defaultPlate.height - settings.margin*2
-                }]
-            };
-
-            nestingPlates.push(
-                currentPlate
-            );
-
-            freeSpaces = [
-                {
-
-                    sheet: nestingPlates.length - 1,
-
-                    x: 0,
-
-                    y: 0,
-
-                    width: defaultPlate.width - settings.margin*2,
-
-                    height: defaultPlate.height - settings.margin*2,
-                }
-            ]
+            currentPlate = createEmptyNestingPlate(defaultPlate, settings, nestingPlates.length);
+            nestingPlates.push(currentPlate);
+            freeSpaces = [...currentPlate.freeSpaces];
         }
 
 
@@ -108,56 +79,12 @@ export function nestStrips(
             !bestSpace
         ) {
 
-            currentPlate = {
-
-                id:
-                    nestingPlates.length,
-
-                width: defaultPlate.width - settings.margin*2,
-
-                height: defaultPlate.height - settings.margin*2,
-
-                placedWidth: defaultPlate.width,
-
-                placedHeight: defaultPlate.height,
-
-                strips: [],
-
-                plates: [],
-
-                freeSpaces: [{
-
-                     sheet: nestingPlates.length,
-
-                    x: 0,
-
-                    y: 0,
-
-                    width: defaultPlate.width - settings.margin*2,
-
-                    height: defaultPlate.height - settings.margin*2,
-                }]
-            };
-
-
+            currentPlate = createEmptyNestingPlate(defaultPlate, settings, nestingPlates.length);
             nestingPlates.push(
                 currentPlate
             );
 
-            freeSpaces.push(
-
-                {
-                     sheet: nestingPlates.length - 1,
-
-                    x: 0,
-
-                    y: 0,
-
-                    width: defaultPlate.width - settings.margin*2,
-
-                    height: defaultPlate.height - settings.margin*2,
-                }
-            );
+            freeSpaces.push(...currentPlate.freeSpaces);
 
 
             /*

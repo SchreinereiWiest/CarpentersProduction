@@ -18,6 +18,9 @@
         // Abstand zwischen mehreren Platten
         sheetOffset: 3000,
 
+        // Fangabstand beim manuellen Strip-Placement
+        snapDistance: 120,
+
     // Standardplatte
     defaultSheet: {
 

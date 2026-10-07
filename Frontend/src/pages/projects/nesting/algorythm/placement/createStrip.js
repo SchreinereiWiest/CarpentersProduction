@@ -85,10 +85,17 @@ export function createStrips(sortedPlates, settings) {
                 )
                 : 0;
 
+        // Metadaten werden für manuelle Drehung, Schnittlage und Snapping weitergeführt.
         strips.push({
             id: stripId++,
 
             type,
+
+            partGap: settings.gap,
+
+            cutGap: settings.cutGap,
+
+            rotation: 0,
 
             placedWidth: type=="horizontal" ? height : width,
 
@@ -380,4 +387,3 @@ function chooseBetterCombination(
 
     return currentBest;
 }
-

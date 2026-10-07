@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import SideBar from '../../../components/sideBar.jsx';
 import axios from 'axios';
 import { useNavigate } from 'react-router';
@@ -11,17 +11,122 @@ import { processContent } from '../list/listProcess.project.js';
 import { calculateNesting } from './algorythm/nestingAlgorythm.js';
 import NestingScene from './nestingscene.project.jsx';
 import { defaultSettings } from './algorythm/helper/defaults.js';
+import {
+    canPlaceStrip,
+    configureStripPlacement
+} from './algorythm/placement/manualStripPlacement.js';
+import { createEmptyNestingPlate, nestStrips } from './algorythm/placement/nestingPlate.js';
+import { placeStrip as placeStripOnNestingPlate } from './algorythm/placement/placeStrip.js';
 import NestingSettingsModal from "./nestingSettingsModal.project.jsx"
 import { TOUCH } from "three";
 
-import { Canvas, useFrame, useLoader } from '@react-three/fiber'
+import { Canvas, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
-import { useControls } from 'leva'
-import * as THREE from "three";
-import { MapControls } from "@react-three/drei";
-import {MOUSE} from "three";
 import {getProjectFile, uploadProjectFile} from "../../../services/projectMemoryCache.js";
 import {downloadFile, uploadJSONFile} from "../../../services/apiTemplates.js";
+
+function HorizontalPanControls({ controlsRef }) {
+    const { camera, gl } = useThree();
+    const touchPan = useRef(null);
+
+    // Verschiebt Kamera und Ziel ausschließlich entlang der X-Achse.
+    const panByPixels = useCallback((deltaX) => {
+        const controls = controlsRef.current;
+        if (!controls || !gl.domElement.clientWidth) return;
+
+        const visibleWorldWidth = (camera.right - camera.left) / camera.zoom;
+        const cameraDeltaX = -deltaX * visibleWorldWidth / gl.domElement.clientWidth;
+        controls.target.x += cameraDeltaX;
+        camera.position.x += cameraDeltaX;
+        controls.update();
+    }, [camera, controlsRef, gl]);
+
+    // Ctrl + Mausziehen wird vor den R3F-Drag-Handlern als horizontales Pan verarbeitet.
+    useEffect(() => {
+        const element = gl.domElement;
+        let mousePan = null;
+
+        const handlePointerDown = (event) => {
+            if (event.pointerType !== "mouse" || event.button !== 0 || !event.ctrlKey) return;
+
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            mousePan = { pointerId: event.pointerId, lastX: event.clientX };
+            element.setPointerCapture?.(event.pointerId);
+        };
+
+        const handlePointerMove = (event) => {
+            if (!mousePan || mousePan.pointerId !== event.pointerId) return;
+
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            panByPixels(event.clientX - mousePan.lastX);
+            mousePan.lastX = event.clientX;
+        };
+
+        const finishMousePan = (event) => {
+            if (!mousePan || mousePan.pointerId !== event.pointerId) return;
+
+            event.preventDefault();
+            element.releasePointerCapture?.(event.pointerId);
+            mousePan = null;
+        };
+
+        element.addEventListener("pointerdown", handlePointerDown, true);
+        element.addEventListener("pointermove", handlePointerMove, true);
+        element.addEventListener("pointerup", finishMousePan, true);
+        element.addEventListener("pointercancel", finishMousePan, true);
+
+        return () => {
+            element.removeEventListener("pointerdown", handlePointerDown, true);
+            element.removeEventListener("pointermove", handlePointerMove, true);
+            element.removeEventListener("pointerup", finishMousePan, true);
+            element.removeEventListener("pointercancel", finishMousePan, true);
+        };
+    }, [gl, panByPixels]);
+
+    // Touch-Pan beginnt auf der leeren Hintergrundfläche, damit Strip-Touches Drag bleiben.
+    const startTouchPan = (event) => {
+        const nativeEvent = event.nativeEvent;
+        if (nativeEvent.pointerType !== "touch") return;
+        event.stopPropagation();
+        if (!nativeEvent.isPrimary) return;
+
+        touchPan.current = { pointerId: nativeEvent.pointerId, lastX: nativeEvent.clientX };
+        event.target.setPointerCapture?.(nativeEvent.pointerId);
+    };
+
+    const moveTouchPan = (event) => {
+        const nativeEvent = event.nativeEvent;
+        if (!touchPan.current || touchPan.current.pointerId !== nativeEvent.pointerId) return;
+
+        event.stopPropagation();
+        panByPixels(nativeEvent.clientX - touchPan.current.lastX);
+        touchPan.current.lastX = nativeEvent.clientX;
+    };
+
+    const finishTouchPan = (event) => {
+        const nativeEvent = event.nativeEvent;
+        if (!touchPan.current || touchPan.current.pointerId !== nativeEvent.pointerId) return;
+
+        event.stopPropagation();
+        event.target.releasePointerCapture?.(nativeEvent.pointerId);
+        touchPan.current = null;
+    };
+
+    return (
+        <mesh
+            position={[0, 0, -50]}
+            onPointerDown={startTouchPan}
+            onPointerMove={moveTouchPan}
+            onPointerUp={finishTouchPan}
+            onPointerCancel={finishTouchPan}
+        >
+            <planeGeometry args={[100000, 100000]} />
+            <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        </mesh>
+    );
+}
 
 
 function NestingView() {
@@ -42,6 +147,7 @@ function NestingView() {
 
     const [settings, setSettings] = useState([defaultSettings]);
     const [showSettings, setShowSettings] = useState(false);
+    const orbitControlsRef = useRef(null);
 
     const loadListData = async () => {
 
@@ -135,6 +241,24 @@ function NestingView() {
                 });
 
             }
+
+    async function saveNestingLayout() {
+        if (!projectId || !nestingResult) return;
+
+        try {
+            await uploadProjectFile({
+                projectId,
+                file: "nesting.json",
+                data: nestingResult,
+                uploadFunction: {
+                    upload: uploadJSONFile,
+                    path: `/api/projects/generated/${projectId}/nesting`
+                }
+            });
+        } catch (error) {
+            console.error("Nesting-Layout konnte nicht gespeichert werden", error);
+        }
+    }
 
     //fetch project and customer data
     useEffect(() => {
@@ -236,32 +360,197 @@ function NestingView() {
     const activeSheet = nestingResult?.[activeSheetIndex];
 
     const [activeStrip, setActiveStrip] = useState(null);
+    const [placementMessage, setPlacementMessage] = useState("");
+    const activePoolStrip = activeSheet?.emptyStrips?.find(
+        (strip) => strip.id === activeStrip?.id
+    );
+    const selectStrip = (strip) => {
+        setActiveStrip(strip);
+        setPlacementMessage("");
+    };
 
     const removeStrip = (stripToRemove) => {
+        // Nach dem Herausnehmen wird der Standardalgorithmus für die übrigen Strips neu ausgeführt.
+        setPlacementMessage("");
+        setActiveStrip({
+            ...stripToRemove,
+            cutOrientation: stripToRemove.cutOrientation ?? stripToRemove.type ?? "vertical",
+            rotation: stripToRemove.rotation ?? 0
+        });
         setNestingResult((currentResult) =>
             currentResult?.map((sheet, index) => {
                 if (index !== activeSheetIndex) return sheet;
 
-                const strips = sheet.strips.filter(
-                    (strip) => strip.id !== stripToRemove.id
+                const strip = sheet.strips.find(
+                    (candidate) => candidate.id === stripToRemove.id
+                );
+                if (!strip) return sheet;
+
+                const activeSettings = settings[index] ?? sheet.settings ?? defaultSettings;
+                const remainingStrips = sheet.strips
+                    .filter((candidate) => candidate.id !== stripToRemove.id)
+                    .map((candidate) => ({
+                        ...candidate,
+                        layoutType: candidate.layoutType ?? candidate.type,
+                        cutOrientation: candidate.cutOrientation ?? candidate.type
+                    }));
+                const nestingPlates = nestStrips(
+                    remainingStrips,
+                    activeSettings.defaultSheet,
+                    activeSettings
+                )
+                    .filter((nestingPlate) => nestingPlate.strips.length > 0)
+                    .map((nestingPlate, id) => ({
+                        ...nestingPlate,
+                        id,
+                        strips: nestingPlate.strips.map((placedStrip) => ({
+                            ...placedStrip,
+                            sheet: id
+                        })),
+                        freeSpaces: nestingPlate.freeSpaces.map((space) => ({
+                            ...space,
+                            sheet: id
+                        })),
+                        cuts: (nestingPlate.cuts ?? []).map((cut) => ({
+                            ...cut,
+                            sheet: id
+                        }))
+                    }));
+                const placedStripIds = new Set(
+                    nestingPlates.flatMap((nestingPlate) =>
+                        nestingPlate.strips.map((placedStrip) => placedStrip.id)
+                    )
+                );
+                const unplacedStrips = remainingStrips.filter(
+                    (candidate) => !placedStripIds.has(candidate.id)
                 );
 
-                const nestingPlates = sheet.nestingPlates.flatMap(
-                    (nestingPlate) => {
-                        const plateStrips = (nestingPlate.strips ?? []).filter(
-                            (strip) => strip.id !== stripToRemove.id
-                        );
+                const pooledStrip = {
+                    ...strip,
+                    layoutType: strip.layoutType ?? strip.type,
+                    cutOrientation: strip.cutOrientation ?? strip.type ?? "vertical",
+                    rotation: strip.rotation ?? 0
+                };
 
-                        return plateStrips.length > 0
-                            ? [{ ...nestingPlate, strips: plateStrips }]
-                            : [];
-                    }
-                );
+                const nextNestingPlates = nestingPlates.length > 0
+                    ? nestingPlates
+                    : [createEmptyNestingPlate(activeSettings.defaultSheet, activeSettings, 0)];
 
-                return { ...sheet, strips, nestingPlates };
+                return {
+                    ...sheet,
+                    strips: nextNestingPlates.flatMap((nestingPlate) => nestingPlate.strips),
+                    nestingPlates: nextNestingPlates,
+                    emptyStrips: [...(sheet.emptyStrips ?? []), pooledStrip, ...unplacedStrips]
+                };
             })
         );
+    };
+
+    const updatePoolStripPlacement = (option, value) => {
+        // Rotation verändert die Geometrie; Schnittlage bleibt davon unabhängig.
+        if (!activePoolStrip) return;
+
+        const options = {
+            cutOrientation: option === "cutOrientation"
+                ? value
+                : activePoolStrip.cutOrientation ?? activePoolStrip.type,
+            rotation: option === "rotation" ? value : activePoolStrip.rotation ?? 0
+        };
+        const configuredStrip = configureStripPlacement(activePoolStrip, options, settings[activeSheetIndex]);
+
+        setNestingResult((currentResult) =>
+            currentResult?.map((sheet, index) => {
+                if (index !== activeSheetIndex) return sheet;
+                return {
+                    ...sheet,
+                    emptyStrips: (sheet.emptyStrips ?? []).map((strip) =>
+                        strip.id === configuredStrip.id ? configuredStrip : strip
+                    )
+                };
+            })
+        );
+        setPlacementMessage("");
+        setActiveStrip(configuredStrip);
+    };
+
+    const placePoolStrip = (stripId, placement) => {
+        // Prüft den manuellen Drop und legt bei Bedarf die neue Platte dauerhaft an.
+        const poolStrip = activeSheet?.emptyStrips?.find((strip) => strip.id === stripId);
+        const existingTargetPlate = activeSheet?.nestingPlates?.find(
+            (plate) => plate.id === placement.sheet
+        );
+        const activeSettings = settings[activeSheetIndex] ?? defaultSettings;
+        const targetPlate = existingTargetPlate ?? (
+            placement.createNewPlate
+                ? createEmptyNestingPlate(activeSettings.defaultSheet, activeSettings, placement.sheet)
+                : null
+        );
+        const sourceNestingPlates = existingTargetPlate
+            ? activeSheet.nestingPlates
+            : targetPlate
+                ? [...(activeSheet?.nestingPlates ?? []), targetPlate]
+                : [];
+        const targetSpace = targetPlate?.freeSpaces?.find(
+            (space) => space.x === placement.x && space.y === placement.y
+        );
+
+        if (
+            !poolStrip ||
+            !targetPlate ||
+            !targetSpace ||
+            poolStrip.placedWidth > targetSpace.width ||
+            poolStrip.placedHeight > targetSpace.height ||
+            !canPlaceStrip(targetPlate, poolStrip, placement.x, placement.y, activeSettings.cutGap)
+        ) {
+            setPlacementMessage("Dort ist nicht genug freie Fläche für diesen Strip.");
+            return false;
+        }
+
+        const placedStrip = {
+            ...poolStrip,
+            sheet: targetPlate.id,
+            x: placement.x,
+            y: placement.y
+        };
+
+        const nestingPlates = sourceNestingPlates.map((plate) => ({
+            ...plate,
+            strips: [...(plate.strips ?? [])],
+            cuts: [...(plate.cuts ?? [])],
+            freeSpaces: [...(plate.freeSpaces ?? [])]
+        }));
+        const availableSpaces = nestingPlates.flatMap((plate) => plate.freeSpaces);
+        const placeSpace = availableSpaces.find(
+            (space) => space.sheet === targetPlate.id && space.x === placement.x && space.y === placement.y
+        );
+
+        placeStripOnNestingPlate(
+            placedStrip,
+            { x: placement.x, y: placement.y, space: placeSpace },
+            nestingPlates,
+            availableSpaces,
+            activeSettings
+        );
+
+        for (const plate of nestingPlates) {
+            plate.freeSpaces = availableSpaces.filter((space) => space.sheet === plate.id);
+        }
+
+        setNestingResult((currentResult) =>
+            currentResult?.map((sheet, index) => {
+                if (index !== activeSheetIndex) return sheet;
+
+                return {
+                    ...sheet,
+                    strips: [...sheet.strips, placedStrip],
+                    emptyStrips: (sheet.emptyStrips ?? []).filter((strip) => strip.id !== stripId),
+                    nestingPlates
+                };
+            })
+        );
+        setPlacementMessage("");
         setActiveStrip(null);
+        return true;
     };
 
     // console.log(content);
@@ -285,8 +574,11 @@ function NestingView() {
                             <div className="xl:text-sm text-xs text-gray-400 whitespace-nowrap"> Hauptplatten </div>
                             <div className="flex gap-2 overflow-x-auto"> {nestingResult?.map( (sheetPlate, index) => {
                                 const
-                                isActive = index === activeSheetIndex; return ( <button key={index} onClick={()=>
-                                    setActiveSheetIndex( index ) } className={` flex items-center xl:gap-3 gap-2 xl:px-4 px-2 xl:py-2 py-1
+                                isActive = index === activeSheetIndex; return ( <button key={index} onClick={()=> {
+                                    setActiveSheetIndex(index);
+                                    setActiveStrip(null);
+                                    setPlacementMessage("");
+                                }} className={` flex items-center xl:gap-3 gap-2 xl:px-4 px-2 xl:py-2 py-1
                                     rounded-lg border transition-all duration-200 whitespace-nowrap ${ isActive ?
                                     "bg-blue-600 border-blue-500 text-white xl:shadow-lg shadow-md shadow-blue-900/30" : "bg-gray-900 border-gray-700 text-gray-400 hover:bg-gray-700 hover:text-white" } `} > <span
                                         className="text-xs text-gray-400"> #{index + 1}
@@ -308,6 +600,7 @@ function NestingView() {
                         <div className="flex gap-4 mt-2 text-xs text-gray-500"> <span>
                                 {activeSheet.nestingPlates?.length ?? 0} {""}Nesting-Platten </span>
                             <span> {activeSheet.strips?.length ?? 0} {" "}Strips </span>
+                            <span> {activeSheet.emptyStrips?.length ?? 0} im Pool </span>
                         </div>
                     </div>
                 </div> )}
@@ -320,6 +613,39 @@ function NestingView() {
                         <div className="flex gap-4 mt-2 xl:text-lm text-sm text-gray-500" key={plate.id}> <span> {plate.originalWidth} x {plate.originalHeight} | {plate.original.Objektname} </span> </div>
                         ))}
                         <div className="text-gray-500 xl:text-lm text-sm pt-1"> Rest: {activeStrip.remainingHeight} </div>
+                        {activePoolStrip && (
+                            <div className="mt-3 space-y-2 text-xs">
+                                <div>
+                                    <div className="mb-1 text-gray-400">Schnittlage auf der Nesting-Platte</div>
+                                    <div className="flex gap-2">
+                                        {["vertical", "horizontal"].map((orientation) => (
+                                            <button
+                                                key={orientation}
+                                                onClick={() => updatePoolStripPlacement("cutOrientation", orientation)}
+                                                className={`rounded border px-2 py-1 ${activePoolStrip.cutOrientation === orientation || (!activePoolStrip.cutOrientation && activePoolStrip.type === orientation) ? "border-blue-500 bg-blue-600 text-white" : "border-gray-700 bg-gray-900 text-gray-400 hover:text-white"}`}
+                                            >
+                                                {orientation === "vertical" ? "Vertikal" : "Horizontal"}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="mb-1 text-gray-400">Strip-Drehung</div>
+                                    <div className="flex gap-2">
+                                        {[0, 90].map((rotation) => (
+                                            <button
+                                                key={rotation}
+                                                onClick={() => updatePoolStripPlacement("rotation", rotation)}
+                                                className={`rounded border px-2 py-1 ${Number(activePoolStrip.rotation ?? 0) === rotation ? "border-blue-500 bg-blue-600 text-white" : "border-gray-700 bg-gray-900 text-gray-400 hover:text-white"}`}
+                                            >
+                                                {rotation}°
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                {placementMessage && <div className="text-amber-300">{placementMessage}</div>}
+                            </div>
+                        )}
                     </div>
 
                 </div> )}
@@ -363,6 +689,13 @@ function NestingView() {
         </button>
 
         <button
+            className="flex items-center rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 whitespace-nowrap text-gray-400 transition hover:bg-gray-700 hover:text-white"
+            onClick={saveNestingLayout}
+        >
+            Speichern
+        </button>
+
+        <button
             className="
                 flex
                 items-center
@@ -383,7 +716,7 @@ function NestingView() {
             onClick={UploadData}
         >
             <span className="xl:font-medium">
-                Update
+                Neu berechnen
             </span>
         </button>
 
@@ -427,26 +760,25 @@ function NestingView() {
                 <div className="absolute inset-0">
                     <Canvas orthographic camera={{ zoom: 6, position: [0, 0, 2] }}>
                         <group scale={[0.01,-0.01,0.01]} position={[-75, 9,0]}>
-                            <NestingScene result={activeSheet} setActiveStrip={setActiveStrip}
+                            <NestingScene result={activeSheet} setActiveStrip={selectStrip}
                                 activeStrip={activeStrip}
                                 settings={settings[activeSheetIndex] ?? defaultSettings}
-                                onRemoveStrip={removeStrip}/>
+                                onRemoveStrip={removeStrip}
+                                onPlaceStrip={placePoolStrip}
+                                onInvalidPlacement={() => setPlacementMessage("Dort ist nicht genug freie Fläche für diesen Strip.")}/>
                         </group>
 
                         <OrbitControls
+    ref={orbitControlsRef}
     enableRotate={false}
-    enablePan={true}
+    enablePan={false}
     enableZoom={true}
-    mouseButtons={{
-        LEFT: MOUSE.PAN,
-        MIDDLE: MOUSE.DOLLY,
-        RIGHT: MOUSE.PAN,
-    }}
     touches={{
-        ONE: TOUCH.PAN,
+        ONE: TOUCH.ROTATE,
         TWO: TOUCH.DOLLY_PAN,
     }}
 />
+                        <HorizontalPanControls controlsRef={orbitControlsRef} />
 
                     </Canvas>
 
