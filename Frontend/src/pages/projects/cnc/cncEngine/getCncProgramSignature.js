@@ -1,108 +1,93 @@
-
-
 export const getCncProgramSignature = (part) => {
+  if (!part) {
+    return "";
+  }
 
-    if (!part) {
-        return "";
+  /*
+   * Felder, die niemals Bestandteil der CNC-Signatur sein sollen.
+   * Diese sind entweder technische IDs oder Referenzen auf konkrete
+   * Bauteile/Abschnitte.
+   */
+  const ignoredKeys = new Set([
+    "id",
+    "pid",
+    "bpid",
+    "parentpid",
+    "sectionid",
+    "wallid",
+    "instanceid",
+    "cabinetid",
+    "partid"
+  ]);
+
+
+  const normalize = (value) => {
+
+    // Arrays
+    if (Array.isArray(value)) {
+      return value.map(normalize);
     }
 
-    const normalize = (value) => {
 
-        if (Array.isArray(value)) {
-            return value.map(normalize);
-        }
+    // Objekte
+    if (
+      value !== null &&
+      typeof value === "object"
+    ) {
+      return Object.keys(value)
+        .sort()
+        .reduce((result, key) => {
 
-        if (
-            value !== null &&
-            typeof value === "object"
-        ) {
-            return Object.keys(value)
-                .sort()
-                .reduce((result, key) => {
-                    result[key] = normalize(value[key]);
-                    return result;
-                }, {});
-        }
+          // ID-Felder ignorieren
+          if (ignoredKeys.has(key.toLowerCase())) {
+            return result;
+          }
 
-        // Zahlen und numerische Strings vereinheitlichen
-        if (
-            typeof value === "string" &&
-            value.trim() !== "" &&
-            Number.isFinite(Number(value))
-        ) {
-            return Number(value);
-        }
+          result[key] = normalize(value[key]);
 
-        return value;
-    };
+          return result;
 
-    /*
-     * Diese Werte sind bauteilspezifisch und dürfen
-     * die Gruppierung nicht beeinflussen.
-     */
-    const ignoredFields = [
-        "PID",
-        "BPID",
-        "Objektname",
-        "Anzahl",
-        "Notiz",
-        "color",
-        "parentPID"
-    ];
+        }, {});
+    }
 
-    const programData = {};
 
-    Object.keys(part)
-        .filter(key => !ignoredFields.includes(key))
-        .forEach(key => {
+    // Numerische Strings vereinheitlichen
+    if (
+      typeof value === "string" &&
+      value.trim() !== "" &&
+      Number.isFinite(Number(value))
+    ) {
+      return Number(value);
+    }
 
-            /*
-             * Die CNC-Daten bilden den eigentlichen
-             * Kern des Programms.
-             */
-            if (key === "CNC") {
-                programData.CNC =
-                    normalize(part.CNC ?? {});
-                return;
-            }
 
-            /*
-             * Geometrie gehört ebenfalls zur Signatur,
-             * da ein CNC-Programm für 600 mm nicht automatisch
-             * dasselbe Programm wie für 800 mm sein muss.
-             */
-            if (
-                key === "L" ||
-                key === "B" ||
-                key === "T"
-            ) {
-                programData[key] =
-                    normalize(part[key]);
+    return value;
+  };
 
-                return;
-            }
 
-            /*
-             * Material und Kanten werden ebenfalls berücksichtigt.
-             * Falls wir später feststellen, dass sie für die
-             * Programmgleichheit keine Rolle spielen, können wir
-             * sie hier problemlos entfernen.
-             */
-            if (
-                key === "MID" ||
-                key === "Maserung" ||
-                key === "ELID" ||
-                key === "ERID" ||
-                key === "ETID" ||
-                key === "EBID"
-            ) {
-                programData[key] =
-                    normalize(part[key]);
-            }
+  /*
+   * Falls aktuell keine functionConfig vorhanden ist,
+   * können wir ersatzweise die tatsächlichen CNC-Operationen
+   * verwenden.
+   *
+   * Auch dort werden IDs durch normalize() entfernt.
+   */
+  const cncConfig = part.CNC?.operations ?? [];
 
-        });
-
-    return JSON.stringify(
-        normalize(programData)
+   const operationsWithoutIds = (cncConfig ?? []).map(
+    ({ id, source, ...operation }) => operation
     );
+
+    // console.log(operationsWithoutIds);
+
+  const programData = {
+    L: normalize(part.L),
+    B: normalize(part.B),
+    T: normalize(part.T),
+
+    functionConfig: normalize(operationsWithoutIds)
+  };
+
+//   console.log(JSON.stringify(programData));
+  return JSON.stringify(programData);
 };

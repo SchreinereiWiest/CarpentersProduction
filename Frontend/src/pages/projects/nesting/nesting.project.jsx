@@ -235,7 +235,34 @@ function NestingView() {
     const [activeSheetIndex, setActiveSheetIndex] = useState(0);
     const activeSheet = nestingResult?.[activeSheetIndex];
 
-    const [activeStrip, setActiveStrip] = useState({});
+    const [activeStrip, setActiveStrip] = useState(null);
+
+    const removeStrip = (stripToRemove) => {
+        setNestingResult((currentResult) =>
+            currentResult?.map((sheet, index) => {
+                if (index !== activeSheetIndex) return sheet;
+
+                const strips = sheet.strips.filter(
+                    (strip) => strip.id !== stripToRemove.id
+                );
+
+                const nestingPlates = sheet.nestingPlates.flatMap(
+                    (nestingPlate) => {
+                        const plateStrips = (nestingPlate.strips ?? []).filter(
+                            (strip) => strip.id !== stripToRemove.id
+                        );
+
+                        return plateStrips.length > 0
+                            ? [{ ...nestingPlate, strips: plateStrips }]
+                            : [];
+                    }
+                );
+
+                return { ...sheet, strips, nestingPlates };
+            })
+        );
+        setActiveStrip(null);
+    };
 
     // console.log(content);
 
@@ -401,7 +428,9 @@ function NestingView() {
                     <Canvas orthographic camera={{ zoom: 6, position: [0, 0, 2] }}>
                         <group scale={[0.01,-0.01,0.01]} position={[-75, 9,0]}>
                             <NestingScene result={activeSheet} setActiveStrip={setActiveStrip}
-                                activeStrip={activeStrip} settings={settings}/>
+                                activeStrip={activeStrip}
+                                settings={settings[activeSheetIndex] ?? defaultSettings}
+                                onRemoveStrip={removeStrip}/>
                         </group>
 
                         <OrbitControls
