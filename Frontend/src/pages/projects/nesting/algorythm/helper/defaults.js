@@ -13,6 +13,9 @@
         // Teile drehen erlaubt 
         allowRotation: true,
 
+        // 1d behält die Streifenbelegung, 2d füllt freie Rechtecke im Strip.
+        nestingMode: "1d",
+
         stripDifference: 100,
 
         // Abstand zwischen mehreren Platten

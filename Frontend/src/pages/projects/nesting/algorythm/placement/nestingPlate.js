@@ -59,13 +59,36 @@ export function nestStrips(
         */
 
         let bestSpace = null;
+        let bestWaste = Infinity;
+        let bestShortSideFit = Infinity;
 
         for (const space of freeSpaces) {
             if (!canFit(space, strip.placedWidth, strip.placedHeight)) {
                 continue;   
             }
 
-            bestSpace = {x: space.x, y:space.y, space: space};
+            if (settings.nestingMode === "2d") {
+                // 2D nutzt das kleinste passende Restrechteck für kompaktere Belegung.
+                const waste =
+                    space.width * space.height -
+                    strip.placedWidth * strip.placedHeight;
+                const shortSideFit = Math.min(
+                    space.width - strip.placedWidth,
+                    space.height - strip.placedHeight
+                );
+
+                if (
+                    waste < bestWaste ||
+                    (waste === bestWaste && shortSideFit < bestShortSideFit)
+                ) {
+                    bestWaste = waste;
+                    bestShortSideFit = shortSideFit;
+                    bestSpace = { x: space.x, y: space.y, space };
+                }
+            } else {
+                // Der bisherige 1D-Auswahlpfad bleibt unverändert.
+                bestSpace = { x: space.x, y: space.y, space };
+            }
         }
 
 

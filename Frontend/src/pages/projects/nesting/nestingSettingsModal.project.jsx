@@ -36,6 +36,13 @@ function NestingSettingsModal({
 
     }
 
+    function toggleNestingMode() {
+        setLocalSettings((prev) => ({
+            ...prev,
+            nestingMode: prev.nestingMode === "2d" ? "1d" : "2d"
+        }));
+    }
+
 
     function handleSave() {
 
@@ -96,6 +103,35 @@ function NestingSettingsModal({
                         space-y-4
                     ">
 
+                        {/* Umschalter für 1D- und 2D-Nesting. */}
+                        <div>
+                            <label className="mb-2 block text-sm text-gray-300">
+                                Nesting-Verfahren
+                            </label>
+                            <div className="flex items-center justify-between rounded-lg bg-gray-800 p-3">
+                                <span className={`text-sm ${localSettings.nestingMode === "2d" ? "text-gray-500" : "text-white"}`}>
+                                    1D
+                                </span>
+                                <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={localSettings.nestingMode === "2d"}
+                                    aria-label="2D-Nesting aktivieren"
+                                    onClick={toggleNestingMode}
+                                    className={`relative h-7 w-12 rounded-full transition-colors ${localSettings.nestingMode === "2d" ? "bg-blue-600" : "bg-gray-600"}`}
+                                >
+                                    <span
+                                        className={`absolute left-1 top-1 h-5 w-5 rounded-full bg-white transition-transform ${localSettings.nestingMode === "2d" ? "translate-x-5" : "translate-x-0"}`}
+                                    />
+                                </button>
+                                <span className={`text-sm ${localSettings.nestingMode === "2d" ? "text-white" : "text-gray-500"}`}>
+                                    2D
+                                </span>
+                            </div>
+                            <div className="mt-1 text-center text-xs text-gray-400">
+                                {localSettings.nestingMode === "2d" ? "Freiflächen auffüllen" : "Kantenorientierte Strips"}
+                            </div>
+                        </div>
 
                         {/* Margin */}
 

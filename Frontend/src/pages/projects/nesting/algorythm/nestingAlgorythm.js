@@ -9,22 +9,22 @@ function createNestingGroups(
     settings
 ) {
     const defaultPlate = settings.defaultSheet;
+    const partGap = Number(settings.gap) || 0;
 
+    // Originalmaße bleiben separat von den Footprints inklusive Abstand erhalten.
     const preparedPlates = plates.map(plate => {
+        const originalWidth = Number(plate.originalWidth ?? plate.width) || 0;
+        const originalHeight = Number(plate.originalHeight ?? plate.height) || 0;
 
         return {
             ...plate,
 
-            originalWidth: plate.width,
-            originalHeight: plate.height,
+            originalWidth,
+            originalHeight,
 
-            width:
-                plate.width +
-                settings.gap,
+            width: originalWidth + partGap,
 
-            height:
-                plate.height +
-                settings.gap
+            height: originalHeight + partGap
         };
     });
 

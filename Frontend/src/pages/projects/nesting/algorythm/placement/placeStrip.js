@@ -34,7 +34,30 @@ export function placeStrip(
     );
 
     const newSpaces = split.freeRects;
-    nestingPlate.cuts = [...(nestingPlate.cuts ?? []), ...split.cuts];
+    // Lokale 2D-Schnitte in die Plattenkoordinaten übertragen.
+    const stripCuts = (strip.cuts ?? []).map((cut) => {
+        const rotated = Number(strip.rotation) === 90;
+        const localX = rotated
+            ? strip.height - cut.y - cut.height
+            : cut.x;
+        const localY = rotated ? cut.x : cut.y;
+        const width = rotated ? cut.height : cut.width;
+        const height = rotated ? cut.width : cut.height;
+
+        return {
+            ...cut,
+            sheet: strip.sheet,
+            x: strip.x + localX,
+            y: strip.y + localY,
+            width,
+            height
+        };
+    });
+    nestingPlate.cuts = [
+        ...(nestingPlate.cuts ?? []),
+        ...split.cuts,
+        ...stripCuts
+    ];
 
     const spaceIndex =
         freeSpaces.indexOf(

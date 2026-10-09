@@ -1,111 +1,162 @@
-export function splitRect(rect, strip, settings) {
+export function splitRect(rect, strip, settings = {}) {
+  const freeRects = [];
+  const cuts = [];
 
-    const freeRects = [];
-    const cuts = [];
+  const x = Number(rect.x) || 0;
+  const y = Number(rect.y) || 0;
+  const rectWidth = Number(rect.width) || 0;
+  const rectHeight = Number(rect.height) || 0;
 
-    const rightWidth =
-        rect.width -
-        strip.placedWidth -
-        settings.cutGap;
+  const placedWidth = Number(strip.placedWidth) || 0;
+  const placedHeight = Number(strip.placedHeight) || 0;
+  const cutGap = Math.max(0, Number(settings.cutGap) || 0);
 
-    const bottomHeight =
-        rect.height -
-        strip.placedHeight -
-        settings.cutGap;
+  const EPSILON = 1e-7;
 
-    // Schnittlage steuert die Freiflächen-Aufteilung unabhängig von der Strip-Drehung.
-    const cutOrientation = strip.cutOrientation ?? strip.type;
-    const cut = cutOrientation === "horizontal";
+  if (
+    rectWidth <= 0 ||
+    rectHeight <= 0 ||
+    placedWidth <= 0 ||
+    placedHeight <= 0 ||
+    placedWidth > rectWidth + EPSILON ||
+    placedHeight > rectHeight + EPSILON
+  ) {
+    return { freeRects, cuts };
+  }
 
-    let rightHeight = rect.height
-    if (cut) {
-        rightHeight = rect.height - (rect.height - strip.placedHeight)
+  const rightWidth = Math.max(
+    0,
+    rectWidth - placedWidth - cutGap
+  );
+
+  const bottomHeight = Math.max(
+    0,
+    rectHeight - placedHeight - cutGap
+  );
+
+  const cutOrientation = String(
+    strip.cutOrientation ?? strip.type ?? "vertical"
+  ).toLowerCase();
+
+  const horizontalFirst = cutOrientation === "horizontal";
+
+  const addFreeRect = (freeX, freeY, width, height) => {
+    if (width <= EPSILON || height <= EPSILON) {
+      return;
     }
 
-    let bottomWidth = rect.width
-    if (!cut) {
-        bottomWidth = rect.width - (rect.width - strip.placedWidth)
+    freeRects.push({
+      ...rect,
+      x: freeX,
+      y: freeY,
+      width,
+      height
+    });
+  };
+
+  const addCut = (cutX, cutY, width, height) => {
+    if (width <= EPSILON || height <= EPSILON) {
+      return;
     }
 
-    if (rightWidth > 0) {
+    cuts.push({
+      sheet: rect.sheet,
+      x: cutX,
+      y: cutY,
+      width,
+      height
+    });
+  };
 
-        freeRects.push({
+  if (horizontalFirst) {
+    /*
+     * Zuerst horizontal schneiden:
+     *
+     *  +-----------------------+
+     *  | Bauteil | rechter Rest|
+     *  +---------+-------------+
+     *  |      unterer Rest     |
+     *  +-----------------------+
+     */
 
-            sheet: rect.sheet,
+    addFreeRect(
+      x + placedWidth + cutGap,
+      y,
+      rightWidth,
+      placedHeight
+    );
 
-            x:
-                rect.x +
-                strip.placedWidth +
-                settings.cutGap,
+    addFreeRect(
+      x,
+      y + placedHeight + cutGap,
+      rectWidth,
+      bottomHeight
+    );
 
-            y: rect.y,
-
-            width: rightWidth,
-
-            height: rightHeight
-
-        });
-
-        cuts.push({
-
-            sheet: rect.sheet,
-
-            x:
-                rect.x +
-                strip.placedWidth,
-
-            y: rect.y,
-
-            width: settings.cutGap,
-
-            height: rightHeight
-
-        });
-
+    if (bottomHeight > EPSILON) {
+      addCut(
+        x,
+        y + placedHeight,
+        rectWidth,
+        cutGap
+      );
     }
 
-    if (bottomHeight > 0) {
+    if (rightWidth > EPSILON) {
+      addCut(
+        x + placedWidth,
+        y,
+        cutGap,
+        placedHeight
+      );
+    }
+  } else {
+    /*
+     * Zuerst vertikal schneiden:
+     *
+     *  +---------+-------------+
+     *  | Bauteil |             |
+     *  |         | rechter Rest|
+     *  +---------+             |
+     *  | unterer Rest           |
+     *  +-----------------------+
+     */
 
-        freeRects.push({
+    addFreeRect(
+      x + placedWidth + cutGap,
+      y,
+      rightWidth,
+      rectHeight
+    );
 
-            sheet: rect.sheet,
+    addFreeRect(
+      x,
+      y + placedHeight + cutGap,
+      placedWidth,
+      bottomHeight
+    );
 
-            x: rect.x,
-
-            y:
-                rect.y +
-                strip.placedHeight +
-                settings.cutGap,
-
-            width: bottomWidth,
-
-            height: bottomHeight
-
-        });
-
-        cuts.push({
-
-            sheet: rect.sheet,
-
-            x: rect.x,
-
-            y:
-                rect.y +
-                strip.placedHeight,
-
-            width: bottomWidth,
-
-            height: settings.cutGap
-
-        });
-
+    if (rightWidth > EPSILON) {
+      addCut(
+        x + placedWidth,
+        y,
+        cutGap,
+        rectHeight
+      );
     }
 
-    return {
+    if (bottomHeight > EPSILON) {
+      addCut(
+        x,
+        y + placedHeight,
+        placedWidth,
+        cutGap
+      );
+    }
+  }
 
-        freeRects,
-        cuts
-
-    };
-
+  return {
+    freeRects,
+    cuts
+  };
 }

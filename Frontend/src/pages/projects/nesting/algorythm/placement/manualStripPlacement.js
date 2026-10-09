@@ -18,9 +18,27 @@ export function getStripLayout(strip, options = {}) {
     let baseWidth = 0;
     let baseHeight = 0;
 
+    const isPacked2D = strip.packingMode === "2d";
     const items = (strip.plates ?? []).map((plate) => {
         const originalWidth = plate.originalWidth ?? plate.width;
         const originalHeight = plate.originalHeight ?? plate.height;
+
+        if (isPacked2D) {
+            const itemRotation = Number(plate.nestingRotation) === 90 ? 90 : 0;
+            const itemWidth = itemRotation === 90 ? originalHeight : originalWidth;
+            const itemHeight = itemRotation === 90 ? originalWidth : originalHeight;
+            const footprintWidth = plate.nestingFootprintWidth ?? plate.width ?? originalWidth;
+            const footprintHeight = plate.nestingFootprintHeight ?? plate.height ?? originalHeight;
+
+            return {
+                plate,
+                x: plate.nestingX + (footprintWidth - itemWidth) / 2,
+                y: plate.nestingY + (footprintHeight - itemHeight) / 2,
+                width: itemWidth,
+                height: itemHeight
+            };
+        }
+
         const footprintWidth = plate.width ?? originalWidth + partGap;
         const footprintHeight = plate.height ?? originalHeight + partGap;
         const itemWidth = layoutType === "horizontal" ? originalHeight : originalWidth;
@@ -44,7 +62,10 @@ export function getStripLayout(strip, options = {}) {
         return { plate, x, y, width: itemWidth, height: itemHeight };
     });
 
-    if (layoutType === "horizontal") {
+    if (isPacked2D) {
+        baseWidth = strip.width ?? 0;
+        baseHeight = strip.height ?? 0;
+    } else if (layoutType === "horizontal") {
         baseWidth = Math.max(0, currentX - (items.length ? cutGap : 0));
     } else {
         baseHeight = Math.max(0, currentY - (items.length ? cutGap : 0));
