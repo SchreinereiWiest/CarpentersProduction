@@ -21,6 +21,10 @@ export const getSettingsData = async (req, res) => {
         fileName = "settings-cabinet.json";
         break;
 
+        case "cabinetPreset":
+        fileName = "settings-cabinetPreset.json";
+        break;
+
         case "nesting": 
         fileName = "settings-nesting.json";
         break;
@@ -102,6 +106,10 @@ export async function createSettingsData(req,res){
     switch(name) {
         case "cabinet": 
         fileName = "settings-cabinet.json";
+        break;
+
+        case "cabinetPreset":
+        fileName = "settings-cabinetPreset.json";
         break;
 
         case "nesting": 

@@ -16,10 +16,12 @@ import { ProjectSave } from "./engine/projectSave.js";
 import { buildPartList } from "./engine/partList/buildPartList.js";
 import { useNavigate } from 'react-router';
 import {getProjectFile} from "../../../services/projectMemoryCache.js";
-import {downloadFile} from "../../../services/apiTemplates.js";
-import { getGlobalFile } from "../../../services/globalMemoryCache.js";
+import {downloadFile, uploadJSONFile} from "../../../services/apiTemplates.js";
+import { getGlobalFile, uploadGlobalFile } from "../../../services/globalMemoryCache.js";
 import axios from "axios";
 import { DEFAULT_CNC } from "./engine/cnc/cncDefaults.js";
+import CabinetPresetModal from "./components/editor/CabinetPresetModal.jsx";
+import { useAuth } from "../../../routes/AuthContext.jsx";
 
 
 export function createId() {
@@ -81,6 +83,8 @@ export default function CabinetEditor() {
 
     // conmstant Section alle Editor daten
     const navigate = useNavigate();
+    const { user, loading: authLoading } = useAuth();
+    const isAdmin = !authLoading && user?.role === "admin";
 
     const { projectId } = useParams();
     const { userId } = useParams();
@@ -125,6 +129,14 @@ export default function CabinetEditor() {
     const [sectionCount, setSectionCount] = useState(1);
 
     const [cabinets, setCabinets] = useState([]);
+
+    const [cabinetPresets, setCabinetPresets] = useState([]);
+
+    const [presetEditorCabinet, setPresetEditorCabinet] = useState(null);
+
+    const [showPresetInsertModal, setShowPresetInsertModal] = useState(false);
+
+    const [selectedPresetId, setSelectedPresetId] = useState("");
 
     const [activeCabinetId, setActiveCabinetId] = useState();
 
@@ -392,6 +404,55 @@ export default function CabinetEditor() {
     setSelectedElement(null);
     };
 
+    const saveCabinetPresets = async nextPresets => {
+        await uploadGlobalFile({
+            file: "settings-cabinetPreset.json",
+            data: nextPresets,
+            uploadFunction: {
+                upload: uploadJSONFile,
+                path: "/api/settings/cabinetPreset"
+            }
+        });
+
+        setCabinetPresets(nextPresets);
+    };
+
+    const saveCabinetAsPreset = cabinet => {
+        if (!isAdmin) return;
+        setPresetEditorCabinet({ cabinet, presetId: null });
+    };
+
+    const handleSaveCabinetPreset = async ({ name, cabinet }) => {
+        const presetId = presetEditorCabinet?.presetId;
+        const nextPresets = presetId
+            ? cabinetPresets.map(preset => preset.id === presetId
+                ? { ...preset, name, cabinet }
+                : preset)
+            : [...cabinetPresets, {
+                id: createId(),
+                name,
+                cabinet
+            }];
+
+        await saveCabinetPresets(nextPresets);
+        setPresetEditorCabinet(null);
+    };
+
+    const insertSelectedCabinetPreset = () => {
+        const preset = cabinetPresets.find(item => String(item.id) === String(selectedPresetId));
+        if (!preset?.cabinet) return;
+
+        const cabinet = cloneCabinetWithFreshIds(preset.cabinet);
+        cabinet.name = preset.name || "Korpus aus Preset";
+        cabinet.quantity = 1;
+
+        setCabinets(previous => [...previous, cabinet]);
+        setActiveCabinetId(cabinet.id);
+        setSectionCount(cabinet.sections?.length ?? 1);
+        setSelectedElement(null);
+        setShowPresetInsertModal(false);
+    };
+
     const updateActiveCabinet = (
         changesOrUpdater
     ) => {
@@ -497,12 +558,11 @@ export default function CabinetEditor() {
 
     const loadDefualt = () => {
         const newID = createId();
-                setCabinets([{
-                    id: newID,
-                    name: "Korpus 1",
-
-                    ...defaultCabinet
-                }]);
+        setCabinets([{
+            id: newID,
+            name: "Korpus 1",
+            ...defaultCabinet
+        }]);
             setActiveCabinetId(newID);
     }
 
@@ -578,7 +638,8 @@ export default function CabinetEditor() {
         const partList =
                 await buildPartList(
                     cabinets,
-                    materials
+                    materials,
+                    defaultConfig
                 );
         
         
@@ -777,27 +838,41 @@ export default function CabinetEditor() {
 
             try {
 
-                const data =
-                    await getGlobalFile({
-
+                const [data, presetData] = await Promise.all([
+                    getGlobalFile({
                         file: "settings-cabinet.json",
-
                         loadFromServer: {download: downloadFile, path:"/api/settings/cabinet"}
+                    }),
+                    getGlobalFile({
+                        file: "settings-cabinetPreset.json",
+                        loadFromServer: {download: downloadFile, path:"/api/settings/cabinetPreset"}
+                    })
+                ]);
 
-                    });
 
+                const legacyPresets = Array.isArray(data?.presets)
+                    ? data.presets
+                    : null;
 
                 // Datei existiert bereits
                 if (data) {
-
+                    const cabinetDefaults = { ...data };
+                    delete cabinetDefaults.presets;
                     setDefaultCabinet(prev => ({
-                    ...prev,
-                    ...data,}));
-
-
-                    return;
-             
+                        ...prev,
+                        ...cabinetDefaults
+                    }));
                 }
+
+                setCabinetPresets(
+                    Array.isArray(presetData)
+                        ? presetData
+                        : Array.isArray(presetData?.presets)
+                            ? presetData.presets
+                            : legacyPresets
+                                ? legacyPresets
+                                : []
+                );
 
             } catch (error) {
 
@@ -897,6 +972,7 @@ export default function CabinetEditor() {
                     selectCabinet={selectCabinet}
                     deleteCabinet={deleteCabinet}
                     updateCabinetQuantity={updateCabinetQuantity}
+                    saveCabinetAsPreset={isAdmin ? saveCabinetAsPreset : undefined}
 
                     updateActiveCabinet={updateActiveCabinet}
 
@@ -977,6 +1053,17 @@ export default function CabinetEditor() {
                                     >
                                         ParseFront
                                     </button>
+
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setSelectedPresetId(String(cabinetPresets[0]?.id ?? ""));
+                                setShowPresetInsertModal(true);
+                            }}
+                            className="rounded border border-gray-700 bg-gray-800/90 px-3 py-2 text-sm text-gray-200 shadow-lg hover:bg-gray-700"
+                        >
+                            Preset einfügen
+                        </button>
 
                         <div className="mx-2 h-6 w-px bg-gray-700" />
 
@@ -1176,6 +1263,51 @@ export default function CabinetEditor() {
                         </button>
                     </div>
                 </div>
+            </div>
+        )}
+
+        {isAdmin && presetEditorCabinet && (
+            <CabinetPresetModal
+                key={`${presetEditorCabinet.presetId ?? "new"}:${presetEditorCabinet.cabinet.id}`}
+                cabinet={presetEditorCabinet.cabinet}
+                initialName={presetEditorCabinet.name ?? presetEditorCabinet.cabinet.name ?? ""}
+                materials={materials}
+                defaultConfig={defaultConfig}
+                onCancel={() => setPresetEditorCabinet(null)}
+                onSave={handleSaveCabinetPreset}
+            />
+        )}
+
+        {showPresetInsertModal && (
+            <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4">
+                <section role="dialog" aria-modal="true" aria-labelledby="insert-preset-title" className="w-full max-w-md rounded-xl border border-gray-700 bg-gray-900 p-6 shadow-2xl">
+                    <h2 id="insert-preset-title" className="text-lg font-semibold text-white">
+                        Cabinet-Preset einfügen
+                    </h2>
+                    {cabinetPresets.length > 0 ? (
+                        <>
+                            <label className="mt-5 block">
+                                <span className="mb-1 block text-xs text-gray-400">Preset auswählen</span>
+                                <select value={selectedPresetId} onChange={event => setSelectedPresetId(event.target.value)} className="w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white">
+                                    {cabinetPresets.map(preset => (
+                                        <option key={preset.id} value={String(preset.id)}>{preset.name}</option>
+                                    ))}
+                                </select>
+                            </label>
+                            <div className="mt-6 flex justify-end gap-3">
+                                <button type="button" onClick={() => setShowPresetInsertModal(false)} className="rounded border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800">Abbrechen</button>
+                                <button type="button" onClick={insertSelectedCabinetPreset} disabled={!selectedPresetId} className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50">Korpus laden</button>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <p className="mt-3 text-sm text-gray-400">Es sind noch keine Cabinet-Presets gespeichert.</p>
+                            <div className="mt-6 flex justify-end">
+                                <button type="button" onClick={() => setShowPresetInsertModal(false)} className="rounded border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800">Schließen</button>
+                            </div>
+                        </>
+                    )}
+                </section>
             </div>
         )}
 

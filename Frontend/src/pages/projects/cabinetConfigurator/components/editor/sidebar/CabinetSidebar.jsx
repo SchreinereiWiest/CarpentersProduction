@@ -16,6 +16,7 @@ export default function CabinetSidebar({
     selectCabinet,
     deleteCabinet,
     updateCabinetQuantity,
+    saveCabinetAsPreset,
 
     updateActiveCabinet,
 
@@ -75,6 +76,8 @@ return (
                 Korpusse
             </h2>
 
+          
+
             <button type="button" onClick={addCabinet} className="
                             flex
                             h-7
@@ -112,6 +115,7 @@ return (
                 onSelect={selectCabinet}
                 onDuplicate={duplicateCabinet}
                 onQuantityChange={updateCabinetQuantity}
+                onSaveAsPreset={saveCabinetAsPreset}
             />
 
         </div>

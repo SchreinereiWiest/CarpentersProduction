@@ -7,6 +7,8 @@ import axios from "axios";
 import { getGlobalFile, uploadGlobalFile } from "../../../services/globalMemoryCache";
 import { downloadFile, uploadJSONFile } from "../../../services/apiTemplates";
 import MaterialSelect from "../../projects/cabinetConfigurator/components/editor/properties/MaterialSelect.jsx";
+import CabinetPresetModal from "../../projects/cabinetConfigurator/components/editor/CabinetPresetModal.jsx";
+import { DEFAULT_CNC } from "../../projects/cabinetConfigurator/engine/cnc/cncDefaults.js";
 
 
 const DEFAULT_CABINET = {
@@ -47,6 +49,7 @@ const DEFAULT_CABINET = {
             legrabox: false
     }
 },
+
 };
 
 
@@ -54,6 +57,14 @@ export default function CabinetSettingsPanel() {
 
     const [cabinet, setCabinet] =
         useState(DEFAULT_CABINET);
+
+    const [presets, setPresets] = useState([]);
+
+    const [activeTab, setActiveTab] = useState("standard");
+
+    const [editingPreset, setEditingPreset] = useState(null);
+
+    const [defaultConfig, setDefaultConfig] = useState(DEFAULT_CNC);
 
 
     const [saving, setSaving] =
@@ -96,14 +107,27 @@ export default function CabinetSettingsPanel() {
 
         try {
 
-       const response = await uploadGlobalFile({
-                                
-                    file: "settings-cabinet.json",
-        
-                    data: cabinet,
-                    
-                    uploadFunction: {upload: uploadJSONFile, path:"/api/settings/cabinet"}
+            const isPresetTab = activeTab === "presets";
+            if (isPresetTab) {
+                await uploadGlobalFile({
+                    file: "settings-cabinetPreset.json",
+                    data: presets,
+                    uploadFunction: { upload: uploadJSONFile, path: "/api/settings/cabinetPreset" }
                 });
+            } else {
+                await Promise.all([
+                    uploadGlobalFile({
+                        file: "settings-cabinet.json",
+                        data: cabinet,
+                        uploadFunction: { upload: uploadJSONFile, path: "/api/settings/cabinet" }
+                    }),
+                    uploadGlobalFile({
+                        file: "settings-cabinetPreset.json",
+                        data: presets,
+                        uploadFunction: { upload: uploadJSONFile, path: "/api/settings/cabinetPreset" }
+                    })
+                ]);
+            }
 
 
     } catch (error) {
@@ -136,26 +160,38 @@ export default function CabinetSettingsPanel() {
     
                 try {
     
-                   const data =
-                        await getGlobalFile({
-    
+                    const [data, presetData] = await Promise.all([
+                        getGlobalFile({
                             file: "settings-cabinet.json",
-    
                             loadFromServer: {download: downloadFile, path:"/api/settings/cabinet"}
-    
-                        });
+                        }),
+                        getGlobalFile({
+                            file: "settings-cabinetPreset.json",
+                            loadFromServer: {download: downloadFile, path:"/api/settings/cabinetPreset"}
+                        })
+                    ]);
     
     
                     // Datei existiert bereits
+                    const { presets: legacyPresets, ...cabinetSettings } = data ?? {};
                     if (data) {
-    
-                        setCabinet(data);
-
-                        return;
-                      
+                        setCabinet({
+                            ...DEFAULT_CABINET,
+                            ...cabinetSettings
+                        });
+                    } else {
+                        setCabinet(DEFAULT_CABINET);
                     }
 
-                    setCabinet(DEFAULT_CABINET);
+                    setPresets(
+                        Array.isArray(presetData)
+                            ? presetData
+                            : Array.isArray(presetData?.presets)
+                                ? presetData.presets
+                                : Array.isArray(legacyPresets)
+                                    ? legacyPresets
+                                    : []
+                    );
     
     
                 } catch (error) {
@@ -218,9 +254,36 @@ export default function CabinetSettingsPanel() {
 
         loadMaterials();
 
-        console.log(materials);
-
     }, []);
+
+    useEffect(() => {
+        const loadCncSettings = async () => {
+            try {
+                const data = await getGlobalFile({
+                    file: "settings-cnc.json",
+                    loadFromServer: {
+                        download: downloadFile,
+                        path: "/api/settings/cnc"
+                    }
+                });
+
+                if (data) {
+                    setDefaultConfig(data.cncDefault ?? data);
+                }
+            } catch (error) {
+                console.error("CNC-Einstellungen konnten nicht geladen werden:", error);
+            }
+        };
+
+        loadCncSettings();
+    }, []);
+
+    const savePresetChanges = ({ name, cabinet: presetCabinet }) => {
+        setPresets(previous => previous.map(preset => preset.id === editingPreset.id
+                ? { ...preset, name, cabinet: presetCabinet }
+                : preset));
+        setEditingPreset(null);
+    };
 
     return (
         <div className="
@@ -257,7 +320,9 @@ export default function CabinetSettingsPanel() {
                             text-sm
                             text-gray-500
                         ">
-                            Standardwerte für den CabinetEditor
+                            {activeTab === "presets"
+                                ? "Cabinet Presets verwalten"
+                                : "Standardwerte für den CabinetEditor"}
                         </p>
 
                     </div>
@@ -280,12 +345,27 @@ export default function CabinetSettingsPanel() {
                     >
                         {saving
                             ? "Speichern..."
-                            : "Standardkorpus speichern"}
+                            : activeTab === "presets"
+                                ? "Presets speichern"
+                                : "Standardkorpus speichern"}
                     </button>
 
                 </div>
 
 
+                <div className="flex gap-2 border-b border-gray-700 pb-3">
+                    {[
+                        ["standard", "Standardkorpus"],
+                        ["presets", "Cabinet Presets"]
+                    ].map(([tab, label]) => (
+                        <button key={tab} type="button" onClick={() => setActiveTab(tab)} className={`rounded-lg px-4 py-2 text-sm ${activeTab === tab ? "bg-blue-700 text-white" : "bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white"}`}>
+                            {label}{tab === "presets" ? ` (${presets.length})` : ""}
+                        </button>
+                    ))}
+                </div>
+
+                {activeTab === "standard" ? (
+                    <>
                 {/* Maße */}
 
                 <section className="
@@ -920,9 +1000,53 @@ export default function CabinetSettingsPanel() {
                     }
 
                 </section>
+                    </>
+                ) : (
+                    <section className="rounded-xl border border-gray-700 bg-gray-800 p-5">
+                        <div className="mb-4">
+                            <h2 className="font-medium">Gespeicherte Cabinet Presets</h2>
+                            <p className="mt-1 text-sm text-gray-500">Presets können umbenannt, in der Teileliste angepasst oder gelöscht werden.</p>
+                        </div>
 
+                        {presets.length ? (
+                            <div className="space-y-2">
+                                {presets.map(preset => (
+                                    <div key={preset.id} className="flex items-center gap-3 rounded-lg border border-gray-700 bg-gray-900 p-3">
+                                        <div className="min-w-0 flex-1">
+                                            <div className="truncate text-sm font-medium text-gray-100">{preset.name}</div>
+                                            <div className="mt-0.5 text-xs text-gray-500">
+                                                {preset.cabinet?.width} × {preset.cabinet?.height} × {preset.cabinet?.depth} mm
+                                                <span className="ml-2">· {preset.cabinet?.partListPreset?.length ?? 0} Teile</span>
+                                            </div>
+                                        </div>
+                                        <button type="button" onClick={() => setEditingPreset(preset)} className="rounded border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-800">Bearbeiten</button>
+                                        <button type="button" onClick={() => setPresets(previous => previous.filter(item => item.id !== preset.id))} className="rounded border border-red-900 px-3 py-1.5 text-sm text-red-300 hover:bg-red-950">Löschen</button>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="rounded-lg border border-dashed border-gray-700 p-8 text-center text-sm text-gray-500">
+                                Es sind noch keine Presets gespeichert. Halte im Cabinet Editor einen Korpus gedrückt, um ihn als Preset zu speichern.
+                            </div>
+                        )}
+                    </section>
+                )}
 
             </div>
+
+            {editingPreset && (
+                <CabinetPresetModal
+                    key={editingPreset.id}
+                    cabinet={editingPreset.cabinet}
+                    initialName={editingPreset.name}
+                    materials={materials}
+                    defaultConfig={defaultConfig}
+                    dialogTitle="Cabinet-Preset bearbeiten"
+                    saveLabel="Preset aktualisieren"
+                    onCancel={() => setEditingPreset(null)}
+                    onSave={savePresetChanges}
+                />
+            )}
 
         </div>
     );

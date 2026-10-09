@@ -254,7 +254,7 @@ const createGroupRoot = (name, children = [], hardware = []) => {
     // CNC auf ALLE Korpus-Teile anwenden
     // ----------------------------------------------------------
 
-    const compiledChildren = compileCnc(
+    let compiledChildren = compileCnc(
       cabinet,
       allChildren,
       defaultConfig
@@ -263,6 +263,57 @@ const createGroupRoot = (name, children = [], hardware = []) => {
     compiledChildren.forEach(part => {
       part._generatedId = `${cabinet.id}:part:${Number(part.PID) - cabinetStartPid}`;
     });
+
+    // Presets can store an edited snapshot of the generated part rows.
+    // Match rows by their cabinet independent part index so cloned cabinets
+    // can use the same edits with their own generated IDs.
+    if (Array.isArray(cabinet.partListPreset)) {
+      const getPresetKey = part => {
+        const generatedId = String(part?._generatedId ?? "");
+        const marker = ":part:";
+        const markerIndex = generatedId.lastIndexOf(marker);
+        return markerIndex >= 0
+          ? generatedId.slice(markerIndex + marker.length)
+          : null;
+      };
+
+      const presetPartsByKey = new Map(
+        cabinet.partListPreset
+          .filter(part => getPresetKey(part) !== null)
+          .map(part => [getPresetKey(part), part])
+      );
+
+      const editedChildren = compiledChildren.flatMap(part => {
+        const key = getPresetKey(part);
+        const presetPart = presetPartsByKey.get(key);
+
+        if (!presetPart) {
+          return [];
+        }
+
+        return [{
+          ...part,
+          ...presetPart,
+          PID: part.PID,
+          _generatedId: part._generatedId,
+          _cabinetId: cabinet.id
+        }];
+      });
+
+      const addedParts = cabinet.partListPreset
+        .filter(part => getPresetKey(part) === null)
+        .map((part, index) => ({
+          ...part,
+          PID: nextPID(),
+          _generatedId: `${cabinet.id}:preset:${index + 1}`,
+          _cabinetId: cabinet.id
+        }));
+
+      compiledChildren = [
+        ...editedChildren,
+        ...addedParts
+      ];
+    }
 
     // ----------------------------------------------------------
     // Teile entsprechend der Gruppierung verteilen
