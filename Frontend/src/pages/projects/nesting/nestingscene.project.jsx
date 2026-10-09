@@ -132,7 +132,8 @@ export default function NestingScene({
         }) ?? false;
     };
 
-    // Pool-Strips werden oberhalb der Platten in Reihen dargestellt.
+    const is2DNesting = settings.nestingMode === "2d";
+    // Nicht platzierte Einheiten erscheinen oberhalb der Platten im Pool.
     const maxPlateWidth = Math.max(
         settings.defaultSheet?.width ?? 2800,
         ...result.nestingPlates.map((plate) => plate.placedWidth ?? plate.width ?? 0)
@@ -223,7 +224,7 @@ export default function NestingScene({
                 anchorY="middle"
                 color="#d1d5db"
             >
-                Leerer Strip Pool
+                {is2DNesting ? "Leerer Bauteil-Pool" : "Leerer Strip Pool"}
             </Text>
 
             {poolStrips.map(({ strip, layout }) => (

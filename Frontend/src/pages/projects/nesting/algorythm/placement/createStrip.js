@@ -1,7 +1,4 @@
-import { fillStrip2D } from "./fillStrip2D";
-
 const EPSILON = 1e-7;
-const MAX_CANDIDATES_PER_BUCKET = 3;
 
 
 /* ------------------------------------------------------------
@@ -12,6 +9,9 @@ export function createStrips(
   sortedPlates = [],
   settings = {}
 ) {
+  // 2D nutzt nestPlates2D direkt; hier bleibt die Strip-Bildung ausschließlich 1D.
+  if (settings.nestingMode === "2d") return [];
+
   const sheetWidth =
     Number(settings.defaultSheet?.width) || 0;
 
@@ -57,79 +57,6 @@ export function createStrips(
       height,
       targetHeight
     } = bestCombination;
-
-    /* --------------------------------------------------------
-     * 2D-Nesting
-     * ------------------------------------------------------ */
-
-    if (settings.nestingMode === "2d") {
-      /*
-       * Im Idealfall wurde die Füllung bereits während der
-       * Kandidatenbewertung berechnet.
-       */
-      const filledStrip =
-        bestCombination.filledStrip ??
-        fillStrip2D(
-          plates,
-          remainingPlates,
-          type,
-          targetHeight,
-          settings
-        );
-
-      if (!filledStrip.plates.length) {
-        break;
-      }
-
-      const previousCount = remainingPlates.length;
-
-      strips.push({
-        id: stripId++,
-
-        type,
-        layoutType: type,
-        packingMode: "2d",
-        cutOrientation: type,
-
-        partGap: settings.gap,
-        cutGap: settings.cutGap,
-
-        rotation: 0,
-
-        width: filledStrip.width,
-        height: filledStrip.height,
-
-        placedWidth: filledStrip.width,
-        placedHeight: filledStrip.height,
-
-        remainingHeight:
-          targetHeight -
-          (
-            type === "horizontal"
-              ? filledStrip.width
-              : filledStrip.height
-          ),
-
-        plates: filledStrip.plates,
-        cuts: filledStrip.cuts,
-        freeRects: filledStrip.freeRects
-      });
-
-      /*
-       * Nicht nur die Hauptbauteile entfernen, sondern auch
-       * alle tatsächlich platzierten Füllbauteile.
-       */
-      remainingPlates = remainingPlates.filter(
-        plate => !filledStrip.usedPlateIds.has(plate.id)
-      );
-
-      // Sicherheitsprüfung: Endlosschleifen verhindern.
-      if (remainingPlates.length >= previousCount) {
-        break;
-      }
-
-      continue;
-    }
 
     /* --------------------------------------------------------
      * Klassisches 1D-Nesting
@@ -209,15 +136,6 @@ function findBestStripCombination(
 ) {
   let bestCombination = null;
 
-  /*
-   * Kandidaten für den Vergleich im 2D-Modus.
-   *
-   * Wir behalten mehrere Auslastungsbereiche, damit nicht
-   * ausschließlich vollständig gefüllte 1D-Strips bewertet
-   * werden.
-   */
-  const candidateBuckets = new Map();
-
   const gap = Math.max(
     0,
     Number(cutGap) || 0
@@ -233,73 +151,12 @@ function findBestStripCombination(
     horizontalTarget
   );
 
-  const is2D = settings.nestingMode === "2d";
-
   function rememberCandidate(candidate) {
     if (!candidate) return;
-
-    if (!is2D) {
-      bestCombination = chooseBetterCombination(
-        candidate,
-        bestCombination
-      );
-
-      return;
-    }
-
-    /*
-     * 10 Auslastungsbereiche je Orientierung:
-     * 0–10 %, 10–20 % usw.
-     */
-    const bucket = Math.min(
-      9,
-      Math.floor(candidate.utilization * 10)
+    bestCombination = chooseBetterCombination(
+      candidate,
+      bestCombination
     );
-
-    const key = `${candidate.type}:${bucket}`;
-
-    if (!candidateBuckets.has(key)) {
-      candidateBuckets.set(key, []);
-    }
-
-    const candidates = candidateBuckets.get(key);
-
-    const signature = candidate.plates
-      .map(plate => plate.id)
-      .join("|");
-
-    // Dieselbe Kombination nicht doppelt speichern.
-    if (
-      candidates.some(
-        item => item.signature === signature
-      )
-    ) {
-      return;
-    }
-
-    candidates.push({
-      ...candidate,
-      signature
-    });
-
-    candidates.sort((a, b) => {
-      if (
-        Math.abs(a.utilization - b.utilization) >
-        EPSILON
-      ) {
-        return b.utilization - a.utilization;
-      }
-
-      return b.plates.length - a.plates.length;
-    });
-
-    if (
-      candidates.length >
-      MAX_CANDIDATES_PER_BUCKET
-    ) {
-      candidates.length =
-        MAX_CANDIDATES_PER_BUCKET;
-    }
   }
 
 
@@ -419,116 +276,7 @@ function findBestStripCombination(
   );
 
 
-  /*
-   * Im normalen Modus reicht die klassische Bewertung.
-   */
-  if (!is2D) {
-    return bestCombination;
-  }
-
-
-  /*
-   * Im 2D-Modus jede gespeicherte Hauptkombination
-   * tatsächlich auffüllen und anschließend vergleichen.
-   */
-  const candidates = [
-    ...candidateBuckets.values()
-  ].flat();
-
-  let best2DCombination = null;
-  let best2DScore = -Infinity;
-
-  for (const candidate of candidates) {
-    const mainIds = new Set(
-      candidate.plates.map(plate => plate.id)
-    );
-
-    const fillCandidates = plates.filter(
-      plate => !mainIds.has(plate.id)
-    );
-
-    const filledStrip = fillStrip2D(
-      candidate.plates,
-      fillCandidates,
-      candidate.type,
-      candidate.targetHeight,
-      settings
-    );
-
-    if (!filledStrip.plates.length) {
-      continue;
-    }
-
-    const packedArea = filledStrip.plates.reduce(
-      (area, part) => {
-        const width =
-          Number(
-            part.nestingFootprintWidth ??
-            part.width
-          ) || 0;
-
-        const height =
-          Number(
-            part.nestingFootprintHeight ??
-            part.height
-          ) || 0;
-
-        return area + width * height;
-      },
-      0
-    );
-
-    const nominalArea =
-      filledStrip.nominalWidth *
-      filledStrip.nominalHeight;
-
-    const actualBoundingArea =
-      filledStrip.width *
-      filledStrip.height;
-
-    const areaUtilization =
-      packedArea / Math.max(1, nominalArea);
-
-    const compactness =
-      packedArea / Math.max(1, actualBoundingArea);
-
-    const countUtilization =
-      filledStrip.plates.length /
-      Math.max(1, plates.length);
-
-    /*
-     * Gesamtscore:
-     *
-     * 55 % Flächennutzung der nominellen Stripfläche
-     * 25 % tatsächlich gepackte Bauteile
-     * 20 % Kompaktheit des fertigen Strips
-     */
-    const score =
-      0.55 * areaUtilization +
-      0.25 * countUtilization +
-      0.20 * compactness;
-
-    const isBetter =
-      !best2DCombination ||
-      score > best2DScore + EPSILON ||
-      (
-        Math.abs(score - best2DScore) <= EPSILON &&
-        filledStrip.plates.length >
-          best2DCombination.filledStrip.plates.length
-      );
-
-    if (isBetter) {
-      best2DScore = score;
-
-      best2DCombination = {
-        ...candidate,
-        filledStrip,
-        nestingScore: score
-      };
-    }
-  }
-
-  return best2DCombination;
+  return bestCombination;
 }
 
 

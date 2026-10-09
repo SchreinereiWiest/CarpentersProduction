@@ -83,6 +83,7 @@ function CutingView() {
 
     const [activeSheetIndex, setActiveSheetIndex] = useState(0);
     const activeSheet = nestingResult?.[activeSheetIndex];
+    const isDirect2DNesting = activeSheet?.settings?.nestingMode === "2d";
 
     const [activeStrip, setActiveStrip] = useState({});
 
@@ -206,7 +207,7 @@ return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden">
 
             <div className="absolute xl:top-24 top-17 xl:left-4 left-2 z-20">
                 <div className="bg-gray-800/90 backdrop-blur border border-gray-700 rounded-lg xl:px-4 px-2 xl:py-3 py-1 shadow-lg">
-                    <div className="font-semibold text-white"><span className="xl:text-xl text-lm"> Strip {ShowStripIndex}</span>
+                    <div className="font-semibold text-white"><span className="xl:text-xl text-lm">{isDirect2DNesting ? "Bauteil" : "Strip"} {ShowStripIndex}</span>
                     </div>
                     <div className="flex xl:gap-4 gap-2 mt-2 text-xs text-gray-500">
 

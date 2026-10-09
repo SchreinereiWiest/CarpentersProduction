@@ -9,6 +9,7 @@ import ProjectBar from '../../../components/projectBar.jsx';
 import { loadCadFile } from '../cad/cadLoader.project.js';
 import { processContent } from '../list/listProcess.project.js';
 import { calculateNesting } from './algorythm/nestingAlgorythm.js';
+import { findStorageMaterial } from './algorythm/helper/parseStorageMaterial.js';
 import NestingScene from './nestingscene.project.jsx';
 import { defaultSettings } from './algorythm/helper/defaults.js';
 import {
@@ -149,6 +150,19 @@ function NestingView() {
     const [showSettings, setShowSettings] = useState(false);
     const orbitControlsRef = useRef(null);
 
+    async function loadStorageMaterials() {
+        try {
+            const response = await axios.get("/api/materials/get");
+            const materials = Array.isArray(response.data?.materials)
+                ? response.data.materials
+                : [];
+            return materials;
+        } catch (error) {
+            console.error("Storage-Materialien konnten nicht geladen werden", error);
+            return [];
+        }
+    }
+
     const loadListData = async () => {
 
             setLoadingListData(true);
@@ -192,7 +206,7 @@ function NestingView() {
 
         };
 
-    async function createdata(userSettings) {
+    async function createdata(userSettings, materialCatalog) {
         if (!projectId) {
             return;
         }
@@ -202,7 +216,10 @@ function NestingView() {
         if (!processedData) return;
 
         // 3. Wieder mit der lokalen Variable weiterarbeiten
-        const nestingData = calculateNesting(processedData, userSettings);
+        const materials = Array.isArray(materialCatalog)
+            ? materialCatalog
+            : await loadStorageMaterials();
+        const nestingData = calculateNesting(processedData, userSettings, materials);
         nestingData.forEach((plate, index) => {
             setSettings(prev => {
                 const newSettings = [...prev];
@@ -221,9 +238,9 @@ function NestingView() {
         return nestingData;
     }
 
-    async function UploadData() {
+    async function UploadData(materialCatalog) {
         // Datei existiert nicht
-                const generatedData = await createdata(settings);
+                const generatedData = await createdata(settings, materialCatalog);
                 
                 setNestingResult(generatedData);
 
@@ -288,6 +305,8 @@ function NestingView() {
 
             try {
 
+                const materials = await loadStorageMaterials();
+
                 const data =
                     await getProjectFile({
 
@@ -302,6 +321,17 @@ function NestingView() {
 
                 // Datei existiert bereits
                 if (data) {
+
+                    data.forEach((sheet) => {
+                        const storageMaterial = findStorageMaterial(
+                            sheet.MID,
+                            sheet.T,
+                            materials
+                        );
+                        sheet.storageMaterialFound = Boolean(storageMaterial);
+                        sheet.storageMaterialFallback = !storageMaterial;
+                        sheet.storageMaterialName = storageMaterial?.name ?? null;
+                    });
 
                     setNestingResult(data);
 
@@ -323,7 +353,7 @@ function NestingView() {
                 }
 
                 //datei existiert nicht -> neu erstellen un hochladen
-                await UploadData();
+                await UploadData(materials);
 
 
             } catch (error) {
@@ -358,6 +388,8 @@ function NestingView() {
 
     const [activeSheetIndex, setActiveSheetIndex] = useState(0);
     const activeSheet = nestingResult?.[activeSheetIndex];
+    const activeSettingsForSheet = settings[activeSheetIndex] ?? activeSheet?.settings ?? defaultSettings;
+    const isDirect2DNesting = activeSettingsForSheet.nestingMode === "2d";
 
     const [activeStrip, setActiveStrip] = useState(null);
     const [placementMessage, setPlacementMessage] = useState("");
@@ -370,13 +402,71 @@ function NestingView() {
     };
 
     const removeStrip = (stripToRemove) => {
-        // Nach dem Herausnehmen wird der Standardalgorithmus für die übrigen Strips neu ausgeführt.
         setPlacementMessage("");
-        setActiveStrip({
+        const pooledStrip = {
             ...stripToRemove,
             cutOrientation: stripToRemove.cutOrientation ?? stripToRemove.type ?? "vertical",
             rotation: stripToRemove.rotation ?? 0
-        });
+        };
+        const activeSettings = settings[activeSheetIndex] ?? activeSheet?.settings ?? defaultSettings;
+        setActiveStrip(pooledStrip);
+
+        if (activeSettings.nestingMode === "2d") {
+            // 2D erhält die Positionen der übrigen Teile und gibt nur den entfernten Footprint frei.
+            setNestingResult((currentResult) =>
+                currentResult?.map((sheet, index) => {
+                    if (index !== activeSheetIndex) return sheet;
+
+                    const removed = sheet.strips.find(
+                        (candidate) => candidate.id === stripToRemove.id
+                    );
+                    if (!removed) return sheet;
+
+                    const nestingPlates = (sheet.nestingPlates ?? []).map((plate) => {
+                        if (plate.id !== removed.sheet) return plate;
+
+                        const restoredSpace = {
+                            sheet: plate.id,
+                            x: removed.x,
+                            y: removed.y,
+                            width: removed.placedWidth,
+                            height: removed.placedHeight
+                        };
+                        const alreadyFree = (plate.freeSpaces ?? []).some((space) => (
+                            space.x === restoredSpace.x &&
+                            space.y === restoredSpace.y &&
+                            space.width === restoredSpace.width &&
+                            space.height === restoredSpace.height
+                        ));
+
+                        return {
+                            ...plate,
+                            strips: (plate.strips ?? []).filter(
+                                (candidate) => candidate.id !== removed.id
+                            ),
+                            plates: (plate.plates ?? []).filter(
+                                (part) => part.placementId !== removed.id
+                            ),
+                            freeSpaces: alreadyFree
+                                ? plate.freeSpaces
+                                : [...(plate.freeSpaces ?? []), restoredSpace]
+                        };
+                    });
+
+                    return {
+                        ...sheet,
+                        strips: sheet.strips.filter(
+                            (candidate) => candidate.id !== removed.id
+                        ),
+                        nestingPlates,
+                        emptyStrips: [...(sheet.emptyStrips ?? []), pooledStrip]
+                    };
+                })
+            );
+            return;
+        }
+
+        // 1D legt nach dem Entfernen die übrigen Strips weiterhin neu.
         setNestingResult((currentResult) =>
             currentResult?.map((sheet, index) => {
                 if (index !== activeSheetIndex) return sheet;
@@ -405,6 +495,10 @@ function NestingView() {
                         id,
                         strips: nestingPlate.strips.map((placedStrip) => ({
                             ...placedStrip,
+                            sheet: id
+                        })),
+                        plates: (nestingPlate.plates ?? []).map((placedPlate) => ({
+                            ...placedPlate,
                             sheet: id
                         })),
                         freeSpaces: nestingPlate.freeSpaces.map((space) => ({
@@ -516,6 +610,7 @@ function NestingView() {
         const nestingPlates = sourceNestingPlates.map((plate) => ({
             ...plate,
             strips: [...(plate.strips ?? [])],
+            plates: [...(plate.plates ?? [])],
             cuts: [...(plate.cuts ?? [])],
             freeSpaces: [...(plate.freeSpaces ?? [])]
         }));
@@ -583,7 +678,14 @@ function NestingView() {
                                     "bg-blue-600 border-blue-500 text-white xl:shadow-lg shadow-md shadow-blue-900/30" : "bg-gray-900 border-gray-700 text-gray-400 hover:bg-gray-700 hover:text-white" } `} > <span
                                         className="text-xs text-gray-400"> #{index + 1}
                                     </span>
-                                    <span className="font-medium xl:text-md text-sm"> {sheetPlate.MID} </span> #
+                                    <span
+                                        className="font-medium xl:text-md text-sm"
+                                        title={sheetPlate.storageMaterialFallback
+                                            ? "Storage-Material nicht gefunden; Standard-Plattenmaße werden verwendet"
+                                            : "Plattenmaße aus dem Storage"}
+                                    >
+                                        {sheetPlate.MID}{sheetPlate.storageMaterialFallback ? "*" : ""}
+                                    </span> #
                                     <span className="text-xs opacity-70"> {sheetPlate.T} mm </span>
                                 </button> ); } )}
                             </div>
@@ -599,7 +701,7 @@ function NestingView() {
                         <div className="xl:text-sm text-xs text-gray-400 mt-1"> {activeSheet.MID} </div>
                         <div className="flex gap-4 mt-2 text-xs text-gray-500"> <span>
                                 {activeSheet.nestingPlates?.length ?? 0} {""}Nesting-Platten </span>
-                            <span> {activeSheet.strips?.length ?? 0} {" "}Strips </span>
+                            <span> {activeSheet.strips?.length ?? 0} {isDirect2DNesting ? "Bauteile" : "Strips"} </span>
                             <span> {activeSheet.emptyStrips?.length ?? 0} im Pool </span>
                         </div>
                     </div>
@@ -607,12 +709,14 @@ function NestingView() {
 
                 {activeStrip && ( <div className="absolute xl:top-56 xl:left-4 top-47 left-2 z-20">
                     <div className="bg-gray-800/90 backdrop-blur border border-gray-700 rounded-lg xl:px-4 px-2 py-3 shadow-lg">
-                        <div className="text-gray-400 mb-1"><span className="xl:text-sm text-xs"> Aktiver Strip</span> <span className="ml-8 font-semibold text-white xl:text-l text-sm">{activeStrip.id}</span></div>
+                        <div className="text-gray-400 mb-1"><span className="xl:text-sm text-xs">{isDirect2DNesting ? "Aktives Bauteil" : "Aktiver Strip"}</span> <span className="ml-8 font-semibold text-white xl:text-l text-sm">{activeStrip.id}</span></div>
                         <div className="font-semibold text-white xl:text-lg text-sm"> {activeStrip.placedWidth} x {activeStrip.placedHeight} </div>
                         {activeStrip?.plates?.map((plate, index) => (
                         <div className="flex gap-4 mt-2 xl:text-lm text-sm text-gray-500" key={plate.id}> <span> {plate.originalWidth} x {plate.originalHeight} | {plate.original.Objektname} </span> </div>
                         ))}
-                        <div className="text-gray-500 xl:text-lm text-sm pt-1"> Rest: {activeStrip.remainingHeight} </div>
+                        {!isDirect2DNesting && (
+                            <div className="text-gray-500 xl:text-lm text-sm pt-1"> Rest: {activeStrip.remainingHeight} </div>
+                        )}
                         {activePoolStrip && (
                             <div className="mt-3 space-y-2 text-xs">
                                 <div>
@@ -630,7 +734,7 @@ function NestingView() {
                                     </div>
                                 </div>
                                 <div>
-                                    <div className="mb-1 text-gray-400">Strip-Drehung</div>
+                                    <div className="mb-1 text-gray-400">{isDirect2DNesting ? "Bauteil-Drehung" : "Strip-Drehung"}</div>
                                     <div className="flex gap-2">
                                         {[0, 90].map((rotation) => (
                                             <button

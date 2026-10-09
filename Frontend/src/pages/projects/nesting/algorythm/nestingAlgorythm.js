@@ -1,6 +1,7 @@
 import { defaultSettings } from "./helper/defaults";
 import { createPlateList } from "./createPlates";
 import { sortPlates } from "./placement/sortPlates";
+import { findStorageMaterial } from "./helper/parseStorageMaterial";
 
 import { nestWithRemainingPlates } from "./placement/nestRemaining";
 
@@ -45,7 +46,11 @@ function createNestingGroups(
     };
 }
 
-export function calculateNesting(processedContent, userSettings = [{}]) {
+export function calculateNesting(
+    processedContent,
+    userSettings = [{}],
+    storageMaterials = []
+) {
 
     
 
@@ -55,14 +60,40 @@ export function calculateNesting(processedContent, userSettings = [{}]) {
 
     platesList.forEach((sheet, index) => {
 
+        const userSheetSettings = userSettings[index] ?? {};
+        const storageMaterial = findStorageMaterial(
+            sheet.MID,
+            sheet.T,
+            storageMaterials
+        );
+        const configuredDefaultSheet = {
+            ...defaultSettings.defaultSheet,
+            ...userSheetSettings.defaultSheet
+        };
+        const defaultSheet = storageMaterial
+            ? {
+                ...configuredDefaultSheet,
+                width: Number(storageMaterial.width),
+                height: Number(storageMaterial.height),
+                material: storageMaterial.materialNumber || sheet.MID
+            }
+            : {
+                ...configuredDefaultSheet,
+                width: defaultSettings.defaultSheet.width,
+                height: defaultSettings.defaultSheet.height,
+                material: defaultSettings.defaultSheet.material
+            };
+
         const settings = {
-
-        ...defaultSettings,
-        ...userSettings[index]
-
-    };
+            ...defaultSettings,
+            ...userSheetSettings,
+            defaultSheet
+        };
 
         sheet.settings = settings;
+        sheet.storageMaterialFound = Boolean(storageMaterial);
+        sheet.storageMaterialFallback = !storageMaterial;
+        sheet.storageMaterialName = storageMaterial?.name ?? null;
 
         const plates = sheet.plates;
 

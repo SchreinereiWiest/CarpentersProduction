@@ -13,8 +13,11 @@
         // Teile drehen erlaubt 
         allowRotation: true,
 
-        // 1d behält die Streifenbelegung, 2d füllt freie Rechtecke im Strip.
+        // 1d bildet Kanten-Strips; 2d packt einzelne Teile in freie Plattenbereiche.
         nestingMode: "1d",
+
+        // Anzahl zusätzlicher Belegungsreihenfolgen im 2D-Nesting.
+        optimizationPasses: 8,
 
         stripDifference: 100,
 

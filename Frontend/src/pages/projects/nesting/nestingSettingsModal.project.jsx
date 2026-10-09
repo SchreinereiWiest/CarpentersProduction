@@ -103,36 +103,6 @@ function NestingSettingsModal({
                         space-y-4
                     ">
 
-                        {/* Umschalter für 1D- und 2D-Nesting. */}
-                        <div>
-                            <label className="mb-2 block text-sm text-gray-300">
-                                Nesting-Verfahren
-                            </label>
-                            <div className="flex items-center justify-between rounded-lg bg-gray-800 p-3">
-                                <span className={`text-sm ${localSettings.nestingMode === "2d" ? "text-gray-500" : "text-white"}`}>
-                                    1D
-                                </span>
-                                <button
-                                    type="button"
-                                    role="switch"
-                                    aria-checked={localSettings.nestingMode === "2d"}
-                                    aria-label="2D-Nesting aktivieren"
-                                    onClick={toggleNestingMode}
-                                    className={`relative h-7 w-12 rounded-full transition-colors ${localSettings.nestingMode === "2d" ? "bg-blue-600" : "bg-gray-600"}`}
-                                >
-                                    <span
-                                        className={`absolute left-1 top-1 h-5 w-5 rounded-full bg-white transition-transform ${localSettings.nestingMode === "2d" ? "translate-x-5" : "translate-x-0"}`}
-                                    />
-                                </button>
-                                <span className={`text-sm ${localSettings.nestingMode === "2d" ? "text-white" : "text-gray-500"}`}>
-                                    2D
-                                </span>
-                            </div>
-                            <div className="mt-1 text-center text-xs text-gray-400">
-                                {localSettings.nestingMode === "2d" ? "Freiflächen auffüllen" : "Kantenorientierte Strips"}
-                            </div>
-                        </div>
-
                         {/* Margin */}
 
                         <div>
@@ -164,7 +134,6 @@ function NestingSettingsModal({
                             />
                         </div>
 
-
                         {/* Gap */}
 
                         <div>
@@ -195,7 +164,6 @@ function NestingSettingsModal({
                                 "
                             />
                         </div>
-
 
                         {/* Cut Gap */}
 
@@ -260,6 +228,23 @@ function NestingSettingsModal({
                             />
                         </div>
 
+
+                        {/* Number of 2D placement orderings to compare. */}
+                        <div>
+                            <label className="mb-1 block text-sm text-gray-300">
+                                Optimierungspässe (2D)
+                            </label>
+                            <input
+                                type="number"
+                                name="optimizationPasses"
+                                min="0"
+                                max="8"
+                                step="1"
+                                value={localSettings.optimizationPasses ?? 8}
+                                onChange={handleChange}
+                                className="w-full rounded-lg bg-gray-800 px-3 py-2 outline-none ring-1 ring-gray-700 focus:ring-blue-500"
+                            />
+                        </div>
 
                         {/* Sheet Offset */}
 
@@ -329,10 +314,42 @@ function NestingSettingsModal({
 
                     </div>
                     
-                    <NestingSettingsRemaining
-                        remainingPlates={remainingPlates}
-                        setRemainingPlates={setRemainingPlates}
-                    />
+                    <div className="space-y-4">
+                        {/* Umschalter für 1D- und 2D-Nesting oben in der rechten Spalte. */}
+                        <div>
+                            <label className="mb-2 block text-sm text-gray-300">
+                                Nesting-Verfahren
+                            </label>
+                            <div className="flex items-center justify-between rounded-lg bg-gray-800 p-3">
+                                <span className={`text-sm ${localSettings.nestingMode === "2d" ? "text-gray-500" : "text-white"}`}>
+                                    1D
+                                </span>
+                                <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={localSettings.nestingMode === "2d"}
+                                    aria-label="2D-Nesting aktivieren"
+                                    onClick={toggleNestingMode}
+                                    className={`relative h-7 w-12 rounded-full transition-colors ${localSettings.nestingMode === "2d" ? "bg-blue-600" : "bg-gray-600"}`}
+                                >
+                                    <span
+                                        className={`absolute left-1 top-1 h-5 w-5 rounded-full bg-white transition-transform ${localSettings.nestingMode === "2d" ? "translate-x-5" : "translate-x-0"}`}
+                                    />
+                                </button>
+                                <span className={`text-sm ${localSettings.nestingMode === "2d" ? "text-white" : "text-gray-500"}`}>
+                                    2D
+                                </span>
+                            </div>
+                            <div className="mt-1 text-center text-xs text-gray-400">
+                                {localSettings.nestingMode === "2d" ? "Freiflächen auffüllen" : "Kantenorientierte Strips"}
+                            </div>
+                        </div>
+
+                        <NestingSettingsRemaining
+                            remainingPlates={remainingPlates}
+                            setRemainingPlates={setRemainingPlates}
+                        />
+                    </div>
                     
                 </div>
 

@@ -1,11 +1,17 @@
 import { nestStrips } from "./nestingPlate";
 import { createStrips } from "./createStrip"
+import { nestPlates2D } from "./nestPlates2D";
 
 export function nestWithRemainingPlates(
     sortedPlates,
     defaultPlate,
     settings
 ) {
+
+    // 2D platziert Bauteile einzeln; nur der 1D-Pfad bildet weiterhin Gruppen-Strips.
+    if (settings.nestingMode === "2d") {
+        return nestPlates2D(sortedPlates, defaultPlate, settings);
+    }
 
     const nestingPlates = [];
 

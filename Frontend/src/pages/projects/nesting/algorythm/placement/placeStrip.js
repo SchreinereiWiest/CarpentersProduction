@@ -27,6 +27,66 @@ export function placeStrip(
     );
     nestingPlate.strips.push(strip);
 
+    // 2D hält die tatsächlichen Bauteile zusätzlich direkt an ihrer Nesting-Platte fest.
+    const placedParts = strip.packingMode === "2d"
+        ? (strip.plates ?? []).map((part) => {
+            const originalWidth = Number(part.originalWidth ?? part.width) || 0;
+            const originalHeight = Number(part.originalHeight ?? part.height) || 0;
+            const partRotation = Number(part.nestingRotation ?? part.rotation) === 90 ? 90 : 0;
+            const partWidth = partRotation === 90 ? originalHeight : originalWidth;
+            const partHeight = partRotation === 90 ? originalWidth : originalHeight;
+            const footprintWidth = Number(part.nestingFootprintWidth ?? part.width) || partWidth;
+            const footprintHeight = Number(part.nestingFootprintHeight ?? part.height) || partHeight;
+            const footprintX = Number(part.nestingX) || 0;
+            const footprintY = Number(part.nestingY) || 0;
+            let localX = footprintX + (footprintWidth - partWidth) / 2;
+            let localY = footprintY + (footprintHeight - partHeight) / 2;
+            let placedWidth = partWidth;
+            let placedHeight = partHeight;
+            let placedFootprintX = footprintX;
+            let placedFootprintY = footprintY;
+            let placedFootprintWidth = footprintWidth;
+            let placedFootprintHeight = footprintHeight;
+
+            if (Number(strip.rotation) === 90) {
+                localX = strip.height - localY - partHeight;
+                localY = footprintX + (footprintWidth - partWidth) / 2;
+                placedWidth = partHeight;
+                placedHeight = partWidth;
+                placedFootprintX = strip.height - footprintY - footprintHeight;
+                placedFootprintY = footprintX;
+                placedFootprintWidth = footprintHeight;
+                placedFootprintHeight = footprintWidth;
+            }
+
+            return {
+                ...part,
+                originalWidth,
+                originalHeight,
+                width: placedWidth,
+                height: placedHeight,
+                placedWidth,
+                placedHeight,
+                rotation: (partRotation + Number(strip.rotation ?? 0)) % 180,
+                nestingRotation: (partRotation + Number(strip.rotation ?? 0)) % 180,
+                x: strip.x + localX,
+                y: strip.y + localY,
+                nestingX: strip.x + placedFootprintX,
+                nestingY: strip.y + placedFootprintY,
+                nestingFootprintX: strip.x + placedFootprintX,
+                nestingFootprintY: strip.y + placedFootprintY,
+                nestingFootprintWidth: placedFootprintWidth,
+                nestingFootprintHeight: placedFootprintHeight,
+                sheet: strip.sheet,
+                placementId: strip.id
+            };
+        })
+        : [];
+    nestingPlate.plates = [
+        ...(nestingPlate.plates ?? []),
+        ...placedParts
+    ];
+
     const split = splitRect(
         bestSpace.space,
         strip,
