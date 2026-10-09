@@ -140,7 +140,7 @@ export function flattenSections(
 
 export const getCncConfig = (cabinet, defaultConfig) => {
 
-    const custom = defaultConfig ?? {};
+    const custom = defaultConfig?.cncDefault ?? defaultConfig ?? {};
 
     return {
 
@@ -171,7 +171,19 @@ export const getCncConfig = (cabinet, defaultConfig) => {
 
         legrabox: {
             ...DEFAULT_CNC.legrabox,
-            ...(custom.legrabox ?? {})
+            ...(custom.legrabox ?? {}),
+            heights: {
+                ...DEFAULT_CNC.legrabox.heights,
+                ...(custom.legrabox?.heights ?? {})
+            },
+            backHeights: {
+                ...DEFAULT_CNC.legrabox.backHeights,
+                ...(custom.legrabox?.backHeights ?? {})
+            },
+            materials: {
+                ...DEFAULT_CNC.legrabox.materials,
+                ...(custom.legrabox?.materials ?? {})
+            }
         },
 
         backPanel: {
@@ -360,6 +372,12 @@ export const isBottomPart = (part) => {
         String(
             getRole(part)
         ).toLowerCase();
+
+    const source = getSource(part);
+
+    if (String(source.type).toLowerCase() === "legrabox") {
+        return false;
+    }
 
     const type =
         String(

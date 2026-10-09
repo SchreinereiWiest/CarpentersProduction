@@ -30,6 +30,7 @@ function clamp(value, min, max) {
 
 export default function CabinetViewport({
     cabinet = DEFAULT_CABINET,
+    cncConfig,
     mode = "interior",
     onSelect,
     selectedElement,
@@ -918,6 +919,7 @@ export default function CabinetViewport({
                     {mode === "interior" && (
                         <InteriorLayer
                             cabinet={cabinet}
+                            cncConfig={cncConfig}
                             selectedElement={
                                 selectedElement
                             }
@@ -956,4 +958,3 @@ export default function CabinetViewport({
 
     );
 }
-

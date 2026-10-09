@@ -41,6 +41,24 @@ export const DEFAULT_CNC = {
     legrabox: {
         diameter: 5,
         depth: 15,
+        heights: {
+            N: 78,
+            M: 104,
+            K: 142,
+            C: 190,
+            L: 254
+        },
+        backHeights: {
+            N: 39,
+            M: 63,
+            C: 101,
+            K: 148,
+            L: 212
+        },
+        materials: {
+            whiteMaterialId: "",
+            grayMaterialId: ""
+        },
         depthPattern: [
             37,
             69,

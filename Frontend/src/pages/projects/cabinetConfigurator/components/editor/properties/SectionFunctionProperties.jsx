@@ -242,6 +242,7 @@ export default function SectionFunctionProperties({
                     type: "legrabox",
 
                     variant: "M",
+                    materialColor: "white",
 
                     drawerDepth:
                         getDefaultDrawerDepth(cabinetDepth),
@@ -1493,6 +1494,10 @@ export default function SectionFunctionProperties({
                                         className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
                                     >
 
+                                        <option value="N">
+                                            N
+                                        </option>
+
                                         <option value="M">
                                             M
                                         </option>
@@ -1509,6 +1514,32 @@ export default function SectionFunctionProperties({
                                             L
                                         </option>
 
+                                    </select>
+
+                                </label>
+
+
+                                {/* Farbe */}
+                                <label className="block">
+
+                                    <span className="text-xs text-gray-400">
+                                        Farbe
+                                    </span>
+
+                                    <select
+                                        value={func.materialColor ?? "white"}
+                                        onChange={event =>
+                                            updateLegrabox(
+                                                func.id,
+                                                {
+                                                    materialColor: event.target.value
+                                                }
+                                            )
+                                        }
+                                        className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
+                                    >
+                                        <option value="white">Weiß</option>
+                                        <option value="gray">Grau</option>
                                     </select>
 
                                 </label>

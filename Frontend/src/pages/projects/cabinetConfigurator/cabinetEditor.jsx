@@ -19,6 +19,7 @@ import {getProjectFile} from "../../../services/projectMemoryCache.js";
 import {downloadFile} from "../../../services/apiTemplates.js";
 import { getGlobalFile } from "../../../services/globalMemoryCache.js";
 import axios from "axios";
+import { DEFAULT_CNC } from "./engine/cnc/cncDefaults.js";
 
 
 export function createId() {
@@ -141,7 +142,7 @@ export default function CabinetEditor() {
     const [saving, setSaving] = useState(false);
     const [loadingGeneratedData, setLoadingGeneratedData] = useState(false);
 
-    const [defaultConfig, setDefaultConfig] = useState();
+    const [defaultConfig, setDefaultConfig] = useState(DEFAULT_CNC);
 
     const [defaultCabinet, setDefaultCabinet] = useState({
 
@@ -813,7 +814,7 @@ export default function CabinetEditor() {
                     // Datei existiert bereits
                     if (data) {
         
-                        setDefaultConfig(data);
+                        setDefaultConfig(data.cncDefault ?? data);
     
                         return;
                                
@@ -994,6 +995,7 @@ export default function CabinetEditor() {
 
                             <CabinetViewport
                                 cabinet={activeCabinet}
+                                cncConfig={defaultConfig}
                                 mode={viewMode}
                                 selectedElement={selectedElement}
                                 onSelect={setSelectedElement}

@@ -11,9 +11,11 @@ import { generateBackPart } from "./geometry/generate/generateBackParts";
 import { generateShelfParts } from "./geometry/generate/generateShelfParts";
 import { generateMiddleWallParts } from "./geometry/generate/generateMiddleWall";
 import { generateFrontParts } from "./geometry/generate/generateFrontParts";
+import { generateLegraboxParts } from "./geometry/generate/generateLegraboxParts";
 import { generateLegraboxHardware } from "./hardware/generateLegraboxHardware";
 
 import { compileCnc } from "../cnc/compiler/cncCompiler";
+import { getCncConfig } from "../cnc/compiler/cncHelpers";
 
 export const buildPartList = async (
   cabinets = [],
@@ -35,6 +37,7 @@ export const buildPartList = async (
   const frontParts = [];
   const middleWallParts = [];
   const legraboxes = [];
+  const separateLegraboxParts = [];
 
   // ------------------------------------------------------------
   // Hilfsfunktionen
@@ -125,6 +128,7 @@ const createGroupRoot = (name, children = [], hardware = []) => {
 
   const cabinetList = cabinets.map((cabinet) => {
     const settings = getSettings(cabinet);
+    const cncConfig = getCncConfig(cabinet, defaultConfig);
     const cabinetQuantity = Math.max(
       1,
       Math.floor(Number(cabinet.quantity) || 1)
@@ -223,9 +227,18 @@ const createGroupRoot = (name, children = [], hardware = []) => {
       color
     });
 
+    const drawerParts = generateLegraboxParts({
+      cabinet,
+      materials,
+      nextPID,
+      color,
+      cncConfig
+    });
+
     pushChildren(allChildren, shelves);
     pushChildren(allChildren, middleWalls);
     pushChildren(allChildren, fronts);
+    pushChildren(allChildren, drawerParts);
 
     // ----------------------------------------------------------
     // Hardware erzeugen
@@ -270,6 +283,12 @@ const createGroupRoot = (name, children = [], hardware = []) => {
         .map((part) => part.PID)
     );
 
+    const legraboxPartIds = new Set(
+      drawerParts
+        .filter(Boolean)
+        .map(part => part.PID)
+    );
+
     for (const part of compiledChildren) {
       if (!part) continue;
 
@@ -295,6 +314,17 @@ const createGroupRoot = (name, children = [], hardware = []) => {
 
         if (settings.separate.fronts && frontIds.has(part.PID)) {
           frontParts.push({
+            ...part,
+            Anzahl: Number(part.Anzahl) * cabinetQuantity
+          });
+          continue;
+        }
+
+        if (
+          settings.separate.legrabox &&
+          legraboxPartIds.has(part.PID)
+        ) {
+          separateLegraboxParts.push({
             ...part,
             Anzahl: Number(part.Anzahl) * cabinetQuantity
           });
@@ -367,11 +397,11 @@ const createGroupRoot = (name, children = [], hardware = []) => {
     );
   }
 
-  if (legraboxes.length > 0) {
+  if (legraboxes.length > 0 || separateLegraboxParts.length > 0) {
     cabinetList.push(
       createGroupRoot(
         "Legraboxen",
-        [],
+        separateLegraboxParts,
         legraboxes
       )
     );

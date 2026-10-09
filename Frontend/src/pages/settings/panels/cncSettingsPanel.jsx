@@ -8,6 +8,7 @@ import {
 } from "../../projects/cabinetConfigurator/engine/cnc/cncDefaults";
 import { getGlobalFile, uploadGlobalFile } from "../../../services/globalMemoryCache";
 import { downloadFile, uploadJSONFile } from "../../../services/apiTemplates";
+import MaterialSelect from "../../projects/cabinetConfigurator/components/editor/properties/MaterialSelect";
 import axios from "axios";
 
 const cloneConfig = (value) => {
@@ -16,6 +17,34 @@ const cloneConfig = (value) => {
         JSON.stringify(value)
     );
 
+};
+
+const mergeConfig = (defaults, saved) => {
+    if (
+        !defaults ||
+        typeof defaults !== "object" ||
+        Array.isArray(defaults) ||
+        !saved ||
+        typeof saved !== "object" ||
+        Array.isArray(saved)
+    ) {
+        return saved === undefined
+            ? cloneConfig(defaults)
+            : cloneConfig(saved);
+    }
+
+    const merged = {};
+
+    for (const key of new Set([
+        ...Object.keys(defaults),
+        ...Object.keys(saved)
+    ])) {
+        merged[key] = key in saved
+            ? mergeConfig(defaults[key], saved[key])
+            : cloneConfig(defaults[key]);
+    }
+
+    return merged;
 };
 
 export default function CncSettingsPanel() {
@@ -41,6 +70,10 @@ export default function CncSettingsPanel() {
         saving,
         setSaving
     ] = useState(false);
+
+    const [materials, setMaterials] = useState([]);
+    const [loadingMaterials, setLoadingMaterials] = useState(false);
+    const [materialError, setMaterialError] = useState(null);
 
 
     /* =====================================================
@@ -275,7 +308,12 @@ export default function CncSettingsPanel() {
                         // Datei existiert bereits
                         if (data) {
                                    
-                            setConfig(data.cncDefault);
+                            setConfig(
+                                mergeConfig(
+                                    DEFAULT_CNC,
+                                    data.cncDefault ?? data
+                                )
+                            );
         
                             return;
                
@@ -293,6 +331,25 @@ export default function CncSettingsPanel() {
                 };
     
             loadGeneratedData();
+        }, []);
+
+        useEffect(() => {
+            const loadMaterials = async () => {
+                setLoadingMaterials(true);
+                setMaterialError(null);
+
+                try {
+                    const response = await axios.get("/api/materials/get");
+                    setMaterials(response.data.materials ?? []);
+                } catch (error) {
+                    console.error("Materialien konnten nicht geladen werden:", error);
+                    setMaterialError("Materialien konnten nicht geladen werden.");
+                } finally {
+                    setLoadingMaterials(false);
+                }
+            };
+
+            loadMaterials();
         }, []);
 
 
@@ -556,6 +613,10 @@ export default function CncSettingsPanel() {
                                 config={
                                     config
                                 }
+                                materials={materials}
+                                loadingMaterials={loadingMaterials}
+                                materialError={materialError}
+                                updateConfig={updateConfig}
                                 updateNumber={
                                     updateNumber
                                 }
@@ -1081,6 +1142,10 @@ function ShelfSettings({
 
 function LegraboxSettings({
     config,
+    materials,
+    loadingMaterials,
+    materialError,
+    updateConfig,
     updateNumber,
     updateDepthPattern
 }) {
@@ -1157,6 +1222,43 @@ function LegraboxSettings({
 
 
             <SettingsCard
+                title="Materialzuordnung"
+            >
+
+                <div className="grid grid-cols-2 gap-4">
+                    <MaterialSelect
+                        label="Weiße Legrabox"
+                        value={config.legrabox.materials?.whiteMaterialId ?? ""}
+                        materials={materials}
+                        loading={loadingMaterials}
+                        error={materialError}
+                        onChange={value =>
+                            updateConfig(
+                                ["legrabox", "materials", "whiteMaterialId"],
+                                value
+                            )
+                        }
+                    />
+
+                    <MaterialSelect
+                        label="Graue Legrabox"
+                        value={config.legrabox.materials?.grayMaterialId ?? ""}
+                        materials={materials}
+                        loading={loadingMaterials}
+                        error={materialError}
+                        onChange={value =>
+                            updateConfig(
+                                ["legrabox", "materials", "grayMaterialId"],
+                                value
+                            )
+                        }
+                    />
+                </div>
+
+            </SettingsCard>
+
+
+            <SettingsCard
                 title="Tiefenpositionen"
             >
 
@@ -1211,6 +1313,62 @@ function LegraboxSettings({
                     Diese Positionen werden in der Reihenfolge
                     der CNC-Bohrungen verwendet.
 
+                </div>
+
+            </SettingsCard>
+
+
+            <SettingsCard
+                title="Legrabox-Höhen"
+            >
+
+                <div className="grid grid-cols-5 gap-4">
+                    {Object.entries(DEFAULT_CNC.legrabox.heights).map(
+                        ([variant, defaultHeight]) => (
+                            <NumberField
+                                key={variant}
+                                label={`${variant} (mm)`}
+                                value={
+                                    config.legrabox.heights?.[variant] ??
+                                    defaultHeight
+                                }
+                                onChange={value =>
+                                    updateNumber(
+                                        ["legrabox", "heights", variant],
+                                        value
+                                    )
+                                }
+                            />
+                        )
+                    )}
+                </div>
+
+            </SettingsCard>
+
+
+            <SettingsCard
+                title="Legrabox-Rückwandhöhen"
+            >
+
+                <div className="grid grid-cols-5 gap-4">
+                    {Object.entries(DEFAULT_CNC.legrabox.backHeights).map(
+                        ([variant, defaultHeight]) => (
+                            <NumberField
+                                key={variant}
+                                label={`${variant} (mm)`}
+                                value={
+                                    config.legrabox.backHeights?.[variant] ??
+                                    defaultHeight
+                                }
+                                onChange={value =>
+                                    updateNumber(
+                                        ["legrabox", "backHeights", variant],
+                                        value
+                                    )
+                                }
+                            />
+                        )
+                    )}
                 </div>
 
             </SettingsCard>

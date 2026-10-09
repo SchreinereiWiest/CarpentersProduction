@@ -1,5 +1,8 @@
+import { getLegraboxHeight } from "../../engine/cnc/legraboxDimensions";
+
 export function InteriorLayer({
     cabinet,
+    cncConfig,
     selectedElement,
     onSelect
 }) {
@@ -53,31 +56,6 @@ export function InteriorLayer({
         bottomOffset -
         thickness;
 
-
-    /*
-     * ------------------------------------------------------------
-     * Hilfsfunktion: FunctionConfig
-     * ------------------------------------------------------------
-     *
-     * Neue Struktur:
-     *
-     * functionConfig: [
-     *   {
-     *     id: ...,
-     *     type: "shelf",
-     *     ...
-     *   },
-     *   {
-     *     id: ...,
-     *     type: "middleWall",
-     *     ...
-     *   }
-     * ]
-     *
-     * Für den Übergang akzeptieren wir hier zusätzlich noch
-     * die alte Objektstruktur. Neue Daten werden aber nur
-     * als Array erzeugt.
-     */
 
     const getFunctions = (section) => {
 
@@ -350,9 +328,7 @@ export function InteriorLayer({
      */
     const usableHeight = Math.max(
         0,
-        Number(section.height) -
-        startFromBottom -
-        endFromTop
+        Number(section.height)
     );
 
 
@@ -360,8 +336,7 @@ export function InteriorLayer({
      * Oberer Startpunkt des Bereichs
      */
     const areaTop =
-        Number(section.y) +
-        endFromTop;
+        Number(section.y);
 
 
     /*
@@ -551,22 +526,15 @@ export function InteriorLayer({
                  */
 
                 if (func.type === "legrabox") {
-
-                    const heights = {
-                        N: 78,
-                        M: 104,
-                        K: 142,
-                        C: 191,
-                        L: 255
-                    };
-
-
                     const variant =
                         func.variant ?? "M";
 
 
                     const boxHeight =
-                        heights[variant] ?? 60;
+                        getLegraboxHeight(
+                            cncConfig,
+                            variant
+                        );
 
 
                     const positionFromBottom =
