@@ -110,14 +110,19 @@ export function placeStrip(
             x: strip.x + localX,
             y: strip.y + localY,
             width,
-            height
+            height,
+            stripId: strip.id,
+            placementId: strip.id
         };
     });
-    nestingPlate.cuts = [
-        ...(nestingPlate.cuts ?? []),
-        ...split.cuts,
-        ...stripCuts
-    ];
+    const ownedCuts = (split.cuts ?? []).map((cut) => ({
+        ...cut,
+        stripId: strip.id,
+        placementId: strip.id
+    }));
+
+    nestingPlate.cuts ??= [];
+    nestingPlate.cuts.push(...ownedCuts, ...stripCuts);
 
     const spaceIndex =
         freeSpaces.indexOf(

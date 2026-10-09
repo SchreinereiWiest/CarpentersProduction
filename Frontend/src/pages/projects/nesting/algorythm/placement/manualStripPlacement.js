@@ -112,7 +112,9 @@ export function configureStripPlacement(strip, options, settings = {}) {
         ...strip,
         layoutType: strip.layoutType ?? strip.type ?? "vertical",
         cutOrientation: options.cutOrientation ?? strip.cutOrientation ?? strip.type ?? "vertical",
-        rotation: options.rotation ?? strip.rotation ?? 0,
+        rotation: settings.allowRotation === false
+            ? 0
+            : options.rotation ?? strip.rotation ?? 0,
         partGap: strip.partGap ?? settings.gap,
         cutGap: strip.cutGap ?? settings.cutGap
     };

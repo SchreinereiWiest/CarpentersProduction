@@ -99,21 +99,21 @@ function canPlateFitInSpace(
   allowRotation,
   partGap
 ) {
-  const { width, height } = getPartDimensions(
+  const dimensions = getPartDimensions(
     plate,
     partGap
   );
+  const fitsAt90Degrees =
+    dimensions.height <= space.width + EPSILON &&
+    dimensions.width <= space.height + EPSILON;
 
-  const fitsNormal =
-    width <= space.width + EPSILON &&
-    height <= space.height + EPSILON;
+  if (allowRotation !== true) return fitsAt90Degrees;
 
-  const fitsRotated =
-    allowRotation &&
-    height <= space.width + EPSILON &&
-    width <= space.height + EPSILON;
+  const fitsAt0Degrees =
+    dimensions.width <= space.width + EPSILON &&
+    dimensions.height <= space.height + EPSILON;
 
-  return fitsNormal || fitsRotated;
+  return fitsAt0Degrees || fitsAt90Degrees;
 }
 
 
@@ -256,9 +256,9 @@ function findBestPlacement(
     partGap
   );
 
-  const rotations = settings.allowRotation
+  const rotations = settings.allowRotation === true
     ? [0, 90]
-    : [0];
+    : [90];
 
   /*
    * Große verbleibende Bauteile zuerst für den Ausblick.
@@ -347,6 +347,8 @@ function findBestPlacement(
         Math.max(0, spaceArea - partArea) /
         Math.max(1, spaceArea);
 
+      // Bauteilrotation und Guillotine-Schnittlage sind unabhängig:
+      // auch ohne Teile-Drehung werden beide Schnittachsen bewertet.
       for (const cutOrientation of [
         "vertical",
         "horizontal"
@@ -379,7 +381,7 @@ function findBestPlacement(
         const quality = evaluateFreeSpaces(
           lookAheadParts,
           split.freeRects,
-          settings.allowRotation,
+          settings.allowRotation === true,
           partGap
         );
 
@@ -791,7 +793,7 @@ function simulateOrder(
   const futureQuality = evaluateFreeSpaces(
     lookAhead,
     freeSpaces,
-    settings.allowRotation,
+    settings.allowRotation === true,
     Number(settings.gap) || 0
   );
 
@@ -942,6 +944,9 @@ function createPartPlacement(
   settings
 ) {
   const plate = record.plate;
+  const rotation = settings.allowRotation === true
+    ? record.rotation
+    : 90;
 
   const {
     originalWidth,
@@ -952,12 +957,12 @@ function createPartPlacement(
   );
 
   const partWidth =
-    record.rotation === 90
+    rotation === 90
       ? originalHeight
       : originalWidth;
 
   const partHeight =
-    record.rotation === 90
+    rotation === 90
       ? originalWidth
       : originalHeight;
 
@@ -973,8 +978,8 @@ function createPartPlacement(
     placedWidth: partWidth,
     placedHeight: partHeight,
 
-    rotation: record.rotation,
-    nestingRotation: record.rotation,
+    rotation,
+    nestingRotation: rotation,
 
     nestingX: 0,
     nestingY: 0,

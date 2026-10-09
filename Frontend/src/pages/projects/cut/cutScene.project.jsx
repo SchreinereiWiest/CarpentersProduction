@@ -1,178 +1,191 @@
-import { SheetObject, PlateObject, FreeRectObject, ItemObject } from "../nesting/plateObjects.project";
-import React, { act } from 'react'
-import { useState } from 'react'
-import { hasEdge } from "../nesting/algorythm/helper/helpers";
+import { useEffect, useState } from "react";
 import { Text } from "@react-three/drei";
-import { getStripLayout } from "../nesting/algorythm/placement/manualStripPlacement.js";
+import { useThree } from "@react-three/fiber";
+import { hasEdge } from "../nesting/algorythm/helper/helpers";
 
-function StripObject ({plate}) {
+function FitCutCamera({ width, height }) {
+    const { camera, size } = useThree();
 
-    return(
-    <group>
-        <mesh position={[plate.width/2,plate.height/2, 0 ]}>
-    
-            <boxGeometry args={[ plate.width, plate.height, 2 ]} />
-    
-            <meshBasicMaterial color={ "#2ecc71" } />
-    
-        </mesh>
-    
-        </group>
-    );
+    useEffect(() => {
+        if (!camera.isOrthographicCamera) return;
 
+        const contentWidth = Math.max(width * 0.01, 1);
+        const contentHeight = Math.max(height * 0.01, 1);
+        const fitZoom = Math.min(
+            size.width / contentWidth,
+            size.height / contentHeight
+        ) * 0.8;
+
+        camera.zoom = Math.min(25, Math.max(0.1, fitZoom));
+        camera.updateProjectionMatrix();
+    }, [camera, height, size.height, size.width, width]);
+
+    return null;
 }
 
+function StripObject({ width, height }) {
+    return (
+        <mesh position={[width / 2, height / 2, 0]}>
+            <boxGeometry args={[width, height, 2]} />
+            <meshBasicMaterial color="#2ecc71" />
+        </mesh>
+    );
+}
 
-function StripItemObject({ plate, settings, itemLayout, isPacked2D = false, stripRotation = 0 }) {
+function StripItemObject({
+    strip,
+    plate,
+    itemLayout,
+    layoutType,
+    stripRotation = 0,
+    itemIndex,
+    onSelectPart,
+    selectedPartKey,
+    finishedPartKeys
+}) {
+    const [hovered, setHovered] = useState(false);
+    const width = itemLayout.width;
+    const height = itemLayout.height;
+    const posX = itemLayout.x + width / 2;
+    const posY = itemLayout.y + height / 2;
+    const originalWidth = Number(plate.originalWidth ?? plate.width) || 0;
+    const inferredPartRotation = width !== originalWidth ? 90 : 0;
+    const baseRotation = Number(plate.nestingRotation ?? (
+        strip.packingMode === "2d" ? inferredPartRotation : layoutType === "horizontal" ? 90 : inferredPartRotation
+    ));
+    const partRotation = (baseRotation + stripRotation) % 180;
+    const partKey = `${strip.id}-${plate.id ?? itemIndex}-${itemIndex}`;
+    const isSelected = selectedPartKey === partKey;
+    const isFinished = finishedPartKeys.has(partKey);
 
-    const partRotation = isPacked2D
-        ? (Number(plate.nestingRotation ?? 0) + Number(stripRotation)) % 180
-        : 0;
-    const Width = isPacked2D ? itemLayout.width : plate.originalWidth;
-    const Height = isPacked2D ? itemLayout.height : plate.originalHeight;
-
-    const edgeThickness = 20;
-
-    const posX = isPacked2D
-        ? itemLayout.x + Width / 2
-        : Width / 2 + settings.gap / 2;
-    const posY = isPacked2D
-        ? itemLayout.y + Height / 2
-        : plate.x + Height / 2 + settings.gap / 2;
-
-    // Kantenbezeichnungen folgen der tatsächlichen Drehung des Bauteils.
     const edgeB = hasEdge(partRotation === 90 ? plate.EdgeL : plate.EdgeB);
     const edgeT = hasEdge(partRotation === 90 ? plate.EdgeR : plate.EdgeT);
     const edgeL = hasEdge(partRotation === 90 ? plate.EdgeT : plate.EdgeL);
     const edgeR = hasEdge(partRotation === 90 ? plate.EdgeB : plate.EdgeR);
+    const edgeColor = isFinished ? "#6b7280" : "rgba(239, 7, 247, 0.98)";
 
-    const edgeMat = "rgba(239, 7, 247, 0.98)"
-
-
-    return (<group>
-    <Text scale={[1 , -1, 1]} position={[ posX, posY, 3 ]} fontSize={70} anchorX="center" anchorY="middle"
-        color="#111111"> {Height} x {Width} </Text>
-
-    {/* Hauptteil */}
-
-    <mesh position={[ posX, posY, 2 ]}>
-
-        <boxGeometry args={[ Width, Height, 2 ]} />
-
-        <meshBasicMaterial color={plate.color} />
-
-    </mesh>
-
-    {/* Untere Kante */}
-
-    {edgeB && (
-
-    <mesh position={[ posX, posY - Height / 2 + edgeThickness / 2, 3 ]}>
-
-        <boxGeometry args={[ Width, edgeThickness, 2 ]} />
-
-        <meshBasicMaterial color={edgeMat} />
-
-    </mesh>
-
-    )}
-
-    {/* Obere Kante */}
-
-    {edgeT && (
-
-    <mesh position={[ posX, posY + Height / 2 - edgeThickness / 2, 3 ]}>
-
-        <boxGeometry args={[ Width, edgeThickness, 2 ]} />
-
-        <meshBasicMaterial color={edgeMat} />
-
-    </mesh>
-
-    )}
-
-    {/* Linke Kante */}
-
-    {edgeL && (
-
-    <mesh position={[ posX - Width / 2 + edgeThickness / 2, posY, 3 ]}>
-
-        <boxGeometry args={[ edgeThickness, Height, 2 ]} />
-
-        <meshBasicMaterial color={edgeMat} />
-
-    </mesh>
-
-    )}
-
-    {/* Rechte Kante */}
-
-    {edgeR && (
-
-    <mesh position={[ posX + Width / 2 - edgeThickness / 2, posY, 3 ]}>
-
-        <boxGeometry args={[ edgeThickness, Height, 2 ]} />
-
-        <meshBasicMaterial color={edgeMat} />
-
-    </mesh>
-
-    )}
-
-</group>
-
-);
-
-}
-
-export default function CutScene({result, stripIndex})
-{
-if(!result) return;
-
-const settings = result.settings;
-
-const activeStrip = result.strips[stripIndex];
-
-// 2D-Strips enthalten bereits Position und Drehung jedes einzelnen Bauteils.
-if (activeStrip?.packingMode === "2d") {
-    const layout = getStripLayout(activeStrip, settings);
-    const displayedStrip = {
-        ...activeStrip,
-        width: layout.placedWidth,
-        height: layout.placedHeight
+    const selectPart = (event) => {
+        event.stopPropagation();
+        onSelectPart?.({
+            key: partKey,
+            stripId: strip.id,
+            plate,
+            width,
+            height
+        });
     };
 
     return (
-        <>
-            <StripObject plate={displayedStrip} />
-            {layout.items.map((itemLayout, index) => (
-                <StripItemObject
-                    key={itemLayout.plate.id ?? index}
-                    plate={itemLayout.plate}
-                    itemLayout={itemLayout}
-                    settings={settings}
-                    isPacked2D
-                    stripRotation={layout.rotation}
+        <group
+            onClick={selectPart}
+            onPointerDown={(event) => {
+                if (event.nativeEvent.pointerType === "touch") event.stopPropagation();
+            }}
+            onPointerOver={(event) => {
+                event.stopPropagation();
+                setHovered(true);
+            }}
+            onPointerOut={() => setHovered(false)}
+        >
+            <Text
+                scale={[1, -1, 1]}
+                position={[posX, posY, 3]}
+                fontSize={70}
+                anchorX="center"
+                anchorY="middle"
+                color={isFinished ? "#d1d5db" : "#111111"}
+            >
+                {`${height} x ${width}`}
+            </Text>
+
+            <mesh position={[posX, posY, 2]}>
+                <boxGeometry args={[width, height, 2]} />
+                <meshBasicMaterial color={isFinished
+                    ? "#6b7280"
+                    : isSelected || hovered
+                        ? "rgb(225, 255, 0)"
+                        : plate.color}
                 />
-            ))}
-        </>
+            </mesh>
+
+            {edgeB && (
+                <mesh position={[posX, posY - height / 2 + 10, 3]}>
+                    <boxGeometry args={[width, 20, 2]} />
+                    <meshBasicMaterial color={edgeColor} />
+                </mesh>
+            )}
+            {edgeT && (
+                <mesh position={[posX, posY + height / 2 - 10, 3]}>
+                    <boxGeometry args={[width, 20, 2]} />
+                    <meshBasicMaterial color={edgeColor} />
+                </mesh>
+            )}
+            {edgeL && (
+                <mesh position={[posX - width / 2 + 10, posY, 3]}>
+                    <boxGeometry args={[20, height, 2]} />
+                    <meshBasicMaterial color={edgeColor} />
+                </mesh>
+            )}
+            {edgeR && (
+                <mesh position={[posX + width / 2 - 10, posY, 3]}>
+                    <boxGeometry args={[20, height, 2]} />
+                    <meshBasicMaterial color={edgeColor} />
+                </mesh>
+            )}
+        </group>
     );
 }
 
-console.log(activeStrip);
+export default function CutScene({ stack, onSelectPart, selectedPartKey, finishedPartKeys }) {
+    const strips = stack?.strips ?? [];
+    if (strips.length === 0) return null;
 
-return (
+    const stripSpacing = 240;
+    const totalWidth = strips.reduce(
+        (width, entry) => width + entry.layout.placedWidth,
+        stripSpacing * Math.max(0, strips.length - 1)
+    );
+    const maxHeight = Math.max(...strips.map((entry) => entry.layout.placedHeight));
+    let nextX = 0;
 
-<>
+    return (
+        <>
+            <FitCutCamera width={totalWidth} height={maxHeight} />
+            <group
+                scale={[0.01, -0.01, 0.01]}
+                position={[-totalWidth * 0.005, maxHeight * 0.005, 0]}
+            >
+                {strips.map(({ strip, layout, originalIndex }) => {
+                    const x = nextX;
+                    nextX += layout.placedWidth + stripSpacing;
 
-    <StripObject key={stripIndex} plate={activeStrip}/>
-
-    {activeStrip.plates.map((item, indexe) => (
-        <StripItemObject key={indexe} plate={item} settings={settings}/>
-        ))}
-
-</>
-
-);
-
+                    return (
+                        <group
+                            key={`${strip.id ?? originalIndex}-${originalIndex}`}
+                            position={[x, 0, 0]}
+                        >
+                            <StripObject
+                                width={layout.placedWidth}
+                                height={layout.placedHeight}
+                            />
+                            {layout.items.map((itemLayout, itemIndex) => (
+                                <StripItemObject
+                                    key={`${itemLayout.plate.id ?? itemIndex}-${itemIndex}`}
+                                    strip={strip}
+                                    plate={itemLayout.plate}
+                                    itemLayout={itemLayout}
+                                    layoutType={layout.layoutType}
+                                    stripRotation={layout.rotation}
+                                    itemIndex={itemIndex}
+                                    onSelectPart={onSelectPart}
+                                    selectedPartKey={selectedPartKey}
+                                    finishedPartKeys={finishedPartKeys}
+                                />
+                            ))}
+                        </group>
+                    );
+                })}
+            </group>
+        </>
+    );
 }

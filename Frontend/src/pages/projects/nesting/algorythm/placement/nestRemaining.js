@@ -145,9 +145,13 @@ export function nestWithRemainingPlates(
         const sheetId = nestingPlates.length;
 
         const usedStrips = bestNestingPlate.strips;
+        const stripIdMap = new Map();
 
         usedStrips.forEach((object, index) => {
-            object.id = allStrips.length + index;
+            const previousId = object.id;
+            const nextId = allStrips.length + index;
+            stripIdMap.set(String(previousId), nextId);
+            object.id = nextId;
             object.sheet = nestingPlates.length;
         });
 
@@ -155,9 +159,19 @@ export function nestWithRemainingPlates(
          
         bestNestingPlate = {
             ...bestNestingPlate,
-
             id: sheetId,
+            cuts: (bestNestingPlate.cuts ?? []).map((cut) => {
+                const ownerId = cut.stripId ?? cut.placementId;
+                const ownerKey = String(ownerId ?? "");
+                if (!stripIdMap.has(ownerKey)) return cut;
 
+                const placementId = stripIdMap.get(ownerKey);
+                return {
+                    ...cut,
+                    stripId: placementId,
+                    placementId
+                };
+            })
         };
 
 

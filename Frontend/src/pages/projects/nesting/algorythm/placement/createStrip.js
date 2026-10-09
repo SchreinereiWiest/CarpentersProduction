@@ -168,36 +168,22 @@ function findBestStripCombination(
     maxWidth
   ) {
     if (selectedPlates.length > 0) {
-      /*
-       * Vertikale Anordnung:
-       * Bauteile bleiben ungedreht.
-       */
-      const verticalCandidate = createCandidate(
-        selectedPlates,
-        currentLength,
-        verticalTarget,
-        "vertical"
-      );
-
-      rememberCandidate(verticalCandidate);
-
-      /*
-       * Horizontale Anordnung:
-       * Bauteile werden gedreht.
-       *
-       * Eine Rotation ist deshalb nur zulässig, wenn
-       * allowRotation aktiviert ist.
-       */
-      if (settings.allowRotation) {
-        const horizontalCandidate = createCandidate(
+      if (settings.allowRotation === true) {
+        rememberCandidate(createCandidate(
           selectedPlates,
           currentLength,
-          horizontalTarget,
-          "horizontal"
-        );
-
-        rememberCandidate(horizontalCandidate);
+          verticalTarget,
+          "vertical"
+        ));
       }
+
+      // Ohne freie Rotation bleiben im 1D-Modus alle Teile fest auf 90°.
+      rememberCandidate(createCandidate(
+        selectedPlates,
+        currentLength,
+        horizontalTarget,
+        "horizontal"
+      ));
     }
 
     for (
