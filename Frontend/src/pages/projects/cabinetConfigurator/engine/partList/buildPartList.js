@@ -304,6 +304,7 @@ const createGroupRoot = (name, children = [], hardware = []) => {
         if (settings.separate.shelves && shelfIds.has(part.PID)) {
           shelfParts.push({
             ...part,
+            Herkunftsobjekt: cabinet.name,
             Anzahl: Number(part.Anzahl) * cabinetQuantity
           });
           continue;
@@ -315,6 +316,7 @@ const createGroupRoot = (name, children = [], hardware = []) => {
         ) {
           middleWallParts.push({
             ...part,
+            Herkunftsobjekt: cabinet.name,
             Anzahl: Number(part.Anzahl) * cabinetQuantity
           });
           continue;
@@ -323,6 +325,7 @@ const createGroupRoot = (name, children = [], hardware = []) => {
         if (settings.separate.fronts && frontIds.has(part.PID)) {
           frontParts.push({
             ...part,
+            Herkunftsobjekt: cabinet.name,
             Anzahl: Number(part.Anzahl) * cabinetQuantity
           });
           continue;
@@ -334,6 +337,7 @@ const createGroupRoot = (name, children = [], hardware = []) => {
         ) {
           separateLegraboxParts.push({
             ...part,
+            Herkunftsobjekt: cabinet.name,
             Anzahl: Number(part.Anzahl) * cabinetQuantity
           });
           continue;

@@ -223,6 +223,11 @@ return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden ove
 
                                 <td className="py-2">
                                     {child.Objektname}
+                                    {child.Herkunftsobjekt && (
+                                        <span className="ml-2 text-sm text-gray-400">
+                                            ({child.Herkunftsobjekt})
+                                        </span>
+                                    )}
                                 </td>
 
                                 <td className="text-gray-300">
@@ -364,6 +369,11 @@ return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden ove
                             <span className="font-medium">
 
                                 {item.Objektname}
+                                {item.Herkunftsobjekt && (
+                                    <span className="ml-2 text-sm text-gray-400">
+                                        ({item.Herkunftsobjekt})
+                                    </span>
+                                )}
 
                             </span>
 
