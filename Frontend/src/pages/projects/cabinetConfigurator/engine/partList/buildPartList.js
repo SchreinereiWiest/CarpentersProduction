@@ -125,6 +125,10 @@ const createGroupRoot = (name, children = [], hardware = []) => {
 
   const cabinetList = cabinets.map((cabinet) => {
     const settings = getSettings(cabinet);
+    const cabinetQuantity = Math.max(
+      1,
+      Math.floor(Number(cabinet.quantity) || 1)
+    );
 
     const cabinetMaterial = cabinet.materialId;
 
@@ -139,7 +143,7 @@ const createGroupRoot = (name, children = [], hardware = []) => {
       BPID: "",
       Objektname: cabinet.name,
       Plattentyp: "KO",
-      Anzahl: 1,
+      Anzahl: cabinetQuantity,
 
       L: Number(cabinet.height),
       B: Number(cabinet.width),
@@ -271,7 +275,10 @@ const createGroupRoot = (name, children = [], hardware = []) => {
 
       if (settings.grouping === "separate") {
         if (settings.separate.shelves && shelfIds.has(part.PID)) {
-          shelfParts.push(part);
+          shelfParts.push({
+            ...part,
+            Anzahl: Number(part.Anzahl) * cabinetQuantity
+          });
           continue;
         }
 
@@ -279,12 +286,18 @@ const createGroupRoot = (name, children = [], hardware = []) => {
           settings.separate.middleWalls &&
           middleWallIds.has(part.PID)
         ) {
-          middleWallParts.push(part);
+          middleWallParts.push({
+            ...part,
+            Anzahl: Number(part.Anzahl) * cabinetQuantity
+          });
           continue;
         }
 
         if (settings.separate.fronts && frontIds.has(part.PID)) {
-          frontParts.push(part);
+          frontParts.push({
+            ...part,
+            Anzahl: Number(part.Anzahl) * cabinetQuantity
+          });
           continue;
         }
       }
@@ -301,7 +314,11 @@ const createGroupRoot = (name, children = [], hardware = []) => {
       settings.separate.legrabox
     ) {
       if (Array.isArray(hardware)) {
-        legraboxes.push(...hardware.filter(Boolean));
+        legraboxes.push(
+          ...hardware
+            .filter(Boolean)
+            .map(item => ({ ...item, Anzahl: cabinetQuantity }))
+        );
       } else if (hardware) {
         legraboxes.push(hardware);
       }
@@ -311,7 +328,10 @@ const createGroupRoot = (name, children = [], hardware = []) => {
       root.Hardware = hardware ?? [];
     }
 
-    root.Children = remainingChildren;
+    root.Children = remainingChildren.map(part => ({
+      ...part,
+      Anzahl: Number(part.Anzahl) * cabinetQuantity
+    }));
 
     return root;
   });

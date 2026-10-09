@@ -12,8 +12,10 @@ export default function CabinetSidebar({
     activeCabinet,
 
     addCabinet,
+    duplicateCabinet,
     selectCabinet,
     deleteCabinet,
+    updateCabinetQuantity,
 
     updateActiveCabinet,
 
@@ -104,7 +106,13 @@ return (
                     pb-3
                 ">
 
-            <CabinetList cabinets={cabinets} activeCabinetId={activeCabinetId} onSelect={selectCabinet} />
+            <CabinetList
+                cabinets={cabinets}
+                activeCabinetId={activeCabinetId}
+                onSelect={selectCabinet}
+                onDuplicate={duplicateCabinet}
+                onQuantityChange={updateCabinetQuantity}
+            />
 
         </div>
 

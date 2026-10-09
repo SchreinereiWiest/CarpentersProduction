@@ -25,6 +25,56 @@ export function createId() {
         return Date.now() + Math.random();
     }
 
+function cloneCabinetWithFreshIds(cabinet) {
+    const idMap = new Map();
+
+    const cloneValue = (value) => {
+        if (Array.isArray(value)) {
+            return value.map(cloneValue);
+        }
+
+        if (value && typeof value === "object") {
+            return Object.fromEntries(
+                Object.entries(value).map(([key, nestedValue]) => {
+                    if (key === "id" && nestedValue != null) {
+                        const newId = createId();
+                        idMap.set(nestedValue, newId);
+                        return [key, newId];
+                    }
+
+                    return [key, cloneValue(nestedValue)];
+                })
+            );
+        }
+
+        return value;
+    };
+
+    const remapReferences = (value) => {
+        if (Array.isArray(value)) {
+            value.forEach(remapReferences);
+            return;
+        }
+
+        if (!value || typeof value !== "object") {
+            return;
+        }
+
+        Object.entries(value).forEach(([key, nestedValue]) => {
+            if (key.endsWith("Id") && idMap.has(nestedValue)) {
+                value[key] = idMap.get(nestedValue);
+                return;
+            }
+
+            remapReferences(nestedValue);
+        });
+    };
+
+    const clone = cloneValue(cabinet);
+    remapReferences(clone);
+    return clone;
+}
+
 
 export default function CabinetEditor() {
 
@@ -98,6 +148,7 @@ export default function CabinetEditor() {
     width: 600,
     height: 720,
     depth: 535,
+    quantity: 1,
 
     thickness: 19,
 
@@ -158,6 +209,25 @@ export default function CabinetEditor() {
     );
 
     selectCabinet(newCabinet.id);
+    };
+
+    const duplicateCabinet = (cabinetId) => {
+        const sourceCabinet = cabinets.find(
+            cabinet => cabinet.id === cabinetId
+        );
+
+        if (!sourceCabinet) {
+            return;
+        }
+
+        const duplicate = cloneCabinetWithFreshIds(sourceCabinet);
+        duplicate.name = `${sourceCabinet.name || "Korpus"} (Kopie)`;
+        duplicate.quantity = 1;
+
+        setCabinets(prev => [...prev, duplicate]);
+        setActiveCabinetId(duplicate.id);
+        setSectionCount(duplicate.sections?.length ?? 1);
+        setSelectedElement(null);
     };
 
     const [selectedElement, setSelectedElement] = useState(null);
@@ -343,6 +413,14 @@ export default function CabinetEditor() {
                 };
             })
         );
+    };
+
+    const updateCabinetQuantity = (cabinetId, quantity) => {
+        setCabinets(prev => prev.map(cabinet =>
+            cabinet.id === cabinetId
+                ? { ...cabinet, quantity }
+                : cabinet
+        ));
     };
 
     const selectCabinet = (id) => {
@@ -783,8 +861,10 @@ export default function CabinetEditor() {
                     activeCabinet={activeCabinet}
 
                     addCabinet={addCabinet}
+                    duplicateCabinet={duplicateCabinet}
                     selectCabinet={selectCabinet}
                     deleteCabinet={deleteCabinet}
+                    updateCabinetQuantity={updateCabinetQuantity}
 
                     updateActiveCabinet={updateActiveCabinet}
 
