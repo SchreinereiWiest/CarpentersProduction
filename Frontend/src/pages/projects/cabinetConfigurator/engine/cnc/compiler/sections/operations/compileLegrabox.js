@@ -26,15 +26,12 @@ export const compileLegrabox = ({
             )
         );
 
-
-    const boxHeight = {
-        M: 60,
-        K: 100,
-        C: 130,
-        L: 200
-    }[
-        func.variant ?? "M"
-    ] ?? 60;
+    const insideRightOffset = Number(
+        func.doubling?.insideRightOffset ?? 0
+    );
+    const safeInsideRightOffset = Number.isFinite(insideRightOffset)
+        ? insideRightOffset
+        : 0;
 
 
     /*
@@ -166,11 +163,15 @@ export const compileLegrabox = ({
 
                     /*
                      * ERSTE Bohrung
+                     * insideRightOffset verschiebt den gesamten
+                     * Bohrgruppenstart; YOffset hält die Lochabstände.
                      */
 
                     x: boxPosition,
 
-                    y: group.firstDepthPosition,
+                    y:
+                        group.firstDepthPosition +
+                        safeInsideRightOffset,
 
                     /*
                      * Wiederholungsparameter

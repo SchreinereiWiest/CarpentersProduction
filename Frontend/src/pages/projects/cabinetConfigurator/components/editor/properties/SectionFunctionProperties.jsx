@@ -252,7 +252,8 @@ export default function SectionFunctionProperties({
                     doubling: {
                         left: false,
                         right: false,
-                        thickness: 0
+                        thickness: 0,
+                        insideRightOffset: 0
                     }
                 };
 
@@ -1620,15 +1621,42 @@ export default function SectionFunctionProperties({
 
                                 </label>
 
+                                        
 
                                 {/* Aufdopplungen */}
-                                <div className="border-t border-gray-800 pt-4">
+                                <div className="border-t border-gray-800 pt-2">
 
-                                    <div className="text-xs uppercase tracking-wide text-gray-500">
+                                    <label className="block">
+
+                                            <span className="text-xs text-gray-400">
+                                                Innenliegend (mm)
+                                            </span>
+
+                                            <input
+                                                type="number"
+                                                step="0.5"
+                                                value={func.doubling?.insideRightOffset ?? 0}
+                                                onChange={event =>
+                                                    updateLegraboxDoubling(
+                                                        func.id,
+                                                        {
+                                                            insideRightOffset:
+                                                                Number(event.target.value) || 0
+                                                        }
+                                                    )
+                                                }
+                                                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
+                                            />
+
+                                        </label>
+
+                                    <div className="text-xs uppercase tracking-wide text-gray-500 mt-4 ">
                                         Aufdopplungen
                                     </div>
 
                                     <div className="mt-3 space-y-3">
+
+                                        
 
                                         <label className="flex items-center gap-2 text-sm text-gray-300">
 
@@ -1714,6 +1742,8 @@ export default function SectionFunctionProperties({
                                             </label>
 
                                         )}
+
+                                        
 
                                     </div>
 
