@@ -1,9 +1,6 @@
-import { useState } from 'react'
 import axios from 'axios';
-import { useNavigate } from 'react-router';
-import { useParams } from 'react-router';
-import {getProjectFile, uploadProjectFile} from "../../../services/projectMemoryCache.js";
-import {downloadFile, uploadJSONFile} from "../../../services/apiTemplates.js";
+import {uploadProjectFile} from "../../../services/projectMemoryCache.js";
+import {uploadJSONFile} from "../../../services/apiTemplates.js";
 
 
 export async function ProjectSave(corpuses, materials, selectedCustomer, files, projectDescription, projectName, mode, id, incomingCabinets) {
@@ -17,18 +14,53 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
 
     let pid = 0;
 
+    const usedPIDs = new Set(
+        corpuses.flatMap(corpus => [
+            corpus._source?.PID,
+            ...(corpus.Children ?? []).map(child => child._source?.PID)
+        ]).filter(Boolean).map(String)
+    );
+
     const nextPID = () => {
-        pid++;
-        return pid.toString().padStart(6, "0");
+        let candidate;
+
+        do {
+            pid++;
+            candidate = pid.toString().padStart(6, "0");
+        } while (usedPIDs.has(candidate));
+
+        usedPIDs.add(candidate);
+        return candidate;
     };
 
     const getMaterial = (id) =>
         materials.find(m => m.id === id);
 
+    const getMaterialNumber = (id, originalNumber = "") => {
+        const material = getMaterial(id);
+        if (material) return material.materialNumber;
+
+        const originalMaterialExists = materials.some(
+            item => item.materialNumber === originalNumber
+        );
+
+        if (id === "" && originalMaterialExists) return "";
+        return originalNumber ?? "";
+    };
+
+    const getManualOrigin = (source) => source?._manualOrigin ?? {
+        _generatedId: source?._generatedId,
+        _cabinetId: source?._cabinetId,
+        PID: source?.PID,
+        Plattentyp: source?.Plattentyp,
+        Objektname: source?.Objektname
+    };
+
     console.log(corpuses);
     cadData = corpuses.map(corpus => {
 
         const corpusMaterial = getMaterial(corpus.MID);
+        const source = corpus._source ?? {};
 
         const color = 
                         "#" +
@@ -38,9 +70,11 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
 
         return {
 
-            PID: nextPID(),
+            ...source,
 
-            BPID: "",
+            PID: source.PID ?? nextPID(),
+
+            BPID: source.BPID ?? "",
 
             Objektname: corpus.name,
 
@@ -54,33 +88,41 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
 
             T: Number(corpus.depth),
 
-            MID: corpusMaterial?.materialNumber ?? "",
+            MID: getMaterialNumber(corpus.MID, source.MID),
 
-            Maserung: corpusMaterial?.maser ? "Ja" : "",
+            Maserung: corpusMaterial?.maser ? "Ja" : source.Maserung ?? "",
 
-            ELID: "",
+            ELID: source.ELID ?? "",
 
-            ERID: "",
+            ERID: source.ERID ?? "",
 
-            ETID: "",
+            ETID: source.ETID ?? "",
 
-            EBID: "",
+            EBID: source.EBID ?? "",
 
-            Kante: ":::",
+            Kante: source.Kante ?? ":::",
 
-            Notiz: "",
+            Notiz: source.Notiz ?? "",
 
-            color: color,
+            color: source.color ?? color,
 
-            Children: corpus.Children.map(child => {
+            ...(corpus.manual || source.manual ? {
+                manual: true,
+                _manualOrigin: getManualOrigin(source)
+            } : {}),
+
+            Children: (corpus.Children ?? []).map(child => {
 
                 const material = getMaterial(child.MID);
+                const childSource = child._source ?? {};
 
                 const plate = {
 
-                    PID: nextPID(),
+                    ...childSource,
 
-                    BPID: "Nein",
+                    PID: childSource.PID ?? nextPID(),
+
+                    BPID: childSource.BPID ?? "Nein",
 
                     Objektname: child.name,
 
@@ -94,21 +136,26 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
 
                     T: Number(child.depth),
 
-                    MID: material?.materialNumber ?? "",
+                    MID: getMaterialNumber(child.MID, childSource.MID),
 
-                    Maserung: material?.maser ? "Ja" : "",
+                    Maserung: material?.maser ? "Ja" : childSource.Maserung ?? "",
 
-                    ELID: getMaterial(child.ELID)?.materialNumber ?? "",
+                    ELID: getMaterialNumber(child.ELID, childSource.ELID),
 
-                    ERID: getMaterial(child.ERID)?.materialNumber ?? "",
+                    ERID: getMaterialNumber(child.ERID, childSource.ERID),
 
-                    ETID: getMaterial(child.ETID)?.materialNumber ?? "",
+                    ETID: getMaterialNumber(child.ETID, childSource.ETID),
 
-                    EBID: getMaterial(child.EBID)?.materialNumber ?? "",
+                    EBID: getMaterialNumber(child.EBID, childSource.EBID),
 
-                    Notiz: "",
+                    Notiz: childSource.Notiz ?? "",
 
-                    color: color
+                    color: childSource.color ?? color,
+
+                    ...(child.manual || childSource.manual ? {
+                        manual: true,
+                        _manualOrigin: getManualOrigin(childSource)
+                    } : {})
 
                 };
 

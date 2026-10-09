@@ -101,6 +101,7 @@ const createGroupRoot = (name, children = [], hardware = []) => {
 
   return {
     PID: nextPID(),
+    _generatedId: `group:${name}`,
     BPID: "",
     Objektname: name,
     Plattentyp: "KO",
@@ -127,6 +128,7 @@ const createGroupRoot = (name, children = [], hardware = []) => {
   // ------------------------------------------------------------
 
   const cabinetList = cabinets.map((cabinet) => {
+    const cabinetStartPid = pid;
     const settings = getSettings(cabinet);
     const cncConfig = getCncConfig(cabinet, defaultConfig);
     const cabinetQuantity = Math.max(
@@ -144,6 +146,8 @@ const createGroupRoot = (name, children = [], hardware = []) => {
 
     const root = {
       PID: nextPID(),
+      _generatedId: `${cabinet.id}:root`,
+      _cabinetId: cabinet.id,
       BPID: "",
       Objektname: cabinet.name,
       Plattentyp: "KO",
@@ -255,6 +259,10 @@ const createGroupRoot = (name, children = [], hardware = []) => {
       allChildren,
       defaultConfig
     );
+
+    compiledChildren.forEach(part => {
+      part._generatedId = `${cabinet.id}:part:${Number(part.PID) - cabinetStartPid}`;
+    });
 
     // ----------------------------------------------------------
     // Teile entsprechend der Gruppierung verteilen

@@ -1,4 +1,4 @@
-import React, {useState, useEffect,} from "react";
+import React, {useState, useEffect, useRef} from "react";
 import { useLocation, useParams } from "react-router";
 import CabinetViewport from "./components/view/cabinetViewport.jsx";
 import ProjectBar from '../../../components/projectBar.jsx';
@@ -141,6 +141,11 @@ export default function CabinetEditor() {
 
     const [saving, setSaving] = useState(false);
     const [loadingGeneratedData, setLoadingGeneratedData] = useState(false);
+    const [showAbsoluteSaveWarning, setShowAbsoluteSaveWarning] = useState(false);
+    const longPressTimer = useRef(null);
+    const suppressSaveClick = useRef(false);
+
+    useEffect(() => () => clearTimeout(longPressTimer.current), []);
 
     const [defaultConfig, setDefaultConfig] = useState(DEFAULT_CNC);
 
@@ -501,7 +506,7 @@ export default function CabinetEditor() {
             setActiveCabinetId(newID);
     }
 
-    const handleSave = async () => {
+    const handleSave = async (overwriteManual = false) => {
         if (mode !== "edit") {
         return;
     }
@@ -518,7 +523,8 @@ export default function CabinetEditor() {
                 projectName,
                 mode,
                 projectId,
-                defaultConfig
+                defaultConfig,
+                overwriteManual
             );
 
             console.log("Projekt erfolgreich gespeichert");
@@ -530,6 +536,31 @@ export default function CabinetEditor() {
         } finally {
             setSaving(false);
         }
+    };
+
+    const startSaveLongPress = () => {
+        if (mode !== "edit" || saving) return;
+
+        clearTimeout(longPressTimer.current);
+        suppressSaveClick.current = false;
+        longPressTimer.current = setTimeout(() => {
+            suppressSaveClick.current = true;
+            setShowAbsoluteSaveWarning(true);
+        }, 850);
+    };
+
+    const cancelSaveLongPress = () => {
+        clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
+    };
+
+    const handleSaveButtonClick = () => {
+        if (suppressSaveClick.current) {
+            suppressSaveClick.current = false;
+            return;
+        }
+
+        handleSave();
     };
 
     const handleNext = async () => {
@@ -967,8 +998,14 @@ export default function CabinetEditor() {
                             onClick={
                                 mode === "create"
                                     ? handleNext
-                                    : handleSave
+                                    : handleSaveButtonClick
                             }
+                            onPointerDown={startSaveLongPress}
+                            onPointerUp={cancelSaveLongPress}
+                            onPointerLeave={cancelSaveLongPress}
+                            onPointerCancel={cancelSaveLongPress}
+                            onContextMenu={event => event.preventDefault()}
+                            title={mode === "edit" ? "Gedrückt halten, um manuelle Listeneinträge vollständig zu überschreiben" : undefined}
                             disabled={saving}
                             className="ml-auto rounded border border-blue-700 bg-blue-600 px-4 py-2 text-sm text-white shadow hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >
@@ -1103,6 +1140,44 @@ export default function CabinetEditor() {
             </div>
 
         </div>
+
+        {showAbsoluteSaveWarning && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+                <div
+                    role="alertdialog"
+                    aria-modal="true"
+                    aria-labelledby="absolute-save-title"
+                    className="w-full max-w-lg rounded-xl border border-red-700 bg-gray-800 p-6 shadow-2xl"
+                >
+                    <h2 id="absolute-save-title" className="text-xl font-semibold text-white">
+                        Partliste vollständig überschreiben?
+                    </h2>
+                    <p className="mt-3 text-gray-300">
+                        Die Liste wird neu aus den Korpussen erzeugt. Alle manuell hinzugefügten oder geänderten Positionen in der bestehenden Liste gehen dabei verloren.
+                    </p>
+                    <div className="mt-6 flex justify-end gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setShowAbsoluteSaveWarning(false)}
+                            className="rounded-lg bg-gray-700 px-4 py-2 text-white hover:bg-gray-600"
+                        >
+                            Abbrechen
+                        </button>
+                        <button
+                            type="button"
+                            disabled={saving}
+                            onClick={() => {
+                                setShowAbsoluteSaveWarning(false);
+                                handleSave(true);
+                            }}
+                            className="rounded-lg bg-red-700 px-4 py-2 font-semibold text-white hover:bg-red-600 disabled:opacity-50"
+                        >
+                            {saving ? "Speichern..." : "Vollständig überschreiben"}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
 
     </main>
 

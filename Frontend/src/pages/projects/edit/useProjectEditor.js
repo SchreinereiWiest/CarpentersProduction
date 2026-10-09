@@ -92,6 +92,8 @@ function createCorpus(override = null, type = "KO") {
 
             type: "KO",
 
+            manual: true,
+
             groupOnly: true,
 
             Children: []
@@ -261,7 +263,13 @@ function createCorpus(override = null, type = "KO") {
 
     if (normalizedType === "plate") {
 
+        const existingCorpus = override === null
+            ? null
+            : corpuses.find(item => item.id === override);
+
         const corpus = {
+
+            ...(existingCorpus ?? {}),
 
             id:
                 override === null
@@ -286,6 +294,8 @@ function createCorpus(override = null, type = "KO") {
             MID: KorpusMaterialId,
 
             type: "plate",
+
+            manual: true,
 
             Children: []
 
@@ -347,6 +357,9 @@ function createCorpus(override = null, type = "KO") {
         if (existingCorpus?.groupOnly === true) {
 
             const updatedCorpus = {
+
+                ...existingCorpus,
+
                 id: override,
 
                 name: selectedName || existingCorpus.name,
@@ -359,6 +372,8 @@ function createCorpus(override = null, type = "KO") {
                         : Number(selectedQuantity),
 
                 type: "KO",
+
+                manual: true,
 
                 groupOnly: true,
 
@@ -386,6 +401,8 @@ function createCorpus(override = null, type = "KO") {
          */
         const corpus = {
 
+            ...existingCorpus,
+
             id: override,
 
             name: selectedName,
@@ -404,6 +421,8 @@ function createCorpus(override = null, type = "KO") {
             MID: KorpusMaterialId,
 
             type: "KO",
+
+            manual: true,
 
             Children: children
         };
@@ -481,7 +500,13 @@ function createCorpus(override = null, type = "KO") {
 
         if (!activeCorpus) return;
 
+        const existingPlate = override == null
+            ? null
+            : activeCorpus.Children.find(child => child.id === override);
+
         const plate = {
+
+            ...(existingPlate ?? {}),
 
             id: override == null ? Date.now() + Math.random() : override,
 
@@ -506,6 +531,8 @@ function createCorpus(override = null, type = "KO") {
             ERID: selectedEdges.right ? activePlate.MID : "",
 
             MID: override == null ? KorpusMaterialId : activePlate.MID,
+
+            manual: true,
 
         };
 
@@ -582,6 +609,7 @@ setCorpuses(prev =>
                 ? {
                     ...child,
                     MID: materialId,
+                    manual: true,
                     //EdgeMat
                 }
 
@@ -608,34 +636,40 @@ setCorpuses(prev =>
                 material => material.id === child.MID
             );
 
+            if (!childMaterial) {
+                return child;
+            }
+
+        let changes;
+
         switch (child.preset) {
 
             case "Boden":
 
-                return {
-                    ...child,
+                changes = {
                     height: selectedWidth-childMaterial.thickness*2,
                     width: selectedDepth,
                     depth: childMaterial.thickness
                 };
+                break;
 
             case "Seite":
 
-                return {
-                    ...child,
+                changes = {
                     height: selectedHeigth,
                     width: selectedDepth,
                     depth: childMaterial.thickness
                 };
+                break;
 
             case "Back":
 
-                return {
-                    ...child,
+                changes = {
                     height: selectedHeigth,
                     width: selectedWidth,
                     depth: 8
                 };
+                break;
 
 
             default:
@@ -643,6 +677,16 @@ setCorpuses(prev =>
                 return child;
 
         }
+
+        const changed = Object.entries(changes).some(
+            ([key, value]) => child[key] !== value
+        );
+
+        return {
+            ...child,
+            ...changes,
+            ...(changed ? { manual: true } : {})
+        };
 
     });
     }

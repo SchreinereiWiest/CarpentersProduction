@@ -220,8 +220,20 @@ export default function CorpusLeft({ EditorState }) {
 
                 <div className="flex justify-between items-center gap-2">
 
-                  <div className="font-medium xl:text-lm text-md truncate">
-                    {corpus.name}
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span
+                      title={corpus.manual ? "Manuell hinzugefügt oder geändert" : undefined}
+                      className={`min-w-0 truncate font-medium xl:text-lm text-md ${
+                        corpus.manual ? "text-amber-300" : ""
+                      }`}
+                    >
+                      {corpus.name}
+                    </span>
+                    {corpus.manual && (
+                      <span className="shrink-0 rounded bg-amber-900/70 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-amber-200">
+                        manuell
+                      </span>
+                    )}
                   </div>
 
                   <div className="shrink-0">

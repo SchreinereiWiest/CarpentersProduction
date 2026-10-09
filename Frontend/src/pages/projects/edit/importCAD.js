@@ -38,9 +38,13 @@ export function importCadData(cadData, materials) {
         return material?.id ?? "";
     };
 
-    return cadData.map((item, index) => ({
+    return cadData.map((item) => ({
 
-        id: Date.now() + Math.random(),
+        id: item.PID ?? Date.now() + Math.random(),
+
+        _source: item,
+
+        manual: item.manual === true,
 
         name: item.Objektname,
 
@@ -58,9 +62,13 @@ export function importCadData(cadData, materials) {
 
         type: item.Plattentyp,
 
-        Children: (item.Children ?? []).map((child, childIndex) => ({
+        Children: (item.Children ?? []).map((child) => ({
 
-            id: Date.now() + Math.random(),
+            id: child.PID ?? Date.now() + Math.random(),
+
+            _source: child,
+
+            manual: child.manual === true,
 
             name: child.Objektname,
 
