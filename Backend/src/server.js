@@ -17,6 +17,9 @@ dotenv.config();
 
 const app = express();
 
+// Traefik is the only trusted reverse proxy in the Compose deployment.
+app.set("trust proxy", 1);
+
 app.use(cors({
   origin: ["cp.moebelschreinerei-wiest.de", "s3.moebelschreinerei-wiest.de"],
 
@@ -53,4 +56,3 @@ app.use("/api/settings", settingsRoutes);
 app.listen(5000, () => {
   console.log("Backend running on port 5000");
 });
-

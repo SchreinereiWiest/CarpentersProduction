@@ -41,7 +41,9 @@ Adressen werden eingebettet. Ein Mindestwert für `page` wird nicht erzwungen.
 
 ## Suche
 
-`GET /api/customers/search?search=TEXT` ruft `searchCustomers` auf. Die Suche ist case-insensitive über `firstName`, `lastName` und `companyName`, sortiert nach Firma und Nachname und liefert maximal 15 rohe Kundendatensätze.
+`GET /api/customers/search?search=TEXT` ruft `searchCustomers` auf und verlangt ein gültiges Login. Die Suche ist case-insensitive über `firstName`, `lastName` und `companyName`, ignoriert soft-gelöschte Kunden, sortiert nach Firma und Nachname und liefert maximal 15 Treffer.
 
-!!! danger "Derzeit ohne Authentifizierung"
-    Die Suchroute ist öffentlich registriert und kann Kundenstammdaten zurückgeben. Sie sollte vor einem produktiven Betrieb mindestens `authenticate`, voraussichtlich `authenticateAdmin`, verwenden.
+Die Feldfreigabe ist rollenbasiert:
+
+- `admin` und `manager` erhalten die vollständigen Kundendaten.
+- `user` erhält nur `id`, `customerNumber`, Vorname, Nachname, Firma und Kundenstatus. Kontaktdaten, Bewertung, Quelle und Notizen werden nicht ausgegeben.

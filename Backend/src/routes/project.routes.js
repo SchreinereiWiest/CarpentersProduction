@@ -2,7 +2,7 @@ import express from "express";
 import prisma from "../config/prisma.js";
 
 import { newProject, getAllProjectsID, getProject, getGeneratedProjectData, createGeneratedProjectData, getAllProjects, updateProject, deleteProject } from "../controllers/project.controller.js";
-import { authenticate } from "../middleware/auth.middleware.js";
+import { authenticate, authenticateAdmin } from "../middleware/auth.middleware.js";
 import { getTime, manualTime, startTime, stopTime } from "../controllers/time.controller.js";
 import { exportProject, importProject } from "../controllers/projectArchive.controller.js";
 import multer from "multer";
@@ -23,7 +23,7 @@ router.post("/new", authenticate, newProject);
 
 router.put("/update/:id", authenticate, updateProject);
 
-router.delete("/delete/:projectId", deleteProject);
+router.delete("/delete/:projectId", authenticateAdmin, deleteProject);
 
 router.get("/getAll/:id", authenticate, getAllProjectsID);
 

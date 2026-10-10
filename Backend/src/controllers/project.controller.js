@@ -155,65 +155,61 @@ export const deleteProject = async (req, res) => {
         }
 
 
-        /*
-         * --------------------------------------------------
-         * 4. File-Einträge löschen
-         * --------------------------------------------------
-         */
-
-        await prisma.file.deleteMany({
-
-            where: {
-                projectId: projectId
-            }
-
-        });
-
-
-        /*
-         * --------------------------------------------------
-         * 5. S3Object-Einträge löschen
-         * --------------------------------------------------
-         */
-
         const storageObjectIds = files
             .filter(file => file.storageObject)
             .map(file => file.storageObject.id);
 
-
-        if (storageObjectIds.length > 0) {
-
-            await prisma.s3Object.deleteMany({
-
-                where: {
-                    id: {
-                        in: storageObjectIds
-                    }
-                }
-
-            });
-
-        }
-
-
         /*
          * --------------------------------------------------
-         * 6. Projekt löschen
+         * 4. Datenbankdaten und Audit-Log atomar schreiben
          * --------------------------------------------------
          */
 
-        await prisma.project.delete({
+        await prisma.$transaction(async transaction => {
 
-            where: {
-                id: projectId
+            await transaction.file.deleteMany({
+                where: {
+                    projectId
+                }
+            });
+
+            if (storageObjectIds.length > 0) {
+                await transaction.s3Object.deleteMany({
+                    where: {
+                        id: {
+                            in: storageObjectIds
+                        }
+                    }
+                });
             }
+
+            await transaction.project.delete({
+                where: {
+                    id: projectId
+                }
+            });
+
+            await transaction.auditLog.create({
+                data: {
+                    actorUserId: req.user.id,
+                    action: "project.delete",
+                    entityType: "Project",
+                    entityId: projectId,
+                    metadata: {
+                        projectTitle: project.title,
+                        deletedFiles: files.length
+                    },
+                    ipAddress: req.ip || null,
+                    userAgent: req.get("user-agent") || null
+                }
+            });
 
         });
 
 
         /*
          * --------------------------------------------------
-         * 7. Antwort
+         * 5. Antwort
          * --------------------------------------------------
          */
 
@@ -239,13 +235,7 @@ export const deleteProject = async (req, res) => {
 
 
         return res.status(500).json({
-
-            error:
-                "Project deletion failed",
-
-            message:
-                error.message
-
+            error: "Project deletion failed"
         });
 
     }

@@ -1,6 +1,7 @@
 # Abhängigkeiten
 node_modules/
 **/node_modules/
+.pnpm-store/
 
 kubernetesNotes
 

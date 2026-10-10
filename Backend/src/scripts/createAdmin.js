@@ -34,6 +34,14 @@ const createUser = async () => {
 
             isActive: true,
         },
+
+        select: {
+            id: true,
+            email: true,
+            login: true,
+            role: true,
+            isActive: true
+        }
     });
 
     console.log(user);

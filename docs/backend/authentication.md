@@ -30,7 +30,11 @@ Liest `req.cookies.token`, prüft es mit `jwt.verify` und schreibt die Claims na
 
 ### `authenticateAdmin(req, res, next)`
 
-Führt dieselbe Prüfung aus und verlangt zusätzlich exakt `role === "admin"`. Andere Rollen erhalten derzeit ebenfalls Status `401` mit `Not Authorized`.
+Führt dieselbe Prüfung aus und verlangt zusätzlich exakt `role === "admin"`. Andere Rollen erhalten Status `403`.
+
+### `authorizeRoles(...allowedRoles)`
+
+Diese Middleware wird hinter `authenticate` eingesetzt und erlaubt nur die ausdrücklich genannten Rollen. Eine fehlende Identität ergibt `401`, eine nicht erlaubte Rolle `403`. Die Materialbestandsänderung erlaubt damit ausschließlich `admin` und `manager`.
 
 ## Aktuelle Identität
 

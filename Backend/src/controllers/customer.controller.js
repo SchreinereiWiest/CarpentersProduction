@@ -188,9 +188,13 @@ export const searchCustomers = async (req, res) => {
 
         const search = req.query.search ?? "";
 
+        const mayViewContactData = ["admin", "manager"].includes(req.user.role);
+
         const customers = await prisma.customer.findMany({
 
             where: {
+
+                deletedAt: null,
 
                 OR: [
 
@@ -231,7 +235,18 @@ export const searchCustomers = async (req, res) => {
 
             ],
 
-            take: 15
+            take: 15,
+
+            ...(mayViewContactData ? {} : {
+                select: {
+                    id: true,
+                    customerNumber: true,
+                    firstName: true,
+                    lastName: true,
+                    companyName: true,
+                    customerStatus: true
+                }
+            })
 
         });
 

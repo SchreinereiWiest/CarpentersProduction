@@ -64,7 +64,7 @@ Das Prisma-Schema verlangt `name`, `width` und `height`. Erfolg: `201 { "materia
 
 ### Bestand setzen
 
-`PATCH /api/materials/:id/quantity` erwartet `{ "quantity": INTEGER }`. Negative Werte ergeben `400`, ansonsten wird die Menge gesetzt und `{ "material": ... }` geliefert. Typ, Ganzzahligkeit und Existenz werden nicht separat validiert. Die Route ist aktuell öffentlich.
+`PATCH /api/materials/:id/quantity` erwartet `{ "quantity": INTEGER }`. Negative Werte ergeben `400`, ansonsten wird die Menge gesetzt und `{ "material": ... }` geliefert. Typ, Ganzzahligkeit und Existenz werden nicht separat validiert. Die Route verlangt ein gültiges Login und erlaubt ausschließlich die Rollen `admin` und `manager`.
 
 ## Einstellungen
 

@@ -2,13 +2,14 @@
 
 Diese Seite beschreibt den Ist-Stand des geprüften Backend-Quellcodes. Sie ist eine Arbeitsliste und ersetzt keinen Penetrationstest.
 
-## Kritisch
+## Umgesetzte Absicherungen
 
-| Befund | Auswirkung | Empfehlung |
-|---|---|---|
-| `DELETE /api/projects/delete/:projectId` ist öffentlich | Projekte und Garage-Dateien können ohne Login gelöscht werden | mindestens `authenticateAdmin`; zusätzlich Berechtigungsmodell und Audit-Log |
-| `GET /api/customers/search` ist öffentlich | Kundenstammdaten können abgefragt werden | Authentifizierung und rollenbasierte Feldfreigabe |
-| `PATCH /api/materials/:id/quantity` ist öffentlich | Lagerbestand kann ohne Login verändert werden | mindestens `authenticate`, besser definierte Lagerrolle |
+| Bereich | Umsetzung |
+|---|---|
+| Projektlöschung | nur Admin; PostgreSQL-Löschung transaktional; persistentes Audit-Log mit Akteur und Request-Metadaten |
+| Kundensuche | Login erforderlich; vollständige Kontaktdaten nur für Admin und Manager; reduzierte Felder für Benutzer |
+| Materialbestand | Login erforderlich; nur Admin und Manager dürfen Mengen ändern |
+| Bootstrap-Konten | keine festen Passwörter; Zugangsdaten nur über Umgebungsvariablen; mindestens 12 Zeichen; Passwort-Hash wird nicht protokolliert |
 
 ## Hoch
 
@@ -22,7 +23,6 @@ Diese Seite beschreibt den Ist-Stand des geprüften Backend-Quellcodes. Sie ist 
 
 ## Mittel
 
-- `authenticateAdmin` antwortet auf fehlende Rechte mit `401` statt `403`.
 - CORS-Origins sind ohne URL-Schema eingetragen; Browser-Matching kann dadurch fehlschlagen.
 - `GET /api/time/day/:date` liefert Zeiten aller Benutzer an jede angemeldete Rolle.
 - `GET /api/auth/users` schließt deaktivierte und soft-gelöschte Konten nicht aus.
@@ -36,13 +36,13 @@ Diese Seite beschreibt den Ist-Stand des geprüften Backend-Quellcodes. Sie ist 
 
 - Das Traefik-Dashboard ist als `api.insecure=true` konfiguriert und veröffentlicht Port 8080.
 - Deployment-Hosts und Datenbankzugangsdaten stehen im lokalen, ignorierten Compose-Stand. Produktive Secrets sollten über eine Secret-Verwaltung injiziert und bei möglicher früherer Offenlegung rotiert werden.
-- Es gibt keinen Health-Endpunkt, keine expliziten Security-Header und kein zentrales Audit-Log.
+- Es gibt keinen Health-Endpunkt und keine expliziten Security-Header. Das Audit-Log deckt aktuell erfolgreiche Projektlöschungen ab, noch nicht alle mutierenden Aktionen.
 
 ## Empfohlene Reihenfolge
 
-1. Öffentliche Lösch-, Such- und Bestandsrouten schützen.
-2. Früher versionierte Passwörter und Garage-Secrets rotieren und bei Bedarf aus der Git-Historie entfernen.
-3. Kontostatus- und objektbezogene Autorisierung zentralisieren.
-4. HTTPS/Cookie/CORS/CSRF gemeinsam härten.
-5. Upload-Limits, Schema-Validierung, Rate Limits und einheitliche Fehlerantworten ergänzen.
+1. Früher versionierte Passwörter und Garage-Secrets rotieren und bei Bedarf aus der Git-Historie entfernen.
+2. Kontostatus- und objektbezogene Autorisierung auf weitere Ressourcen ausweiten.
+3. HTTPS/Cookie/CORS/CSRF gemeinsam härten.
+4. Upload-Limits, Schema-Validierung, Rate Limits und einheitliche Fehlerantworten ergänzen.
+5. Audit-Logging auf weitere mutierende Aktionen ausweiten.
 6. Reconciliation und Tests für DB-/Garage-Teilfehler aufbauen.

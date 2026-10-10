@@ -33,7 +33,7 @@ Datei: `src/controllers/customer.controller.js`
 | `getCustomers(req,res)` | Query `page` | lädt 20 Kunden je Seite samt Adressen und Paginierungsdaten |
 | `updateCustomer(req,res)` | Pfad `id`, Kundenfelder, `addressId` und Adressfelder | aktualisiert Kunde und genau eine Adresse |
 | `getCustomerInfo(req,res)` | Pfad `id` | lädt einen Kunden samt Adressen; kann `customer: null` liefern |
-| `searchCustomers(req,res)` | Query `search` | sucht case-insensitive in Vorname, Nachname und Firma; maximal 15 Treffer |
+| `searchCustomers(req,res)` | Query `search`, `req.user.role` | sucht case-insensitive; gibt für normale Benutzer nur freigegebene Identifikationsfelder aus |
 
 ## Projekt-Controller
 
@@ -43,7 +43,7 @@ Datei: `src/controllers/project.controller.js`
 |---|---|---|
 | `newProject(req,res)` | `customerId`, `title`, `description` | legt Projekt an und liefert `201` |
 | `updateProject(req,res)` | Pfad `id`; `customerId`, `title`, `description`, `status` | aktualisiert Projekt und liefert `201` |
-| `deleteProject(req,res)` | Pfad `projectId` | löscht zugehörige Garage-Dateien, `File`-/`S3Object`-Einträge und Projekt |
+| `deleteProject(req,res)` | Pfad `projectId`, authentifizierter Admin | löscht Garage-Dateien, entfernt Datenbankeinträge transaktional und schreibt ein Audit-Log |
 | `getAllProjectsID(req,res)` | Pfad `id` als Kunden-ID | lädt alle Projekte dieses Kunden nach Titel |
 | `getAllProjects(req,res)` | `req.user.role` | lädt für Admins aktive/inaktive, sonst aktive Projekte samt Kunden |
 | `getAllActive` | Alias, gleiche Signatur wie `getAllProjects` | Kompatibilitätsexport ohne eigene Logik |
@@ -138,7 +138,8 @@ Datei: `src/middleware/auth.middleware.js`
 | Funktion | Aufgabe |
 |---|---|
 | `authenticate(req,res,next)` | prüft Cookie-JWT, setzt `req.user`, ruft `next` oder antwortet `401` |
-| `authenticateAdmin(req,res,next)` | prüft Cookie-JWT und Rolle `admin`, setzt `req.user`, ruft `next` oder antwortet `401` |
+| `authenticateAdmin(req,res,next)` | prüft Cookie-JWT und Rolle `admin`; fehlende Rechte ergeben `403` |
+| `authorizeRoles(...allowedRoles)` | erzeugt eine Middleware, die hinter `authenticate` nur ausgewählte Rollen zulässt |
 
 ## Utilities und Konfiguration
 

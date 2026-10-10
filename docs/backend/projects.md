@@ -17,8 +17,8 @@
 1. Projekt laden oder `404` liefern.
 2. Alle zugeordneten `File`-Datensätze samt `S3Object` laden.
 3. Jedes vorhandene Objekt physisch aus Garage löschen.
-4. Datei- und anschließend `S3Object`-Datensätze löschen.
-5. Projekt löschen; Datenbank-Cascades behandeln weitere Projektbeziehungen.
+4. Datei-, `S3Object`- und Projektdatensätze in einer Prisma-Transaktion löschen.
+5. In derselben Datenbanktransaktion einen Audit-Eintrag mit Admin-ID, Projekt-ID, Dateianzahl, IP-Adresse und User-Agent schreiben.
 
 Erfolg:
 
@@ -31,7 +31,7 @@ Erfolg:
 }
 ```
 
-Der Ablauf besitzt keine Datenbanktransaktion. Ein Fehler in der Mitte kann daher einen Teilzustand hinterlassen. Die Route ist außerdem aktuell nicht mit Auth-Middleware geschützt.
+Die Route verlangt die Admin-Rolle. Datenbanklöschungen und Audit-Log sind atomar; Garage kann als externer Speicher nicht Teil der PostgreSQL-Transaktion sein. Ein S3-Erfolg mit anschließendem Datenbankfehler kann deshalb weiterhin einen Teilzustand verursachen und muss betrieblich überwacht werden.
 
 ## Abfragen
 

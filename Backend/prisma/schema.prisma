@@ -38,12 +38,33 @@ model User {
   appointments   Appointment[]
   files          File[]
   timeTable      TimeEntry[]
+  auditLogs      AuditLog[]
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
   @@map("users")
+}
+
+model AuditLog {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  actorUserId String? @map("actor_user_id") @db.Uuid
+  actorUser   User?   @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  action     String
+  entityType String  @map("entity_type")
+  entityId   String? @map("entity_id")
+  metadata   Json?
+  ipAddress  String? @map("ip_address")
+  userAgent  String? @map("user_agent")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([actorUserId])
+  @@index([action, entityType])
+  @@map("audit_logs")
 }
 
 model Customer {

@@ -18,7 +18,7 @@ Basis-URL im lokalen Backend: `http://localhost:5000/api`. Geschützte Endpunkte
 | `GET` | `/customers/all?page=1` | Admin | `getCustomers` | Kunden seitenweise laden |
 | `GET` | `/customers/get/:id` | Admin | `getCustomerInfo` | Kunde mit Adressen laden |
 | `POST` | `/customers/update/:id` | Admin | `updateCustomer` | Kunde und ausgewählte Adresse aktualisieren |
-| `GET` | `/customers/search?search=...` | **öffentlich** | `searchCustomers` | bis zu 15 Kunden suchen |
+| `GET` | `/customers/search?search=...` | angemeldet; rollenbasierte Felder | `searchCustomers` | bis zu 15 Kunden suchen |
 
 ## Projekte
 
@@ -26,7 +26,7 @@ Basis-URL im lokalen Backend: `http://localhost:5000/api`. Geschützte Endpunkte
 |---|---|---|---|---|
 | `POST` | `/projects/new` | angemeldet | `newProject` | Projekt anlegen |
 | `PUT` | `/projects/update/:id` | angemeldet | `updateProject` | Projektstammdaten ändern |
-| `DELETE` | `/projects/delete/:projectId` | **öffentlich** | `deleteProject` | Projekt, Dateien und S3-Objekte löschen |
+| `DELETE` | `/projects/delete/:projectId` | Admin | `deleteProject` | Projekt, Dateien und S3-Objekte löschen; Audit-Log schreiben |
 | `GET` | `/projects/getAll/:id` | angemeldet | `getAllProjectsID` | Projekte eines Kunden laden |
 | `GET` | `/projects/getAll` | angemeldet | `getAllProjects` | sichtbare Projekte laden |
 | `GET` | `/projects/getActive` | angemeldet | `getAllProjects` | Kompatibilitätsalias für `getAll` |
@@ -56,7 +56,7 @@ Die im Quellcode auskommentierte Route `/files/complete` ist nicht aktiv.
 |---|---|---|---|---|
 | `POST` | `/materials/create` | angemeldet | `createMaterial` | Material anlegen |
 | `GET` | `/materials/get` | angemeldet | `getMaterials` | Materialien alphabetisch laden |
-| `PATCH` | `/materials/:id/quantity` | **öffentlich** | `updateMaterialQuantity` | Bestandsmenge setzen |
+| `PATCH` | `/materials/:id/quantity` | Admin oder Manager | `updateMaterialQuantity` | Bestandsmenge setzen |
 
 ## Zeiterfassung
 

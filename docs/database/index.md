@@ -17,6 +17,7 @@
 | `ProjectStorage` | binäre oder strukturierte Projektdaten | genau ein Projekt und ein `S3Object` |
 | `Material` | Platten-/Lagermaterial | eigenständiges Inventarmodell |
 | `TimeEntry` | Arbeitszeit in Minuten | Projekt und optional Benutzer |
+| `AuditLog` | Sicherheits- und Aktionsspur | optionaler ausführender Benutzer sowie Aktion, Ressource und Request-Metadaten |
 
 ## Enums
 
@@ -40,4 +41,5 @@ Projektstatus, Priorität, Terminstatus, Arbeitstyp und Dateistatus sind freie S
 - `Material.width` und `Material.height` sind Pflichtfelder.
 - `Material.pricePerSquareMeter` ist `Decimal(10,2)`; API-Clients sollten Dezimalwerte nicht ungeprüft als JavaScript-Gleitkommazahl behandeln.
 - `TimeEntry.duration` wird in Minuten gespeichert.
+- `AuditLog` bewahrt erfolgreiche sicherheitsrelevante Aktionen auch nach dem Löschen der Fachressource auf; beim Löschen eines Benutzers wird nur dessen Referenz auf `null` gesetzt.
 - Soft-Delete-Felder existieren auf mehreren Modellen, werden aber nicht von allen Abfragen einheitlich berücksichtigt.

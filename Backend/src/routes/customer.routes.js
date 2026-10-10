@@ -15,6 +15,6 @@ router.get("/get/:id", authenticateAdmin, getCustomerInfo);
 
 router.post("/update/:id", authenticateAdmin, updateCustomer);
 
-router.get("/search", searchCustomers);
+router.get("/search", authenticate, searchCustomers);
 
 export default router;
