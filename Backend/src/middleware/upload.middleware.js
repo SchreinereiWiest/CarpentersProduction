@@ -1,8 +1,6 @@
 import {
-    S3Client,
     PutObjectCommand,
-    GetObjectCommand,
-    DeleteObjectCommand
+    GetObjectCommand
 } from "@aws-sdk/client-s3";
 import crypto from "crypto";
 import {
@@ -12,6 +10,7 @@ import {
 import prisma from "../config/prisma.js";
 
 import { s3Upload, s3Download } from "../config/s3.js"
+import { enqueueStorageDeletions, processStorageDeletions } from "../services/storageDeletion.service.js";
 
 export async function createUpload(req, res) {
 
@@ -35,13 +34,11 @@ export async function createUpload(req, res) {
         const {
             entityId,
             entity,
-            customerId,
             fileName,
             mimeType,
-            fileSize
         } = req.body;
 
-        const parsedFileSize = parseInt(fileSize, 10);
+        const parsedFileSize = file.size;
 
 
         /*
@@ -141,26 +138,18 @@ export async function createUpload(req, res) {
          */
 
         const fileEntry = await prisma.file.create({
-             data: { 
-                project: { 
-                    connect: { 
-                        id: entityId 
-                    } 
-                }, 
-                customer: { 
-                    connect: { 
-                        id: customerId 
-                    } 
-                }, 
-                storageObject: { 
-                    connect: { 
-                        id: storageObject.id, 
-                    }, 
-                }, fileName: fileName, 
-                mimeType: mimeType, 
-                fileSize: parsedFileSize, 
-                status: "completed", 
-            }, 
+             data: {
+                projectId: entity === "project" ? entityId : null,
+                customerId: entity === "project"
+                    ? req.authorizedProject.customerId
+                    : entityId,
+                storageObjectId: storageObject.id,
+                uploadedById: req.user.id,
+                fileName,
+                mimeType: mimeType || file.mimetype,
+                fileSize: parsedFileSize,
+                status: "completed",
+            },
         });
 
 
@@ -304,55 +293,43 @@ export async function deleteFile(req, res) {
 
         const storageObject = fileEntry.storageObject;
 
+        const objectToDelete = await prisma.$transaction(async transaction => {
+            await transaction.file.delete({ where: { id: fileId } });
 
-        /*
-         * --------------------------------------------------
-         * 2. Datei aus Garage löschen
-         * --------------------------------------------------
-         */
+            const orphanedObject = await transaction.s3Object.findFirst({
+                where: {
+                    id: storageObject.id,
+                    files: { none: {} },
+                    projectStorage: { none: {} }
+                },
+                select: { id: true, bucketName: true, objectKey: true }
+            });
 
-        const command = new DeleteObjectCommand({
-
-            Bucket:
-                storageObject.bucketName,
-
-            Key:
-                storageObject.objectKey
-
-        });
-
-
-        await s3Upload.send(command);
-
-
-        /*
-         * --------------------------------------------------
-         * 3. File-Eintrag aus Datenbank löschen
-         * --------------------------------------------------
-         */
-
-        await prisma.file.delete({
-
-            where: {
-                id: fileId
+            if (orphanedObject) {
+                await enqueueStorageDeletions(transaction, [orphanedObject]);
+                await transaction.s3Object.delete({ where: { id: orphanedObject.id } });
             }
 
+            await transaction.auditLog.create({
+                data: {
+                    actorUserId: req.user.id,
+                    action: "file.delete",
+                    entityType: "File",
+                    entityId: fileId,
+                    metadata: { objectKey: storageObject.objectKey },
+                    ipAddress: req.ip || null,
+                    userAgent: req.get("user-agent") || null
+                }
+            });
+
+            return orphanedObject;
         });
 
-
-        /*
-         * --------------------------------------------------
-         * 4. S3Object aus Datenbank löschen
-         * --------------------------------------------------
-         */
-
-        await prisma.s3Object.delete({
-
-            where: {
-                id: storageObject.id
-            }
-
-        });
+        if (objectToDelete) {
+            void processStorageDeletions([objectToDelete]).catch(error => {
+                console.error("Immediate storage deletion failed:", error);
+            });
+        }
 
 
         /*
@@ -369,7 +346,8 @@ export async function deleteFile(req, res) {
 
             fileId: fileId,
 
-            objectKey: storageObject.objectKey
+            objectKey: storageObject.objectKey,
+            storageDeletionScheduled: Boolean(objectToDelete)
 
         });
 
@@ -382,15 +360,7 @@ export async function deleteFile(req, res) {
         );
 
 
-        return res.status(500).json({
-
-            error:
-                "File deletion failed",
-
-            message:
-                error.message
-
-        });
+        return res.status(500).json({ error: "File deletion failed" });
 
     }
 

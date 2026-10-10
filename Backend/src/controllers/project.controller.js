@@ -1,14 +1,13 @@
 import prisma from "../config/prisma.js";
 import {s3Download, s3Upload} from "../config/s3.js"
 import {
-    S3Client,
     PutObjectCommand,
     GetObjectCommand,
-    DeleteObjectCommand
 } from "@aws-sdk/client-s3";
 import {
     getSignedUrl
 } from "@aws-sdk/s3-request-presigner";
+import { enqueueStorageDeletions, processStorageDeletions } from "../services/storageDeletion.service.js";
 
 export const newProject = async (req, res) => {
 
@@ -19,6 +18,7 @@ export const newProject = async (req, res) => {
                 customerId: req.body.customerId,
                 title: req.body.title,
                 description: req.body.description,
+                createdById: req.user.id,
             },
         });
 
@@ -74,6 +74,14 @@ export const deleteProject = async (req, res) => {
 
             where: {
                 id: projectId
+            },
+            include: {
+                files: {
+                    include: { storageObject: true }
+                },
+                storage: {
+                    include: { storageObject: true }
+                }
             }
 
         });
@@ -94,70 +102,10 @@ export const deleteProject = async (req, res) => {
          * --------------------------------------------------
          */
 
-        const files = await prisma.file.findMany({
-
-            where: {
-                projectId: projectId
-            },
-
-            include: {
-                storageObject: true
-            }
-
-        });
-
-
-        console.log(
-            `Deleting project ${projectId} with ${files.length} files`
-        );
-
-
-        /*
-         * --------------------------------------------------
-         * 3. Alle Dateien aus Garage löschen
-         * --------------------------------------------------
-         */
-
-        for (const file of files) {
-
-            if (!file.storageObject) {
-
-                console.warn(
-                    `File ${file.id} has no storage object`
-                );
-
-                continue;
-
-            }
-
-
-            const storageObject = file.storageObject;
-
-
-            const command = new DeleteObjectCommand({
-
-                Bucket:
-                    storageObject.bucketName,
-
-                Key:
-                    storageObject.objectKey
-
-            });
-
-
-            await s3Upload.send(command);
-
-
-            console.log(
-                `Deleted Garage object: ${storageObject.objectKey}`
-            );
-
-        }
-
-
-        const storageObjectIds = files
-            .filter(file => file.storageObject)
-            .map(file => file.storageObject.id);
+        const storageObjectIds = [...new Set([
+            ...project.files.map(file => file.storageObjectId),
+            ...project.storage.map(item => item.storageObjectId)
+        ])];
 
         /*
          * --------------------------------------------------
@@ -165,29 +113,32 @@ export const deleteProject = async (req, res) => {
          * --------------------------------------------------
          */
 
-        await prisma.$transaction(async transaction => {
-
-            await transaction.file.deleteMany({
-                where: {
-                    projectId
-                }
-            });
-
-            if (storageObjectIds.length > 0) {
-                await transaction.s3Object.deleteMany({
-                    where: {
-                        id: {
-                            in: storageObjectIds
-                        }
-                    }
-                });
-            }
+        const objectsToDelete = await prisma.$transaction(async transaction => {
 
             await transaction.project.delete({
                 where: {
                     id: projectId
                 }
             });
+
+            const orphanedObjects = storageObjectIds.length
+                ? await transaction.s3Object.findMany({
+                    where: {
+                        id: { in: storageObjectIds },
+                        files: { none: {} },
+                        projectStorage: { none: {} }
+                    },
+                    select: { id: true, bucketName: true, objectKey: true }
+                })
+                : [];
+
+            await enqueueStorageDeletions(transaction, orphanedObjects);
+
+            if (orphanedObjects.length) {
+                await transaction.s3Object.deleteMany({
+                    where: { id: { in: orphanedObjects.map(object => object.id) } }
+                });
+            }
 
             await transaction.auditLog.create({
                 data: {
@@ -197,13 +148,20 @@ export const deleteProject = async (req, res) => {
                     entityId: projectId,
                     metadata: {
                         projectTitle: project.title,
-                        deletedFiles: files.length
+                        deletedFiles: project.files.length,
+                        deletedStorageObjects: orphanedObjects.length
                     },
                     ipAddress: req.ip || null,
                     userAgent: req.get("user-agent") || null
                 }
             });
 
+            return orphanedObjects;
+
+        });
+
+        void processStorageDeletions(objectsToDelete).catch(error => {
+            console.error("Immediate storage deletion failed:", error);
         });
 
 
@@ -221,7 +179,8 @@ export const deleteProject = async (req, res) => {
 
             projectId: projectId,
 
-            deletedFiles: files.length
+            deletedFiles: project.files.length,
+            storageDeletionJobs: objectsToDelete.length
 
         });
 
@@ -278,8 +237,8 @@ export const getAllProjects = async (req, res) => {
     
   try {
 
-    const isAdmin = req.user?.role === "admin";
-    const visibleStatuses = isAdmin
+    const isPrivileged = ["admin", "manager"].includes(req.user?.role);
+    const visibleStatuses = isPrivileged
       ? ["active", "inactive"]
       : ["active"];
 
@@ -287,7 +246,13 @@ export const getAllProjects = async (req, res) => {
         where: {
           status: {
             in: visibleStatuses
-          }
+          },
+          ...(!isPrivileged ? {
+            OR: [
+              { createdById: req.user.id },
+              { timeEntries: { some: { userId: req.user.id } } }
+            ]
+          } : {})
         },
         orderBy: [
           {
@@ -546,6 +511,12 @@ export async function createGeneratedProjectData(req,res){
                     storageObject: {
                         connect: {
                             id: storageObject.id
+                        }
+                    },
+
+                    uploadedBy: {
+                        connect: {
+                            id: req.user.id
                         }
                     },
 

@@ -1,13 +1,14 @@
 # API-Referenz
 
-Basis-URL im lokalen Backend: `http://localhost:5000/api`. Geschützte Endpunkte erwarten den Cookie `token`; Clients müssen Cookies mitsenden, beispielsweise mit `credentials: "include"`.
+Basis-URL im lokalen Backend: `http://localhost:5000/api`. Geschützte Endpunkte erwarten den Cookie `token`. Mutierende Requests benötigen zusätzlich den zum `XSRF-TOKEN`-Cookie passenden Header `X-XSRF-TOKEN` und eine erlaubte Origin.
 
 ## Authentifizierung
 
 | Methode | Pfad | Schutz | Handler | Zweck |
 |---|---|---|---|---|
 | `POST` | `/auth/login` | öffentlich | `login` | Zugangsdaten prüfen und JWT-Cookie setzen |
-| `GET` | `/auth/users` | angemeldet | `getAllUsers` | reduzierte Benutzerliste `{id,email}` laden |
+| `POST` | `/auth/logout` | angemeldet + CSRF | `logout` | alle Sessions widerrufen und Cookies löschen |
+| `GET` | `/auth/users` | Admin oder Manager | `getAllUsers` | reduzierte Benutzerliste `{id,email}` laden |
 | `GET` | `/auth/me` | angemeldet | Inline-Handler | aktuelle Identität laden |
 
 ## Kunden
@@ -24,29 +25,29 @@ Basis-URL im lokalen Backend: `http://localhost:5000/api`. Geschützte Endpunkte
 
 | Methode | Pfad | Schutz | Handler | Zweck |
 |---|---|---|---|---|
-| `POST` | `/projects/new` | angemeldet | `newProject` | Projekt anlegen |
-| `PUT` | `/projects/update/:id` | angemeldet | `updateProject` | Projektstammdaten ändern |
+| `POST` | `/projects/new` | berechtigter Kunde | `newProject` | Projekt anlegen |
+| `PUT` | `/projects/update/:id` | Projekt- und Kundenberechtigung | `updateProject` | Projektstammdaten ändern |
 | `DELETE` | `/projects/delete/:projectId` | Admin | `deleteProject` | Projekt, Dateien und S3-Objekte löschen; Audit-Log schreiben |
-| `GET` | `/projects/getAll/:id` | angemeldet | `getAllProjectsID` | Projekte eines Kunden laden |
+| `GET` | `/projects/getAll/:id` | Kundenberechtigung | `getAllProjectsID` | Projekte eines Kunden laden |
 | `GET` | `/projects/getAll` | angemeldet | `getAllProjects` | sichtbare Projekte laden |
 | `GET` | `/projects/getActive` | angemeldet | `getAllProjects` | Kompatibilitätsalias für `getAll` |
-| `GET` | `/projects/get/:id` | angemeldet | `getProject` | Projekt mit Dateimetadaten laden |
-| `GET` | `/projects/export/:id` | angemeldet | `exportProject` | `.cproject`-Archiv streamen |
-| `POST` | `/projects/import` | angemeldet | `importProject` | `.cproject`-Archiv importieren |
-| `GET` | `/projects/generated/:id/:name` | angemeldet | `getGeneratedProjectData` | signierte URL für generierte JSON-Datei |
-| `POST` | `/projects/generated/:id/:name` | angemeldet | `createGeneratedProjectData` | generierte JSON-Datei speichern |
-| `POST` | `/projects/time/:id/start` | angemeldet | `startTime` | laufende Projektzeit beginnen |
-| `PATCH` | `/projects/time/:id/stop` | angemeldet | `stopTime` | Zeiteintrag beenden |
-| `GET` | `/projects/time/:id` | angemeldet | `getTime` | Projektzeiten laden |
-| `POST` | `/projects/time/:id/new` | angemeldet | `manualTime` | noch nicht terminierte Zeitdauer anlegen |
+| `GET` | `/projects/get/:id` | Projektberechtigung | `getProject` | Projekt mit Dateimetadaten laden |
+| `GET` | `/projects/export/:id` | Projektberechtigung | `exportProject` | `.cproject`-Archiv streamen |
+| `POST` | `/projects/import` | Admin oder Manager | `importProject` | `.cproject`-Archiv importieren |
+| `GET` | `/projects/generated/:id/:name` | Projektberechtigung | `getGeneratedProjectData` | signierte URL für generierte JSON-Datei |
+| `POST` | `/projects/generated/:id/:name` | Projektberechtigung | `createGeneratedProjectData` | generierte JSON-Datei speichern |
+| `POST` | `/projects/time/:id/start` | Projektberechtigung | `startTime` | laufende Projektzeit beginnen |
+| `PATCH` | `/projects/time/:id/stop` | Zeiteintragsberechtigung | `stopTime` | Zeiteintrag beenden |
+| `GET` | `/projects/time/:id` | Projektberechtigung | `getTime` | Projektzeiten laden |
+| `POST` | `/projects/time/:id/new` | Projektberechtigung | `manualTime` | noch nicht terminierte Zeitdauer anlegen |
 
 ## Dateien
 
 | Methode | Pfad | Schutz | Handler | Zweck |
 |---|---|---|---|---|
-| `POST` | `/files/upload` | angemeldet | `createUpload` | Multipart-Datei nach Garage laden |
-| `GET` | `/files/download/:id` | angemeldet | `createDownloadUrl` | 15 Minuten gültige Download-URL erzeugen |
-| `DELETE` | `/files/delete/:fileId` | angemeldet | `deleteFile` | Datei und Speicherverweise physisch löschen |
+| `POST` | `/files/upload` | Zielressourcenberechtigung | `createUpload` | Multipart-Datei nach Garage laden |
+| `GET` | `/files/download/:id` | Dateiberechtigung | `createDownloadUrl` | 15 Minuten gültige Download-URL erzeugen |
+| `DELETE` | `/files/delete/:fileId` | Dateiberechtigung | `deleteFile` | Datei entfernen und Garage-Löschjob anlegen |
 
 Die im Quellcode auskommentierte Route `/files/complete` ist nicht aktiv.
 
@@ -62,13 +63,13 @@ Die im Quellcode auskommentierte Route `/files/complete` ist nicht aktiv.
 
 | Methode | Pfad | Schutz | Handler | Zweck |
 |---|---|---|---|---|
-| `GET` | `/time/day/:date` | angemeldet | `getDayEntrys` | Einträge eines lokalen Kalendertags laden |
+| `GET` | `/time/day/:date` | eigene; Admin/Manager alle | `getDayEntrys` | Einträge eines lokalen Kalendertags laden |
 | `GET` | `/time/open` | angemeldet | `getOpenEntrys` | unzugeordnete Dauer-Einträge des Benutzers laden |
-| `POST` | `/time/new/:id` | angemeldet | `newTime` | vollständigen Zeiteintrag anlegen |
-| `PATCH` | `/time/:id/assign` | angemeldet | `assignTimeEntry` | Dauer einem oder mehreren Zeitfenstern zuordnen |
-| `PATCH` | `/time/:id` | angemeldet | `updateTimeEntry` | bestehenden Zeiteintrag ändern |
-| `POST` | `/time/uploadWeek/:id/:date` | angemeldet | `createGeneratedTimeData` | Wochen-JSON speichern |
-| `GET` | `/time/downloadWeek/:id/:date` | angemeldet | `getGeneratedTimeData` | signierte URL für Wochen-JSON laden |
+| `POST` | `/time/new/:id` | Projektberechtigung | `newTime` | vollständigen Zeiteintrag anlegen |
+| `PATCH` | `/time/:id/assign` | Zeiteintragsberechtigung | `assignTimeEntry` | Dauer einem oder mehreren Zeitfenstern zuordnen |
+| `PATCH` | `/time/:id` | Zeit- und Projektberechtigung | `updateTimeEntry` | bestehenden Zeiteintrag ändern |
+| `POST` | `/time/uploadWeek/:id/:date` | eigene ID; Admin/Manager alle | `createGeneratedTimeData` | Wochen-JSON speichern |
+| `GET` | `/time/downloadWeek/:id/:date` | eigene ID; Admin/Manager alle | `getGeneratedTimeData` | signierte URL für Wochen-JSON laden |
 
 ## Benutzerverwaltung
 

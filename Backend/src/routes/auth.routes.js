@@ -4,8 +4,9 @@ import prisma from "../config/prisma.js";
 import {
     getAllUsers,
   login,
+  logout,
 } from "../controllers/auth.controller.js";
-import { authenticate } from "../middleware/auth.middleware.js";
+import { authenticate, authorizeRoles } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
@@ -14,8 +15,9 @@ const router = express.Router();
 // authenticate middleware für reauthorization
 
 router.post("/login", login);
+router.post("/logout", authenticate, logout);
 
-router.get("/users", authenticate, getAllUsers); 
+router.get("/users", authenticate, authorizeRoles("admin", "manager"), getAllUsers);
 
 //reauthorize
 router.get("/me", authenticate, async (req, res) => {
@@ -25,10 +27,6 @@ router.get("/me", authenticate, async (req, res) => {
             id: req.user.id
         }
     });
-
-    if (!user) {
-        return res.status(404).json({ message: "User not found" });
-    }
 
     res.json({
         id: user.id,

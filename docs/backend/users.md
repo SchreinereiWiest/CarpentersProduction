@@ -31,15 +31,17 @@ Erfolg: `201 { "user": ... }`. Konflikte ergeben `409`. Der Konflikttext nennt d
 
 `PUT /api/user/update/:id` ist partiell: Nur vorhandene Felder aus `firstName`, `lastName`, `login`, `email`, `role` und `isActive` werden gesetzt. Leere Namen werden zu `null`; Login und E-Mail dürfen nicht leer sein. E-Mail wird normalisiert.
 
+Eine Rollen- oder Statusänderung erhöht `authVersion` und widerruft alle bestehenden Sessions des Benutzers.
+
 `Boolean(isActive)` wird direkt verwendet. Ein String wie `"false"` wird deshalb zu `true`; Clients sollten einen echten JSON-Boolean senden.
 
 ## Passwort ändern
 
-`PUT /api/user/password/:id` erwartet `{ "password": "..." }` mit mindestens 8 Zeichen. Das neue Passwort wird mit bcrypt gehasht. Erfolg: `200` mit einer Meldung; unbekannte ID: `404`.
+`PUT /api/user/password/:id` erwartet `{ "password": "..." }` mit mindestens 8 Zeichen. Das neue Passwort wird mit bcrypt gehasht und `authVersion` erhöht. Erfolg: `200` mit einer Meldung; unbekannte ID: `404`.
 
 ## Soft Delete
 
-`DELETE /api/user/delete/:id` setzt `isActive: false` und `deletedAt` auf den aktuellen Zeitpunkt. Verbundene Fachdaten bleiben erhalten. Die Login-Funktion prüft diese beiden Felder aktuell jedoch nicht; ein bereits ausgestelltes Token und möglicherweise auch ein erneuter Login bleiben daher technisch möglich.
+`DELETE /api/user/delete/:id` setzt `isActive: false`, `deletedAt` auf den aktuellen Zeitpunkt und erhöht `authVersion`. Verbundene Fachdaten bleiben erhalten; Login und vorhandene Tokens werden abgewiesen.
 
 ## Bootstrap-Skripte
 

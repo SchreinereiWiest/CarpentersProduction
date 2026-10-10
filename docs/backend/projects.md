@@ -14,11 +14,12 @@
 
 `DELETE /api/projects/delete/:projectId` arbeitet in dieser Reihenfolge:
 
-1. Projekt laden oder `404` liefern.
-2. Alle zugeordneten `File`-Datensätze samt `S3Object` laden.
-3. Jedes vorhandene Objekt physisch aus Garage löschen.
-4. Datei-, `S3Object`- und Projektdatensätze in einer Prisma-Transaktion löschen.
-5. In derselben Datenbanktransaktion einen Audit-Eintrag mit Admin-ID, Projekt-ID, Dateianzahl, IP-Adresse und User-Agent schreiben.
+1. Projekt samt Datei- und `ProjectStorage`-Referenzen laden oder `404` liefern.
+2. Projekt und abhängige Datensätze in einer Prisma-Transaktion löschen.
+3. Nur danach unreferenzierte `S3Object`-Datensätze ermitteln.
+4. Für jedes physische Objekt in derselben Transaktion einen eindeutigen `StorageDeletionJob` anlegen und die verwaiste S3-Metadatenzeile entfernen.
+5. In derselben Transaktion einen Audit-Eintrag mit Admin-ID, Projekt-ID, Dateianzahl, IP-Adresse und User-Agent schreiben.
+6. Die idempotenten Garage-Löschungen unmittelbar anstoßen; der Reconciliation-Worker wiederholt Fehler mit Backoff.
 
 Erfolg:
 
@@ -27,30 +28,31 @@ Erfolg:
   "success": true,
   "message": "Project deleted successfully",
   "projectId": "UUID",
-  "deletedFiles": 3
+  "deletedFiles": 3,
+  "storageDeletionJobs": 3
 }
 ```
 
-Die Route verlangt die Admin-Rolle. Datenbanklöschungen und Audit-Log sind atomar; Garage kann als externer Speicher nicht Teil der PostgreSQL-Transaktion sein. Ein S3-Erfolg mit anschließendem Datenbankfehler kann deshalb weiterhin einen Teilzustand verursachen und muss betrieblich überwacht werden.
+Die Route verlangt die Admin-Rolle. Datenbanklöschungen, Audit-Log und Jobanlage sind atomar. Garage bleibt außerhalb der PostgreSQL-Transaktion; fehlgeschlagene Löschungen sind jedoch dauerhaft als Job sichtbar und werden minütlich erneut verarbeitet.
 
 ## Abfragen
 
 ### Projekte eines Kunden
 
-`GET /api/projects/getAll/:id` verwendet `id` als `customerId`, sortiert nach Titel und liefert `{ "projects": [...] }`. Es gibt keinen Status- oder Soft-Delete-Filter.
+`GET /api/projects/getAll/:id` verwendet `id` als `customerId`, sortiert nach Titel und liefert `{ "projects": [...] }`. Vor dem Handler wird die Kundenberechtigung geprüft.
 
 ### Sichtbare Projekte
 
 `GET /api/projects/getAll` und der Kompatibilitätsalias `/getActive` verwenden `getAllProjects`:
 
-- Admin: Status `active` und `inactive`
-- alle anderen angemeldeten Rollen: nur `active`
+- Admin und Manager: Status `active` und `inactive`
+- normale Benutzer: nur aktive Projekte, die sie erstellt haben oder zu denen ein eigener Zeiteintrag existiert
 
 Die Antwort ist nach Titel sortiert und enthält den vollständigen `customer`-Datensatz. `deletedAt` wird nicht ausgewertet.
 
 ### Einzelprojekt
 
-`GET /api/projects/get/:id` liefert `{ "project": ... }` und bettet Dateimetadaten ein. Eine unbekannte ID ergibt `200` mit `project: null`.
+`GET /api/projects/get/:id` liefert nach zentraler Projektberechtigung `{ "project": ... }` und bettet Dateimetadaten ein. Fremde oder unbekannte Projekte werden bereits von der Policy als `404` abgewiesen.
 
 ## Generierte Projektdaten
 
@@ -93,7 +95,7 @@ Binärdaten werden einzeln aus Garage gelesen und direkt in das Archiv gestreamt
 
 ## Projekt importieren
 
-`POST /api/projects/import` erwartet `multipart/form-data` mit dem Feld `projectFile`. Multer schreibt maximal eine Datei bis 2 GiB temporär auf das Dateisystem. Optional kann das Textfeld `customerId` einen vorhandenen Zielkunden bestimmen.
+`POST /api/projects/import` ist auf Admin und Manager beschränkt und erwartet `multipart/form-data` mit dem Feld `projectFile`. Multer schreibt maximal eine Datei bis 2 GiB temporär auf das Dateisystem. Optional kann das Textfeld `customerId` einen vorhandenen Zielkunden bestimmen.
 
 ### Ablauf
 

@@ -87,4 +87,6 @@ Antwort: `{ "entries": [...], "split": true|false }`. Fehler: `404` unbekannt, `
 
 `POST /api/time/uploadWeek/:id/:date` serialisiert den gesamten Body als `weekData-{date}.json` und speichert ihn unter `Time/{id}/...`. `:id` ist die Benutzer-ID. Ein vorhandener Datensatz wird überschrieben, andernfalls werden `S3Object` und `File` angelegt.
 
-`GET /api/time/downloadWeek/:id/:date` liefert `{exists:false}` oder eine 900 Sekunden gültige `downloadUrl`. Beide Endpunkte prüfen zwar ein gültiges Login, aber nicht, ob `:id` dem angemeldeten Benutzer entspricht.
+`GET /api/time/downloadWeek/:id/:date` liefert `{exists:false}` oder eine 900 Sekunden gültige `downloadUrl`. Normale Benutzer dürfen ausschließlich ihre eigene ID verwenden; Admin und Manager dürfen fremde Wochen für Verwaltungszwecke adressieren.
+
+Dieselbe Objektpolicy schützt Zeiteinträge: normale Benutzer dürfen nur eigene Einträge ändern oder zuordnen. Projektbezogene Zeitrouten verlangen zusätzlich Projektzugriff. `GET /api/time/day/:date` filtert für normale Benutzer auf die eigene ID; Admin und Manager sehen alle Einträge des Tages.

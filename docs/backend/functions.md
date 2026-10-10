@@ -7,6 +7,7 @@ Diese Referenz erfasst alle benannten Anwendungsfunktionen unter `Backend/src` s
 | Funktion/Callback | Datei | Aufgabe |
 |---|---|---|
 | Request-Logger `(req,res,next)` | `src/server.js` | schreibt Methode und Original-URL und ruft `next()` auf |
+| HTTPS-Callback | `src/server.js` | weist in Produktion nicht sichere Requests mit `426` ab |
 | Listen-Callback | `src/server.js` | startet Express fest auf Port 5000 und protokolliert den Start |
 | `/auth/me`-Handler | `routes/auth.routes.js` | lädt `req.user.id`, antwortet mit `id`, `email`, `role` oder `404` |
 | `/settings/company`-Wrapper | `routes/settings.routes.js` | setzt `req.params.name` auf `company` und delegiert an `getSettingsData` |
@@ -20,7 +21,8 @@ Datei: `src/controllers/auth.controller.js`
 
 | Funktion | Eingabe | Ergebnis und Seiteneffekte |
 |---|---|---|
-| `login(req,res)` | `body.login`, `body.password` | prüft bcrypt-Hash, signiert ein 72-h-JWT, setzt Cookie `token`, liefert öffentliche Benutzerdaten; `401` bei falschen Daten |
+| `login(req,res)` | `body.login`, `body.password` | prüft Kontostatus und bcrypt-Hash, signiert ein an `authVersion` gebundenes 72-h-JWT und setzt Session-/CSRF-Cookie |
+| `logout(req,res)` | `req.user.id` | erhöht `authVersion`, löscht Cookies und widerruft alle Sessions |
 | `getAllUsers(req,res)` | keine fachlichen Parameter | lädt alle Benutzer nach E-Mail sortiert und liefert `filterUser` mit `id` und `email` |
 
 ## Kunden-Controller
@@ -43,9 +45,9 @@ Datei: `src/controllers/project.controller.js`
 |---|---|---|
 | `newProject(req,res)` | `customerId`, `title`, `description` | legt Projekt an und liefert `201` |
 | `updateProject(req,res)` | Pfad `id`; `customerId`, `title`, `description`, `status` | aktualisiert Projekt und liefert `201` |
-| `deleteProject(req,res)` | Pfad `projectId`, authentifizierter Admin | löscht Garage-Dateien, entfernt Datenbankeinträge transaktional und schreibt ein Audit-Log |
+| `deleteProject(req,res)` | Pfad `projectId`, authentifizierter Admin | entfernt DB-Daten transaktional, schreibt Audit-Log und idempotente Garage-Löschjobs |
 | `getAllProjectsID(req,res)` | Pfad `id` als Kunden-ID | lädt alle Projekte dieses Kunden nach Titel |
-| `getAllProjects(req,res)` | `req.user.role` | lädt für Admins aktive/inaktive, sonst aktive Projekte samt Kunden |
+| `getAllProjects(req,res)` | `req.user` | lädt für Admin/Manager alle relevanten, für Benutzer nur eigene/zugeordnete aktive Projekte |
 | `getAllActive` | Alias, gleiche Signatur wie `getAllProjects` | Kompatibilitätsexport ohne eigene Logik |
 | `getProject(req,res)` | Pfad `id` | lädt Projekt mit Dateien |
 | `getGeneratedProjectData(req,res)` | Pfad `id`, `name` | sucht `nesting/list/cabinet`-JSON und liefert signierte URL oder `exists:false` |
@@ -81,7 +83,7 @@ Datei: `src/controllers/time.controller.js`
 | `startTime(req,res)` | Projekt-ID; Benutzer, Arbeitstyp | legt laufenden Eintrag mit aktuellem `startedAt` an |
 | `stopTime(req,res)` | TimeEntry-ID | berechnet Minuten, setzt `endedAt`/`duration`, liefert aber den vorher geladenen Stand |
 | `getTime(req,res)` | Projekt-ID | liefert Projektzeiten absteigend nach Anlagezeit |
-| `getDayEntrys(req,res)` | Datum `YYYY-MM-DD` | liefert alle Einträge innerhalb lokaler Tagesgrenzen |
+| `getDayEntrys(req,res)` | Datum `YYYY-MM-DD` | liefert für Benutzer eigene, für Admin/Manager alle Einträge innerhalb lokaler Tagesgrenzen |
 | `getOpenEntrys(req,res)` | `req.user.id` | liefert dessen Einträge ohne `startedAt` samt Projektkurzdaten |
 | `newTime(req,res)` | Projekt-ID und kompletter Zeit-Body | legt Eintrag mit Start, Ende und vorgegebener Dauer an |
 | `manualTime(req,res)` | Projekt-ID, Benutzer, Arbeitstyp, Dauer | legt noch nicht zeitlich zugeordneten Eintrag an |
@@ -109,7 +111,7 @@ Datei: `src/controllers/user.controller.js`
 |---|---|---|
 | `createUpload(req,res)` | `middleware/upload.middleware.js` | validiert Multipart-Datei/Entity, erzeugt Objektpfad, S3- und File-Datensatz und lädt Buffer hoch |
 | `createDownloadUrl(req,res)` | `middleware/upload.middleware.js` | lädt Datei/Speicherobjekt und signiert einen GET für 900 Sekunden |
-| `deleteFile(req,res)` | `middleware/upload.middleware.js` | löscht Garage-Objekt, Datei- und Speicherobjektdatensatz |
+| `deleteFile(req,res)` | `middleware/upload.middleware.js` | entfernt DB-Daten transaktional, schreibt Audit-Log und Garage-Löschjob |
 | `uploadcomplete(req,res)` | `controllers/file.controller.js` | setzt Dateistatus auf `complete`; deprecated und ohne aktive Route |
 
 ## Einstellungs-Controller
@@ -137,9 +139,32 @@ Datei: `src/middleware/auth.middleware.js`
 
 | Funktion | Aufgabe |
 |---|---|
-| `authenticate(req,res,next)` | prüft Cookie-JWT, setzt `req.user`, ruft `next` oder antwortet `401` |
-| `authenticateAdmin(req,res,next)` | prüft Cookie-JWT und Rolle `admin`; fehlende Rechte ergeben `403` |
+| `authenticate(req,res,next)` | prüft JWT sowie aktuellen DB-Status und `authVersion`, setzt aktuelle Benutzerdaten oder antwortet `401` |
+| `authenticateAdmin(req,res,next)` | führt dieselbe DB-gebundene Prüfung aus und verlangt Rolle `admin`; fehlende Rechte ergeben `403` |
 | `authorizeRoles(...allowedRoles)` | erzeugt eine Middleware, die hinter `authenticate` nur ausgewählte Rollen zulässt |
+
+## CSRF- und Ressourcen-Middleware
+
+| Funktion | Datei | Aufgabe |
+|---|---|---|
+| `issueCsrfToken(res)` | `middleware/csrf.middleware.js` | erzeugt und setzt den Double-Submit-Token |
+| `verifyRequestOrigin(req,res,next)` | `middleware/csrf.middleware.js` | blockiert mutierende Requests fremder Origins |
+| `verifyCsrfToken(req,res,next)` | `middleware/csrf.middleware.js` | vergleicht CSRF-Cookie und Header zeitkonstant |
+| `authorizeProject` / `authorizeProjectBody` | `middleware/resourceAuthorization.middleware.js` | prüft globale Rolle, Ersteller oder eigenen Zeiteintrag eines Projekts |
+| `authorizeCustomer` / `authorizeCustomerBody` | `middleware/resourceAuthorization.middleware.js` | prüft Kundenberechtigung |
+| `authorizeFile` / `authorizeUploadTarget` | `middleware/resourceAuthorization.middleware.js` | prüft Datei- oder Uploadzielberechtigung |
+| `authorizeUserResource` | `middleware/resourceAuthorization.middleware.js` | erlaubt eigene Benutzer-ID oder Admin/Manager |
+| `authorizeTimeEntry` | `middleware/resourceAuthorization.middleware.js` | erlaubt eigenen Zeiteintrag oder Admin/Manager |
+
+## Speicherlöschdienst
+
+| Funktion | Aufgabe |
+|---|---|
+| `enqueueStorageDeletions(transaction,objects)` | legt eindeutige Löschjobs innerhalb der Fachtransaktion an |
+| `processStorageDeletionJob(jobId)` | beansprucht und verarbeitet genau einen idempotenten Garage-Löschjob |
+| `processStorageDeletions(objects)` | stößt frisch angelegte Jobs unmittelbar an |
+| `reconcileStorageDeletions()` | reaktiviert hängen gebliebene Jobs und verarbeitet fällige Wiederholungen |
+| `startStorageDeletionWorker()` | startet Initiallauf und minütlichen Reconciliation-Zyklus |
 
 ## Utilities und Konfiguration
 

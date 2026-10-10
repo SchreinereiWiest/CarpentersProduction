@@ -11,22 +11,23 @@
 }
 ```
 
-`login` sucht den Benutzer über das eindeutige Feld `User.login`, vergleicht das Passwort mit bcrypt und signiert ein JWT mit `JWT_ACCESS_SECRET`. Das Token enthält `id`, `email`, `login` und `role` und läuft nach 72 Stunden ab.
+`login` sucht den Benutzer über das eindeutige Feld `User.login`. Vor dem bcrypt-Vergleich werden `isActive === true` und `deletedAt === null` verlangt. Das JWT enthält `id`, `email`, `login`, `role` und `authVersion` und läuft nach 72 Stunden ab.
 
 Bei Erfolg wird der Cookie `token` gesetzt:
 
 - `httpOnly: true`
-- `secure: false`
-- `sameSite: "lax"`
-- kein explizites `maxAge`
+- `secure: true` in `NODE_ENV=production`, sonst `false` für lokale HTTP-Entwicklung
+- `sameSite: "strict"`
+- `maxAge: 72 Stunden`
+- `path: "/"`
 
-Die JSON-Antwort enthält dieselben öffentlichen Benutzerdaten, aber nicht das Token.
+Zusätzlich wird der lesbare Cookie `XSRF-TOKEN` gesetzt und derselbe Wert einmalig als `csrfToken` ausgegeben. Axios sendet ihn bei gleichursprünglichen mutierenden Requests als `X-XSRF-TOKEN`. Die JSON-Antwort enthält kein JWT.
 
 ## Middleware
 
 ### `authenticate(req, res, next)`
 
-Liest `req.cookies.token`, prüft es mit `jwt.verify` und schreibt die Claims nach `req.user`. Ohne Cookie folgt `401 {"message":"Not authenticated"}`, bei ungültigem oder abgelaufenem Token `401 {"message":"Invalid token"}`.
+Prüft Signatur und Ablaufzeit und lädt anschließend den Benutzer aus PostgreSQL. Nur ein aktiver, nicht gelöschter Benutzer mit identischer `authVersion` wird akzeptiert. Rolle und Identitätsfelder stammen aus dem aktuellen Datenbankdatensatz, nicht aus möglicherweise veralteten Claims.
 
 ### `authenticateAdmin(req, res, next)`
 
@@ -38,19 +39,23 @@ Diese Middleware wird hinter `authenticate` eingesetzt und erlaubt nur die ausdr
 
 ## Aktuelle Identität
 
-`GET /api/auth/me` lädt den Benutzer anhand von `req.user.id` erneut aus PostgreSQL und gibt `id`, `email` und `role` zurück. Ein inzwischen gelöschter Datensatz erzeugt `404`. `isActive` und `deletedAt` werden weder in der Middleware noch in dieser Route geprüft.
+`GET /api/auth/me` gibt nach der zentralen Sessionprüfung `id`, `email` und `role` zurück. Deaktivierte, gelöschte oder widerrufene Sessions erreichen den Handler nicht und erhalten `401`.
 
 ## Benutzerliste für Auswahlfelder
 
-`GET /api/auth/users` ist für jeden angemeldeten Benutzer erreichbar. Die Funktion lädt alle Benutzer und reduziert jeden Datensatz auf `id` und `email`. Soft-gelöschte oder deaktivierte Benutzer werden nicht herausgefiltert.
+`GET /api/auth/users` ist nur für Admin und Manager erreichbar. Die Funktion lädt alle Benutzer und reduziert jeden Datensatz auf `id` und `email`. Soft-gelöschte oder deaktivierte Benutzer werden derzeit nicht herausgefiltert.
 
 ## JWT-Hilfsfunktionen
 
 `generateAccessToken(user)` erzeugt ein separates 15-Minuten-Token mit `id` und `role`. `generateRefreshToken(user)` erzeugt ein 30-Tage-Token mit `id`. Beide Funktionen sind aktuell in keinem registrierten Request-Ablauf eingebunden; der Login signiert sein 72-Stunden-Token direkt.
 
-## Abmelden und Refresh
+## Abmelden und Session-Widerruf
 
-Es gibt derzeit weder eine Logout-Route zum Löschen des Cookies noch eine Refresh-Route. Das im Utility vorgesehene Refresh-Token wird nicht gesetzt oder geprüft.
+`POST /api/auth/logout` erhöht `authVersion`, löscht beide Cookies und widerruft damit alle noch vorhandenen Tokens des Benutzers. Auch Passwortwechsel, Rollen-/Statusänderung und Soft-Delete erhöhen die Version. Eine Refresh-Route ist nicht registriert.
+
+## CSRF, Origin und HTTPS
+
+Alle `POST`-, `PUT`-, `PATCH`- und `DELETE`-Requests werden gegen `ALLOWED_ORIGINS` geprüft. Außer beim Login müssen `XSRF-TOKEN`-Cookie und `X-XSRF-TOKEN`- beziehungsweise `X-CSRF-TOKEN`-Header übereinstimmen. In Produktion werden HTTP-Requests mit `426 HTTPS required` abgewiesen.
 
 !!! warning "Produktionskonfiguration"
-    Für HTTPS muss der Cookie mit `secure: true` gesetzt werden. Außerdem sollten aktive/gelöschte Benutzer zentral geprüft, Rollenfehler als `403` beantwortet und CORS-/Cookie-Einstellungen gemeinsam getestet werden.
+    Traefik muss TLS terminieren und `X-Forwarded-Proto: https` setzen. Anschließend `NODE_ENV=production` setzen; andernfalls bleibt der Cookie für die lokale HTTP-Entwicklung absichtlich ohne `Secure`.

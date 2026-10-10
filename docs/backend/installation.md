@@ -28,9 +28,11 @@ cp Backend/.env.example Backend/.env
 
 | Variable | Verwendung |
 |---|---|
+| `NODE_ENV` | `production` erzwingt HTTPS und setzt Cookies mit `Secure`; lokal üblicherweise `development` |
 | `DATABASE_URL` | PostgreSQL-Verbindung für Prisma |
 | `JWT_ACCESS_SECRET` | Signieren und Prüfen des Login-Cookies |
 | `JWT_REFRESH_SECRET` | Nur von `generateRefreshToken` verwendet; kein Refresh-Endpunkt registriert |
+| `ALLOWED_ORIGINS` | kommaseparierte Browser-Origins inklusive Schema für CORS und CSRF-Origin-Prüfung |
 | `S3_ENDPOINT` | interner Garage-Endpunkt für Upload und Delete |
 | `S3_PUBLIC_ENDPOINT` | für den Browser erreichbarer Endpunkt signierter Download-URLs |
 | `S3_ACCESS_KEY` | S3 Access Key |
@@ -43,8 +45,10 @@ Beispiel ohne echte Geheimnisse:
 
 ```dotenv
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE
+NODE_ENV=development
 JWT_ACCESS_SECRET=CHANGE_ME
 JWT_REFRESH_SECRET=CHANGE_ME
+ALLOWED_ORIGINS=http://localhost:5173,https://app.example.test
 S3_ENDPOINT=http://garage:3900
 S3_PUBLIC_ENDPOINT=https://storage.example.test
 S3_ACCESS_KEY=CHANGE_ME
@@ -66,4 +70,4 @@ Für eine bestehende Produktionsmigration ist statt `migrate dev` der kontrollie
 
 ## CORS
 
-Die erlaubten Origins sind momentan direkt in `src/server.js` hinterlegt. Ein Browser-Origin enthält üblicherweise Schema und Host, beispielsweise `https://example.test`. Änderungen sollten deshalb zusammen mit dem tatsächlichen Deployment geprüft werden.
+Die erlaubten Origins werden kommasepariert über `ALLOWED_ORIGINS` konfiguriert. Jeder Wert muss vollständig mit Schema und gegebenenfalls Port angegeben werden, beispielsweise `https://example.test`. Dieselbe Liste schützt CORS und mutierende Requests vor fremden Origins.

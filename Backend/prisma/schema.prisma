@@ -30,6 +30,7 @@ model User {
   passwordHash String   @map("password_hash")
   role         UserRole @default(user)
   isActive     Boolean  @default(true) @map("is_active")
+  authVersion  Int      @default(0) @map("auth_version")
 
   customersCreated Customer[] @relation("CustomerCreatedBy")
   projectsCreated  Project[]  @relation("ProjectCreatedBy")
@@ -65,6 +66,25 @@ model AuditLog {
   @@index([actorUserId])
   @@index([action, entityType])
   @@map("audit_logs")
+}
+
+model StorageDeletionJob {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  bucketName String  @map("bucket_name")
+  objectKey  String  @map("object_key")
+  status     String  @default("pending")
+  attempts   Int     @default(0)
+  lastError  String? @map("last_error")
+
+  nextAttemptAt DateTime  @default(now()) @map("next_attempt_at")
+  completedAt   DateTime? @map("completed_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@unique([bucketName, objectKey])
+  @@index([status, nextAttemptAt])
+  @@map("storage_deletion_jobs")
 }
 
 model Customer {

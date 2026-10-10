@@ -1,11 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import jwt from "jsonwebtoken";
-
 import {
-    authenticateAdmin,
     authorizeRoles
 } from "../src/middleware/auth.middleware.js";
+import { verifyCsrfToken, verifyRequestOrigin } from "../src/middleware/csrf.middleware.js";
 
 function createResponse() {
     return {
@@ -58,52 +56,43 @@ test("authorizeRoles verlangt eine authentifizierte Identität", () => {
     assert.equal(res.statusCode, 401);
 });
 
-test("authenticateAdmin akzeptiert ein gültiges Admin-Token", () => {
-    const previousSecret = process.env.JWT_ACCESS_SECRET;
-    process.env.JWT_ACCESS_SECRET = "test-secret-with-sufficient-length";
+test("CSRF-Prüfung akzeptiert übereinstimmendes Cookie und Header", () => {
+    const token = "a".repeat(64);
+    const req = {
+        method: "POST",
+        path: "/api/projects/new",
+        cookies: { "XSRF-TOKEN": token },
+        get(name) {
+            return name === "x-xsrf-token" ? token : undefined;
+        }
+    };
+    const res = createResponse();
+    let nextCalled = false;
 
-    try {
-        const token = jwt.sign(
-            { id: "admin-id", role: "admin" },
-            process.env.JWT_ACCESS_SECRET
-        );
-        const req = { cookies: { token } };
-        const res = createResponse();
-        let nextCalled = false;
-
-        authenticateAdmin(req, res, () => {
-            nextCalled = true;
-        });
-
-        assert.equal(nextCalled, true);
-        assert.equal(req.user.id, "admin-id");
-        assert.equal(req.user.role, "admin");
-    } finally {
-        if (previousSecret === undefined) delete process.env.JWT_ACCESS_SECRET;
-        else process.env.JWT_ACCESS_SECRET = previousSecret;
-    }
+    verifyCsrfToken(req, res, () => { nextCalled = true; });
+    assert.equal(nextCalled, true);
 });
 
-test("authenticateAdmin lehnt normale Benutzer mit 403 ab", () => {
-    const previousSecret = process.env.JWT_ACCESS_SECRET;
-    process.env.JWT_ACCESS_SECRET = "test-secret-with-sufficient-length";
+test("CSRF-Prüfung lehnt fehlenden Header mit 403 ab", () => {
+    const req = {
+        method: "DELETE",
+        path: "/api/files/delete/id",
+        cookies: { "XSRF-TOKEN": "a".repeat(64) },
+        get() { return undefined; }
+    };
+    const res = createResponse();
 
-    try {
-        const token = jwt.sign(
-            { id: "user-id", role: "user" },
-            process.env.JWT_ACCESS_SECRET
-        );
-        const req = { cookies: { token } };
-        const res = createResponse();
+    verifyCsrfToken(req, res, () => assert.fail("next darf nicht aufgerufen werden"));
+    assert.equal(res.statusCode, 403);
+});
 
-        authenticateAdmin(req, res, () => {
-            assert.fail("next darf nicht aufgerufen werden");
-        });
+test("Origin-Prüfung lehnt fremde Origins ab", () => {
+    const req = {
+        method: "POST",
+        get(name) { return name === "origin" ? "https://evil.example" : undefined; }
+    };
+    const res = createResponse();
 
-        assert.equal(res.statusCode, 403);
-        assert.deepEqual(res.payload, { message: "Not authorized" });
-    } finally {
-        if (previousSecret === undefined) delete process.env.JWT_ACCESS_SECRET;
-        else process.env.JWT_ACCESS_SECRET = previousSecret;
-    }
+    verifyRequestOrigin(req, res, () => assert.fail("next darf nicht aufgerufen werden"));
+    assert.equal(res.statusCode, 403);
 });

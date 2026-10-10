@@ -16,33 +16,29 @@ Beide verwenden Region `garage`, path-style Requests, dieselben Zugangsdaten und
 | Feld | Bedeutung |
 |---|---|
 | `entity` | `project` oder `customer` |
-| `entityId` | ID für den Objektpfad; im aktuellen DB-Code zugleich Projekt-ID |
-| `customerId` | zu verknüpfende Kunden-ID |
+| `entityId` | autorisierte Projekt- oder Kunden-ID für Objektpfad und DB-Zuordnung |
+| `customerId` | Legacy-Feld; bei Projektdateien wird die Kunden-ID sicher aus dem autorisierten Projekt übernommen |
 | `fileName` | fachlicher Dateiname und Bestandteil des S3-Schlüssels |
 | `mimeType` | Content-Type und Datenbankfeld |
-| `fileSize` | wird mit `parseInt` in eine Zahl umgewandelt |
+| `fileSize` | Legacy-Feld; gespeichert wird die tatsächliche Multer-Dateigröße |
 
-`createUpload` wählt `projects/{entityId}` oder `customers/{entityId}` als Prefix und ergänzt `{UUID}-{fileName}`. Danach legt es zuerst ein `S3Object` an, lädt den Buffer nach Garage und erzeugt einen `File`-Datensatz mit Status `completed`.
-
-!!! warning "Aktuelles Zuordnungsverhalten"
-    Auch bei `entity: "customer"` verbindet der Controller `entityId` als `project.id` und zusätzlich `customerId`. Ein reiner Kunden-Upload funktioniert daher nicht wie der gewählte Objektpfad vermuten lässt. Außerdem existiert kein Rollback, falls S3-Upload oder File-Anlage nach dem ersten DB-Schritt scheitert.
+`createUpload` prüft das Ziel über die zentrale Projekt-/Kundenpolicy, wählt `projects/{entityId}` oder `customers/{entityId}` als Prefix und ergänzt `{UUID}-{fileName}`. Danach legt es ein `S3Object` an, lädt den Buffer nach Garage und erzeugt einen korrekt zugeordneten `File`-Datensatz samt `uploadedById` und Status `completed`.
 
 Erfolg liefert `success`, `objectKey` und `fileEntry`.
 
 ## Download-URL
 
-`GET /api/files/download/:id` ruft `createDownloadUrl` auf. Nach Laden von `File` und `S3Object` wird eine 900 Sekunden gültige URL erzeugt und als `{ "url": "..." }` zurückgegeben. Unbekannte Datei: `404`; Signaturfehler: `500`.
+`GET /api/files/download/:id` prüft zuvor Eigentümer-, Projekt- oder Kundenberechtigung. Danach wird eine 900 Sekunden gültige URL erzeugt und als `{ "url": "..." }` zurückgegeben.
 
 ## Datei löschen
 
 `DELETE /api/files/delete/:fileId` ruft `deleteFile` auf:
 
-1. `File` mit `S3Object` laden,
-2. Garage-Objekt löschen,
-3. `File` löschen,
-4. `S3Object` löschen.
+1. zentrale Dateiberechtigung prüfen und `File` mit `S3Object` laden,
+2. `File`, gegebenenfalls verwaisten `S3Object`, Audit-Eintrag und eindeutigen Löschjob in einer DB-Transaktion schreiben,
+3. Garage-Löschung idempotent anstoßen; Fehler werden vom Reconciliation-Worker wiederholt.
 
-Bei Erfolg folgen `success`, `fileId` und `objectKey`. Die Route verlangt ein Login, prüft aber keine Eigentümerschaft oder Projektberechtigung. Der Ablauf besitzt keine Transaktion über Datenbank und Objektspeicher.
+Bei Erfolg folgen `success`, `fileId`, `objectKey` und `storageDeletionScheduled`.
 
 ## Veralteter Abschluss-Handler
 

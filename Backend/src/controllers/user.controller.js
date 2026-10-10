@@ -410,6 +410,11 @@ export const updateUser = async (
         ) {
             data.isActive =
                 Boolean(isActive);
+            data.authVersion = { increment: 1 };
+        }
+
+        if (role !== undefined) {
+            data.authVersion = { increment: 1 };
         }
 
 
@@ -528,7 +533,8 @@ export const changeUserPassword = async (
             },
 
             data: {
-                passwordHash
+                passwordHash,
+                authVersion: { increment: 1 }
             }
         });
 
@@ -601,7 +607,11 @@ export const deleteUser = async (
                         false,
 
                     deletedAt:
-                        new Date()
+                        new Date(),
+
+                    authVersion: {
+                        increment: 1
+                    }
                 },
 
                 select: {

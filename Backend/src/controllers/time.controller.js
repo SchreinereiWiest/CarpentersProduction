@@ -1,14 +1,17 @@
 import prisma from "../config/prisma.js";
 import {s3Download, s3Upload} from "../config/s3.js"
 import {
-    S3Client,
     PutObjectCommand,
-    GetObjectCommand,
-    DeleteObjectCommand
+    GetObjectCommand
 } from "@aws-sdk/client-s3";
 import {
     getSignedUrl
 } from "@aws-sdk/s3-request-presigner";
+
+const mayManageOtherUsers = user => ["admin", "manager"].includes(user?.role);
+const requestedUserId = req => mayManageOtherUsers(req.user)
+    ? (req.body.userId || req.user.id)
+    : req.user.id;
 
 export const startTime = async (req, res) => {
 
@@ -25,7 +28,7 @@ export const startTime = async (req, res) => {
 
                 user: {
                     connect: {
-                        id: req.body.userId
+                        id: requestedUserId(req)
                     }
                 },
 
@@ -138,6 +141,7 @@ export const getDayEntrys = async (req, res) => {
 
         const entries = await prisma.timeEntry.findMany({
             where: {
+                ...(!mayManageOtherUsers(req.user) ? { userId: req.user.id } : {}),
                 startedAt: {
                     gte: startOfDay,
                     lt: startOfNextDay
@@ -217,7 +221,7 @@ export const newTime = async (req, res) => {
 
                 user: {
                     connect: {
-                        id: req.body.userId
+                        id: requestedUserId(req)
                     }
                 },
 
@@ -264,7 +268,7 @@ export const manualTime = async (req, res) => {
 
                 user: {
                     connect: {
-                        id: req.body.userId
+                        id: requestedUserId(req)
                     }
                 },
 

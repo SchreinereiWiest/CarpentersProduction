@@ -32,7 +32,7 @@ services:
     restart: always
 
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=${NODE_ENV:-development}
 
     volumes:
       - ./Frontend:/app

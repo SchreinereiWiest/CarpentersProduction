@@ -18,6 +18,7 @@
 | `Material` | Platten-/Lagermaterial | eigenständiges Inventarmodell |
 | `TimeEntry` | Arbeitszeit in Minuten | Projekt und optional Benutzer |
 | `AuditLog` | Sicherheits- und Aktionsspur | optionaler ausführender Benutzer sowie Aktion, Ressource und Request-Metadaten |
+| `StorageDeletionJob` | dauerhafte Outbox für Garage-Löschungen | eindeutiger Bucket/Objektschlüssel, Status, Versuche und nächster Versuch |
 
 ## Enums
 
@@ -42,4 +43,6 @@ Projektstatus, Priorität, Terminstatus, Arbeitstyp und Dateistatus sind freie S
 - `Material.pricePerSquareMeter` ist `Decimal(10,2)`; API-Clients sollten Dezimalwerte nicht ungeprüft als JavaScript-Gleitkommazahl behandeln.
 - `TimeEntry.duration` wird in Minuten gespeichert.
 - `AuditLog` bewahrt erfolgreiche sicherheitsrelevante Aktionen auch nach dem Löschen der Fachressource auf; beim Löschen eines Benutzers wird nur dessen Referenz auf `null` gesetzt.
+- `User.authVersion` bindet JWTs an den aktuellen Sessionstand und ermöglicht sofortigen Widerruf.
+- `StorageDeletionJob` trennt die atomare DB-Änderung von der idempotenten Garage-Löschung. `pending`/`failed` werden durch den Worker erneut verarbeitet.
 - Soft-Delete-Felder existieren auf mehreren Modellen, werden aber nicht von allen Abfragen einheitlich berücksichtigt.
