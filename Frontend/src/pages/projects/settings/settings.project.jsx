@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import axios from "axios";
 
@@ -40,6 +40,12 @@ export default function ProjectSettings() {
 
     const [deleting, setDeleting] =
         useState(false);
+
+    const [exporting, setExporting] =
+        useState(false);
+
+    const [exportError, setExportError] =
+        useState("");
 
     const [showDeleteModal, setShowDeleteModal] = useState(false);
 
@@ -306,6 +312,38 @@ export default function ProjectSettings() {
             }
 
         };
+
+    // --------------------------------------------------
+    // Export project
+    // --------------------------------------------------
+
+    const handleExportProject = async () => {
+        setExporting(true);
+        setExportError("");
+
+        try {
+            const response = await axios.get(
+                `/api/projects/export/${projectId}`,
+                { responseType: "blob" }
+            );
+            const disposition = response.headers["content-disposition"] || "";
+            const fileName = disposition.match(/filename="([^"]+)"/)?.[1]
+                || `${projectName || "project"}.cproject`;
+            const url = URL.createObjectURL(response.data);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error("Projekt konnte nicht exportiert werden:", error);
+            setExportError("Der Projekt-Download konnte nicht erstellt werden.");
+        } finally {
+            setExporting(false);
+        }
+    };
 
 
     // --------------------------------------------------
@@ -955,6 +993,32 @@ export default function ProjectSettings() {
 
                             </form>
 
+                        </section>
+
+
+                        {/* Project export */}
+
+                        <section className="bg-gray-800 border border-gray-700 rounded-xl xl:p-6 p-4 xl:mb-6 mb-4">
+                            <div className="flex items-center justify-between xl:gap-6 gap-3">
+                                <div>
+                                    <h2 className="text-lg font-semibold">Projekt herunterladen</h2>
+                                    <p className="text-sm text-gray-400 mt-1">
+                                        Lädt sämtliche Projektdaten und Dateien als importierbares Archiv herunter.
+                                    </p>
+                                    {exportError && (
+                                        <p className="text-sm text-red-400 mt-2" role="alert">{exportError}</p>
+                                    )}
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={handleExportProject}
+                                    disabled={exporting}
+                                    className="shrink-0 rounded-lg border border-blue-700 bg-blue-900/30 hover:bg-blue-900/60 disabled:opacity-50 disabled:cursor-not-allowed xl:px-5 px-4 xl:py-3 py-2 text-blue-300 font-semibold transition"
+                                >
+                                    {exporting ? "Archiv wird erstellt..." : "Projekt herunterladen"}
+                                </button>
+                            </div>
                         </section>
 
 
