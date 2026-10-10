@@ -1,0 +1,23 @@
+{
+  "CORSRules": [
+    {
+      "AllowedOrigins": [
+        "http://app.localhost",
+        "http://10.10.100.52"
+      ],
+      "AllowedMethods": [
+        "GET",
+        "PUT",
+        "POST",
+        "HEAD"
+      ],
+      "AllowedHeaders": [
+        "*"
+      ],
+      "ExposeHeaders": [
+        "ETag"
+      ],
+      "MaxAgeSeconds": 3600
+    }
+  ]
+}

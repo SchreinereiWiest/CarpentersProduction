@@ -1,3 +1,47 @@
-infra/*
-compose.yaml
-!infra/garage/config/garage.toml
+# Abhängigkeiten
+node_modules/
+**/node_modules/
+
+kubernetesNotes
+
+# Lokale Umgebungsvariablen und Geheimnisse
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+
+# Schlüssel, Zertifikate und lokale Credentials
+*.key
+*.pem
+*.p12
+*.pfx
+credentials.json
+
+# Garage: geheime Laufzeitkonfiguration und persistente Daten
+infra/garage/config/garage.toml
+infra/garage/data/
+infra/garage/meta/
+
+# PostgreSQL-Laufzeitdaten
+infra/postgres/data/
+
+# Generierte Dateien
+.venv-docs/
+site/
+Frontend/dist/
+Frontend/dist-ssr/
+Backend/generated/prisma/
+
+# Logs und temporäre Dateien
+logs/
+*.log
+*.tmp
+*.swp
+*.swo
+
+# Lokale IDE-/Betriebssystemdateien
+.vscode/
+.idea/
+.DS_Store

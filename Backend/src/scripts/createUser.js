@@ -1,10 +1,19 @@
 import bcrypt from "bcrypt";
+import "dotenv/config";
 
 import prisma from "../config/prisma.js";
 
 const createUser = async () => {
 
-    const password = "carpenter";
+    const email = process.env.BOOTSTRAP_USER_EMAIL;
+    const login = process.env.BOOTSTRAP_USER_LOGIN;
+    const password = process.env.BOOTSTRAP_USER_PASSWORD;
+
+    if (!email || !login || !password || password.length < 12) {
+        throw new Error(
+            "BOOTSTRAP_USER_EMAIL, BOOTSTRAP_USER_LOGIN und ein mindestens 12 Zeichen langes BOOTSTRAP_USER_PASSWORD sind erforderlich"
+        );
+    }
 
     const passwordHash = await bcrypt.hash(
         password,
@@ -15,7 +24,9 @@ const createUser = async () => {
 
         data: {
 
-            email: "user",
+            email,
+
+            login,
 
             passwordHash,
 

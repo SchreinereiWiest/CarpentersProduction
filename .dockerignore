@@ -1,0 +1,7 @@
+.git
+.venv-docs
+site
+node_modules
+Backend
+Frontend
+infra
