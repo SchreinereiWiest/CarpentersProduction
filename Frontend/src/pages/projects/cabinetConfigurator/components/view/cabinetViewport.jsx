@@ -916,7 +916,7 @@ export default function CabinetViewport({
 
                     <CarcassLayer cabinet={cabinet} />
 
-                    {mode === "interior" && (
+                    {(mode === "interior" || mode === "combined") && (
                         <InteriorLayer
                             cabinet={cabinet}
                             cncConfig={cncConfig}
@@ -932,11 +932,13 @@ export default function CabinetViewport({
                         Fronten
                     --------------------------------- */}
 
-                    {mode === "front" && (
+                    {(mode === "front" || mode === "combined") && (
                         <FrontLayer
                             cabinet={cabinet}
                             selectedElement={selectedElement}
                             onSelect={onSelect}
+                            opacity={mode === "combined" ? 0.35 : 1}
+                            showBackground={mode !== "combined"}
                         />
                     )}
 

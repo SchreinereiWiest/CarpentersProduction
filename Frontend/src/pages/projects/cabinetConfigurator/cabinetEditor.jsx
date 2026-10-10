@@ -526,12 +526,12 @@ export default function CabinetEditor() {
         setSectionCount(newActiveCabinet.sections?.length ?? 1);
     };
 
-    const toggleViewMode = () => {
+    const toggleViewMode = (nextMode) => {
 
     setViewMode(prev =>
-        prev === "interior"
-            ? "front"
-            : "interior"
+        prev === nextMode
+            ? "interior"
+            : nextMode
     );
 
     setSelectedElement(null);
@@ -1014,7 +1014,7 @@ export default function CabinetEditor() {
         ">
                         <button
                             type="button"
-                            onClick={toggleViewMode}
+                            onClick={() => toggleViewMode("front")}
                             className={`
                                 rounded
                                 border
@@ -1031,6 +1031,27 @@ export default function CabinetEditor() {
                             `}
                         >
                             Fronten
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => toggleViewMode("combined")}
+                            className={`
+                                rounded
+                                border
+                                px-3
+                                py-2
+                                text-sm
+                                transition
+
+                                ${
+                                    viewMode === "combined"
+                                        ? "border-green-700 bg-green-900 text-green-300 hover:bg-green-800"
+                                        : "border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700"
+                                }
+                            `}
+                        >
+                            Fronten + Innenraum
                         </button>
                         
 

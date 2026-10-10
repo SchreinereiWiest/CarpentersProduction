@@ -4,7 +4,9 @@ import React from "react";
 export function FrontLayer({
     cabinet,
     selectedElement,
-    onSelect
+    onSelect,
+    opacity = 1,
+    showBackground = true
 }) {
 
     const fronts =
@@ -188,23 +190,26 @@ export function FrontLayer({
              * Korpus-Hintergrund
              */}
 
-            <rect
-                x={0}
-                y={0}
-                width={cabinet.width}
-                height={cabinet.height}
+            {showBackground && (
+                <rect
+                    x={0}
+                    y={0}
+                    width={cabinet.width}
+                    height={cabinet.height}
 
-                fill="#171717"
+                    fill="#171717"
 
-                stroke="#737373"
+                    stroke="#737373"
 
-                strokeWidth={2}
+                    strokeWidth={2}
 
-                vectorEffect="non-scaling-stroke"
-            />
+                    vectorEffect="non-scaling-stroke"
+                />
+            )}
 
-
-            {renderFronts(fronts)}
+            <g opacity={opacity}>
+                {renderFronts(fronts)}
+            </g>
 
         </g>
     );
