@@ -1,6 +1,6 @@
 # Tests und Qualitätsregeln
 
-Im Backend ist derzeit kein Testskript und keine Testsuite konfiguriert. Die folgenden Ebenen bilden das empfohlene Mindestziel.
+Das Backend besitzt mit `pnpm run test:security` erste Node-Testfälle für Rollen- und CSRF-Middleware. Eine umfassende Backend- oder Frontendtestsuite ist noch nicht vorhanden.
 
 ## Testpyramide
 
@@ -8,6 +8,7 @@ Im Backend ist derzeit kein Testskript und keine Testsuite konfiguriert. Die fol
 2. Controller-Tests mit isolierter Testdatenbank und emuliertem S3-Endpunkt.
 3. API-Integrationstests für Authentifizierung, Rollen, Validierungsfehler und Statuscodes.
 4. End-to-End-Tests für Login, Projektanlage, Zeitbuchung, Upload/Download und Projektarchiv-Roundtrip.
+5. Frontend-Unit-Tests für Nesting, Sektionsbäume, Teilelisten und CNC-Compiler sowie Komponenten-/Hook-Tests.
 
 ## Kritische Testfälle
 

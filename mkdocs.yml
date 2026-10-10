@@ -54,7 +54,15 @@ markdown_extensions:
 nav:
   - Start: index.md
   - Architektur: architecture/index.md
-  - Frontend: frontend/index.md
+  - Frontend:
+      - Überblick: frontend/index.md
+      - Installation & Entwicklung: frontend/installation.md
+      - Routing & Authentifizierung: frontend/routing-auth.md
+      - State, API & Cache: frontend/state-data.md
+      - Seiten & Komponenten: frontend/pages-components.md
+      - Projektmodule: frontend/project-modules.md
+      - Funktionsreferenz: frontend/functions.md
+      - Risiken & Qualitätsregeln: frontend/quality.md
   - Backend:
       - Überblick: backend/index.md
       - Installation & Konfiguration: backend/installation.md

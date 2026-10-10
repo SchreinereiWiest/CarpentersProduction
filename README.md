@@ -4,7 +4,30 @@ CarpentersProduction ist eine Webanwendung für Kunden-, Projekt-, Datei-, Mater
 
 ## Dokumentation starten
 
-Voraussetzungen sind Python 3 und eine lokale virtuelle Umgebung:
+Die Dokumentation läuft standardmäßig als statische Material-for-MkDocs-Site im Compose-Verbund. Vor dem ersten Compose-Aufruf wird die root `.env` angelegt und mindestens das PostgreSQL-Passwort gesetzt:
+
+```bash
+cp .env.example .env
+# POSTGRES_PASSWORD in .env durch einen sicheren Wert ersetzen
+docker compose up -d --build documentation
+```
+
+Traefik veröffentlicht die Dokumentation ohne zusätzlichen Host-Port unter:
+
+```text
+http://10.10.100.52/docs/
+```
+
+Nach Markdown- oder `mkdocs.yml`-Änderungen wird nur das Dokumentationsimage neu gebaut:
+
+```bash
+docker compose up -d --build documentation
+docker compose logs -f documentation
+```
+
+### Optionaler Autorenmodus ohne Docker
+
+Für Live-Reload kann MkDocs weiterhin lokal ausgeführt werden:
 
 ```bash
 python3 -m venv .venv-docs
@@ -13,29 +36,7 @@ python -m pip install -r requirements-docs.txt
 mkdocs serve
 ```
 
-MkDocs bindet sich gemäß `mkdocs.yml` an `0.0.0.0:8000`, damit die Seite auch über eine IDE-, Container- oder SSH-Portweiterleitung erreichbar ist. Lokal lautet die URL `http://127.0.0.1:8000`; in einer Remote-IDE muss stattdessen die für Port 8000 angezeigte weitergeleitete URL geöffnet werden. Einen statischen, streng validierten Build erzeugt:
-
-```bash
-mkdocs build --strict
-```
-
-Der Build landet im ignorierten Verzeichnis `site/`.
-
-### Dokumentation über Docker und Traefik
-
-Der Compose-Verbund baut die Dokumentation als statische Nginx-Site und veröffentlicht sie über Traefik unter:
-
-```text
-http://10.10.100.52/docs/
-```
-
-Nur die Dokumentation neu bauen und starten:
-
-```bash
-docker compose up -d --build documentation
-```
-
-Es wird kein zusätzlicher Host-Port benötigt. Traefik entfernt den Prefix `/docs` vor der Weiterleitung an den Dokumentationscontainer. Nach Markdown-Änderungen muss das Image erneut gebaut werden.
+Der lokale Autorenmodus ist unter `http://127.0.0.1:8000/` erreichbar. `mkdocs build --strict` validiert Links und Navigation; der Build landet im ignorierten Verzeichnis `site/`.
 
 ## Anwendung starten
 
@@ -70,9 +71,10 @@ Hierfür müssen PostgreSQL, Garage und die in `Backend/.env` beschriebenen Umge
 
 - [Dokumentationsstart](docs/index.md)
 - [Systemarchitektur](docs/architecture/index.md)
+- [Frontend-Dokumentation](docs/frontend/index.md)
 - [Backend-Dokumentation](docs/backend/index.md)
 - [API-Referenz](docs/backend/api.md)
 - [Datenmodell](docs/database/index.md)
 - [Betrieb](docs/operations/index.md)
 
-Das Backend ist in dieser ersten Dokumentationsstufe vollständig erfasst. Die Frontend-Dokumentation wird in einer späteren Stufe ergänzt.
+Frontend, Backend, Datenmodell und Infrastruktur sind in der MkDocs-Navigation gemeinsam dokumentiert.

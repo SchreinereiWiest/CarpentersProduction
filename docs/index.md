@@ -1,16 +1,16 @@
 # CarpentersProduction
 
-Diese Dokumentation beschreibt den aktuellen Stand des Repositories. Der Schwerpunkt dieser Ausbaustufe liegt auf dem Express-Backend: alle registrierten Endpunkte, Controller- und Hilfsfunktionen, Authentifizierung, Datenhaltung und Garage/S3-Abläufe sind dokumentiert.
+Diese Dokumentation beschreibt den aktuellen Stand des vollständigen Repositories: React-Frontend, Express-Backend, Datenhaltung, Garage/S3-Abläufe und Compose-Infrastruktur.
 
 ## Schnellnavigation
 
 | Bereich | Inhalt | Stand |
 |---|---|---|
 | [Architektur](architecture/index.md) | Komponenten, Abhängigkeiten und Datenflüsse | Grundstruktur dokumentiert |
-| [Frontend](frontend/index.md) | React, Komponenten, Hooks und State | Für spätere Ausbaustufe vorbereitet |
-| [Backend](backend/index.md) | Express, 45 aktive API-Routen und Funktionsreferenz | Vollständig dokumentiert |
+| [Frontend](frontend/index.md) | React, Routing, Komponenten, Hooks, Cache und Fertigungsmodule | Vollständig dokumentiert |
+| [Backend](backend/index.md) | Express, 46 aktive API-Routen und Funktionsreferenz | Vollständig dokumentiert |
 | [Datenbank](database/index.md) | PostgreSQL, Prisma-Modelle und Relationen | Schema dokumentiert |
-| [Module](modules/index.md) | Nesting, CNC, Cabinet Editor und CRM | Backend-Anknüpfungspunkte dokumentiert |
+| [Module](modules/index.md) | Nesting, CNC, Cabinet Editor und CRM | Frontend-Logik und Backend-Anknüpfungspunkte dokumentiert |
 | [Infrastruktur](infrastructure/index.md) | Docker, Traefik, Garage und Kubernetes | Ist-Stand dokumentiert |
 | [Betrieb](operations/index.md) | Start, Deployment, Backup und Fehlersuche | Grundabläufe dokumentiert |
 | [Tests](testing/index.md) | Teststrategie, Testdaten und Qualitätsregeln | Soll-Konzept dokumentiert |

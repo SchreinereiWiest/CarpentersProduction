@@ -23,20 +23,30 @@ Browser / React
 | Einstieg | `Backend/src/server.js` | Express-App, Middleware, Routen-Mounts und Port 5000 |
 | Routing | `Backend/src/routes/` | HTTP-Methode, Pfad, Auth-Middleware und Handler |
 | Controller | `Backend/src/controllers/` | Validierung, Geschäftsabläufe, Prisma- und S3-Zugriffe |
-| Middleware | `Backend/src/middleware/` | JWT-Prüfung sowie Datei-Upload/-Download/-Löschung |
+| Middleware | `Backend/src/middleware/` | Session-, CSRF-, Rollen- und Ressourcenprüfung sowie Dateiabläufe |
 | Konfiguration | `Backend/src/config/` | Prisma- und S3-Clients |
 | Utilities | `Backend/src/utils/` | Passwort-Hashing und JWT-Hilfen |
 | Datenmodell | `Backend/prisma/schema.prisma` | PostgreSQL-Modelle, Beziehungen und Enums |
 
-Die Dateien unter `Backend/src/services/` sind derzeit leer. Geschäftslogik liegt deshalb direkt in Controllern und Middleware.
+`Backend/src/services/storageDeletion.service.js` verarbeitet dauerhafte Garage-Löschjobs. Weitere Geschäftslogik liegt derzeit überwiegend in Controllern und Middleware.
+
+## Frontend-Schichten
+
+| Schicht | Verzeichnis | Aufgabe |
+|---|---|---|
+| Einstieg und Router | `Frontend/src/main.jsx` | Context-Provider und Seitenrouten |
+| Route Guards | `Frontend/src/routes/` | Sessionzustand und sichtbare Rollenführung |
+| Seiten/Komponenten | `Frontend/src/pages/`, `components/` | UI, Formulare und fachliche Editoren |
+| Services | `Frontend/src/services/` | API-Helfer, Settings, Memory- und IndexedDB-Cache |
+| Engines | `Frontend/src/pages/projects/**/engine`, `algorythm/` | Geometrie, Nesting, Teilelisten und CNC-Compiler |
 
 ## Typischer authentifizierter Request
 
-1. Der Browser sendet den HTTP-only-Cookie `token`.
-2. `cookie-parser` stellt ihn über `req.cookies.token` bereit.
-3. `authenticate` oder `authenticateAdmin` validiert das JWT mit `JWT_ACCESS_SECRET`.
-4. Die dekodierten Claims werden als `req.user` weitergegeben.
-5. Der Controller liest Pfad-, Query- und Body-Daten und greift über Prisma oder das S3-SDK auf Daten zu.
+1. Der Browser sendet den HTTP-only-Cookie `token`; bei Mutationen zusätzlich `X-XSRF-TOKEN`.
+2. Origin- und CSRF-Middleware prüfen den Request.
+3. Die Auth-Middleware validiert JWT, Benutzerstatus und `authVersion` gegen PostgreSQL.
+4. Rollen- und Ressourcenpolicy prüfen den konkreten Zugriff.
+5. Der Controller greift über Prisma oder das S3-SDK auf Daten zu.
 6. Die Antwort wird als JSON, signierte Download-URL oder Stream zurückgegeben.
 
 ## Dateiablauf

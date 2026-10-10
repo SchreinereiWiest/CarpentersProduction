@@ -2,15 +2,15 @@
 
 ## Nesting
 
-Nesting-Daten werden je Projekt als `nesting.json` unter `projects/{projectId}/nesting.json` gespeichert. Globale Einstellungen liegen als `settings/settings-nesting.json` in Garage.
+Das React-Modul erzeugt Teile-/Plattenlisten, bewertet 2D-Platzierungen und unterstützt manuelle Streifenpositionierung. Nesting-Daten werden je Projekt als `nesting.json` unter `projects/{projectId}/nesting.json` gespeichert. Details: [Frontend-Projektmodule](../frontend/project-modules.md#nesting).
 
 ## CNC
 
-CNC-Einstellungen liegen als `settings/settings-cnc.json` vor. Ein eigener CNC-Controller oder eine eigene Route existiert im Backend derzeit nicht.
+CNC-Einstellungen liegen als `settings/settings-cnc.json` vor. Editor und Compiler laufen im Browser; persistiert wird über die generische Projekt-JSON-API. Details: [CNC-Editor und Compiler](../frontend/project-modules.md#cnc-editor).
 
 ## Cabinet Editor
 
-Projektbezogene Cabinet-Daten werden als `cabinet.json` gespeichert. Globale Einstellungen und Presets verwenden `settings-cabinet.json` beziehungsweise `settings-cabinetPreset.json`.
+Der Korpuskonfigurator pflegt Sektions-/Frontbäume, erzeugt Teile und kompiliert CNC-Operationen. Projektbezogene Daten werden als `cabinet.json`, Listen als `list.json` gespeichert. Details: [Korpuskonfigurator](../frontend/project-modules.md#korpuskonfigurator).
 
 ## CRM
 
