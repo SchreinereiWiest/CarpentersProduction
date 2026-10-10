@@ -284,16 +284,21 @@ export const getAllProjectsID = async (req, res) => {
 };
 
 
-export const getAllActive = async (req, res) => {
+export const getAllProjects = async (req, res) => {
     
   try {
 
+    const isAdmin = req.user?.role === "admin";
+    const visibleStatuses = isAdmin
+      ? ["active", "inactive"]
+      : ["active"];
+
     const projects = await prisma.project.findMany({
         where: {
-        status: {
-            not: "archived"
-        }
-    },
+          status: {
+            in: visibleStatuses
+          }
+        },
         orderBy: [
           {
             title: "asc",
@@ -316,6 +321,9 @@ export const getAllActive = async (req, res) => {
     });
   }
 };
+
+// Kept as an alias for existing API consumers.
+export const getAllActive = getAllProjects;
 
 
 export const getProject = async (req, res) => {
@@ -650,4 +658,3 @@ export async function createGeneratedProjectData(req,res){
     });
 
 }
-

@@ -15,13 +15,13 @@ function ProjectOverview() {
     const fileInputRef = useRef(null);
 
     const fetchProjects = async () => {
-        const result = await axios.get(`/api/projects/getActive`);
+        const result = await axios.get(`/api/projects/getAll`);
         setProjects(result.data.projects);
     };
 
     useEffect(() => {
         let active = true;
-        axios.get(`/api/projects/getActive`).then(result => {
+        axios.get(`/api/projects/getAll`).then(result => {
             if (active) setProjects(result.data.projects);
         }).catch(error => {
             console.error("Projekte konnten nicht geladen werden:", error);

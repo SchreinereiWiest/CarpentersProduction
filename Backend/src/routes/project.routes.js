@@ -1,7 +1,7 @@
 import express from "express";
 import prisma from "../config/prisma.js";
 
-import { newProject, getAllProjectsID, getProject, getGeneratedProjectData, createGeneratedProjectData, getAllActive, updateProject, deleteProject } from "../controllers/project.controller.js";
+import { newProject, getAllProjectsID, getProject, getGeneratedProjectData, createGeneratedProjectData, getAllProjects, updateProject, deleteProject } from "../controllers/project.controller.js";
 import { authenticate } from "../middleware/auth.middleware.js";
 import { getTime, manualTime, startTime, stopTime } from "../controllers/time.controller.js";
 import { exportProject, importProject } from "../controllers/projectArchive.controller.js";
@@ -27,7 +27,10 @@ router.delete("/delete/:projectId", deleteProject);
 
 router.get("/getAll/:id", authenticate, getAllProjectsID);
 
-router.get("/getActive", authenticate, getAllActive);
+router.get("/getAll", authenticate, getAllProjects);
+
+// Backwards-compatible route for older clients.
+router.get("/getActive", authenticate, getAllProjects);
 
 router.get("/get/:id", authenticate, getProject);
 
