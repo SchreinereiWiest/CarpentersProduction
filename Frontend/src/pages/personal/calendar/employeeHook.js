@@ -175,70 +175,173 @@ export function useEmployeeCalendar(companySettings) {
 
         // API später
 
-    }    
+    }
+
+    function getOpenEntryAssignment(targetSlot, openEntry) {
+
+        const duration = Number(openEntry?.duration);
+
+        if (!targetSlot?.free || !Number.isInteger(duration) || duration <= 0) {
+            return {
+                valid: false,
+                split: false,
+                error: "Die offene Zeit besitzt keine gültige Dauer."
+            };
+        }
+
+        const day = weekData.find(entry => entry.day === targetSlot.position.day);
+        const blockIndex = day?.blocks.findIndex(entry => {
+            const blockId = Number(String(entry.id).split("-").at(-1));
+            return blockId === targetSlot.position.block;
+        }) ?? -1;
+        const currentBlock = day?.blocks[blockIndex];
+
+        if (!currentBlock || !targetSlot.date) {
+            return {
+                valid: false,
+                split: false,
+                error: "Der gewählte Kalenderblock ist ungültig."
+            };
+        }
+
+        const createSegment = (slot, block, segmentDuration) => {
+            const start = addMinutesToTime(block.start, slot.start);
+            const startedAt = new Date(`${slot.date}T${start}`);
+            const endedAt = new Date(
+                startedAt.getTime() + segmentDuration * 60 * 1000
+            );
+
+            return {
+                slot,
+                duration: segmentDuration,
+                startTime: startedAt.toISOString(),
+                endTime: endedAt.toISOString()
+            };
+        };
+
+        const segments = [];
+        let remainingDuration = duration;
+        let currentBlockIndex = blockIndex;
+        let currentSlot = targetSlot;
+
+        while (remainingDuration > 0) {
+            const block = day.blocks[currentBlockIndex];
+
+            if (!block) {
+                return {
+                    valid: false,
+                    split: segments.length > 0,
+                    error: "Die offene Zeit überschreitet das Ende des Arbeitstages."
+                };
+            }
+
+            if (currentBlockIndex !== blockIndex) {
+                currentSlot = block.slots.find(slot => (
+                    slot.free && slot.start === 0
+                ));
+
+                if (!currentSlot) {
+                    return {
+                        valid: false,
+                        split: segments.length > 0,
+                        error: "Die offene Zeit würde mit einem bereits platzierten Eintrag kollidieren."
+                    };
+                }
+            }
+
+            const availableDuration = Math.min(
+                currentSlot.duration,
+                block.duration - currentSlot.start
+            );
+            const segmentDuration = Math.min(
+                remainingDuration,
+                availableDuration
+            );
+
+            segments.push(createSegment(
+                currentSlot,
+                block,
+                segmentDuration
+            ));
+            remainingDuration -= segmentDuration;
+
+            if (remainingDuration === 0) break;
+
+            const reachesBlockEnd = (
+                currentSlot.start + availableDuration === block.duration
+            );
+
+            if (!reachesBlockEnd) {
+                return {
+                    valid: false,
+                    split: true,
+                    error: "Die offene Zeit würde mit einem bereits platzierten Eintrag kollidieren."
+                };
+            }
+
+            currentBlockIndex += 1;
+        }
+
+        return {
+            valid: true,
+            split: segments.length > 1,
+            segments
+        };
+
+    }
 
     async function assignOpenEntry(targetSlot, openEntry) {
 
         if (!targetSlot?.free || !openEntry || assigningEntryId) return;
 
-        const duration = Number(openEntry.duration);
+        const assignment = getOpenEntryAssignment(targetSlot, openEntry);
 
-        if (!Number.isFinite(duration) || duration <= 0) {
+        if (!assignment.valid) {
             setAssignmentMessage({
                 type: "error",
-                text: "Die offene Zeit besitzt keine gültige Dauer."
+                text: assignment.error
             });
             return;
         }
-
-        if (duration > targetSlot.duration) {
-            setAssignmentMessage({
-                type: "error",
-                text: `Der gewählte freie Bereich ist zu kurz. Benötigt werden ${duration} Minuten.`
-            });
-            return;
-        }
-
-        const block = blocks.find(entry => entry.id === targetSlot.position.block);
-
-        if (!block || !targetSlot.date) {
-            setAssignmentMessage({
-                type: "error",
-                text: "Der gewählte Kalenderblock ist ungültig."
-            });
-            return;
-        }
-
-        const start = addMinutesToTime(block.start, targetSlot.start);
-        const startedAt = new Date(`${targetSlot.date}T${start}`);
-        const endedAt = new Date(startedAt.getTime() + duration * 60 * 1000);
 
         setAssigningEntryId(openEntry.id);
         setAssignmentMessage(null);
 
         try {
-            const { data: assignedEntry } = await axios.patch(
+            const { data } = await axios.patch(
                 `/api/time/${openEntry.id}/assign`,
                 {
-                    startTime: startedAt.toISOString(),
-                    endTime: endedAt.toISOString()
+                    segments: assignment.segments.map(segment => ({
+                        startTime: segment.startTime,
+                        endTime: segment.endTime,
+                        duration: segment.duration
+                    }))
                 }
             );
 
-            const updatedWeek = insertSlot({
-                ...openEntry,
-                ...assignedEntry,
-                id: targetSlot.id,
-                timeEntryId: openEntry.id,
-                position: targetSlot.position,
-                date: targetSlot.date,
-                offset: targetSlot.start,
-                color: "#10B981",
-                manual: true
-            }, {
-                weekData,
-                setWeekData
+            let updatedWeek = weekData;
+
+            assignment.segments.forEach((segment, index) => {
+                const assignedEntry = data.entries[index];
+
+                updatedWeek = insertSlot({
+                    ...openEntry,
+                    ...assignedEntry,
+                    id: segment.slot.id,
+                    timeEntryId: assignedEntry.id,
+                    position: segment.slot.position,
+                    date: segment.slot.date,
+                    offset: segment.slot.start,
+                    duration: segment.duration,
+                    color: "#10B981",
+                    manual: true
+                }, {
+                    weekData: updatedWeek,
+                    setWeekData: () => {}
+                });
             });
+
+            setWeekData(updatedWeek);
 
             setMissingEntries(previous => (
                 previous.filter(entry => entry.id !== openEntry.id)
@@ -247,7 +350,9 @@ export function useEmployeeCalendar(companySettings) {
             setSelectedSlot(null);
             setAssignmentMessage({
                 type: "success",
-                text: "Die offene Zeit wurde dem Kalender zugeordnet."
+                text: assignment.split
+                    ? `Die offene Zeit wurde auf ${assignment.segments.length} Arbeitsblöcke aufgeteilt.`
+                    : "Die offene Zeit wurde dem Kalender zugeordnet."
             });
 
             try {
@@ -359,6 +464,8 @@ export function useEmployeeCalendar(companySettings) {
         loadMissingEntries,
 
         loadProjects,
+
+        getOpenEntryAssignment,
 
         assignOpenEntry,
 

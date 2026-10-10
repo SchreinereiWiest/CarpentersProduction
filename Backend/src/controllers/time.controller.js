@@ -295,17 +295,6 @@ export const assignTimeEntry = async (req, res) => {
 
     try {
 
-        const startedAt = new Date(req.body.startTime);
-        const endedAt = new Date(req.body.endTime);
-
-        if (
-            Number.isNaN(startedAt.getTime()) ||
-            Number.isNaN(endedAt.getTime()) ||
-            endedAt <= startedAt
-        ) {
-            return res.status(400).json({ error: "Invalid time range" });
-        }
-
         const existingEntry = await prisma.timeEntry.findUnique({
             where: { id: req.params.id }
         });
@@ -322,15 +311,86 @@ export const assignTimeEntry = async (req, res) => {
             return res.status(409).json({ error: "Time entry is already assigned" });
         }
 
-        const entry = await prisma.timeEntry.update({
-            where: { id: req.params.id },
-            data: {
-                startedAt,
-                endedAt
-            }
+        const rawSegments = Array.isArray(req.body.segments)
+            ? req.body.segments
+            : [{
+                startTime: req.body.startTime,
+                endTime: req.body.endTime,
+                duration: existingEntry.duration
+            }];
+
+        if (rawSegments.length < 1) {
+            return res.status(400).json({ error: "At least one time segment is required" });
+        }
+
+        const segments = rawSegments.map(segment => ({
+            startedAt: new Date(segment.startTime),
+            endedAt: new Date(segment.endTime),
+            duration: Number(segment.duration)
+        }));
+
+        const invalidSegment = segments.some(segment => {
+            const elapsedMinutes = (
+                segment.endedAt.getTime() - segment.startedAt.getTime()
+            ) / 60000;
+
+            return (
+                Number.isNaN(segment.startedAt.getTime()) ||
+                Number.isNaN(segment.endedAt.getTime()) ||
+                segment.endedAt <= segment.startedAt ||
+                !Number.isInteger(segment.duration) ||
+                segment.duration <= 0 ||
+                elapsedMinutes !== segment.duration
+            );
         });
 
-        return res.json(entry);
+        const assignedDuration = segments.reduce(
+            (sum, segment) => sum + segment.duration,
+            0
+        );
+
+        if (invalidSegment || assignedDuration !== existingEntry.duration) {
+            return res.status(400).json({ error: "Invalid time segments" });
+        }
+
+        const entries = await prisma.$transaction(async transaction => {
+            const [firstSegment, ...remainingSegments] = segments;
+
+            const firstEntry = await transaction.timeEntry.update({
+                where: { id: existingEntry.id },
+                data: {
+                    startedAt: firstSegment.startedAt,
+                    endedAt: firstSegment.endedAt,
+                    duration: firstSegment.duration
+                }
+            });
+
+            const splitEntries = [];
+
+            for (const segment of remainingSegments) {
+                const splitEntry = await transaction.timeEntry.create({
+                    data: {
+                        projectId: existingEntry.projectId,
+                        userId: existingEntry.userId,
+                        workType: existingEntry.workType,
+                        customWorkType: existingEntry.customWorkType,
+                        startedAt: segment.startedAt,
+                        endedAt: segment.endedAt,
+                        duration: segment.duration,
+                        note: existingEntry.note
+                    }
+                });
+
+                splitEntries.push(splitEntry);
+            }
+
+            return [firstEntry, ...splitEntries];
+        });
+
+        return res.json({
+            entries,
+            split: entries.length > 1
+        });
 
     } catch (error) {
 

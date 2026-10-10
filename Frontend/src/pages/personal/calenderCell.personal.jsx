@@ -159,7 +159,10 @@ export function TimeSlot({
 
     const selected = data.selectedSlot?.id === slot.id;
     const assigning = slot.free && Boolean(data.selectedOpenEntry);
-    const canAssign = assigning && Number(data.selectedOpenEntry.duration) <= slot.duration;
+    const assignment = assigning
+        ? data.getOpenEntryAssignment?.(slot, data.selectedOpenEntry)
+        : null;
+    const canAssign = Boolean(assignment?.valid);
 
     return (
 
@@ -203,8 +206,10 @@ export function TimeSlot({
             title={
                 assigning
                     ? canAssign
-                        ? "Offene Zeit hier zuordnen"
-                        : "Dieser Bereich ist für die offene Zeit zu kurz"
+                        ? assignment.split
+                            ? `Offene Zeit auf ${assignment.segments.length} Arbeitsblöcke aufteilen`
+                            : "Offene Zeit hier zuordnen"
+                        : assignment?.error
                     : undefined
             }
 
@@ -268,7 +273,15 @@ export function TimeSlot({
 
                     <div className="text-gray-500">
 
-                        {assigning ? (canAssign ? "Hier zuordnen" : "Zu kurz") : "Frei"}
+                        {
+                            assigning
+                                ? canAssign
+                                    ? assignment.split
+                                        ? "Hier aufteilen"
+                                        : "Hier zuordnen"
+                                    : "Nicht möglich"
+                                : "Frei"
+                        }
 
                     </div>
 
