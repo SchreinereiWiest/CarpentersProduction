@@ -171,7 +171,17 @@ export const getOpenEntrys = async (req, res) => {
         const entries = await prisma.timeEntry.findMany({
 
             where:{
-                startedAt: null
+                startedAt: null,
+                userId: req.user.id
+            },
+
+            include: {
+                project: {
+                    select: {
+                        id: true,
+                        title: true
+                    }
+                }
             },
 
             orderBy:{
@@ -276,6 +286,115 @@ export const manualTime = async (req, res) => {
     catch (error) {
         console.error(error);
         res.status(500).json({ error: "Internal server error" });
+    }
+
+}
+
+
+export const assignTimeEntry = async (req, res) => {
+
+    try {
+
+        const startedAt = new Date(req.body.startTime);
+        const endedAt = new Date(req.body.endTime);
+
+        if (
+            Number.isNaN(startedAt.getTime()) ||
+            Number.isNaN(endedAt.getTime()) ||
+            endedAt <= startedAt
+        ) {
+            return res.status(400).json({ error: "Invalid time range" });
+        }
+
+        const existingEntry = await prisma.timeEntry.findUnique({
+            where: { id: req.params.id }
+        });
+
+        if (!existingEntry) {
+            return res.status(404).json({ error: "Time entry not found" });
+        }
+
+        if (existingEntry.userId !== req.user.id && req.user.role !== "admin") {
+            return res.status(403).json({ error: "Not authorized" });
+        }
+
+        if (existingEntry.startedAt) {
+            return res.status(409).json({ error: "Time entry is already assigned" });
+        }
+
+        const entry = await prisma.timeEntry.update({
+            where: { id: req.params.id },
+            data: {
+                startedAt,
+                endedAt
+            }
+        });
+
+        return res.json(entry);
+
+    } catch (error) {
+
+        console.error(error);
+        return res.status(500).json({ error: "Internal server error" });
+
+    }
+
+}
+
+
+export const updateTimeEntry = async (req, res) => {
+
+    try {
+
+        const startedAt = new Date(req.body.startTime);
+        const endedAt = new Date(req.body.endTime);
+        const duration = Number(req.body.duration);
+
+        if (
+            Number.isNaN(startedAt.getTime()) ||
+            Number.isNaN(endedAt.getTime()) ||
+            endedAt <= startedAt ||
+            !Number.isFinite(duration) ||
+            duration <= 0
+        ) {
+            return res.status(400).json({ error: "Invalid time entry" });
+        }
+
+        const existingEntry = await prisma.timeEntry.findUnique({
+            where: { id: req.params.id }
+        });
+
+        if (!existingEntry) {
+            return res.status(404).json({ error: "Time entry not found" });
+        }
+
+        if (existingEntry.userId !== req.user.id && req.user.role !== "admin") {
+            return res.status(403).json({ error: "Not authorized" });
+        }
+
+        const entry = await prisma.timeEntry.update({
+            where: { id: req.params.id },
+            data: {
+                projectId: req.body.projectId,
+                workType: req.body.workType,
+                customWorkType: req.body.customWorkType?.trim() || null,
+                startedAt,
+                endedAt,
+                duration
+            }
+        });
+
+        return res.json(entry);
+
+    } catch (error) {
+
+        if (error.code === "P2025") {
+            return res.status(404).json({ error: "Time entry not found" });
+        }
+
+        console.error(error);
+        return res.status(500).json({ error: "Internal server error" });
+
     }
 
 }

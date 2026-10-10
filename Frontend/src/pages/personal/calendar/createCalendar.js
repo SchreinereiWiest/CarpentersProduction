@@ -1,9 +1,4 @@
-import {toMinutes, addMinutesToTime, getBlockForEntry, createId} from "./helper";
-import {loadDayEntries, loadWeek} from "./loadCalendar";
-import {findInsertSlot, insertSlot, mergeFreeSlots, insertIntoSlots, updateSlot} from "./SlotsCalendar";
-import {saveEditedSlot, saveWeek} from "./saveCalendar";
-import axios from "axios";
-import {getCalendarWeek} from "./helper";
+import { createId, getCalendarWeek } from "./helper";
 
     export function createCalendarEntry(timeEntry, block, dayId, slotId) {
 
@@ -35,7 +30,9 @@ import {getCalendarWeek} from "./helper";
 
             manual: false,
 
-            ...timeEntry
+            ...timeEntry,
+
+            timeEntryId: timeEntry.id
 
         };
 
@@ -63,7 +60,7 @@ import {getCalendarWeek} from "./helper";
     for (const [index, day] of Cal.days.entries()) {
         const date = new Date(weekStart);
 
-        date.setDate(weekStart.getDate() + index + 1);
+        date.setDate(weekStart.getDate() + index);
 
         const dateString = date.toISOString().split("T")[0];
 

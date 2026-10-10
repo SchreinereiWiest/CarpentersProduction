@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { getCalendarWeek } from "./helper";
+import axios from "axios";
+import { addMinutesToTime, getCalendarWeek } from "./helper";
 import {loadDayEntries, loadWeek} from "./loadCalendar";
 import { createWeek } from "./createCalendar";
 import { insertSlot } from "./SlotsCalendar";
@@ -17,6 +18,10 @@ export function useEmployeeCalendar(companySettings) {
 
     // Offener Zeiteintrag rechts
     const [selectedOpenEntry, setSelectedOpenEntry] = useState(null);
+
+    const [assigningEntryId, setAssigningEntryId] = useState(null);
+
+    const [assignmentMessage, setAssignmentMessage] = useState(null);
 
     // Bearbeitungsdialog
     const [editingSlot, setEditingSlot] = useState(null);
@@ -88,7 +93,9 @@ export function useEmployeeCalendar(companySettings) {
 
     function selectOpenEntry(entry) {
 
-        setSelectedOpenEntry(entry);
+        setSelectedOpenEntry(previous => previous?.id === entry.id ? null : entry);
+
+        setAssignmentMessage(null);
 
     }
 
@@ -170,24 +177,100 @@ export function useEmployeeCalendar(companySettings) {
 
     }    
 
-    function onDropOpenEntry(position, openEntry, Cal) {
+    async function assignOpenEntry(targetSlot, openEntry) {
 
-        insertSlot({
+        if (!targetSlot?.free || !openEntry || assigningEntryId) return;
 
-            ...openEntry,
+        const duration = Number(openEntry.duration);
 
-            position,
+        if (!Number.isFinite(duration) || duration <= 0) {
+            setAssignmentMessage({
+                type: "error",
+                text: "Die offene Zeit besitzt keine gültige Dauer."
+            });
+            return;
+        }
 
-            manual: false,
+        if (duration > targetSlot.duration) {
+            setAssignmentMessage({
+                type: "error",
+                text: `Der gewählte freie Bereich ist zu kurz. Benötigt werden ${duration} Minuten.`
+            });
+            return;
+        }
 
-            offset: 0,
+        const block = blocks.find(entry => entry.id === targetSlot.position.block);
 
-            Cal: Cal
+        if (!block || !targetSlot.date) {
+            setAssignmentMessage({
+                type: "error",
+                text: "Der gewählte Kalenderblock ist ungültig."
+            });
+            return;
+        }
 
-        });
+        const start = addMinutesToTime(block.start, targetSlot.start);
+        const startedAt = new Date(`${targetSlot.date}T${start}`);
+        const endedAt = new Date(startedAt.getTime() + duration * 60 * 1000);
 
-        setSelectedOpenEntry(null);
-        setSelectedSlot(null);
+        setAssigningEntryId(openEntry.id);
+        setAssignmentMessage(null);
+
+        try {
+            const { data: assignedEntry } = await axios.patch(
+                `/api/time/${openEntry.id}/assign`,
+                {
+                    startTime: startedAt.toISOString(),
+                    endTime: endedAt.toISOString()
+                }
+            );
+
+            const updatedWeek = insertSlot({
+                ...openEntry,
+                ...assignedEntry,
+                id: targetSlot.id,
+                timeEntryId: openEntry.id,
+                position: targetSlot.position,
+                date: targetSlot.date,
+                offset: targetSlot.start,
+                color: "#10B981",
+                manual: true
+            }, {
+                weekData,
+                setWeekData
+            });
+
+            setMissingEntries(previous => (
+                previous.filter(entry => entry.id !== openEntry.id)
+            ));
+            setSelectedOpenEntry(null);
+            setSelectedSlot(null);
+            setAssignmentMessage({
+                type: "success",
+                text: "Die offene Zeit wurde dem Kalender zugeordnet."
+            });
+
+            try {
+                await saveWeek(updatedWeek, {
+                    user,
+                    weekData: updatedWeek
+                });
+            } catch (saveError) {
+                console.error("Kalenderwoche konnte nicht gespeichert werden:", saveError);
+                setAssignmentMessage({
+                    type: "error",
+                    text: "Die Zeit wurde zugeordnet, aber die Kalenderwoche konnte nicht gespeichert werden."
+                });
+            }
+        } catch (error) {
+            console.error("Offene Zeit konnte nicht zugeordnet werden:", error);
+            setAssignmentMessage({
+                type: "error",
+                text: "Die offene Zeit konnte nicht zugeordnet werden."
+            });
+        } finally {
+            setAssigningEntryId(null);
+        }
 
     }
 
@@ -224,6 +307,9 @@ export function useEmployeeCalendar(companySettings) {
 
         selectedOpenEntry,
         setSelectedOpenEntry,
+
+        assigningEntryId,
+        assignmentMessage,
 
         editingSlot,
         setEditingSlot,
@@ -274,7 +360,7 @@ export function useEmployeeCalendar(companySettings) {
 
         loadProjects,
 
-        onDropOpenEntry,
+        assignOpenEntry,
 
         saveEditedSlot,
 

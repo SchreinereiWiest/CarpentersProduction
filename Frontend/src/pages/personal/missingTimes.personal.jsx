@@ -5,7 +5,9 @@ export default function MissingTimes({
     entries,
     selected,
     setSelected,
-    workTypes
+    workTypes,
+    assigningEntryId,
+    message
 
 }) {
 
@@ -44,6 +46,22 @@ export default function MissingTimes({
                 space-y-3
             ">
 
+                {message && (
+                    <div className={`mb-3 rounded-lg border px-3 py-2 text-sm ${
+                        message.type === "success"
+                            ? "border-green-800 bg-green-950/40 text-green-300"
+                            : "border-red-800 bg-red-950/40 text-red-300"
+                    }`}>
+                        {message.text}
+                    </div>
+                )}
+
+                {selected && (
+                    <div className="mb-3 rounded-lg border border-blue-800 bg-blue-950/40 px-3 py-2 text-sm text-blue-200">
+                        Klicke jetzt auf einen passenden freien Kalenderbereich.
+                    </div>
+                )}
+
                 {
 
                     entries?.map(entry => {
@@ -56,6 +74,12 @@ export default function MissingTimes({
                             <button
 
                                 key={entry.id}
+
+                                type="button"
+
+                                disabled={Boolean(assigningEntryId)}
+
+                                aria-pressed={active}
 
                                 onClick={()=>
 
@@ -95,7 +119,7 @@ export default function MissingTimes({
 
                                 <div className="font-semibold">
 
-                                    {entry.project}
+                                    {entry.project?.title || entry.projectId}
 
                                 </div>
 
@@ -114,7 +138,7 @@ export default function MissingTimes({
                                     font-medium
                                 ">
 
-                                    {Math.round(entry.duration / 60)} min
+                                    {entry.duration} min
 
                                 </div>
 

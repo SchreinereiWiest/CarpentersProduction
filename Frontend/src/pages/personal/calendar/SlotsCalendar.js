@@ -116,6 +116,7 @@ export function insertSlot(entry, Cal) {
                         projectId: entry.projectId,
                         workType: entry.workType,
                         customWorkType: entry.customWorkType,
+                        timeEntryId: entry.timeEntryId,
                         color: entry.color,
                         duration: entry.duration,
                         start: slot.start + before,
@@ -270,6 +271,8 @@ export function insertIntoSlots(slots, entry, dayId, blockId) {
             workType: entry.workType,
 
             customWorkType: entry.customWorkType,
+
+            timeEntryId: entry.timeEntryId,
 
             color: entry.color,
 

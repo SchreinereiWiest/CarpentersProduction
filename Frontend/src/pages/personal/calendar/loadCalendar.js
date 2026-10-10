@@ -1,7 +1,6 @@
-import {toMinutes, addMinutesToTime, getBlockForEntry, createId} from "./helper";
-import {createCalendarEntry, createWeek} from "./createCalendar";
-import {findInsertSlot, insertSlot, mergeFreeSlots, insertIntoSlots, updateSlot} from "./SlotsCalendar";
-import {saveEditedSlot, saveWeek} from "./saveCalendar";
+import { getBlockForEntry } from "./helper";
+import { createCalendarEntry, createWeek } from "./createCalendar";
+import { findInsertSlot, insertSlot } from "./SlotsCalendar";
 import axios from "axios";
 
 export async function loadWeek(userId, Cal, weekOffset) {
@@ -89,7 +88,7 @@ export async function loadDayEntries(weekData, user, Cal) {
 
     
 
-    for (const [index, day] of weekData.entries()) {
+    for (const day of weekData) {
         // console.log(day);
         try {
             const dayentry = await axios.get(`/api/time/day/${day.date}`);
@@ -99,7 +98,7 @@ export async function loadDayEntries(weekData, user, Cal) {
                 // console.log(entry);
 
                 if(entry.userId !== user.id) continue;
-                const block = getBlockForEntry(entry, blocks);
+                const block = getBlockForEntry(entry, Cal.blocks);
 
                 // console.log(block);
 

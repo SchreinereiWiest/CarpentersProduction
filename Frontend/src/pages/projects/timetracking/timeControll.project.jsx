@@ -49,21 +49,21 @@ export default function TimeControls({
 
         update();
 
-        const interval = setInterval(update, 1000/60);
+        const interval = setInterval(update, 1000);
 
         return () => clearInterval(interval);
 
     }, [runningEntry]);
 
-    function formatTime(seconds) {
+    function formatTime(totalMinutes) {
 
-    if (!seconds) return "00:00";
+    if (!totalMinutes) return "00:00";
 
-    const h = Math.floor(seconds / 60)
+    const h = Math.floor(totalMinutes / 60)
         .toString()
         .padStart(2, "0");
 
-    const m = Math.floor((seconds % 60))
+    const m = Math.floor((totalMinutes % 60))
         .toString()
         .padStart(2, "0");
 
@@ -298,10 +298,10 @@ export default function TimeControls({
 
     disabled={disabled}
 
-    onChange={(seconds) =>
+    onChange={(minutes) =>
         setManualTimes(prev => ({
             ...prev,
-            [work.id]: seconds
+            [work.id]: minutes
         }))
     }
 
@@ -367,9 +367,9 @@ export default function TimeControls({
                 <DurationInput
                     value={manualTimes[CUSTOM_WORK_TYPE_ID] ?? 0}
                     disabled={Boolean(runningEntry)}
-                    onChange={seconds => setManualTimes(previous => ({
+                    onChange={minutes => setManualTimes(previous => ({
                         ...previous,
-                        [CUSTOM_WORK_TYPE_ID]: seconds
+                        [CUSTOM_WORK_TYPE_ID]: minutes
                     }))}
                 />
                 <button

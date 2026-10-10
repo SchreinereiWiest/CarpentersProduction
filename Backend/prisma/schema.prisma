@@ -330,7 +330,7 @@ model TimeEntry {
   startedAt DateTime? @map("started_at")
   endedAt   DateTime? @map("ended_at")
 
-  duration Int @default(0) // Sekunden
+  duration Int @default(0) // Minuten
 
   note String?
 

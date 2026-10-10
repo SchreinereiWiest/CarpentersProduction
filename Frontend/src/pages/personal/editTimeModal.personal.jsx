@@ -58,6 +58,8 @@ export default function EditTimeModal({
 
             customWorkType: slot?.customWorkType ?? "",
 
+            timeEntryId: slot?.timeEntryId ?? null,
+
             start: startTime,
 
             duration: slot?.duration ?? 0
@@ -328,6 +330,8 @@ export default function EditTimeModal({
                                     customWorkType: entry.workType === CUSTOM_WORK_TYPE_ID
                                         ? entry.customWorkType.trim()
                                         : null,
+
+                                    timeEntryId: entry.timeEntryId,
 
                                     color: "#10B981",
 

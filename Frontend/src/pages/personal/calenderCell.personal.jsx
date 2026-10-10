@@ -158,34 +158,27 @@ export function TimeSlot({
 }) {
 
     const selected = data.selectedSlot?.id === slot.id;
+    const assigning = slot.free && Boolean(data.selectedOpenEntry);
+    const canAssign = assigning && Number(data.selectedOpenEntry.duration) <= slot.duration;
+
     return (
 
         <button
 
-            onClick={() =>
+            onClick={() => {
+                if (slot.free && data.selectedOpenEntry) {
+                    data.assignOpenEntry?.(slot, data.selectedOpenEntry);
+                    return;
+                }
 
-                data.setSelectedSlot(slot)
-
-            }
+                data.setSelectedSlot(slot);
+            }}
 
             onDoubleClick={() => {
 
+                if (data.selectedOpenEntry) return;
+
                 if(
-
-                    slot.free &&
-                    data.selectedOpenEntry
-
-                ){
-
-                    data.onDropOpenEntry?.(
-
-                        slot,
-
-                        data.selectedOpenEntry
-
-                    );
-
-                } else if(
 
                     slot.free
 
@@ -206,6 +199,14 @@ export function TimeSlot({
                 flex:slot.duration
 
             }}
+
+            title={
+                assigning
+                    ? canAssign
+                        ? "Offene Zeit hier zuordnen"
+                        : "Dieser Bereich ist für die offene Zeit zu kurz"
+                    : undefined
+            }
 
             className={`
 
@@ -236,6 +237,13 @@ export function TimeSlot({
                     ""
                 }
 
+                ${assigning
+                    ? canAssign
+                        ? "ring-2 ring-inset ring-blue-500 bg-blue-950/30 cursor-copy"
+                        : "opacity-50 cursor-not-allowed"
+                    : ""
+                }
+
                 ${selected
 
                     ?
@@ -260,7 +268,7 @@ export function TimeSlot({
 
                     <div className="text-gray-500">
 
-                        Frei
+                        {assigning ? (canAssign ? "Hier zuordnen" : "Zu kurz") : "Frei"}
 
                     </div>
 

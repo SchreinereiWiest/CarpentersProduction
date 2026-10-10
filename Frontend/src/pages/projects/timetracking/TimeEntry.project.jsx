@@ -1,41 +1,26 @@
-import { useEffect, useState } from "react";
-
-
 export default function DurationInput({
     value = 0,
     onChange,
     disabled = false
 }) {
 
-    const [hours, setHours] = useState("00");
-    const [minutes, setMinutes] = useState("00");
-
-    useEffect(() => {
-
-        const h = Math.floor(value / 60);
-        const m = Math.floor((value % 60));
-
-        setHours(String(h).padStart(2, "0"));
-        setMinutes(String(m).padStart(2, "0"));
-
-    }, [value]);
+    const hours = Math.floor(value / 60);
+    const minutes = Math.floor(value % 60);
 
 
     function updateTime(type, newValue) {
 
-        let h = Number(hours);
-        let m = Number(minutes);
+        let h = hours;
+        let m = minutes;
 
 
         if(type === "hours") {
-            h = Number(newValue);
-            setHours(newValue);
+            h = Math.max(0, Number(newValue) || 0);
         }
 
 
         if(type === "minutes") {
-            m = Number(newValue);
-            setMinutes(newValue);
+            m = Math.max(0, Number(newValue) || 0);
         }
 
 
@@ -43,7 +28,7 @@ export default function DurationInput({
         if(m > 59) m = 59;
 
         onChange(
-            h * 60 + m 
+            h * 60 + m
             
         );
 

@@ -106,6 +106,10 @@ export default function Personal() {
 
     workTypes={Calendar.workTypes}
 
+    assigningEntryId={Calendar.assigningEntryId}
+
+    message={Calendar.assignmentMessage}
+
 />
 
 <EditTimeModal
