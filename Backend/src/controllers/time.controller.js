@@ -31,6 +31,8 @@ export const startTime = async (req, res) => {
 
                 workType: req.body.workType,
 
+                customWorkType: req.body.customWorkType?.trim() || null,
+
                 startedAt: new Date(),
             }
 
@@ -211,6 +213,8 @@ export const newTime = async (req, res) => {
 
                 workType: req.body.workType,
 
+                customWorkType: req.body.customWorkType?.trim() || null,
+
                 startedAt: new Date(req.body.startTime),
 
                 endedAt: new Date(req.body.endTime),
@@ -255,6 +259,8 @@ export const manualTime = async (req, res) => {
                 },
 
                 workType: req.body.workType,
+
+                customWorkType: req.body.customWorkType?.trim() || null,
 
                 duration: req.body.duration,
 

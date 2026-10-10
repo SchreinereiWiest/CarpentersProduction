@@ -1,47 +1,16 @@
 import { useParams } from 'react-router';
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import axios from "axios";
 
 import TimeControls from "./timeControll.project";
 import TimeHistory from "./timehistory.project";
 import SideBar from "../../../components/sideBar";
 import ProjectBar from "../../../components/projectBar";
-
-export const workTypes = [
-
-    {
-        id: "cutting",
-        label: "Zuschnitt"
-    },
-
-    {
-        id: "edging",
-        label: "Bekantung"
-    },
-
-    {
-        id: "cnc",
-        label: "CNC"
-    },
-
-    {
-        id: "assembly",
-        label: "Zusammenbau"
-    },
-
-    {
-        id: "finishing",
-        label: "Finalisierung"
-    },
-
-    {
-        id: "installation",
-        label: "Montage"
-    }
-
-];
+import useCompanySettings from "../../../hooks/useCompanySettings";
 
 export default function TimeTracking() {
+
+    const { settings } = useCompanySettings();
 
     const [entries, setEntries] = useState([]);
 
@@ -49,10 +18,7 @@ export default function TimeTracking() {
 
     const { projectId } = useParams();
 
-    const [project, setProject] = useState(null);
-    const [customer, setCustomer] = useState(null);
-
-    async function loadEntries() {
+    const loadEntries = useCallback(async () => {
 
         const { data } = await axios.get(
             `/api/projects/time/${projectId}`
@@ -66,21 +32,21 @@ export default function TimeTracking() {
 
         setActiveEntry(running ?? null);
 
-    }
+    }, [projectId]);
 
     useEffect(() => {
-        const fetchProject = async () => {
-            const { data } = await axios.get(`/api/projects/get/${projectId}`);
-            const projectData = data.project;
-            setProject(data.project);
+        let mounted = true;
 
-            const customerdata = await axios.get(`/api/customers/get/${data.project.customerId}`);
-            setCustomer(customerdata.data.customer);
+        axios.get(`/api/projects/time/${projectId}`).then(({ data }) => {
+            if (!mounted) return;
 
+            setEntries(data);
+            setActiveEntry(data.find(entry => !entry.endedAt && entry.startedAt) ?? null);
+        });
+
+        return () => {
+            mounted = false;
         };
-
-        fetchProject();
-        loadEntries();
     }, [projectId]);
 
     return (
@@ -113,11 +79,15 @@ export default function TimeTracking() {
 
                 reload={loadEntries}
 
+                workTypes={settings.workTypes}
+
             />
 
             <TimeHistory
 
                 entries={entries}
+
+                workTypes={settings.workTypes}
 
             />
 

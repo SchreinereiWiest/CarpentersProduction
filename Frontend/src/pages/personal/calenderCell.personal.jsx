@@ -1,4 +1,4 @@
-import {workTypes} from "../projects/timetracking/timeTracking.project";
+import { getWorkTypeLabel } from "../../services/companySettings";
 
 export default function DayColumn({
 
@@ -133,8 +133,6 @@ export function TimeBlock({
 
                             slot={slot}
 
-                            totalDuration={block.duration}
-
                             data={data}
 
                         />
@@ -154,8 +152,6 @@ export function TimeBlock({
 export function TimeSlot({
 
     slot,
-
-    totalDuration,
 
     data,
 
@@ -313,7 +309,7 @@ export function TimeSlot({
                         text-gray-300
                     ">
 
-                        {workTypes.find(w => w.id === slot.workType)?.label || slot.workType}
+                        {getWorkTypeLabel(data.workTypes, slot.workType, slot.customWorkType)}
 
                     </div>
 

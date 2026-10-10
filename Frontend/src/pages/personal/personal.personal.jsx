@@ -3,17 +3,19 @@ import MissingTimes from "./missingTimes.personal";
 import SideBar from "../../components/sideBar";
 import { useEmployeeCalendar } from "./calendar/employeeHook";
 import EditTimeModal from "./editTimeModal.personal";
-import { useState, useEffect } from 'react'
+import { useEffect } from "react";
 import axios from "axios";
 import { useAuth } from "../../routes/AuthContext";
+import useCompanySettings from "../../hooks/useCompanySettings";
 
 export default function Personal() {
 
-    const Calendar = useEmployeeCalendar();
+    const { settings, loading: companySettingsLoading } = useCompanySettings();
+    const Calendar = useEmployeeCalendar(settings);
     const { user, loading } = useAuth();
 
     useEffect(() => {
-        if(!user || loading) return;
+        if(!user || loading || companySettingsLoading) return;
 
         Calendar.setUser(user); 
 
@@ -44,7 +46,10 @@ export default function Personal() {
 
         fetchEntries();
 
-    }, [user, loading]);
+    // Calendar exposes the current hook state as one object. The effect must run
+    // only when authentication or the loaded company configuration changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user, loading, companySettingsLoading, settings]);
 
         // console.log("Week Data:", Calendar.weekData);
 
@@ -99,15 +104,21 @@ export default function Personal() {
 
     setSelected={Calendar.selectOpenEntry}
 
+    workTypes={Calendar.workTypes}
+
 />
 
 <EditTimeModal
+
+    key={Calendar.editingSlot?.id ?? "closed"}
 
     open={Calendar.editModalOpen}
 
     slot={Calendar.editingSlot}
 
     blocks={Calendar.blocks}
+
+    workTypes={Calendar.workTypes}
 
     projects={Calendar.projects}
 

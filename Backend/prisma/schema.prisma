@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -20,21 +19,12 @@ enum CustomerStatus {
   inactive
 }
 
-enum WorkType {
-  cutting
-  edging
-  cnc
-  assembly
-  finishing
-  installation
-}
-
 model User {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
 
-  firstName    String?  @map("first_name")
-  lastName     String?  @map("last_name")
-  email        String   @unique
+  firstName String? @map("first_name")
+  lastName  String? @map("last_name")
+  email     String  @unique
 
   login        String   @unique
   passwordHash String   @map("password_hash")
@@ -47,7 +37,7 @@ model User {
   communications Communication[]
   appointments   Appointment[]
   files          File[]
-  timeTable TimeEntry[]
+  timeTable      TimeEntry[]
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -140,7 +130,7 @@ model Project {
 
   startDate        DateTime? @map("start_date")
   installationDate DateTime? @map("installation_date")
-    completionDate   DateTime? @map("completion_date")
+  completionDate   DateTime? @map("completion_date")
 
   specialRequirements String? @map("special_requirements")
   customerNotes       String? @map("customer_notes")
@@ -160,9 +150,7 @@ model Project {
   deletedAt DateTime? @map("deleted_at")
 
   @@map("projects")
-  
 }
-
 
 model Communication {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -291,7 +279,6 @@ model ProjectStorage {
   @@map("project_storage")
 }
 
-
 model Material {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
 
@@ -325,21 +312,23 @@ model Material {
   @@map("materials")
 }
 
-
 model TimeEntry {
-
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
 
-  projectId String @map("project_id") @db.Uuid
+  projectId String  @map("project_id") @db.Uuid
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   userId String? @map("user_id") @db.Uuid
-  user   User? @relation(fields: [userId], references: [id])
+  user   User?   @relation(fields: [userId], references: [id])
 
-  workType WorkType @map("work_type")
+  // Die zulässigen Werte werden über settings-company.json gepflegt.
+  // String statt Enum: neue Tätigkeiten benötigen keine DB-Migration mehr.
+  workType String @map("work_type")
+
+  customWorkType String? @map("custom_work_type")
 
   startedAt DateTime? @map("started_at")
-  endedAt DateTime? @map("ended_at")
+  endedAt   DateTime? @map("ended_at")
 
   duration Int @default(0) // Sekunden
 

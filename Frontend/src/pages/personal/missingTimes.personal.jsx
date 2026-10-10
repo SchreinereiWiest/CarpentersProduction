@@ -1,8 +1,11 @@
+import { getWorkTypeLabel } from "../../services/companySettings";
+
 export default function MissingTimes({
 
     entries,
     selected,
-    setSelected
+    setSelected,
+    workTypes
 
 }) {
 
@@ -101,7 +104,7 @@ export default function MissingTimes({
                                     text-gray-400
                                 ">
 
-                                    {entry.workType}
+                                    {getWorkTypeLabel(workTypes, entry.workType, entry.customWorkType)}
 
                                 </div>
 

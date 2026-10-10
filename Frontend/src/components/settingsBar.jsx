@@ -1,11 +1,13 @@
 
 
-import React from "react";
-
 const tabs = [
     {
         id: "company",
         label: "Unternehmen"
+    },
+    {
+        id: "cache",
+        label: "Cache"
     },
     {
         id: "users",

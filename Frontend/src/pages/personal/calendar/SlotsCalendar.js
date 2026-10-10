@@ -1,8 +1,4 @@
-import {toMinutes, addMinutesToTime, getBlockForEntry, createId} from "./helper";
-import {loadDayEntries, loadWeek} from "./loadCalendar";
-import {createCalendarEntry, createWeek} from "./createCalendar";
-import {saveEditedSlot, saveWeek} from "./saveCalendar";
-import axios from "axios";
+import { createId } from "./helper";
 
 export function findInsertSlot(weekData, day, blockId, offset) {
         function toMinutes(time) {
@@ -119,6 +115,7 @@ export function insertSlot(entry, Cal) {
                         manual: entry.manual ?? false,
                         projectId: entry.projectId,
                         workType: entry.workType,
+                        customWorkType: entry.customWorkType,
                         color: entry.color,
                         duration: entry.duration,
                         start: slot.start + before,
@@ -271,6 +268,8 @@ export function insertIntoSlots(slots, entry, dayId, blockId) {
             projectId: entry.projectId,
 
             workType: entry.workType,
+
+            customWorkType: entry.customWorkType,
 
             color: entry.color,
 

@@ -131,7 +131,7 @@ export async function exportProject(req, res) {
                 originalAddressId: item.addressId
             })),
             timeEntries: project.timeEntries.map(item => pick(item, [
-                "userId", "workType", "startedAt", "endedAt", "duration", "note", "createdAt"
+                "userId", "workType", "customWorkType", "startedAt", "endedAt", "duration", "note", "createdAt"
             ])),
             binaryEntries: [...fileEntries, ...storageEntries]
         };
@@ -322,7 +322,7 @@ async function createImportedProject(manifest, req, state) {
     if (manifest.timeEntries.length) {
         await prisma.timeEntry.createMany({
             data: manifest.timeEntries.map(item => ({
-                ...restoreDates(pick(item, ["workType", "startedAt", "endedAt", "duration", "note", "createdAt"])),
+                ...restoreDates(pick(item, ["workType", "customWorkType", "startedAt", "endedAt", "duration", "note", "createdAt"])),
                 projectId: state.project.id,
                 userId: users.has(item.userId) ? item.userId : null
             }))

@@ -1,12 +1,12 @@
-import { useState } from "react";
-import axios from "axios";
-import {toMinutes, addMinutesToTime, getBlockForEntry, createId, getCalendarWeek} from "./helper";
+import { useMemo, useState } from "react";
+import { getCalendarWeek } from "./helper";
 import {loadDayEntries, loadWeek} from "./loadCalendar";
-import {createCalendarEntry, createWeek} from "./createCalendar";
-import {findInsertSlot, insertSlot, mergeFreeSlots, insertIntoSlots, updateSlot} from "./SlotsCalendar";
+import { createWeek } from "./createCalendar";
+import { insertSlot } from "./SlotsCalendar";
 import {saveEditedSlot, saveWeek} from "./saveCalendar";
+import { createWorkBlocks } from "../../../services/companySettings";
 
-export function useEmployeeCalendar() {
+export function useEmployeeCalendar(companySettings) {
 
     const [user, setUser] = useState();
     // Kalenderdaten der aktuellen Woche
@@ -42,7 +42,7 @@ export function useEmployeeCalendar() {
     // Fehler
     const [error, setError] = useState(null);
 
-    const [today, setToday] = useState(new Date().toISOString().split("T")[0]);
+    const [today] = useState(new Date().toISOString().split("T")[0]);
 
     const [days, setDays] = useState([
         {
@@ -67,26 +67,12 @@ export function useEmployeeCalendar() {
         }
     ]);
 
-    const blocks = [
-        {
-            id: 0,
-            start: "07:00",
-            end: "09:00",
-            duration: 120
-        },
-        {
-            id: 1,
-            start: "09:15",
-            end: "12:00",
-            duration: 165
-        },
-        {
-            id: 2,
-            start: "12:30",
-            end: "16:00",
-            duration: 210
-        }
-    ];
+    const blocks = useMemo(
+        () => createWorkBlocks(companySettings),
+        [companySettings]
+    );
+
+    const workTypes = companySettings.workTypes;
 
     /*
     ---------------------------------
@@ -205,7 +191,7 @@ export function useEmployeeCalendar() {
 
     }
 
-    function deleteSlot(slot) {
+    function deleteSlot() {
 
         // später DELETE
 
@@ -220,6 +206,7 @@ export function useEmployeeCalendar() {
 
         days,
         blocks,
+        workTypes,
 
         missingEntries,
         setMissingEntries,

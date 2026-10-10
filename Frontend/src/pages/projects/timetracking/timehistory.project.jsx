@@ -2,7 +2,7 @@
 
 import TimeRow from "./timeRow.project";
 
-export default function TimeHistory({ entries }) {
+export default function TimeHistory({ entries, workTypes }) {
 
     function formatDuration(minutes) {
 
@@ -141,6 +141,8 @@ export default function TimeHistory({ entries }) {
                                         key={entry.id}
 
                                         entry={entry}
+
+                                        workTypes={workTypes}
 
                                     />
 

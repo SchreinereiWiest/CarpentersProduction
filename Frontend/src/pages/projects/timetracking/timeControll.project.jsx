@@ -1,36 +1,36 @@
 
 
-import { useEffect, useState, setState } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
-import { workTypes } from "./timeTracking.project";
 import { useAuth } from "../../../routes/AuthContext";
 import DurationInput from "./TimeEntry.project";
+import { CUSTOM_WORK_TYPE_ID } from "../../../services/companySettings";
 
 export default function TimeControls({
     projectId,
     activeEntry,
-    reload
+    reload,
+    workTypes
 }) {
-    const { user, loading } = useAuth();
+    const { user } = useAuth();
 
-    const [runningEntry, setRunningEntry] = useState(activeEntry);
+    const runningEntry = activeEntry;
 
     const [elapsed, setElapsed] = useState(0);
 
     const [manualTimes, setManualTimes] = useState({});
 
-    const [timeUser, setTimeUser] = useState(user ?? null);
+    const [customWorkType, setCustomWorkType] = useState("");
 
     const [allUsers, setAllUsers] = useState([]);
 
-    useEffect(() => {
-        setRunningEntry(activeEntry);
-    }, [activeEntry]);
+    const [selectedUserId, setSelectedUserId] = useState("");
+
+    const timeUser = allUsers.find(entry => entry.id === selectedUserId) ?? user ?? null;
 
     useEffect(() => {
 
         if (!runningEntry) {
-            setElapsed(0);
             return;
         }
 
@@ -71,7 +71,7 @@ export default function TimeControls({
 
 }
 
-    async function startTimer(workType) {
+    async function startTimer(workType, customLabel = null) {
 
         try {
 
@@ -79,6 +79,7 @@ export default function TimeControls({
                 `/api/projects/time/${projectId}/start`,
                 {
                     workType,
+                    customWorkType: customLabel,
                     userId: timeUser.id
                 }
             );
@@ -123,10 +124,15 @@ export default function TimeControls({
 
                 if (!value) continue;
 
+                if (workType === CUSTOM_WORK_TYPE_ID && !customWorkType.trim()) continue;
+
                 await axios.post(
                     `/api/projects/time/${projectId}/new`,
                     {
                         workType,
+                        customWorkType: workType === CUSTOM_WORK_TYPE_ID
+                            ? customWorkType.trim()
+                            : null,
                         duration: value,
                         userId: timeUser.id
                     }
@@ -135,6 +141,8 @@ export default function TimeControls({
             }
 
             setManualTimes({});
+
+            setCustomWorkType("");
 
             await reload();
 
@@ -150,7 +158,6 @@ export default function TimeControls({
 
         const fetchUser = async () => {
             const { data } = await axios.get(`/api/auth/users`);
-            const allUsers = data.filterUser;
             setAllUsers(data.filterUser);
         };
         
@@ -183,16 +190,8 @@ export default function TimeControls({
 
 
         <select
-            value={timeUser?.email ?? ""}
-            onChange={(e) => {
-
-                const selectedUser = allUsers.find(
-                    u => u.email === e.target.value
-                );
-
-                setTimeUser(selectedUser);
-
-            }}
+            value={timeUser?.id ?? ""}
+            onChange={event => setSelectedUserId(event.target.value)}
             className="
                 w-full
                 rounded-lg
@@ -209,7 +208,7 @@ export default function TimeControls({
             {allUsers.map(user => (
                 <option
                     key={user.id}
-                    value={user.email}
+                    value={user.id}
                 >
                     {user.email}
                 </option>
@@ -309,7 +308,7 @@ export default function TimeControls({
 />
 
                         <button
-                            disabled={disabled}
+                            disabled={disabled || !timeUser}
                             onClick={() =>
                                 startTimer(work.id)
                             }
@@ -321,7 +320,7 @@ export default function TimeControls({
                                 transition
 
                                 ${
-                                    disabled
+                                    disabled || !timeUser
                                         ? "bg-gray-700 text-gray-500 cursor-not-allowed"
                                         : "bg-green-600 hover:bg-green-500"
                                 }
@@ -342,13 +341,55 @@ export default function TimeControls({
 
     })}
 
+    <div className="rounded-lg border border-dashed border-gray-600 bg-gray-900 p-4">
+        <div className="mb-3 font-medium">Eigene Tätigkeit</div>
+
+        <input
+            type="text"
+            value={customWorkType}
+            disabled={runningEntry && runningEntry.workType !== CUSTOM_WORK_TYPE_ID}
+            onChange={event => setCustomWorkType(event.target.value)}
+            placeholder="Eigene Bezeichnung"
+            className="mb-3 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:text-gray-500"
+        />
+
+        {runningEntry?.workType === CUSTOM_WORK_TYPE_ID ? (
+            <>
+                <div className="mb-3 text-center text-2xl font-mono font-bold text-green-400">
+                    {formatTime(elapsed)}
+                </div>
+                <button onClick={stopTimer} className="w-full rounded-lg bg-red-600 py-2 font-medium hover:bg-red-500">
+                    Stop
+                </button>
+            </>
+        ) : (
+            <>
+                <DurationInput
+                    value={manualTimes[CUSTOM_WORK_TYPE_ID] ?? 0}
+                    disabled={Boolean(runningEntry)}
+                    onChange={seconds => setManualTimes(previous => ({
+                        ...previous,
+                        [CUSTOM_WORK_TYPE_ID]: seconds
+                    }))}
+                />
+                <button
+                    disabled={Boolean(runningEntry) || !customWorkType.trim() || !timeUser}
+                    onClick={() => startTimer(CUSTOM_WORK_TYPE_ID, customWorkType.trim())}
+                    className="w-full rounded-lg bg-green-600 py-2 font-medium hover:bg-green-500 disabled:cursor-not-allowed disabled:bg-gray-700 disabled:text-gray-500"
+                >
+                    Start
+                </button>
+            </>
+        )}
+    </div>
+
 </div>
 
             <button
 
                 onClick={saveManualTimes}
 
-                disabled={runningEntry}
+                disabled={runningEntry || !timeUser}
 
                 className={`
                     w-full  
@@ -357,7 +398,7 @@ export default function TimeControls({
                     font-semibold
                     transition
 
-                    ${runningEntry
+                    ${runningEntry || !timeUser
 
                         ? "bg-gray-700 text-gray-500 cursor-not-allowed"
 

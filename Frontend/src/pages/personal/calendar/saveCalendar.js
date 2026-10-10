@@ -1,7 +1,4 @@
-import {toMinutes, addMinutesToTime, getBlockForEntry, createId} from "./helper";
-import {loadDayEntries, loadWeek} from "./loadCalendar";
-import {createCalendarEntry, createWeek} from "./createCalendar";
-import {findInsertSlot, insertSlot, mergeFreeSlots, insertIntoSlots, updateSlot} from "./SlotsCalendar";
+import { insertSlot, updateSlot } from "./SlotsCalendar";
 import axios from "axios";
 
 export async function saveEditedSlot(entry, mode, Cal) {
@@ -38,6 +35,7 @@ export async function saveEditedSlot(entry, mode, Cal) {
         `/api/time/new/${entry.projectId}`,
         {
             workType: entry.workType,
+            customWorkType: entry.customWorkType,
             duration: entry.duration,
             userId: Cal.user.id,
             startTime: startDate.toISOString(),

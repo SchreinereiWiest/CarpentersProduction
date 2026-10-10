@@ -133,13 +133,16 @@ export const getCachedGlobalFile = async ({
     const db =
         await openDb();
 
-    let cacheSettings = {healthDuration: 12 * 60 * 60 * 1000}
+    let healthDuration = 12 * 60 * 60 * 1000;
 
     if(!noExpiration) {
-        cacheSettings = await loadSettings();
+        const cacheSettings = await loadSettings();
+        const configuredHours = Number(cacheSettings?.healthDurationHours);
+
+        if (Number.isFinite(configuredHours) && configuredHours > 0) {
+            healthDuration = configuredHours * 60 * 60 * 1000;
+        }
     }
-    
-    console.log(cacheSettings);
 
     return new Promise(
         (resolve, reject) => {
@@ -181,7 +184,7 @@ export const getCachedGlobalFile = async ({
 
                     }
 
-                    if(Date.now() - request.result?.version < cacheSettings.healthDuration || noExpiration) {
+                    if(Date.now() - request.result?.version < healthDuration || noExpiration) {
 
                         resolve(
                             entry
@@ -210,7 +213,7 @@ export const getCachedGlobalFile = async ({
                      */
 
                     if (
-                        age <= cacheSettings.healthDuration
+                        age <= healthDuration
                     ) {
 
                         resolve(

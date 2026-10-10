@@ -1,8 +1,8 @@
 
 
-import { workTypes } from "./timeTracking.project";
+import { getWorkTypeLabel } from "../../../services/companySettings";
 
-export default function TimeRow({ entry }) {
+export default function TimeRow({ entry, workTypes }) {
 
     function formatTime(date) {
 
@@ -30,10 +30,6 @@ export default function TimeRow({ entry }) {
         return `${m}min`;
 
     }
-
-    const workType = workTypes.find(
-        type => type.id === entry.workType
-    );
 
     return (
 
@@ -65,7 +61,7 @@ export default function TimeRow({ entry }) {
                         text-white
                     "
                 >
-                    {workType?.label ?? entry.workType}
+                    {getWorkTypeLabel(workTypes, entry.workType, entry.customWorkType)}
                 </span>
 
                 <span

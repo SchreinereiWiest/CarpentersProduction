@@ -1,14 +1,15 @@
 
 
-import React, {
-    useState
-} from "react";
+import { useState } from "react";
 
 import SideBar from "../../components/sideBar.jsx";
 import SettingsBar from "../../components/settingsBar.jsx";
 
 import CompanySettingsPanel
     from "./panels/companySettingsPanel.jsx";
+
+import CacheSettingsPanel
+    from "./panels/cacheSettingsPanel.jsx";
 
 import UserSettingsPanel
     from "./panels/userSettingsPanel.jsx";
@@ -53,7 +54,18 @@ export default function CompanySettings() {
                 );
 
 
+            case "cache":
+
+                return (
+                    <CacheSettingsPanel />
+                );
+
+
             case "company":
+                return (
+                    <CompanySettingsPanel />
+                );
+
 
             default:
 
