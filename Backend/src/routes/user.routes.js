@@ -1,9 +1,24 @@
 import express from "express";
-import prisma from "../config/prisma.js";
-import { getUser, getUsers, newUser, updateUser, changeUserPassword, deleteUser } from "../controllers/user.controller.js";
+import {
+    getUser,
+    getUsers,
+    newUser,
+    updateUser,
+    changeUserPassword,
+    deleteUser,
+    getCurrentUser,
+    updateCurrentUser,
+    changeCurrentUserPassword
+} from "../controllers/user.controller.js";
 import { authenticate, authenticateAdmin } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
+
+router.get("/me", authenticate, getCurrentUser);
+
+router.put("/me", authenticate, updateCurrentUser);
+
+router.put("/me/password", authenticate, changeCurrentUserPassword);
 
 router.post("/new", authenticateAdmin, newUser);
 

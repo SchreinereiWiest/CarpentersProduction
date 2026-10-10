@@ -660,3 +660,115 @@ export const deleteUser = async (
         });
     }
 };
+
+
+// ============================================================
+// CURRENT USER PROFILE
+// ============================================================
+
+const currentUserSelect = {
+    id: true,
+    firstName: true,
+    lastName: true,
+    email: true,
+    login: true,
+    role: true
+};
+
+export const getCurrentUser = async (req, res) => {
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id: req.user.id },
+            select: currentUserSelect
+        });
+
+        if (!user) {
+            return res.status(404).json({ error: "Benutzer nicht gefunden" });
+        }
+
+        return res.status(200).json({ user });
+    } catch (error) {
+        console.error("getCurrentUser:", error);
+        return res.status(500).json({ error: "Internal server error" });
+    }
+};
+
+export const updateCurrentUser = async (req, res) => {
+    try {
+        const email = req.body.email?.trim().toLowerCase();
+
+        if (!email) {
+            return res.status(400).json({
+                error: "E-Mail-Adresse darf nicht leer sein"
+            });
+        }
+
+        const user = await prisma.user.update({
+            where: { id: req.user.id },
+            data: {
+                firstName: req.body.firstName?.trim() || null,
+                lastName: req.body.lastName?.trim() || null,
+                email
+            },
+            select: currentUserSelect
+        });
+
+        return res.status(200).json({ user });
+    } catch (error) {
+        console.error("updateCurrentUser:", error);
+
+        if (error.code === "P2002") {
+            return res.status(409).json({
+                error: "Diese E-Mail-Adresse wird bereits verwendet"
+            });
+        }
+
+        if (error.code === "P2025") {
+            return res.status(404).json({ error: "Benutzer nicht gefunden" });
+        }
+
+        return res.status(500).json({ error: "Internal server error" });
+    }
+};
+
+export const changeCurrentUserPassword = async (req, res) => {
+    try {
+        const { currentPassword, password } = req.body;
+
+        if (!currentPassword) {
+            return res.status(400).json({ error: "Das aktuelle Passwort ist erforderlich" });
+        }
+
+        if (!password || password.length < 8) {
+            return res.status(400).json({
+                error: "Das neue Passwort muss mindestens 8 Zeichen lang sein"
+            });
+        }
+
+        const currentUser = await prisma.user.findUnique({
+            where: { id: req.user.id },
+            select: { passwordHash: true }
+        });
+
+        if (!currentUser || !await bcrypt.compare(currentPassword, currentUser.passwordHash)) {
+            return res.status(401).json({ error: "Das aktuelle Passwort ist nicht korrekt" });
+        }
+
+        const passwordHash = await bcrypt.hash(password, 12);
+
+        await prisma.user.update({
+            where: { id: req.user.id },
+            data: {
+                passwordHash,
+                authVersion: { increment: 1 }
+            }
+        });
+
+        return res.status(200).json({
+            message: "Passwort erfolgreich geändert"
+        });
+    } catch (error) {
+        console.error("changeCurrentUserPassword:", error);
+        return res.status(500).json({ error: "Internal server error" });
+    }
+};
