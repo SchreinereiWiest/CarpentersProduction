@@ -2,17 +2,21 @@ import { useState } from "react";
 import axios from "axios";
 
 
-export function MaterialModal({ onClose, onCreated }) {
+export function MaterialModal({ onClose, onSaved, material = null }) {
 
     const [formData, setFormData] = useState({
 
-        materialNumber: "",
-        name: "",
-        manufacturer: "",
-        category: "",
-        thickness: "",
-        pricePerSquareMeter: "",
-        supplier: ""
+        materialNumber: material?.materialNumber ?? "",
+        name: material?.name ?? "",
+        manufacturer: material?.manufacturer ?? "",
+        category: material?.category ?? "",
+        thickness: material?.thickness ?? "",
+        pricePerSquareMeter: material?.pricePerSquareMeter ?? "",
+        supplier: material?.supplier ?? "",
+        width: material?.width ?? "",
+        height: material?.height ?? "",
+        minimumStorage: material?.minimumStorage ?? "",
+        maser: material?.maser === true
 
     });
 
@@ -29,7 +33,9 @@ export function MaterialModal({ onClose, onCreated }) {
 
         const {
             name,
-            value
+            value,
+            type,
+            checked
         } = event.target;
 
 
@@ -37,7 +43,7 @@ export function MaterialModal({ onClose, onCreated }) {
 
             ...previous,
 
-            [name]: value
+            [name]: type === "checkbox" ? checked : value
 
         }));
 
@@ -55,10 +61,7 @@ export function MaterialModal({ onClose, onCreated }) {
 
         try {
 
-            const response =
-                await axios.post(
-                    "/api/materials/create",
-                    {
+            const payload = {
 
                         materialNumber:
                             formData.materialNumber || null,
@@ -72,7 +75,7 @@ export function MaterialModal({ onClose, onCreated }) {
 
                         minimumStorage: formData.minimumStorage ? Number(formData.minimumStorage) : null,
 
-                        maser: formData.maser,
+                        maser: Boolean(formData.maser),
 
                         manufacturer:
                             formData.manufacturer || null,
@@ -95,11 +98,14 @@ export function MaterialModal({ onClose, onCreated }) {
                         supplier:
                             formData.supplier || null
 
-                    }
-                );
+                    };
+
+            const response = material
+                ? await axios.put(`/api/materials/${material.id}`, payload)
+                : await axios.post("/api/materials/create", payload);
 
 
-            onCreated(
+            onSaved(
                 response.data.material
             );
 
@@ -110,14 +116,14 @@ export function MaterialModal({ onClose, onCreated }) {
         } catch (error) {
 
             console.error(
-                "Material konnte nicht erstellt werden:",
+                "Material konnte nicht gespeichert werden:",
                 error
             );
 
 
             setError(
                 error.response?.data?.error ||
-                "Material konnte nicht erstellt werden."
+                "Material konnte nicht gespeichert werden."
             );
 
 
@@ -181,7 +187,7 @@ export function MaterialModal({ onClose, onCreated }) {
                                 text-white
                             "
                         >
-                            Neues Material
+                            {material ? "Material bearbeiten" : "Neues Material"}
                         </h2>
 
 
@@ -192,7 +198,9 @@ export function MaterialModal({ onClose, onCreated }) {
                                 text-gray-400
                             "
                         >
-                            Material zur Materialdatenbank hinzufügen
+                            {material
+                                ? "Materialdaten aktualisieren"
+                                : "Material zur Materialdatenbank hinzufügen"}
                         </p>
 
                     </div>

@@ -100,6 +100,29 @@ export async function createMaterial(req, res) {
 
 }
 
+export async function updateMaterial(req, res) {
+    try {
+        const { id } = req.params;
+        const {
+            materialNumber, name, width, height, minimumStorage, maser,
+            manufacturer, category, thickness, pricePerSquareMeter, supplier
+        } = req.body;
+
+        const material = await prisma.material.update({
+            where: { id },
+            data: {
+                materialNumber, name, width, height, minimumStorage, maser,
+                manufacturer, category, thickness, pricePerSquareMeter, supplier
+            }
+        });
+
+        res.status(200).json({ material });
+    } catch (error) {
+        console.error("Fehler beim Aktualisieren des Materials:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+}
+
 
 export const updateMaterialQuantity = async (req, res) => {
 
@@ -140,4 +163,4 @@ export const updateMaterialQuantity = async (req, res) => {
 
     }
 
-};  
+};

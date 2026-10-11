@@ -87,6 +87,10 @@ export function calculateNesting(
         const settings = {
             ...defaultSettings,
             ...userSheetSettings,
+            // Eine feste Maserungsrichtung darf beim Nesting nicht gedreht werden.
+            allowRotation: storageMaterial?.maser === true
+                ? false
+                : (userSheetSettings.allowRotation ?? defaultSettings.allowRotation),
             defaultSheet
         };
 
@@ -94,6 +98,7 @@ export function calculateNesting(
         sheet.storageMaterialFound = Boolean(storageMaterial);
         sheet.storageMaterialFallback = !storageMaterial;
         sheet.storageMaterialName = storageMaterial?.name ?? null;
+        sheet.storageMaterialHasGrain = storageMaterial?.maser === true;
 
         const plates = sheet.plates;
 

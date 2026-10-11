@@ -364,6 +364,14 @@ function NestingView() {
                         sheet.storageMaterialFound = Boolean(storageMaterial);
                         sheet.storageMaterialFallback = !storageMaterial;
                         sheet.storageMaterialName = storageMaterial?.name ?? null;
+                        sheet.storageMaterialHasGrain = storageMaterial?.maser === true;
+                        sheet.settings = {
+                            ...defaultSettings,
+                            ...sheet.settings,
+                            allowRotation: storageMaterial?.maser === true
+                                ? false
+                                : (sheet.settings?.allowRotation ?? defaultSettings.allowRotation)
+                        };
                     });
 
                     setNestingResult(data);
@@ -1070,6 +1078,7 @@ function NestingView() {
                     <NestingSettingsModal
                         settings={settings[activeSheetIndex]}
                         activeSheet={activeSheetIndex}
+                        rotationLocked={activeSheet?.storageMaterialHasGrain === true}
                         setSettings={setSettings}
                         onClose={() => setShowSettings(false)}
                     />

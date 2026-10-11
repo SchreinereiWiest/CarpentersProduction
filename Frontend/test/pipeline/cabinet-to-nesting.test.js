@@ -59,4 +59,24 @@ describe('Projektpipeline Korpus → Stückliste → CNC → Nesting', () => {
       Number.isFinite(part.x) && part.original?.PID
     ))).toBe(true);
   });
+
+  it('deaktiviert Rotation für Materialien mit Maserung', async () => {
+    const partList = await buildPartList([cabinet], materials);
+    const grainedMaterials = storageMaterials.map((material) => ({
+      ...material,
+      maser: material.materialNumber === 'BOARD-19',
+    }));
+
+    const nesting = calculateNesting(
+      partList,
+      [{ allowRotation: true }, { allowRotation: true }],
+      grainedMaterials,
+    );
+    const boardGroup = nesting.find((group) => group.MID === 'BOARD-19');
+    const backGroup = nesting.find((group) => group.MID === 'BACK-8');
+
+    expect(boardGroup.settings.allowRotation).toBe(false);
+    expect(boardGroup.storageMaterialHasGrain).toBe(true);
+    expect(backGroup.settings.allowRotation).toBe(true);
+  });
 });

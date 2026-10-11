@@ -1,7 +1,7 @@
 import express from "express";
 import prisma from "../config/prisma.js";
 
-import { getMaterials, createMaterial, updateMaterialQuantity } from "../controllers/storage.controller.js";
+import { getMaterials, createMaterial, updateMaterial, updateMaterialQuantity } from "../controllers/storage.controller.js";
 import { authenticate, authorizeRoles } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
@@ -9,6 +9,8 @@ const router = express.Router();
 router.post("/create", authenticate, createMaterial);
 
 router.get("/get", authenticate, getMaterials);
+
+router.put("/:id", authenticate, authorizeRoles("admin", "manager"), updateMaterial);
 
 router.patch("/:id/quantity", authenticate, authorizeRoles("admin", "manager"), updateMaterialQuantity);
 

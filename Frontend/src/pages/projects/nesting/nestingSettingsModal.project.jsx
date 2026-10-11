@@ -4,6 +4,7 @@ import NestingSettingsRemaining from "./nestingSettingsRemaining.project";
 function NestingSettingsModal({
     settings,
     activeSheet,
+    rotationLocked = false,
     setSettings,
     onClose
 }) {
@@ -294,7 +295,9 @@ function NestingSettingsModal({
                                 text-sm
                                 text-gray-300
                             ">
-                                Teile drehen erlaubt
+                                {rotationLocked
+                                    ? "Teile drehen (wegen Maserung gesperrt)"
+                                    : "Teile drehen erlaubt"}
                             </span>
 
                             <input
@@ -304,9 +307,15 @@ function NestingSettingsModal({
                                     localSettings.allowRotation
                                 }
                                 onChange={handleChange}
+                                disabled={rotationLocked}
+                                title={rotationLocked
+                                    ? "Das Lagermaterial besitzt eine Maserung."
+                                    : undefined}
                                 className="
                                     h-5
                                     w-5
+                                    disabled:cursor-not-allowed
+                                    disabled:opacity-50
                                 "
                             />
 

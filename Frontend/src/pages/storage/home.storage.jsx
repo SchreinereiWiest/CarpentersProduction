@@ -1,10 +1,7 @@
 import { useState } from 'react'
 import SideBar from '../../components/sideBar.jsx'
 import axios from 'axios';
-import { useNavigate } from 'react-router';
-import { useParams } from 'react-router';
 import { useEffect } from "react";
-import { Link } from "react-router";
 import {MaterialModal} from "./materialModal.storage.jsx"
 import { updateQuantity } from './updateMaterial.storage.jsx';
 
@@ -81,9 +78,8 @@ loadMaterials();
 
 }, []);
 
-console.log(materials);
-
 const [showMaterialModal, setShowMaterialModal] = useState(false);
+const [selectedMaterial, setSelectedMaterial] = useState(null);
 
 return (
 
@@ -135,7 +131,10 @@ return (
                             py-2
                             font-medium
                             hover:bg-blue-500
-                        " onClick={()=> setShowMaterialModal(true)}
+                        " onClick={() => {
+                            setSelectedMaterial(null);
+                            setShowMaterialModal(true);
+                        }}
                 >
                 + Material hinzufügen
             </button>
@@ -144,19 +143,19 @@ return (
 
         {showMaterialModal && (
 
-        <MaterialModal onClose={()=>
-            setShowMaterialModal(false)
-            }
-
-            onCreated={(material) => {
-
-            setMaterials(
-            previous => [
-            ...previous,
-            material
-            ]
-            );
-
+        <MaterialModal
+            material={selectedMaterial}
+            onClose={() => {
+                setShowMaterialModal(false);
+                setSelectedMaterial(null);
+            }}
+            onSaved={(material) => {
+                setMaterials(previous => {
+                    const exists = previous.some(item => item.id === material.id);
+                    return exists
+                        ? previous.map(item => item.id === material.id ? material : item)
+                        : [...previous, material];
+                });
             }}
 
             />
@@ -245,10 +244,28 @@ return (
                         {materials.map(
                         material => (
 
-                        <tr key={material.id} className="
+                        <tr
+                            key={material.id}
+                            tabIndex={0}
+                            title="Material bearbeiten"
+                            onClick={() => {
+                                setSelectedMaterial(material);
+                                setShowMaterialModal(true);
+                            }}
+                            onKeyDown={(event) => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                    event.preventDefault();
+                                    setSelectedMaterial(material);
+                                    setShowMaterialModal(true);
+                                }
+                            }}
+                            className="
                                             border-b
                                             border-gray-700
+                                            cursor-pointer
                                             hover:bg-gray-700/50
+                                            focus:bg-gray-700/50
+                                            focus:outline-none
                                         ">
 
                             <td className="
@@ -314,7 +331,10 @@ return (
                                 ">
 
                                     <button
-                                        onClick={() => decreaseQuantity(material, setMaterials)}
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            decreaseQuantity(material, setMaterials);
+                                        }}
                                         className="
                                             flex
                                             h-8
@@ -347,7 +367,10 @@ return (
 
 
                                     <button
-                                        onClick={() => increaseQuantity(material, setMaterials)}
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            increaseQuantity(material, setMaterials);
+                                        }}
                                         className="
                                             flex
                                             h-8
