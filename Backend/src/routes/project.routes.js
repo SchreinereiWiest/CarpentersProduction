@@ -2,7 +2,7 @@ import express from "express";
 import prisma from "../config/prisma.js";
 
 import { newProject, getAllProjectsID, getProject, getGeneratedProjectData, createGeneratedProjectData, getAllProjects, updateProject, deleteProject } from "../controllers/project.controller.js";
-import { authenticate, authenticateAdmin, authorizeRoles } from "../middleware/auth.middleware.js";
+import { authenticate, authorizeRoles } from "../middleware/auth.middleware.js";
 import { authorizeCustomer, authorizeCustomerBody, authorizeProject, authorizeTimeEntry } from "../middleware/resourceAuthorization.middleware.js";
 import { getTime, manualTime, startTime, stopTime } from "../controllers/time.controller.js";
 import { exportProject, importProject } from "../controllers/projectArchive.controller.js";
@@ -24,7 +24,7 @@ router.post("/new", authenticate, authorizeCustomerBody(), newProject);
 
 router.put("/update/:id", authenticate, authorizeProject(), authorizeCustomerBody(), updateProject);
 
-router.delete("/delete/:projectId", authenticateAdmin, deleteProject);
+router.delete("/delete/:projectId", authenticate, authorizeRoles("admin", "manager"), deleteProject);
 
 router.get("/getAll/:id", authenticate, authorizeCustomer(), getAllProjectsID);
 

@@ -1,5 +1,6 @@
 import { Navigate } from "react-router";
 import { useAuth } from "./AuthContext";
+import { canAccessRequiredRole } from "./roleAuthorization";
 
 // User überprüfen und bei fehlendem User auf Login Seite weiterleiten
 
@@ -22,8 +23,8 @@ export default function ProtectedElement({ children, requiredRole }) {
     }
 
     
-    if (requiredRole && user.role !== requiredRole && user.role != "admin" || (requiredRole === "admin" && user.role !== "admin")) {
+    if (!canAccessRequiredRole(user.role, requiredRole)) {
         return <></>;
     }
     return children;
-} 
+}

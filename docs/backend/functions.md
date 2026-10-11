@@ -45,7 +45,7 @@ Datei: `src/controllers/project.controller.js`
 |---|---|---|
 | `newProject(req,res)` | `customerId`, `title`, `description` | legt Projekt an und liefert `201` |
 | `updateProject(req,res)` | Pfad `id`; `customerId`, `title`, `description`, `status` | aktualisiert Projekt und liefert `201` |
-| `deleteProject(req,res)` | Pfad `projectId`, authentifizierter Admin | entfernt DB-Daten transaktional, schreibt Audit-Log und idempotente Garage-Löschjobs |
+| `deleteProject(req,res)` | Pfad `projectId`, authentifizierter Admin/Manager | entfernt DB-Daten transaktional, schreibt Audit-Log und idempotente Garage-Löschjobs |
 | `getAllProjectsID(req,res)` | Pfad `id` als Kunden-ID | lädt alle Projekte dieses Kunden nach Titel |
 | `getAllProjects(req,res)` | `req.user` | lädt für Admin/Manager aktive und inaktive, für Benutzer alle aktiven Projekte |
 | `getAllActive` | Alias, gleiche Signatur wie `getAllProjects` | Kompatibilitätsexport ohne eigene Logik |

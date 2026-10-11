@@ -33,7 +33,7 @@ Erfolg:
 }
 ```
 
-Die Route verlangt die Admin-Rolle. Datenbanklöschungen, Audit-Log und Jobanlage sind atomar. Garage bleibt außerhalb der PostgreSQL-Transaktion; fehlgeschlagene Löschungen sind jedoch dauerhaft als Job sichtbar und werden minütlich erneut verarbeitet.
+Die Route verlangt die Admin- oder Manager-Rolle. Datenbanklöschungen, Audit-Log und Jobanlage sind atomar. Garage bleibt außerhalb der PostgreSQL-Transaktion; fehlgeschlagene Löschungen sind jedoch dauerhaft als Job sichtbar und werden minütlich erneut verarbeitet.
 
 ## Abfragen
 

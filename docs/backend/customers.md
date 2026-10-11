@@ -2,7 +2,7 @@
 
 ## Kunde anlegen
 
-`POST /api/customers/new` ruft `newcustomer` auf und verlangt die Admin-Rolle. `firstName` und `lastName` müssen truthy sein; sonst folgt `400`. Zusammen mit dem Kunden wird immer genau eine Adresse verschachtelt angelegt.
+`POST /api/customers/new` ruft `newcustomer` auf und verlangt die Admin- oder Manager-Rolle. `firstName` und `lastName` müssen truthy sein; sonst folgt `400`. Zusammen mit dem Kunden wird immer genau eine Adresse verschachtelt angelegt.
 
 Unterstützte Body-Felder:
 

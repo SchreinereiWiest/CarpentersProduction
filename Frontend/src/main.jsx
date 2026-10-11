@@ -207,7 +207,7 @@ ReactDOM.createRoot(root).render(
             }
             />
 
-            <Route path="/CompanySettings" element={ <ProtectedRoute requiredRole="admin">
+            <Route path="/CompanySettings" element={ <ProtectedRoute requiredRole="adminOnly">
             <CompanySettings />
             </ProtectedRoute>
             }

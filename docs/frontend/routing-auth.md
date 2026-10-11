@@ -22,33 +22,42 @@
 
 Die Guards dienen der Benutzerführung. Die verbindliche Autorisierung findet immer im Backend statt.
 
+Die Rollenstufen der Guards sind:
+
+- `user`: `user`, `manager` und `admin`,
+- `admin`: `manager` und `admin`,
+- `adminOnly`: ausschließlich `admin`.
+
+`adminOnly` wird für die gesamte Route `/CompanySettings` und deren
+Navigation verwendet.
+
 ## Routen
 
 | Pfad | Seite | Frontend-Rolle |
 |---|---|---|
 | `/login` | Login | öffentlich, nur ohne Session |
 | `/` | Startseite | angemeldet |
-| `/Projects` | Projektübersicht | `user` oder `admin` |
-| `/Projects/:projectId` | Projekthome | `user` oder `admin` |
-| `/Projects/CAD/:projectId` | CAD-Ansicht | `user` oder `admin` |
-| `/Projects/Cabinet/:projectId` | Korpus-Editor | `user` oder `admin` |
-| `/Projects/List/:projectId` | Stückliste | `user` oder `admin` |
-| `/Projects/Nesting/:projectId` | Nesting | `user` oder `admin` |
-| `/Projects/Cut/:projectId` | Zuschnitt | `user` oder `admin` |
-| `/Projects/Cnc/:projectId` | CNC-Editor | `user` oder `admin` |
-| `/Projects/Time/:projectId` | Projektzeiten | `user` oder `admin` |
-| `/Projects/Settings/:projectId` | Projekteinstellungen | `user` oder `admin` |
-| `/Projects/Create` | neuer Korpus/Projektfluss | `user` oder `admin` |
-| `/Projects/Create/List` | älterer Projekteditor | `user` oder `admin` |
-| `/Projects/Create/:id` | älterer Editor mit ID | `user` oder `admin` |
-| `/Storage` | Lager | `user` oder `admin` |
-| `/Mitarbeiter` | persönlicher Kalender | `user` oder `admin` |
-| `/Kontakte` | Kundenliste | Admin |
-| `/Kontakte/new` | Kunde anlegen | Admin |
-| `/Kontakte/info/:userid` | Kundendetails | Admin |
-| `/Kontakte/edit/:userid` | Kunde bearbeiten | Admin |
-| `/Kontakte/NewProject/:userId` | Projekt für Kunden anlegen | Admin |
-| `/CompanySettings` | Administration | Admin |
+| `/Projects` | Projektübersicht | angemeldet |
+| `/Projects/:projectId` | Projekthome | angemeldet |
+| `/Projects/CAD/:projectId` | CAD-Ansicht | angemeldet |
+| `/Projects/Cabinet/:projectId` | Korpus-Editor | angemeldet |
+| `/Projects/List/:projectId` | Stückliste | angemeldet |
+| `/Projects/Nesting/:projectId` | Nesting | angemeldet |
+| `/Projects/Cut/:projectId` | Zuschnitt | angemeldet |
+| `/Projects/Cnc/:projectId` | CNC-Editor | angemeldet |
+| `/Projects/Time/:projectId` | Projektzeiten | angemeldet |
+| `/Projects/Settings/:projectId` | Projekteinstellungen | angemeldet |
+| `/Projects/Create` | neuer Korpus/Projektfluss | angemeldet |
+| `/Projects/Create/List` | älterer Projekteditor | angemeldet |
+| `/Projects/Create/:id` | älterer Editor mit ID | angemeldet |
+| `/Storage` | Lager | angemeldet |
+| `/Mitarbeiter` | persönlicher Kalender | angemeldet |
+| `/Kontakte` | Kundenliste | Admin oder Manager |
+| `/Kontakte/new` | Kunde anlegen | Admin oder Manager |
+| `/Kontakte/info/:userid` | Kundendetails | Admin oder Manager |
+| `/Kontakte/edit/:userid` | Kunde bearbeiten | Admin oder Manager |
+| `/Kontakte/NewProject/:userId` | Projekt für Kunden anlegen | Admin oder Manager |
+| `/CompanySettings` | Administration | ausschließlich Admin |
 
 ## Login und CSRF
 
@@ -59,4 +68,3 @@ Das Backend setzt außerdem `XSRF-TOKEN`. Axios verwendet standardmäßig densel
 ## Sessionende
 
 Das Frontend besitzt derzeit keinen Logout-Aufruf. Für einen vollständigen Logout muss `POST /api/auth/logout` mit CSRF-Header aufgerufen und anschließend `setUser(null)` ausgeführt werden.
-

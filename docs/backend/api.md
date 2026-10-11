@@ -15,10 +15,10 @@ Basis-URL im lokalen Backend: `http://localhost:5000/api`. Geschützte Endpunkte
 
 | Methode | Pfad | Schutz | Handler | Zweck |
 |---|---|---|---|---|
-| `POST` | `/customers/new` | Admin | `newcustomer` | Kunde mit einer Adresse anlegen |
-| `GET` | `/customers/all?page=1` | Admin | `getCustomers` | Kunden seitenweise laden |
-| `GET` | `/customers/get/:id` | Admin | `getCustomerInfo` | Kunde mit Adressen laden |
-| `POST` | `/customers/update/:id` | Admin | `updateCustomer` | Kunde und ausgewählte Adresse aktualisieren |
+| `POST` | `/customers/new` | Admin oder Manager | `newcustomer` | Kunde mit einer Adresse anlegen |
+| `GET` | `/customers/all?page=1` | Admin oder Manager | `getCustomers` | Kunden seitenweise laden |
+| `GET` | `/customers/get/:id` | Admin oder Manager | `getCustomerInfo` | Kunde mit Adressen laden |
+| `POST` | `/customers/update/:id` | Admin oder Manager | `updateCustomer` | Kunde und ausgewählte Adresse aktualisieren |
 | `GET` | `/customers/search?search=...` | angemeldet; rollenbasierte Felder | `searchCustomers` | bis zu 15 Kunden suchen |
 
 ## Projekte
@@ -27,7 +27,7 @@ Basis-URL im lokalen Backend: `http://localhost:5000/api`. Geschützte Endpunkte
 |---|---|---|---|---|
 | `POST` | `/projects/new` | berechtigter Kunde | `newProject` | Projekt anlegen |
 | `PUT` | `/projects/update/:id` | Projekt- und Kundenberechtigung | `updateProject` | Projektstammdaten ändern |
-| `DELETE` | `/projects/delete/:projectId` | Admin | `deleteProject` | Projekt, Dateien und S3-Objekte löschen; Audit-Log schreiben |
+| `DELETE` | `/projects/delete/:projectId` | Admin oder Manager | `deleteProject` | Projekt, Dateien und S3-Objekte löschen; Audit-Log schreiben |
 | `GET` | `/projects/getAll/:id` | Kundenberechtigung | `getAllProjectsID` | Projekte eines Kunden laden |
 | `GET` | `/projects/getAll` | angemeldet | `getAllProjects` | sichtbare Projekte laden |
 | `GET` | `/projects/getActive` | angemeldet | `getAllProjects` | Kompatibilitätsalias für `getAll` |
@@ -73,7 +73,8 @@ Die im Quellcode auskommentierte Route `/files/complete` ist nicht aktiv.
 
 ## Benutzerverwaltung
 
-Alle sechs Routen erfordern die Admin-Rolle.
+Alle sechs Routen erfordern weiterhin ausschließlich die Admin-Rolle, da die
+Benutzerverwaltung Teil der ausgenommenen `/CompanySettings`-Route ist.
 
 | Methode | Pfad | Handler | Zweck |
 |---|---|---|---|

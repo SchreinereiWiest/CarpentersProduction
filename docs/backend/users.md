@@ -1,6 +1,9 @@
 # Benutzerverwaltung
 
-Alle Routen unter `/api/user` verwenden `authenticateAdmin`. Passworthashes werden mit bcrypt und Kostenfaktor 12 erstellt und nie in API-Antworten ausgewählt.
+Alle Routen unter `/api/user` verwenden `authenticateAdmin`. Sie gehören zur
+ausgenommenen `/CompanySettings`-Administration und bleiben daher
+ausschließlich dem Admin vorbehalten. Passworthashes werden mit bcrypt und
+Kostenfaktor 12 erstellt und nie in API-Antworten ausgewählt.
 
 ## Liste
 

@@ -37,6 +37,13 @@ Führt dieselbe Prüfung aus und verlangt zusätzlich exakt `role === "admin"`. 
 
 Diese Middleware wird hinter `authenticate` eingesetzt und erlaubt nur die ausdrücklich genannten Rollen. Eine fehlende Identität ergibt `401`, eine nicht erlaubte Rolle `403`. Die Materialbestandsänderung erlaubt damit ausschließlich `admin` und `manager`.
 
+Für operative administrative Funktionen werden `admin` und `manager`
+gemeinsam freigegeben. Die Einstellungen und die darin enthaltene
+Benutzerverwaltung bilden die Ausnahme und verwenden weiterhin
+`authenticateAdmin`, sodass ausschließlich `admin` zugreifen kann. Der
+lesende Abruf von `/api/settings/company` bleibt wegen Kalender und
+Zeiterfassung für alle angemeldeten Benutzer verfügbar.
+
 ## Aktuelle Identität
 
 `GET /api/auth/me` gibt nach der zentralen Sessionprüfung `id`, `email` und `role` zurück. Deaktivierte, gelöschte oder widerrufene Sessions erreichen den Handler nicht und erhalten `401`.
