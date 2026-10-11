@@ -94,7 +94,7 @@ describe("procurement data", () => {
         ];
 
         expect(mergeGeneratedItems(generated, saved)).toEqual([
-            { sourceKey: "nesting:a", source: "nesting", quantity: 3, netPrice: 42, released: true },
+            { sourceKey: "nesting:a", source: "nesting", quantity: 3, netPrice: 42, purchased: false, purchasedAt: null, released: true },
             { sourceKey: "shop:x", source: "shop", quantity: 4, released: false }
         ]);
     });
@@ -106,5 +106,57 @@ describe("procurement data", () => {
 
         expect(second).toHaveLength(1);
         expect(second[0]).toMatchObject({ sourceKey: "shop:x", quantity: 8, netPrice: 0.25 });
+    });
+
+    it("assigns configured suppliers to storage sheets and shop hardware", () => {
+        const settings = {
+            suppliers: [{ id: "supplier-1", name: "Häfele" }],
+            legraboxArticleIds: { M: { white: "article-m" } }
+        };
+        const plates = buildPlateItems(
+            [{ MID: "W1000", T: 19, nestingPlates: [{ placedWidth: 2800, placedHeight: 2070, strips: [{}] }] }],
+            [{ materialNumber: "W1000", thickness: 19, width: 2800, height: 2070, supplierId: "supplier-1" }],
+            settings
+        );
+        const hardware = buildHardwareItems(
+            [{ Hardware: [{ type: "legrabox", variant: "M", materialColor: "white" }] }],
+            settings,
+            [{ id: "article-m", name: "Legrabox M", supplierId: "supplier-1" }]
+        );
+
+        expect(plates[0]).toMatchObject({ supplierId: "supplier-1", supplierName: "Häfele" });
+        expect(hardware[0]).toMatchObject({ supplierId: "supplier-1", supplierName: "Häfele" });
+    });
+
+    it("keeps purchased items locked and creates a new line when reordered", () => {
+        const purchased = [{
+            sourceKey: "shop:x",
+            source: "shop",
+            articleId: "x",
+            name: "Schraube",
+            quantity: 2,
+            purchased: true,
+            purchasedAt: "2026-10-11T10:00:00.000Z",
+            released: false
+        }];
+        const result = addArticleToProcurement(purchased, { id: "x", name: "Schraube" }, 3);
+
+        expect(result).toHaveLength(2);
+        expect(result[0]).toEqual(purchased[0]);
+        expect(result[1]).toMatchObject({ quantity: 3, purchased: false, released: false });
+        expect(result[1].sourceKey).toMatch(/^shop:x:/);
+    });
+
+    it("retains purchased generated positions when their source list changes", () => {
+        const purchasedPlate = {
+            sourceKey: "nesting:old",
+            source: "nesting",
+            name: "Alte Platte",
+            quantity: 1,
+            purchased: true,
+            released: false
+        };
+
+        expect(mergeGeneratedItems([], [purchasedPlate])).toEqual([purchasedPlate]);
     });
 });

@@ -13,10 +13,11 @@ const EMPTY_ARTICLE = {
     description: "",
     unit: "Stk.",
     netPrice: "",
-    groupId: ""
+    groupId: "",
+    supplierId: ""
 };
 
-export function ArticleModal({ article, groups, imageUrl, onClose, onSave }) {
+export function ArticleModal({ article, groups, suppliers = [], imageUrl, onClose, onSave }) {
     const [form, setForm] = useState({ ...EMPTY_ARTICLE, ...(article || {}) });
     const [imageFile, setImageFile] = useState(null);
     const [previewUrl, setPreviewUrl] = useState(imageUrl || "");
@@ -57,6 +58,7 @@ export function ArticleModal({ article, groups, imageUrl, onClose, onSave }) {
                 description: form.description.trim(),
                 unit: form.unit.trim() || "Stk.",
                 groupId: form.groupId || null,
+                supplierId: form.supplierId || null,
                 netPrice: Math.max(0, Number(form.netPrice) || 0)
             }, imageFile);
         } catch (saveError) {
@@ -122,6 +124,20 @@ export function ArticleModal({ article, groups, imageUrl, onClose, onSave }) {
                     {field("unit", "Einheit", { required: true })}
                     {field("netPrice", "Nettopreis in €", { required: true, type: "number", min: "0", step: "0.01" })}
                     <label className="sm:col-span-2">
+                        <span className="mb-1.5 block text-sm text-gray-300">Lieferant</span>
+                        <select
+                            value={form.supplierId || ""}
+                            onChange={event => setForm(current => ({ ...current, supplierId: event.target.value }))}
+                            className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-white outline-none focus:border-blue-500"
+                        >
+                            <option value="">Ohne Lieferant</option>
+                            {form.supplierId && !suppliers.some(supplier => supplier.id === form.supplierId) && (
+                                <option value={form.supplierId}>Nicht mehr verfügbar ({form.supplierId})</option>
+                            )}
+                            {suppliers.map(supplier => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
+                        </select>
+                    </label>
+                    <label className="sm:col-span-2">
                         <span className="mb-1.5 block text-sm text-gray-300">Artikelgruppe</span>
                         <select
                             value={form.groupId || ""}
@@ -148,7 +164,7 @@ export function ArticleModal({ article, groups, imageUrl, onClose, onSave }) {
 
 export function GroupModal({ group, articles, onClose, onSave }) {
     const [form, setForm] = useState({
-        id: group?.id || `group-${createArticleId()}`,
+        id: group?.id || createArticleId(),
         name: group?.name || "",
         description: group?.description || ""
     });
@@ -225,7 +241,7 @@ export function GroupModal({ group, articles, onClose, onSave }) {
     );
 }
 
-export function ShopArticle({ article, imageUrl, projectId, editMode, adding, onAdd, onEdit, onDelete }) {
+export function ShopArticle({ article, imageUrl, supplierName, projectId, editMode, adding, onAdd, onEdit, onDelete }) {
     const [quantity, setQuantity] = useState(1);
 
     return (
@@ -240,6 +256,7 @@ export function ShopArticle({ article, imageUrl, projectId, editMode, adding, on
                         <span className="inline-flex rounded-full bg-gray-700 px-2 py-0.5 text-[11px] text-gray-300">{article.category || "Sonstiges"}</span>
                         <h3 className="mt-2 truncate font-semibold">{article.name}</h3>
                         <p className="mt-0.5 truncate text-xs text-gray-500">{article.sku || "Ohne Artikelnummer"}</p>
+                        <p className="mt-0.5 truncate text-xs text-gray-500">{supplierName || "Ohne Lieferant"}</p>
                         </div>
                         {editMode && (
                             <div className="flex shrink-0 gap-0.5">
@@ -320,7 +337,7 @@ export function ShopGroup({ group, articleCount, editMode, onOpen, onEdit, onDel
     );
 }
 
-export function GroupArticlesModal({ group, articles, imageUrls, projectId, editMode, addingArticleId, onClose, onAdd, onEdit, onDelete }) {
+export function GroupArticlesModal({ group, articles, imageUrls, suppliers = [], projectId, editMode, addingArticleId, onClose, onAdd, onEdit, onDelete }) {
     return (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/75 p-4" onMouseDown={event => {
             if (event.target === event.currentTarget) onClose();
@@ -340,7 +357,7 @@ export function GroupArticlesModal({ group, articles, imageUrls, projectId, edit
                 ) : (
                     <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                         {articles.map(article => (
-                            <ShopArticle key={article.id} article={article} imageUrl={imageUrls[article.imageFileId]} projectId={projectId} editMode={editMode} adding={addingArticleId === article.id} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} />
+                            <ShopArticle key={article.id} article={article} imageUrl={imageUrls[article.imageFileId]} supplierName={suppliers.find(supplier => supplier.id === article.supplierId)?.name} projectId={projectId} editMode={editMode} adding={addingArticleId === article.id} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} />
                         ))}
                     </div>
                 )}

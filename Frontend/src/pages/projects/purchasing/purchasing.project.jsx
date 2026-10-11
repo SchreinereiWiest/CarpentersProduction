@@ -10,7 +10,8 @@ import {
     createProcurementPayload,
     mergeGeneratedItems,
     normalizeCatalog,
-    normalizeProcurementDocument
+    normalizeProcurementDocument,
+    normalizeShopSettings
 } from "../../purchasing/procurementUtils.js";
 import {
     loadProcurementCatalog,
@@ -47,7 +48,7 @@ function SourceBadge({ source }) {
     );
 }
 
-function PurchaseTable({ title, description, items, onChange, onRemove }) {
+function PurchaseTable({ title, description, items, lockedReleasedKeys, onChange, onRemove }) {
     return (
         <section className="overflow-hidden rounded-xl border border-gray-700 bg-gray-800 shadow-lg">
             <div className="flex flex-wrap items-end justify-between gap-3 border-b border-gray-700 px-5 py-4">
@@ -64,11 +65,12 @@ function PurchaseTable({ title, description, items, onChange, onRemove }) {
                 </div>
             ) : (
                 <div className="overflow-x-auto">
-                    <table className="w-full min-w-[860px] text-left">
+                    <table className="w-full min-w-[980px] text-left">
                         <thead className="bg-gray-900/60 text-xs uppercase tracking-wide text-gray-400">
                             <tr>
                                 <th className="px-5 py-3">Artikel</th>
                                 <th className="px-4 py-3">Herkunft</th>
+                                <th className="px-4 py-3">Lieferant</th>
                                 <th className="px-4 py-3">Stück</th>
                                 <th className="px-4 py-3">Netto / Einheit</th>
                                 <th className="px-4 py-3">Summe</th>
@@ -79,9 +81,11 @@ function PurchaseTable({ title, description, items, onChange, onRemove }) {
                             {items.map(item => {
                                 const price = Number(item.netPrice);
                                 const lineTotal = Number.isFinite(price) ? price * Number(item.quantity || 0) : null;
+                                const releaseLocked = lockedReleasedKeys.has(item.sourceKey);
+                                const readOnly = item.purchased || releaseLocked;
 
                                 return (
-                                    <tr key={item.sourceKey} className="hover:bg-gray-700/40">
+                                    <tr key={item.sourceKey} className={item.purchased ? "bg-emerald-950/35 hover:bg-emerald-950/50" : releaseLocked ? "bg-amber-950/20 hover:bg-amber-950/30" : "hover:bg-gray-700/40"}>
                                         <td className="px-5 py-4">
                                             <div className="font-medium text-white">{item.name}</div>
                                             <div className="mt-1 text-sm text-gray-400">
@@ -89,6 +93,7 @@ function PurchaseTable({ title, description, items, onChange, onRemove }) {
                                             </div>
                                         </td>
                                         <td className="px-4 py-4"><SourceBadge source={item.source} /></td>
+                                        <td className="px-4 py-4 text-sm text-gray-300">{item.supplierName || "Ohne Lieferant"}</td>
                                         <td className="px-4 py-4">
                                             <div className="flex items-center gap-2">
                                                 <input
@@ -97,8 +102,9 @@ function PurchaseTable({ title, description, items, onChange, onRemove }) {
                                                     min="0.01"
                                                     step="0.01"
                                                     value={item.quantity}
+                                                    disabled={readOnly}
                                                     onChange={event => onChange(item.sourceKey, "quantity", event.target.value)}
-                                                    className="w-20 rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-white outline-none focus:border-blue-500"
+                                                    className="w-20 rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-white outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
                                                 />
                                                 <span className="text-sm text-gray-400">{item.unit}</span>
                                             </div>
@@ -111,9 +117,10 @@ function PurchaseTable({ title, description, items, onChange, onRemove }) {
                                                     min="0"
                                                     step="0.01"
                                                     value={item.netPrice ?? ""}
+                                                    disabled={readOnly}
                                                     placeholder="0,00"
                                                     onChange={event => onChange(item.sourceKey, "netPrice", event.target.value)}
-                                                    className="w-full rounded-lg border border-gray-600 bg-gray-900 py-2 pl-3 pr-8 text-white outline-none focus:border-blue-500"
+                                                    className="w-full rounded-lg border border-gray-600 bg-gray-900 py-2 pl-3 pr-8 text-white outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
                                                 />
                                                 <span className="absolute right-3 top-2 text-gray-500">€</span>
                                             </div>
@@ -123,7 +130,7 @@ function PurchaseTable({ title, description, items, onChange, onRemove }) {
                                         </td>
                                         <td className="px-5 py-4">
                                             <div className="flex items-center justify-end gap-3">
-                                                {item.source === "shop" && (
+                                                {item.source === "shop" && !readOnly && (
                                                     <button
                                                         type="button"
                                                         onClick={() => onRemove(item.sourceKey)}
@@ -136,17 +143,27 @@ function PurchaseTable({ title, description, items, onChange, onRemove }) {
                                                         </svg>
                                                     </button>
                                                 )}
-                                                <label className="inline-flex cursor-pointer items-center gap-2 text-sm">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={Boolean(item.released)}
-                                                        onChange={event => onChange(item.sourceKey, "released", event.target.checked)}
-                                                        className="size-4 accent-blue-600"
-                                                    />
-                                                    <span className={item.released ? "text-blue-300" : "text-gray-400"}>
-                                                        {item.released ? "Freigegeben" : "Freigeben"}
+                                                {item.purchased ? (
+                                                    <span className="inline-flex items-center gap-2 rounded-full bg-emerald-900/60 px-3 py-1.5 text-sm font-medium text-emerald-300">
+                                                        <span aria-hidden="true">✓</span> Gekauft
                                                     </span>
-                                                </label>
+                                                ) : releaseLocked ? (
+                                                    <span className="inline-flex items-center gap-2 rounded-full bg-amber-900/40 px-3 py-1.5 text-sm font-medium text-amber-300">
+                                                        <span aria-hidden="true">🔒</span> Freigegeben
+                                                    </span>
+                                                ) : (
+                                                    <label className="inline-flex cursor-pointer items-center gap-2 text-sm">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={Boolean(item.released)}
+                                                            onChange={event => onChange(item.sourceKey, "released", event.target.checked)}
+                                                            className="size-4 accent-blue-600"
+                                                        />
+                                                        <span className={item.released ? "text-blue-300" : "text-gray-400"}>
+                                                            {item.released ? "Freigegeben" : "Freigeben"}
+                                                        </span>
+                                                    </label>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -164,6 +181,7 @@ export default function ProjectPurchasing() {
     const { projectId } = useParams();
     const [project, setProject] = useState(null);
     const [items, setItems] = useState([]);
+    const [lockedReleasedKeys, setLockedReleasedKeys] = useState(() => new Set());
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState("");
@@ -192,13 +210,22 @@ export default function ProjectPurchasing() {
                 const saved = normalizeProcurementDocument(procurement);
                 const storageMaterials = materialResponse.data?.materials || [];
                 const catalogArticles = normalizeCatalog(catalog).articles;
+                const suppliersById = new Map(normalizeShopSettings(shopSettings).suppliers.map(supplier => [supplier.id, supplier.name]));
                 const generated = [
-                    ...buildPlateItems(nesting, storageMaterials),
+                    ...buildPlateItems(nesting, storageMaterials, shopSettings),
                     ...buildHardwareItems(partList, shopSettings, catalogArticles, cabinetData)
                 ];
 
+                const mergedItems = mergeGeneratedItems(generated, saved.items).map(item => ({
+                    ...item,
+                    supplierName: suppliersById.get(item.supplierId) || item.supplierName || ""
+                }));
+
                 setProject(projectResponse.data.project);
-                setItems(mergeGeneratedItems(generated, saved.items));
+                setItems(mergedItems);
+                setLockedReleasedKeys(new Set(
+                    mergedItems.filter(item => item.released && !item.purchased).map(item => item.sourceKey)
+                ));
             } catch (loadError) {
                 console.error("Einkaufswagen konnte nicht geladen werden", loadError);
                 if (active) setError("Der Projekt-Einkaufswagen konnte nicht geladen werden.");
@@ -217,8 +244,10 @@ export default function ProjectPurchasing() {
         shop: items.filter(item => item.source === "shop")
     }), [items]);
 
-    const releasedItems = items.filter(item => item.released);
-    const allReleased = items.length > 0 && releasedItems.length === items.length;
+    const purchasableItems = items.filter(item => !item.purchased);
+    const editableItems = purchasableItems.filter(item => !lockedReleasedKeys.has(item.sourceKey));
+    const releasedItems = purchasableItems.filter(item => item.released);
+    const allReleased = purchasableItems.length > 0 && releasedItems.length === purchasableItems.length;
     const releasedTotal = releasedItems.reduce((sum, item) => {
         const price = Number(item.netPrice);
         return sum + (Number.isFinite(price) ? price * Number(item.quantity || 0) : 0);
@@ -228,6 +257,7 @@ export default function ProjectPurchasing() {
         setMessage("");
         setItems(current => current.map(item => {
             if (item.sourceKey !== sourceKey) return item;
+            if (item.purchased || lockedReleasedKeys.has(item.sourceKey)) return item;
             if (field === "released") return { ...item, released: value };
             if (field === "netPrice") return { ...item, netPrice: value === "" ? null : Number(value) };
             if (field === "quantity") return { ...item, quantity: value };
@@ -237,7 +267,7 @@ export default function ProjectPurchasing() {
 
     const removeItem = sourceKey => {
         setMessage("");
-        setItems(current => current.filter(item => item.sourceKey !== sourceKey));
+        setItems(current => current.filter(item => item.sourceKey !== sourceKey || item.purchased || lockedReleasedKeys.has(item.sourceKey)));
     };
 
     const save = async () => {
@@ -249,10 +279,16 @@ export default function ProjectPurchasing() {
             const normalizedItems = items.map(item => ({
                 ...item,
                 quantity: Math.max(0.01, Number(item.quantity) || 1),
-                netPrice: item.netPrice === null ? null : Math.max(0, Number(item.netPrice) || 0)
+                netPrice: item.netPrice === null ? null : Math.max(0, Number(item.netPrice) || 0),
+                purchased: Boolean(item.purchased),
+                purchasedAt: item.purchasedAt || null,
+                released: Boolean(item.released) && !item.purchased
             }));
             await saveProjectProcurement(projectId, createProcurementPayload(normalizedItems));
             setItems(normalizedItems);
+            setLockedReleasedKeys(new Set(
+                normalizedItems.filter(item => item.released && !item.purchased).map(item => item.sourceKey)
+            ));
             setMessage("Einkaufswagen und Freigaben wurden gespeichert.");
         } catch (saveError) {
             console.error("Einkaufswagen konnte nicht gespeichert werden", saveError);
@@ -287,11 +323,13 @@ export default function ProjectPurchasing() {
                                     <input
                                         type="checkbox"
                                         checked={allReleased}
-                                        disabled={items.length === 0}
+                                        disabled={editableItems.length === 0}
                                         onChange={event => {
                                             const released = event.target.checked;
                                             setMessage("");
-                                            setItems(current => current.map(item => ({ ...item, released })));
+                                            setItems(current => current.map(item => (
+                                                item.purchased || lockedReleasedKeys.has(item.sourceKey) ? item : { ...item, released }
+                                            )));
                                         }}
                                         className="size-5 accent-blue-600"
                                     />
@@ -326,6 +364,7 @@ export default function ProjectPurchasing() {
                                     title="Nesting-Platten"
                                     description="Benötigte Rohplatten aus dem zuletzt gespeicherten Nesting."
                                     items={groupedItems.plates}
+                                    lockedReleasedKeys={lockedReleasedKeys}
                                     onChange={changeItem}
                                     onRemove={removeItem}
                                 />
@@ -333,6 +372,7 @@ export default function ProjectPurchasing() {
                                     title="Hardware"
                                     description="Beschläge und Auszüge aus der Cabinet-Stückliste."
                                     items={groupedItems.hardware}
+                                    lockedReleasedKeys={lockedReleasedKeys}
                                     onChange={changeItem}
                                     onRemove={removeItem}
                                 />
@@ -340,6 +380,7 @@ export default function ProjectPurchasing() {
                                     title="Aus dem internen Shop"
                                     description="Manuell im zentralen Einkauf zu diesem Projekt hinzugefügte Artikel."
                                     items={groupedItems.shop}
+                                    lockedReleasedKeys={lockedReleasedKeys}
                                     onChange={changeItem}
                                     onRemove={removeItem}
                                 />

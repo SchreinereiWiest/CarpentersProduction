@@ -300,6 +300,8 @@ model File {
 
   status String? @map("status")
 
+  shopArticles ShopArticle[] @relation("ShopArticleImage")
+
   @@map("files")
 }
 
@@ -343,7 +345,8 @@ model Material {
 
   maser Boolean? @default(false) @map("maser")
 
-  supplier String? @map("supplier")
+  supplierId String?   @map("supplier_id") @db.Uuid
+  supplier   Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -351,6 +354,89 @@ model Material {
   @@index([materialNumber])
   @@index([name])
   @@map("materials")
+}
+
+model Supplier {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  name       String
+  externalId String? @map("external_id")
+
+  // Für spätere IDS-Connect-/E-Procurement-Adapter. Zugangsdaten gehören nicht in dieses JSON.
+  procurementType   String? @map("procurement_type")
+  procurementConfig Json?   @map("procurement_config")
+
+  articles  ShopArticle[]
+  materials Material[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([name])
+  @@map("suppliers")
+}
+
+model ShopArticleGroup {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  name        String
+  description String?
+  articles    ShopArticle[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([name])
+  @@map("shop_article_groups")
+}
+
+model ShopArticle {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  name        String
+  sku         String?
+  category    String?
+  description String?
+  unit        String  @default("Stk.")
+  netPrice    Decimal @default(0) @map("net_price") @db.Decimal(12, 2)
+
+  supplierId String?   @map("supplier_id") @db.Uuid
+  supplier   Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+
+  groupId String?           @map("group_id") @db.Uuid
+  group   ShopArticleGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+
+  imageFileId String? @map("image_file_id") @db.Uuid
+  imageFile   File?   @relation("ShopArticleImage", fields: [imageFileId], references: [id], onDelete: SetNull)
+
+  hardwareMappings ShopHardwareMapping[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([name])
+  @@index([sku])
+  @@index([category])
+  @@index([supplierId])
+  @@index([groupId])
+  @@map("shop_articles")
+}
+
+model ShopHardwareMapping {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  variant String
+  color   String
+
+  articleId String?      @map("article_id") @db.Uuid
+  article   ShopArticle? @relation(fields: [articleId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([variant, color])
+  @@index([articleId])
+  @@map("shop_hardware_mappings")
 }
 
 model TimeEntry {

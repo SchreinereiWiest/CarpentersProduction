@@ -12,6 +12,7 @@ import storageRoutes from "./routes/storage.routes.js"
 import timeRoutes from "./routes/time.routes.js";
 import userRoutes from "./routes/user.routes.js"
 import settingsRoutes from "./routes/settings.routes.js"
+import shopRoutes from "./routes/shop.routes.js";
 import { allowedOrigins } from "./config/security.js";
 import { verifyCsrfToken, verifyRequestOrigin } from "./middleware/csrf.middleware.js";
 import { startStorageDeletionWorker } from "./services/storageDeletion.service.js";
@@ -67,6 +68,8 @@ app.use("/api/time", timeRoutes);
 app.use("/api/user", userRoutes);
 
 app.use("/api/settings", settingsRoutes);
+
+app.use("/api/shop", shopRoutes);
 
 app.listen(5000, () => {
   console.log("Backend running on port 5000");

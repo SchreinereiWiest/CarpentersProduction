@@ -17,31 +17,33 @@ export const saveProjectProcurement = (projectId, payload) => (
 
 export const loadProcurementCatalog = async () => {
     try {
-        const data = await downloadFile("/api/settings/procurement");
-        return data ?? { version: 1, articles: [] };
+        const response = await axios.get("/api/shop/catalog");
+        return response.data ?? { version: 1, articles: [], groups: [] };
     } catch (error) {
         console.error("Einkaufskatalog konnte nicht geladen werden", error);
         return { version: 1, articles: [] };
     }
 };
 
-export const saveProcurementCatalog = payload => (
-    uploadJSONFile("/api/settings/procurement", payload)
-);
+export const saveProcurementCatalog = async payload => {
+    const response = await axios.put("/api/shop/catalog", payload);
+    return response.data;
+};
 
 export const loadShopSettings = async () => {
     try {
-        const data = await downloadFile("/api/settings/shop");
-        return data ?? null;
+        const response = await axios.get("/api/shop/settings");
+        return response.data ?? null;
     } catch (error) {
         console.error("Shop-Einstellungen konnten nicht geladen werden", error);
         return null;
     }
 };
 
-export const saveShopSettings = payload => (
-    uploadJSONFile("/api/settings/shop", payload)
-);
+export const saveShopSettings = async payload => {
+    const response = await axios.put("/api/shop/settings", payload);
+    return response.data;
+};
 
 export const uploadShopImage = async file => {
     const formData = new FormData();
@@ -58,4 +60,3 @@ export const loadShopImageUrl = async fileId => {
     const response = await axios.get(`/api/files/download/${fileId}`);
     return response.data.url;
 };
-/*  */

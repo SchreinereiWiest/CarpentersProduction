@@ -4,31 +4,62 @@ const toPositiveNumber = (value, fallback = 1) => {
 };
 
 const keyPart = value => encodeURIComponent(String(value ?? "").trim().toLowerCase());
+const createUuid = () => {
+    if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, character => {
+        const random = Math.floor(Math.random() * 16);
+        const value = character === "x" ? random : (random & 0x3) | 0x8;
+        return value.toString(16);
+    });
+};
 
 export const LEGRABOX_VARIANTS = ["M", "K", "C", "L"];
 export const LEGRABOX_COLORS = ["white", "gray"];
 
 export const DEFAULT_SHOP_SETTINGS = {
     version: 1,
+    suppliers: [],
     legraboxArticleIds: Object.fromEntries(
         LEGRABOX_VARIANTS.map(variant => [variant, { white: "", gray: "" }])
     )
 };
 
-export const normalizeShopSettings = data => ({
-    ...DEFAULT_SHOP_SETTINGS,
-    ...(data && typeof data === "object" ? data : {}),
-    legraboxArticleIds: Object.fromEntries(
-        LEGRABOX_VARIANTS.map(variant => [variant, {
-            ...DEFAULT_SHOP_SETTINGS.legraboxArticleIds[variant],
-            ...(data?.legraboxArticleIds?.[variant] ?? {})
-        }])
-    )
-});
+export const normalizeShopSettings = data => {
+    const suppliers = (Array.isArray(data?.suppliers) ? data.suppliers : [])
+        .filter(supplier => supplier?.id && supplier?.name)
+        .map(supplier => ({
+            id: String(supplier.id),
+            name: String(supplier.name),
+            externalId: String(supplier.externalId || ""),
+            procurementType: supplier.procurementType || null,
+            procurementConfig: supplier.procurementConfig || null
+        }));
+
+    return {
+        ...DEFAULT_SHOP_SETTINGS,
+        ...(data && typeof data === "object" ? data : {}),
+        suppliers,
+        legraboxArticleIds: Object.fromEntries(
+            LEGRABOX_VARIANTS.map(variant => [variant, {
+                ...DEFAULT_SHOP_SETTINGS.legraboxArticleIds[variant],
+                ...(data?.legraboxArticleIds?.[variant] ?? {})
+            }])
+        )
+    };
+};
 
 export const createArticleId = () => {
-    if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
-    return `article-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    return createUuid();
+};
+
+export const createSupplierId = () => {
+    return createUuid();
+};
+
+export const resolveSupplier = (supplierId, shopSettings = DEFAULT_SHOP_SETTINGS) => {
+    const normalizedId = String(supplierId || "");
+    const supplier = normalizeShopSettings(shopSettings).suppliers.find(item => item.id === normalizedId);
+    return supplier || (normalizedId ? { id: normalizedId, name: normalizedId, externalId: "" } : null);
 };
 
 export const normalizeProcurementDocument = data => ({
@@ -44,7 +75,7 @@ export const normalizeCatalog = data => ({
     groups: Array.isArray(data?.groups) ? data.groups : []
 });
 
-export const buildPlateItems = (nestingData = [], storageMaterials = []) => {
+export const buildPlateItems = (nestingData = [], storageMaterials = [], shopSettings = DEFAULT_SHOP_SETTINGS) => {
     const grouped = new Map();
 
     for (const sheet of Array.isArray(nestingData) ? nestingData : []) {
@@ -64,6 +95,7 @@ export const buildPlateItems = (nestingData = [], storageMaterials = []) => {
             Number.isFinite(Number(candidate?.thickness)) &&
             Math.abs(Number(candidate.thickness) - thickness) < 0.001
         )) ?? (matchingStorageMaterials.length === 1 ? matchingStorageMaterials[0] : null);
+        const supplier = resolveSupplier(storageMaterial?.supplierId, shopSettings);
 
         for (const plate of Array.isArray(sheet?.nestingPlates) ? sheet.nestingPlates : []) {
             if (!(plate?.strips?.length || plate?.plates?.length)) continue;
@@ -96,6 +128,10 @@ export const buildPlateItems = (nestingData = [], storageMaterials = []) => {
                 quantity: 1,
                 unit: "Stk.",
                 netPrice: platePrice,
+                supplierId: supplier?.id || null,
+                supplierName: supplier?.name || "",
+                purchased: false,
+                purchasedAt: null,
                 released: false
             });
         }
@@ -141,6 +177,7 @@ export const buildHardwareItems = (partList = [], shopSettings = DEFAULT_SHOP_SE
             const materialColor = (hardware?.materialColor ?? cabinetColorsById.get(hardware?.id)) === "gray" ? "gray" : "white";
             const mappedArticleId = normalizedSettings.legraboxArticleIds?.[variant]?.[materialColor] || "";
             const mappedArticle = articlesById.get(mappedArticleId);
+            const supplier = resolveSupplier(mappedArticle?.supplierId, normalizedSettings);
             const detailParts = [
                 variant,
                 materialColor === "gray" ? "Grau" : "Weiß",
@@ -175,6 +212,10 @@ export const buildHardwareItems = (partList = [], shopSettings = DEFAULT_SHOP_SE
                 netPrice: mappedArticle?.netPrice !== null && mappedArticle?.netPrice !== "" && mappedArticle?.netPrice !== undefined && Number.isFinite(Number(mappedArticle.netPrice))
                     ? Number(mappedArticle.netPrice)
                     : null,
+                supplierId: supplier?.id || null,
+                supplierName: supplier?.name || "",
+                purchased: false,
+                purchasedAt: null,
                 released: false
             });
         }
@@ -196,26 +237,33 @@ export const mergeGeneratedItems = (generatedItems, savedItems = []) => {
             ? {
                 ...item,
                 netPrice: saved.netPrice ?? item.netPrice,
-                released: Boolean(saved.released)
+                quantity: saved.purchased ? saved.quantity : item.quantity,
+                purchased: Boolean(saved.purchased),
+                purchasedAt: saved.purchasedAt ?? null,
+                released: Boolean(saved.released) && !saved.purchased
             }
             : item;
     });
-    const manualItems = (Array.isArray(savedItems) ? savedItems : [])
-        .filter(item => item?.source === "shop" && !generatedKeys.has(item.sourceKey));
+    const retainedSavedItems = (Array.isArray(savedItems) ? savedItems : [])
+        .filter(item => (item?.source === "shop" || item?.purchased) && !generatedKeys.has(item.sourceKey));
 
-    return [...mergedGenerated, ...manualItems];
+    return [...mergedGenerated, ...retainedSavedItems];
 };
 
 export const addArticleToProcurement = (items, article, quantity = 1) => {
     const amount = toPositiveNumber(quantity);
-    const sourceKey = `shop:${article.id}`;
-    const existing = items.find(item => item.sourceKey === sourceKey);
+    const baseSourceKey = `shop:${article.id}`;
+    const existing = items.find(item => item.sourceKey === baseSourceKey && !item.purchased);
 
     if (existing) {
-        return items.map(item => item.sourceKey === sourceKey
+        return items.map(item => item.sourceKey === baseSourceKey
             ? { ...item, quantity: toPositiveNumber(item.quantity) + amount }
             : item);
     }
+
+    const sourceKey = items.some(item => item.sourceKey === baseSourceKey)
+        ? `${baseSourceKey}:${Date.now()}`
+        : baseSourceKey;
 
     return [...items, {
         id: sourceKey,
@@ -229,6 +277,10 @@ export const addArticleToProcurement = (items, article, quantity = 1) => {
         quantity: amount,
         unit: article.unit || "Stk.",
         netPrice: Number.isFinite(Number(article.netPrice)) ? Number(article.netPrice) : null,
+        supplierId: article.supplierId || null,
+        supplierName: article.supplierName || "",
+        purchased: false,
+        purchasedAt: null,
         released: false
     }];
 };

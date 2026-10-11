@@ -5,6 +5,7 @@ import {
     saveShopSettings
 } from "../../purchasing/procurementApi.js";
 import {
+    createSupplierId,
     LEGRABOX_COLORS,
     LEGRABOX_VARIANTS,
     normalizeCatalog,
@@ -57,6 +58,32 @@ export default function ShopSettingsPanel() {
         setMessage(null);
     };
 
+    const addSupplier = () => {
+        setConfig(current => ({
+            ...current,
+            suppliers: [...current.suppliers, { id: createSupplierId(), name: "", externalId: "" }]
+        }));
+        setMessage(null);
+    };
+
+    const updateSupplier = (id, field, value) => {
+        setConfig(current => ({
+            ...current,
+            suppliers: current.suppliers.map(supplier => supplier.id === id
+                ? { ...supplier, [field]: value }
+                : supplier)
+        }));
+        setMessage(null);
+    };
+
+    const removeSupplier = id => {
+        setConfig(current => ({
+            ...current,
+            suppliers: current.suppliers.filter(supplier => supplier.id !== id)
+        }));
+        setMessage(null);
+    };
+
     const save = async () => {
         setSaving(true);
         setMessage(null);
@@ -64,12 +91,19 @@ export default function ShopSettingsPanel() {
         try {
             const payload = {
                 ...config,
+                suppliers: config.suppliers
+                    .map(supplier => ({
+                        ...supplier,
+                        name: supplier.name.trim(),
+                        externalId: supplier.externalId.trim()
+                    }))
+                    .filter(supplier => supplier.name),
                 version: 1,
                 updatedAt: new Date().toISOString()
             };
             await saveShopSettings(payload);
             setConfig(payload);
-            setMessage({ type: "success", text: "Shop-Zuordnungen wurden gespeichert." });
+            setMessage({ type: "success", text: "Shop-Einstellungen wurden gespeichert." });
         } catch (error) {
             console.error("Shop-Einstellungen konnten nicht gespeichert werden", error);
             setMessage({ type: "error", text: "Die Shop-Zuordnungen konnten nicht gespeichert werden." });
@@ -89,7 +123,7 @@ export default function ShopSettingsPanel() {
                     <div>
                         <h1 className="text-xl font-semibold">Shop</h1>
                         <p className="mt-1 max-w-2xl text-sm text-gray-500">
-                            Legrabox-Ausführungen mit Artikeln aus dem internen Shop verknüpfen. Artikelnummer und Nettopreis werden anschließend im Projekt-Einkaufswagen übernommen.
+                            Lieferanten verwalten und Legrabox-Ausführungen mit Artikeln aus dem internen Shop verknüpfen.
                         </p>
                     </div>
                     <button
@@ -98,7 +132,7 @@ export default function ShopSettingsPanel() {
                         disabled={saving}
                         className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                        {saving ? "Speichert …" : "Zuordnungen speichern"}
+                        {saving ? "Speichert …" : "Einstellungen speichern"}
                     </button>
                 </div>
 
@@ -113,6 +147,58 @@ export default function ShopSettingsPanel() {
                         Im internen Shop sind noch keine Artikel angelegt. Lege dort zuerst die benötigten Legrabox-Artikel an.
                     </div>
                 )}
+
+                <section className="overflow-hidden rounded-xl border border-gray-700 bg-gray-800">
+                    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-700 px-5 py-4">
+                        <div>
+                            <h2 className="font-semibold">Lieferanten</h2>
+                            <p className="mt-1 text-sm text-gray-400">
+                                Diese Lieferanten stehen bei Shop-Artikeln und Plattenmaterial zur Auswahl. Die interne ID bleibt für spätere E-Procurement-Anbindungen stabil.
+                            </p>
+                        </div>
+                        <button type="button" onClick={addSupplier} className="rounded-lg border border-gray-600 px-3 py-2 text-sm text-gray-200 hover:bg-gray-700">
+                            + Lieferant
+                        </button>
+                    </div>
+
+                    {config.suppliers.length === 0 ? (
+                        <div className="px-5 py-8 text-center text-sm text-gray-500">Noch keine Lieferanten eingerichtet.</div>
+                    ) : (
+                        <div className="divide-y divide-gray-700">
+                            {config.suppliers.map(supplier => (
+                                <div key={supplier.id} className="grid gap-3 px-5 py-4 md:grid-cols-[minmax(220px,1fr)_minmax(220px,1fr)_auto]">
+                                    <label>
+                                        <span className="mb-1.5 block text-xs uppercase tracking-wide text-gray-500">Name</span>
+                                        <input
+                                            value={supplier.name}
+                                            onChange={event => updateSupplier(supplier.id, "name", event.target.value)}
+                                            placeholder="z. B. Häfele"
+                                            className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+                                        />
+                                    </label>
+                                    <label>
+                                        <span className="mb-1.5 block text-xs uppercase tracking-wide text-gray-500">Kunden-/Lieferantenkennung</span>
+                                        <input
+                                            value={supplier.externalId}
+                                            onChange={event => updateSupplier(supplier.id, "externalId", event.target.value)}
+                                            placeholder="Optional"
+                                            className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+                                        />
+                                    </label>
+                                    <button
+                                        type="button"
+                                        onClick={() => removeSupplier(supplier.id)}
+                                        className="self-end rounded-lg p-2.5 text-gray-500 hover:bg-gray-700 hover:text-red-400"
+                                        aria-label={`${supplier.name || "Lieferant"} entfernen`}
+                                        title="Lieferant entfernen"
+                                    >
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="size-5" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M6 7h12m-9 0V5h6v2m-7 0 1 13h6l1-13" /></svg>
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </section>
 
                 <section className="overflow-hidden rounded-xl border border-gray-700 bg-gray-800">
                     <div className="border-b border-gray-700 px-5 py-4">

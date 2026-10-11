@@ -1,8 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
+import { loadShopSettings } from "../purchasing/procurementApi.js";
+import { normalizeShopSettings } from "../purchasing/procurementUtils.js";
 
 
 export function MaterialModal({ onClose, onSaved, material = null }) {
+
+    const [suppliers, setSuppliers] = useState([]);
 
     const [formData, setFormData] = useState({
 
@@ -12,7 +16,7 @@ export function MaterialModal({ onClose, onSaved, material = null }) {
         category: material?.category ?? "",
         thickness: material?.thickness ?? "",
         pricePerSquareMeter: material?.pricePerSquareMeter ?? "",
-        supplier: material?.supplier ?? "",
+        supplierId: material?.supplierId ?? "",
         width: material?.width ?? "",
         height: material?.height ?? "",
         minimumStorage: material?.minimumStorage ?? "",
@@ -27,6 +31,23 @@ export function MaterialModal({ onClose, onSaved, material = null }) {
 
     const [error, setError] =
         useState(null);
+
+
+    useEffect(() => {
+
+        let active = true;
+
+        loadShopSettings()
+            .then(settings => {
+                if (active) setSuppliers(normalizeShopSettings(settings).suppliers);
+            })
+            .catch(loadError => {
+                console.warn("Lieferanten konnten nicht geladen werden:", loadError);
+            });
+
+        return () => { active = false; };
+
+    }, []);
 
 
     function handleChange(event) {
@@ -95,8 +116,8 @@ export function MaterialModal({ onClose, onSaved, material = null }) {
                                 )
                                 : null,
 
-                        supplier:
-                            formData.supplier || null
+                        supplierId:
+                            formData.supplierId || null
 
                     };
 
@@ -663,16 +684,14 @@ export function MaterialModal({ onClose, onSaved, material = null }) {
                             </label>
 
 
-                            <input
-                                type="text"
-                                name="supplier"
+                            <select
+                                name="supplierId"
                                 value={
-                                    formData.supplier
+                                    formData.supplierId
                                 }
                                 onChange={
                                     handleChange
                                 }
-                                placeholder="z. B. Häfele"
                                 className="
                                     w-full
                                     rounded-lg
@@ -683,10 +702,14 @@ export function MaterialModal({ onClose, onSaved, material = null }) {
                                     py-2
                                     text-white
                                     outline-none
-                                    placeholder:text-gray-500
                                     focus:border-blue-500
                                 "
-                            />
+                            >
+                                <option value="">Ohne Lieferant</option>
+                                {suppliers.map(supplier => (
+                                    <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                                ))}
+                            </select>
 
                         </div>
 
