@@ -19,8 +19,16 @@
 | `TimeEntry` | Arbeitszeit in Minuten | Projekt und optional Benutzer |
 | `AuditLog` | Sicherheits- und Aktionsspur | optionaler ausführender Benutzer sowie Aktion, Ressource und Request-Metadaten |
 | `StorageDeletionJob` | dauerhafte Outbox für Garage-Löschungen | eindeutiger Bucket/Objektschlüssel, Status, Versuche und nächster Versuch |
+| `ManagementPeriod` | Betriebsmodell je Geschäftsjahr | JSON-Konfiguration, Revision und Änderungsdatum |
+| `ManagementTransaction` | interne Geschäftsvorfälle, Ist und Plan | optional Projekt und Belegdatei; Zahlungen; eindeutige Quellkennung |
+| `ManagementPayment` | tatsächliche Zahlungen | gehört zu einem Geschäftsvorfall; Bruttobetrag und Datum |
+| `ManagementAsset` | Anlagegut und interne Abschreibung | Kostenstelle aus dem Geschäftsmodell, Anschaffungskosten, Restwert und Nutzungsdauer |
+| `ManagementLoan` | Darlehen | ursprünglicher Betrag, Auszahlungsdatum, informatorischer Zinssatz und Tilgungen |
+| `ManagementRepayment` | Darlehenstilgung | gehört zu einem Darlehen; erzeugt atomar eine neutrale Geldbewegung |
 
 ## Enums
+
+Die Einrichtung und Rechenregeln der Managementmodelle sind unter [Management und Betriebskalkulation](../frontend/management.md) dokumentiert.
 
 - `UserRole`: `admin`, `manager`, `user`
 - `CustomerStatus`: `lead`, `active`, `inactive`

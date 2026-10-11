@@ -51,6 +51,7 @@ export const authorizeCustomerBody = (field = "customerId") => async (req, res, 
 
 export const canAccessFile = (user, file, { allowSharedShop = false } = {}) => {
     if (isPrivileged(user)) return true;
+    if (file.category === 'management-document') return false;
 
     if (allowSharedShop && file.category === "shop") return true;
 

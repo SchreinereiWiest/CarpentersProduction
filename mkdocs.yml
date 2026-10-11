@@ -61,6 +61,7 @@ nav:
       - State, API & Cache: frontend/state-data.md
       - Seiten & Komponenten: frontend/pages-components.md
       - Projektmodule: frontend/project-modules.md
+      - Management & Betriebskalkulation: frontend/management.md
       - Funktionsreferenz: frontend/functions.md
       - Risiken & Qualitätsregeln: frontend/quality.md
   - Backend:

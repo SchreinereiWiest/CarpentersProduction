@@ -33,6 +33,13 @@ const projectAttachmentUpload = multer({
 
 const router = express.Router();
 
+router.post(
+    '/management-document', authenticate, authorizeRoles('admin', 'manager'),
+    projectAttachmentUpload.single('file'),
+    (req, _res, next) => { req.body.entity = 'management'; req.uploadCategory = 'management-document'; next(); },
+    createUpload
+);
+
 router.post("/upload", authenticate, upload.single("file"), authorizeUploadTarget, createUpload);
 
 router.post(

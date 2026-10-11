@@ -1,4 +1,5 @@
-import { defineConfig } from 'vite'
+import { defineConfig, searchForWorkspaceRoot } from 'vite'
+import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
@@ -17,6 +18,9 @@ export default defineConfig({
 
    server: {
     host: true,
+    fs: {
+      allow: [searchForWorkspaceRoot(fileURLToPath(new URL('.', import.meta.url))), fileURLToPath(new URL('../shared', import.meta.url))]
+    },
 
     watch: {
       usePolling: true

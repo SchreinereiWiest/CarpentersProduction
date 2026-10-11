@@ -26,6 +26,7 @@ RUN pnpm approve-builds core-js
 # Application
 # -----------------------------------------
 
+COPY --from=shared . /shared
 COPY . .
 RUN pnpm approve-builds core-js
 RUN pnpm run build

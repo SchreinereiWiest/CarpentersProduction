@@ -95,6 +95,33 @@ Gültige Namen sind `cabinet`, `cabinetPreset`, `nesting`, `cnc`, `cache` und `c
 | `GET` | `/settings/:name` | Admin | `getSettingsData` | Einstellungsdatei laden |
 | `POST` | `/settings/:name` | Admin | `createSettingsData` | Einstellungsdatei anlegen/überschreiben |
 
+## Management
+
+Alle Management-Endpunkte verlangen Admin- oder Managerrolle. Der Parameter `year` wählt das Startjahr des Geschäftsjahres; ohne Angabe wird das aktuelle Jahr verwendet.
+
+| Methode | Pfad | Zweck |
+|---|---|---|
+| `GET` | `/management?year=2026&basis=actual` | konsistenten Daten-Snapshot mit Konfiguration, Revision, Geschäftsvorfällen, Zahlungen, Anlagen, Darlehen und Berechnung laden; `basis=plan` für Plan-Kosten |
+| `GET` | `/management/references` | verfügbare Projekt- und Belegverknüpfungen laden |
+| `PUT` | `/management/settings` | `{config, revision}` validieren und für das Geschäftsjahr speichern |
+| `POST` | `/management/transactions` | Geschäftsvorfall anlegen; optional eindeutige `sourceKey` zur Import-Deduplizierung |
+| `PUT` | `/management/transactions/:id` | Geschäftsvorfall mit `version` bearbeiten |
+| `DELETE` | `/management/transactions/:id?version=0` | Geschäftsvorfall und zugehörige Zahlungen entfernen |
+| `POST` | `/management/transactions/:id/payments` | `{amount, date, note?}` als tatsächliche Zahlung erfassen |
+| `DELETE` | `/management/payments/:id` | tatsächliche Zahlung entfernen |
+| `POST` | `/management/rules/apply` | gespeicherte Regeln auf leere Zuordnungen im Geschäftsjahr anwenden |
+| `POST` | `/management/assets` | Anlagegut mit Abschreibungsgrundlagen anlegen |
+| `PUT` | `/management/assets/:id` | Anlagegut mit `version` bearbeiten |
+| `DELETE` | `/management/assets/:id` | Anlagegut entfernen; separate Kaufzahlungen bleiben bestehen |
+| `POST` | `/management/loans` | Darlehen und bezahlten neutralen Geldzugang gemeinsam anlegen |
+| `PUT` | `/management/loans/:id` | Name, informatorischen Zinssatz und Notiz bearbeiten |
+| `POST` | `/management/loans/:id/repayments` | `{amount, date}` als Tilgung und neutralen Geldabgang gemeinsam erfassen |
+| `DELETE` | `/management/repayments/:id` | Tilgung und zugehörigen Geldabgang gemeinsam entfernen |
+| `DELETE` | `/management/loans/:id` | Darlehen, Tilgungen und zugehörige Geldbewegungen gemeinsam entfernen |
+| `POST` | `/files/management-document` | PDF/JPG bis 50 MB als Betriebsbeleg hochladen; Multipart-Felder `file`, `fileName` |
+
+Konflikte bei Revisionen, parallelen Änderungen oder vorhandenen Quellkennungen liefern `409`. Überzahlungen, Zahlungen zu Planwerten, ungültige Zuordnungen und überlappende Geschäftsjahre werden abgelehnt. Betriebsbelege sind ausschließlich für Manager/Admins zugänglich. Weitere Details stehen unter [Management und Betriebskalkulation](../frontend/management.md).
+
 ## Allgemeine Antwortkonventionen
 
 - Erfolgreiche Reads liefern überwiegend `200`.

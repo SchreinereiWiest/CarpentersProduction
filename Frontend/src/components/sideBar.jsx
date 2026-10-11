@@ -71,7 +71,7 @@ return (
 
 
         <ProtectedElement requiredRole="admin">
-            <Link to="/" className={SideBarCollapsed ? selected===1
+            <Link to="/Management" aria-label="Management" title="Management" className={SideBarCollapsed ? selected===1
                 ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : selected===1
@@ -87,7 +87,7 @@ return (
                         d="M12.75 3a.75.75 0 0 1 .75-.75 8.25 8.25 0 0 1 8.25 8.25.75.75 0 0 1-.75.75h-7.5a.75.75 0 0 1-.75-.75V3Z"
                         clipRule="evenodd" />
                 </svg>
-                <span className={SideBarCollapsed ? "hidden" : "pl-2 block" }>Auswertung</span>
+                <span className={SideBarCollapsed ? "hidden" : "pl-2 block" }>Management</span>
             </Link>
         </ProtectedElement>
 
@@ -112,7 +112,7 @@ return (
         </ProtectedElement>
 
         <ProtectedElement requiredRole="admin">
-            <Link to="/" className={SideBarCollapsed ? selected===3
+            <Link to="/Documents" aria-label="Dokumente" title="Dokumente" className={SideBarCollapsed ? selected===3
                 ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : selected===3

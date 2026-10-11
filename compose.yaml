@@ -28,6 +28,8 @@ services:
     build:
       context: ./Frontend
       dockerfile: Dockerfile
+      additional_contexts:
+        shared: ./shared
 
     restart: always
 
@@ -36,6 +38,7 @@ services:
 
     volumes:
       - ./Frontend:/app
+      - ./shared:/shared:ro
       - /app/node_modules
 
     labels:
@@ -54,6 +57,8 @@ services:
     build:
       context: ./Backend
       dockerfile: Dockerfile
+      additional_contexts:
+        shared: ./shared
 
     restart: always
 

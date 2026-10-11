@@ -60,6 +60,10 @@ export async function createUpload(req, res) {
                 prefix = "settings/shop-images";
                 break;
 
+            case "management":
+                prefix = "management/documents";
+                break;
+
             default:
                 return res.status(400).json({
                     error: "Invalid entity type"

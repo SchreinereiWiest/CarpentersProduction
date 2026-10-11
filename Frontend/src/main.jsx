@@ -39,6 +39,13 @@ import Personal from "./pages/personal/personal.personal.jsx";
 import Purchasing from "./pages/purchasing/purchasing.jsx";
 import ProjectPurchasing from "./pages/projects/purchasing/purchasing.project.jsx";
 import ProjectAttachments from "./pages/projects/attachments/attachments.project.jsx";
+import ManagementLayout from './pages/management/managementLayout.jsx';
+import ManagementOverview from './pages/management/overview.management.jsx';
+import ManagementTransactions, { ManagementDocuments } from './pages/management/transactions.management.jsx';
+import ManagementCostAccounting from './pages/management/costAccounting.management.jsx';
+import ManagementCalculation from './pages/management/calculation.management.jsx';
+import ManagementAssets from './pages/management/assets.management.jsx';
+import ManagementSettings from './pages/management/settings.management.jsx';
 
 
 
@@ -75,6 +82,19 @@ ReactDOM.createRoot(root).render(
       <BrowserRouter>
 
         <Routes>
+
+          <Route path="/Management" element={<ProtectedRoute requiredRole="admin"><ManagementLayout /></ProtectedRoute>}>
+            <Route index element={<ManagementOverview />} />
+            <Route path="Transactions" element={<ManagementTransactions />} />
+            <Route path="CostAccounting" element={<ManagementCostAccounting />} />
+            <Route path="Calculation" element={<ManagementCalculation />} />
+            <Route path="Assets" element={<ManagementAssets />} />
+            <Route path="Settings" element={<ManagementSettings />} />
+          </Route>
+
+          <Route path="/Documents" element={<ProtectedRoute requiredRole="admin"><ManagementLayout sidebarSelected={3} /></ProtectedRoute>}>
+            <Route index element={<ManagementDocuments />} />
+          </Route>
 
           <Route path="/login" element={ <PublicRoute>
             <Login />
