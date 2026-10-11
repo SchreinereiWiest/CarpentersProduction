@@ -3,7 +3,7 @@ import prisma from "../config/prisma.js";
 
 import {createUpload, createDownloadUrl, deleteFile} from "../middleware/upload.middleware.js";
 import {uploadcomplete} from "../controllers/file.controller.js";
-import { authenticate } from "../middleware/auth.middleware.js";
+import { authenticate, authorizeRoles } from "../middleware/auth.middleware.js";
 import { authorizeFile, authorizeUploadTarget } from "../middleware/resourceAuthorization.middleware.js";
 
 import multer from "multer";
@@ -12,13 +12,34 @@ const upload = multer({
     storage: multer.memoryStorage()
 });
 
+const shopImageUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+    fileFilter: (_req, file, callback) => {
+        const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+        callback(allowedTypes.has(file.mimetype) ? null : new Error("Unsupported shop image type"), allowedTypes.has(file.mimetype));
+    }
+});
+
 const router = express.Router();
 
 router.post("/upload", authenticate, upload.single("file"), authorizeUploadTarget, createUpload);
 
+router.post(
+    "/shop-image",
+    authenticate,
+    authorizeRoles("admin", "manager"),
+    shopImageUpload.single("file"),
+    (req, _res, next) => {
+        req.body.entity = "shop";
+        next();
+    },
+    createUpload
+);
+
 // router.post("/complete", uploadcomplete);
 
-router.get("/download/:id", authenticate, authorizeFile(), createDownloadUrl);
+router.get("/download/:id", authenticate, authorizeFile("id", { allowSharedShop: true }), createDownloadUrl);
 
 router.delete("/delete/:fileId", authenticate, authorizeFile("fileId"), deleteFile);
 

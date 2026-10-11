@@ -20,6 +20,9 @@ import CabinetSettingsPanel
 import CncSettingsPanel
     from "./panels/cncSettingsPanel.jsx";
 
+import ShopSettingsPanel
+    from "./panels/shopSettingsPanel.jsx";
+
 
 export default function CompanySettings() {
 
@@ -58,6 +61,12 @@ export default function CompanySettings() {
 
                 return (
                     <CacheSettingsPanel />
+                );
+
+            case "shop":
+
+                return (
+                    <ShopSettingsPanel />
                 );
 
 

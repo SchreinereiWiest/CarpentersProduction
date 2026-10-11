@@ -20,6 +20,10 @@ const tabs = [
     {
         id: "cnc",
         label: "CNC"
+    },
+    {
+        id: "shop",
+        label: "Shop"
     }
 ];
 
@@ -43,6 +47,7 @@ export default function SettingsBar({
                 gap-2
                 px-3
                 h-full
+                overflow-x-auto
             ">
 
                 {tabs.map(tab => {

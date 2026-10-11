@@ -41,6 +41,14 @@ export const getSettingsData = async (req, res) => {
         fileName = "settings-company.json";
         break;
 
+        case "procurement":
+        fileName = "settings-procurement.json";
+        break;
+
+        case "shop":
+        fileName = "settings-shop.json";
+        break;
+
       default:
         return res.status(400).json({
             message: "Invalid settings name"
@@ -130,6 +138,14 @@ export async function createSettingsData(req,res){
 
         case "company":
         fileName = "settings-company.json";
+        break;
+
+        case "procurement":
+        fileName = "settings-procurement.json";
+        break;
+
+        case "shop":
+        fileName = "settings-shop.json";
         break;
 
       default:

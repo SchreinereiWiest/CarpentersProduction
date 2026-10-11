@@ -207,7 +207,7 @@ return (
         </ProtectedElement>
 
                 <ProtectedElement requiredRole="user">
-                        <Link to="/" className={SideBarCollapsed ? selected===10
+                        <Link to="/Purchasing" className={SideBarCollapsed ? selected===10
                     ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                     : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                     : selected===10

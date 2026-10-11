@@ -56,6 +56,10 @@ export async function createUpload(req, res) {
                 prefix = `customers/${entityId}`;
                 break;
 
+            case "shop":
+                prefix = "settings/shop-images";
+                break;
+
             default:
                 return res.status(400).json({
                     error: "Invalid entity type"
@@ -142,12 +146,15 @@ export async function createUpload(req, res) {
                 projectId: entity === "project" ? entityId : null,
                 customerId: entity === "project"
                     ? req.authorizedProject.customerId
-                    : entityId,
+                    : entity === "customer"
+                        ? entityId
+                        : null,
                 storageObjectId: storageObject.id,
                 uploadedById: req.user.id,
                 fileName,
                 mimeType: mimeType || file.mimetype,
                 fileSize: parsedFileSize,
+                category: entity === "shop" ? "shop" : null,
                 status: "completed",
             },
         });

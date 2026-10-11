@@ -36,6 +36,8 @@ useState,
 useContext
 } from "react";
 import Personal from "./pages/personal/personal.personal.jsx";
+import Purchasing from "./pages/purchasing/purchasing.jsx";
+import ProjectPurchasing from "./pages/projects/purchasing/purchasing.project.jsx";
 
 
 
@@ -163,6 +165,12 @@ ReactDOM.createRoot(root).render(
             }
             />
 
+            <Route path="/Projects/Purchasing/:projectId" element={ <ProtectedRoute requiredRole="user">
+            <ProjectPurchasing/>
+            </ProtectedRoute>
+            }
+            />
+
             <Route path="/Storage" element={ <ProtectedRoute requiredRole="user">
             <ShowStorage/>
             </ProtectedRoute>
@@ -171,6 +179,12 @@ ReactDOM.createRoot(root).render(
 
             <Route path="/Mitarbeiter" element={ <ProtectedRoute requiredRole="user">
             <Personal/>
+            </ProtectedRoute>
+            }
+            />
+
+            <Route path="/Purchasing" element={ <ProtectedRoute requiredRole="user">
+            <Purchasing/>
             </ProtectedRoute>
             }
             />

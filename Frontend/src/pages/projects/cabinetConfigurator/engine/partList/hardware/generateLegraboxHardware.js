@@ -43,6 +43,9 @@ export const generateLegraboxHardware = (
                         variant:
                             box.variant,
 
+                        materialColor:
+                            box.materialColor ?? "white",
+
                         drawerDepth:
                             Number(
                                 box.drawerDepth

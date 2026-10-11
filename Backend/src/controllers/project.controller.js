@@ -320,6 +320,10 @@ export const getGeneratedProjectData = async (req, res) => {
         fileName = "cabinet.json";
         break;
 
+        case "procurement":
+        fileName = "procurement.json";
+        break;
+
       default:
         fileName="";
         break;
@@ -398,6 +402,10 @@ export async function createGeneratedProjectData(req,res){
 
         case "cabinet":
             fileName = "cabinet.json";
+            break;
+
+        case "procurement":
+            fileName = "procurement.json";
             break;
 
         default:
