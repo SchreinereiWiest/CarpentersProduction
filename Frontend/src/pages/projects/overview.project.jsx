@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import SideBar from '../../components/sideBar.jsx'
 import axios from 'axios';
 import { useNavigate } from 'react-router';
+import { useAuth } from '../../routes/AuthContext.jsx';
 
 function ProjectOverview() {
 
     const navigate = useNavigate();
+    const { user } = useAuth();
 
     const [projects, setProjects] = useState([]);
     const [showImport, setShowImport] = useState(false);
@@ -13,15 +15,18 @@ function ProjectOverview() {
     const [importing, setImporting] = useState(false);
     const [importError, setImportError] = useState("");
     const fileInputRef = useRef(null);
+    const projectsEndpoint = user?.role === "user"
+        ? "/api/projects/getActive"
+        : "/api/projects/getAll";
 
     const fetchProjects = async () => {
-        const result = await axios.get(`/api/projects/getAll`);
+        const result = await axios.get(projectsEndpoint);
         setProjects(result.data.projects);
     };
 
     useEffect(() => {
         let active = true;
-        axios.get(`/api/projects/getAll`).then(result => {
+        axios.get(projectsEndpoint).then(result => {
             if (active) setProjects(result.data.projects);
         }).catch(error => {
             console.error("Projekte konnten nicht geladen werden:", error);
@@ -29,7 +34,7 @@ function ProjectOverview() {
         return () => {
             active = false;
         };
-    }, []);
+    }, [projectsEndpoint]);
 
     const closeImport = () => {
         if (importing) return;

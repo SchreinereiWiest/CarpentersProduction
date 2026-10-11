@@ -11,7 +11,7 @@ Diese Seite beschreibt den Ist-Stand des geprüften Backend-Quellcodes. Sie ist 
 | Materialbestand | Login erforderlich; nur Admin und Manager dürfen Mengen ändern |
 | Bootstrap-Konten | keine festen Passwörter; Zugangsdaten nur über Umgebungsvariablen; mindestens 12 Zeichen; Passwort-Hash wird nicht protokolliert |
 | Kontostatus und Sessions | Login und jeder authentifizierte Request prüfen `isActive`, `deletedAt` und `authVersion`; Status-, Rollen- und Passwortänderungen sowie Logout widerrufen bestehende Sessions |
-| Objektberechtigungen | zentrale Ressourcen-Policy für Projekte, Kunden, Dateien, Zeiteinträge und Wochen-JSON; Admin/Manager global, Benutzer nur für zugeordnete Ressourcen |
+| Objektberechtigungen | zentrale Ressourcen-Policy für Projekte, Kunden, Dateien, Zeiteinträge und Wochen-JSON; Admin/Manager global, Benutzer für alle aktiven Projekte und deren Dateien |
 | Verteilte Löschungen | Fach- und Metadaten, Audit-Eintrag und idempotenter Löschjob werden atomar geschrieben; ein Worker wiederholt Garage-Löschungen |
 | Cookie und Transport | `httpOnly`, `SameSite=Strict`, 72-Stunden-Laufzeit; in `NODE_ENV=production` zusätzlich `Secure` und HTTPS-Pflicht |
 | CSRF und CORS | vollständige Origin-Allowlist sowie Double-Submit-Token über `XSRF-TOKEN` und `X-XSRF-TOKEN` |

@@ -46,13 +46,13 @@ Die Route verlangt die Admin-Rolle. Datenbanklöschungen, Audit-Log und Jobanlag
 `GET /api/projects/getAll` und der Kompatibilitätsalias `/getActive` verwenden `getAllProjects`:
 
 - Admin und Manager: Status `active` und `inactive`
-- normale Benutzer: nur aktive Projekte, die sie erstellt haben oder zu denen ein eigener Zeiteintrag existiert
+- normale Benutzer: alle aktiven Projekte, unabhängig vom Ersteller oder vorhandenen Zeiteinträgen
 
 Die Antwort ist nach Titel sortiert und enthält den vollständigen `customer`-Datensatz. `deletedAt` wird nicht ausgewertet.
 
 ### Einzelprojekt
 
-`GET /api/projects/get/:id` liefert nach zentraler Projektberechtigung `{ "project": ... }` und bettet Dateimetadaten ein. Fremde oder unbekannte Projekte werden bereits von der Policy als `404` abgewiesen.
+`GET /api/projects/get/:id` liefert nach zentraler Projektberechtigung `{ "project": ... }` und bettet Dateimetadaten ein. Admin und Manager können alle nicht gelöschten Projekte öffnen; normale Benutzer alle nicht gelöschten Projekte mit Status `active`. Nicht erlaubte oder unbekannte Projekte werden bereits von der Policy als `404` abgewiesen.
 
 ## Generierte Projektdaten
 

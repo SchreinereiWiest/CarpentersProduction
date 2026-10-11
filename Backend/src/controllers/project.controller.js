@@ -246,13 +246,7 @@ export const getAllProjects = async (req, res) => {
         where: {
           status: {
             in: visibleStatuses
-          },
-          ...(!isPrivileged ? {
-            OR: [
-              { createdById: req.user.id },
-              { timeEntries: { some: { userId: req.user.id } } }
-            ]
-          } : {})
+          }
         },
         orderBy: [
           {

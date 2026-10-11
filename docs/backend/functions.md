@@ -47,7 +47,7 @@ Datei: `src/controllers/project.controller.js`
 | `updateProject(req,res)` | Pfad `id`; `customerId`, `title`, `description`, `status` | aktualisiert Projekt und liefert `201` |
 | `deleteProject(req,res)` | Pfad `projectId`, authentifizierter Admin | entfernt DB-Daten transaktional, schreibt Audit-Log und idempotente Garage-Löschjobs |
 | `getAllProjectsID(req,res)` | Pfad `id` als Kunden-ID | lädt alle Projekte dieses Kunden nach Titel |
-| `getAllProjects(req,res)` | `req.user` | lädt für Admin/Manager alle relevanten, für Benutzer nur eigene/zugeordnete aktive Projekte |
+| `getAllProjects(req,res)` | `req.user` | lädt für Admin/Manager aktive und inaktive, für Benutzer alle aktiven Projekte |
 | `getAllActive` | Alias, gleiche Signatur wie `getAllProjects` | Kompatibilitätsexport ohne eigene Logik |
 | `getProject(req,res)` | Pfad `id` | lädt Projekt mit Dateien |
 | `getGeneratedProjectData(req,res)` | Pfad `id`, `name` | sucht `nesting/list/cabinet`-JSON und liefert signierte URL oder `exists:false` |
@@ -150,7 +150,7 @@ Datei: `src/middleware/auth.middleware.js`
 | `issueCsrfToken(res)` | `middleware/csrf.middleware.js` | erzeugt und setzt den Double-Submit-Token |
 | `verifyRequestOrigin(req,res,next)` | `middleware/csrf.middleware.js` | blockiert mutierende Requests fremder Origins |
 | `verifyCsrfToken(req,res,next)` | `middleware/csrf.middleware.js` | vergleicht CSRF-Cookie und Header zeitkonstant |
-| `authorizeProject` / `authorizeProjectBody` | `middleware/resourceAuthorization.middleware.js` | prüft globale Rolle, Ersteller oder eigenen Zeiteintrag eines Projekts |
+| `authorizeProject` / `authorizeProjectBody` | `middleware/resourceAuthorization.middleware.js` | erlaubt Admin/Manager alle nicht gelöschten und Benutzern alle nicht gelöschten aktiven Projekte |
 | `authorizeCustomer` / `authorizeCustomerBody` | `middleware/resourceAuthorization.middleware.js` | prüft Kundenberechtigung |
 | `authorizeFile` / `authorizeUploadTarget` | `middleware/resourceAuthorization.middleware.js` | prüft Datei- oder Uploadzielberechtigung |
 | `authorizeUserResource` | `middleware/resourceAuthorization.middleware.js` | erlaubt eigene Benutzer-ID oder Admin/Manager |

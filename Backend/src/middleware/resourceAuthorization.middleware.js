@@ -7,12 +7,7 @@ const missing = (res, resource) => res.status(404).json({ message: `${resource} 
 
 export const projectAccessWhere = user => isPrivileged(user)
     ? {}
-    : {
-        OR: [
-            { createdById: user.id },
-            { timeEntries: { some: { userId: user.id } } }
-        ]
-    };
+    : { status: "active" };
 
 export const authorizeProject = (parameter = "id") => async (req, res, next) => {
     const project = await prisma.project.findFirst({
@@ -54,6 +49,17 @@ export const authorizeCustomerBody = (field = "customerId") => async (req, res, 
     return authorizeCustomer("authorizationCustomerId")(req, res, next);
 };
 
+export const canAccessFile = (user, file) => {
+    if (isPrivileged(user)) return true;
+
+    if (file.project) {
+        return file.project.status === "active" && !file.project.deletedAt;
+    }
+
+    return file.uploadedById === user.id
+        || file.customer?.createdById === user.id;
+};
+
 export const authorizeFile = (parameter = "id") => async (req, res, next) => {
     const file = await prisma.file.findFirst({
         where: {
@@ -63,20 +69,14 @@ export const authorizeFile = (parameter = "id") => async (req, res, next) => {
         select: {
             id: true,
             uploadedById: true,
-            project: { select: { createdById: true, timeEntries: { where: { userId: req.user.id }, select: { id: true }, take: 1 } } },
+            project: { select: { status: true, deletedAt: true } },
             customer: { select: { createdById: true } }
         }
     });
 
     if (!file) return missing(res, "File");
 
-    const allowed = isPrivileged(req.user)
-        || file.uploadedById === req.user.id
-        || file.project?.createdById === req.user.id
-        || file.project?.timeEntries.length > 0
-        || file.customer?.createdById === req.user.id;
-
-    if (!allowed) return deny(res);
+    if (!canAccessFile(req.user, file)) return deny(res);
     req.authorizedFile = file;
     next();
 };

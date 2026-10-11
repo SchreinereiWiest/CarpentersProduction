@@ -28,7 +28,7 @@ Erfolg liefert `success`, `objectKey` und `fileEntry`.
 
 ## Download-URL
 
-`GET /api/files/download/:id` prüft zuvor Eigentümer-, Projekt- oder Kundenberechtigung. Danach wird eine 900 Sekunden gültige URL erzeugt und als `{ "url": "..." }` zurückgegeben.
+`GET /api/files/download/:id` prüft zuvor Eigentümer-, Projekt- oder Kundenberechtigung. Projektdateien eines nicht gelöschten, aktiven Projekts sind für angemeldete Benutzer verfügbar. Danach wird eine 900 Sekunden gültige URL erzeugt und als `{ "url": "..." }` zurückgegeben.
 
 ## Datei löschen
 

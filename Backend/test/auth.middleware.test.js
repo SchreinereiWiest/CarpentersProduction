@@ -4,6 +4,10 @@ import {
     authorizeRoles
 } from "../src/middleware/auth.middleware.js";
 import { verifyCsrfToken, verifyRequestOrigin } from "../src/middleware/csrf.middleware.js";
+import {
+    canAccessFile,
+    projectAccessWhere
+} from "../src/middleware/resourceAuthorization.middleware.js";
 
 function createResponse() {
     return {
@@ -54,6 +58,47 @@ test("authorizeRoles verlangt eine authentifizierte Identität", () => {
     });
 
     assert.equal(res.statusCode, 401);
+});
+
+test("Projektzugriff erlaubt Benutzern alle aktiven Projekte", () => {
+    assert.deepEqual(
+        projectAccessWhere({ id: "user-id", role: "user" }),
+        { status: "active" }
+    );
+});
+
+test("Projektzugriff beschränkt privilegierte Rollen nicht nach Status", () => {
+    assert.deepEqual(projectAccessWhere({ id: "admin-id", role: "admin" }), {});
+    assert.deepEqual(projectAccessWhere({ id: "manager-id", role: "manager" }), {});
+});
+
+test("Dateizugriff folgt dem Status des zugehörigen Projekts", () => {
+    const user = { id: "user-id", role: "user" };
+    const baseFile = {
+        uploadedById: "other-user-id",
+        customer: { createdById: "other-user-id" }
+    };
+
+    assert.equal(canAccessFile(user, {
+        ...baseFile,
+        project: { status: "active", deletedAt: null }
+    }), true);
+
+    assert.equal(canAccessFile(user, {
+        ...baseFile,
+        project: { status: "inactive", deletedAt: null }
+    }), false);
+
+    assert.equal(canAccessFile(user, {
+        ...baseFile,
+        uploadedById: user.id,
+        project: { status: "archive", deletedAt: null }
+    }), false);
+
+    assert.equal(canAccessFile(user, {
+        ...baseFile,
+        project: { status: "active", deletedAt: new Date() }
+    }), false);
 });
 
 test("CSRF-Prüfung akzeptiert übereinstimmendes Cookie und Header", () => {
