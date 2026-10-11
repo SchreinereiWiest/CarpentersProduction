@@ -1,21 +1,16 @@
 import { useState } from 'react'
 import SideBar from '../../components/sideBar.jsx'
 import axios from 'axios';
-import { useNavigate } from 'react-router';
 import { useParams } from 'react-router';
 import { useEffect } from "react";
-import { Link } from "react-router";
 import ProjectBar from '../../components/projectBar.jsx';
 import ImageGallery from '../../components/images/imageGalery.jsx';
 
 //Untermenü in Kontakte, um ein neues Projekt für den Kunden zu erstellen.
 
 function ShowProject() {
-  const navigate = useNavigate();
   const [project, setProject] = useState(null);
   const [customer, setCustomer] = useState(null);
-
-  const [files, setfiles] = useState([]);
   const { projectId } = useParams();
 
   useEffect(() => {
@@ -74,7 +69,7 @@ fetchProject();
 
                         {/* Bilder */}
                         <div className="rounded-lg mt-4 md:mt-4 md:flex-1 overflow-hidden">
-                            <ImageGallery files={project?.files} />
+                            <ImageGallery files={(project?.files ?? []).filter(file => file.category !== "production-attachment")} />
                         </div>
 
                     </div>

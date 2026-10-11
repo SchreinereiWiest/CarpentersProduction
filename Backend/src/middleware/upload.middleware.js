@@ -154,7 +154,9 @@ export async function createUpload(req, res) {
                 fileName,
                 mimeType: mimeType || file.mimetype,
                 fileSize: parsedFileSize,
-                category: entity === "shop" ? "shop" : null,
+                // uploadCategory is set by a dedicated, role-protected route.
+                // Never trust a category sent directly by the client.
+                category: entity === "shop" ? "shop" : req.uploadCategory ?? null,
                 status: "completed",
             },
         });
