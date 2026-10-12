@@ -3,6 +3,7 @@ import prisma from '../config/prisma.js';
 import { authenticate, authorizeRoles } from '../middleware/auth.middleware.js';
 import { calculateManagement, defaultConfig, fiscalRange, grossAmount, today } from '../../../shared/management.mjs';
 import { dateValue, invalid, number, reference, textValue, uuid, validateConfig, validateTransaction, versionValue, yearValue } from '../services/managementValidation.js';
+import { approvedConfig, calculateSetup, prepareSetupConfig, setupChecks } from '../../../shared/managementSetup.mjs';
 
 const router = express.Router();
 router.use(authenticate, authorizeRoles('admin', 'manager'));
@@ -32,17 +33,35 @@ router.get('/', run(async (req, res) => {
     const transactions = await db.managementTransaction.findMany({ include: { payments: true }, orderBy: { date: 'desc' } });
     const assets = await db.managementAsset.findMany({ orderBy: { acquiredAt: 'desc' } });
     const loans = await db.managementLoan.findMany({ include: { repayments: true }, orderBy: { startDate: 'desc' } });
-    return { year, config: period?.config || defaultConfig(), revision: period?.revision || 0, transactions, assets, loans };
+    const previous = await db.managementPeriod.findUnique({ where: { year: year - 1 } });
+    const start = new Date(new Date(`${year - 1}-01-01T00:00:00Z`).getTime() - 86400000);
+    const end = new Date(`${year + 2}-01-01T00:00:00Z`);
+    const timeEntries = await db.timeEntry.findMany({ where: { startedAt: { gte: start, lt: end }, endedAt: { not: null }, duration: { gt: 0 } }, select: { id: true, userId: true, workType: true, customWorkType: true, duration: true, startedAt: true, endedAt: true, user: { select: { firstName: true, lastName: true, login: true } } } });
+    return { year, config: period?.config || defaultConfig(), revision: period?.revision || 0, transactions, assets, loans, timeEntries, previousConfig: previous?.config || null };
   }, { isolationLevel: 'RepeatableRead' });
-  res.json({ ...state, calculation: calculateManagement(state, { year, basis: req.query.basis === 'plan' ? 'plan' : 'actual' }) });
+  const draft = prepareSetupConfig(state);
+  const approved = approvedConfig(draft);
+  const latestApproval = draft.setup.approvals.at(-1);
+  // Laufende Ist-Summen bleiben editierbar, die freigegebene Planbasis bleibt fixiert.
+  const operational = approved ? structuredClone(approved) : draft;
+  if (approved) for (const cost of operational.setup.annualCosts) cost.actualAmount = draft.setup.annualCosts.find(item => item.id === cost.id)?.actualAmount ?? null;
+  if (approved) for (const asset of operational.setup.assets) for (const field of ['actualMaintenance', 'actualEnergy', 'actualSpace', 'actualOperating']) asset[field] = draft.setup.assets.find(item => item.id === asset.id)?.[field] ?? null;
+  const basis = req.query.basis === 'plan' ? 'plan' : 'actual';
+  const previousConfig = state.previousConfig ? structuredClone(approvedConfig(state.previousConfig) || prepareSetupConfig({ config: state.previousConfig })) : null;
+  if (previousConfig) for (const cost of previousConfig.setup.annualCosts) cost.actualAmount = state.previousConfig.setup?.annualCosts?.find(item => item.id === cost.id)?.actualAmount ?? null;
+  if (previousConfig) for (const asset of previousConfig.setup.assets) for (const field of ['actualMaintenance', 'actualEnergy', 'actualSpace', 'actualOperating']) asset[field] = state.previousConfig.setup?.assets?.find(item => item.id === asset.id)?.[field] ?? null;
+  res.json({ ...state, config: draft, calculation: calculateManagement(state, { year, basis }), setupCalculation: calculateSetup(draft, { year, timeEntries: state.timeEntries }), operationalConfig: operational,
+    operatingPlan: latestApproval?.calculation || calculateSetup(operational, { year, timeEntries: state.timeEntries }), operatingActual: calculateSetup(operational, { year, timeEntries: state.timeEntries, basis: 'actual' }),
+    previous: previousConfig ? { config: previousConfig, plan: state.previousConfig.setup?.approvals?.at(-1)?.calculation || calculateSetup(previousConfig, { year: year - 1, timeEntries: state.timeEntries, asOf: `${year}-12-31` }), actual: calculateSetup(previousConfig, { year: year - 1, timeEntries: state.timeEntries, basis: 'actual', asOf: fiscalRange(year - 1, previousConfig.startMonth).end }) } : null });
 }));
 
 router.get('/references', run(async (_req, res) => {
-  const [projects, files] = await Promise.all([
+  const [projects, files, employees] = await Promise.all([
     prisma.project.findMany({ where: { deletedAt: null }, select: { id: true, title: true, projectNumber: true } }),
     prisma.file.findMany({ where: { deletedAt: null, OR: [{ category: 'management-document' }, { mimeType: 'application/pdf' }, { mimeType: { startsWith: 'image/' } }] }, select: { id: true, fileName: true, projectId: true, category: true }, orderBy: { uploadedAt: 'desc' } }),
+    prisma.user.findMany({ where: { deletedAt: null, isActive: true }, select: { id: true, firstName: true, lastName: true, login: true }, orderBy: { firstName: 'asc' } }),
   ]);
-  res.json({ projects, files });
+  res.json({ projects, files, employees });
 }));
 
 router.put('/settings', run(async (req, res) => {
@@ -64,11 +83,33 @@ router.put('/settings', run(async (req, res) => {
     }
     for (const asset of assets) reference(asset.centerId, config.costCenters, 'Kostenstelle eines Anlageguts');
     const existing = await db.managementPeriod.findUnique({ where: { year } });
+    config.setup.approvals = existing?.config?.setup?.approvals || [];
+    for (const staff of config.setup.staff) if (staff.userId && !await db.user.findFirst({ where: { id: staff.userId, deletedAt: null } })) invalid('Mitarbeiter nicht gefunden.');
     if (!existing) {
       if (revision !== 0) invalid('Einstellungen wurden zwischenzeitlich geändert. Bitte neu laden.', 409);
       return db.managementPeriod.create({ data: { year, config, revision: 1 } });
     }
     if (existing.revision !== revision) invalid('Einstellungen wurden zwischenzeitlich geändert. Bitte neu laden.', 409);
+    return db.managementPeriod.update({ where: { year }, data: { config, revision: { increment: 1 } } });
+  });
+  res.json(result);
+}));
+
+router.post('/setup/approve', run(async (req, res) => {
+  const year = requestYear(req);
+  const result = await write(req, 'setup.approve', async db => {
+    const period = await db.managementPeriod.findUnique({ where: { year } });
+    if (!period || period.revision !== versionValue(req.body.revision)) invalid('Einrichtung zuerst speichern oder neu laden.', 409);
+    const config = validateConfig(period.config);
+    const range = fiscalRange(year, config.startMonth);
+    const timeEntries = await db.timeEntry.findMany({ where: { startedAt: { gte: new Date(new Date(range.start).getTime() - 86400000), lt: new Date(new Date(range.end).getTime() + 2 * 86400000) }, endedAt: { not: null }, duration: { gt: 0 } } });
+    const calculation = calculateSetup(config, { year, timeEntries });
+    const errors = setupChecks(config, calculation);
+    if (errors.length) invalid(errors.join(' '));
+    const history = period.config.setup?.approvals || [];
+    if (history.length >= 100) invalid('Maximal 100 Kalkulationsversionen pro Geschäftsjahr.');
+    const approval = { version: history.length + 1, approvedAt: new Date().toISOString(), approvedBy: req.user.id, note: textValue(req.body.note, 'Versionsnotiz', false, 500) || '', config: structuredClone(config), calculation, rates: calculation.rates, machines: calculation.machines.map(({ id, name, total, hours, rate }) => ({ id, name, total, hours, rate })), totalCosts: calculation.totalCosts };
+    config.setup.approvals = [...history, approval];
     return db.managementPeriod.update({ where: { year }, data: { config, revision: { increment: 1 } } });
   });
   res.json(result);

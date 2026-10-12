@@ -1,4 +1,4 @@
-import { defaultConfig, round } from '../../../shared/management.mjs';
+import { defaultConfig, defaultSetup, round } from '../../../shared/management.mjs';
 
 export function invalid(message, status = 400) { throw Object.assign(new Error(message), { status }); }
 export function number(value, label, min = 0, max = 999999999999.99) {
@@ -33,6 +33,7 @@ export function reference(value, entries, label) {
 export function validateConfig(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) invalid('Einstellungen fehlen.');
   const config = structuredClone(input);
+  config.setup = { ...defaultSetup(), ...config.setup };
   const lists = ['costTypes', 'costCenters', 'distributionKeys', 'rules', 'easyRates'];
   for (const name of lists) {
     if (!Array.isArray(config[name]) || config[name].length > 200) invalid(`Ungültige Liste: ${name}.`);
@@ -52,6 +53,9 @@ export function validateConfig(input) {
     if (!['production', 'machine', 'support'].includes(center.kind)) invalid('Ungültiger Kostenstellentyp.');
     for (const field of ['hours', 'area', 'employees', 'directBase']) center[field] = number(center[field], field);
     center.redistributionKey = reference(center.redistributionKey, config.distributionKeys, 'Umlageschlüssel');
+    if (center.activityIds !== undefined && (!Array.isArray(center.activityIds) || center.activityIds.length > 200 || center.activityIds.some(id => typeof id !== 'string' || !id || id.length > 200) || new Set(center.activityIds).size !== center.activityIds.length)) invalid('Ungültige Tätigkeitszuordnung.');
+    if (center.consumption !== undefined) center.consumption = number(center.consumption, 'Energieverbrauch');
+    if (center.usage !== undefined) center.usage = number(center.usage, 'Fahrzeugnutzung');
   }
   for (const key of config.distributionKeys) {
     if (!['hours', 'area', 'employees', 'equal', 'custom'].includes(key.metric)) invalid('Ungültiger Verteilungsschlüssel.');
@@ -86,8 +90,73 @@ export function validateConfig(input) {
       }
     }
   }
+  config.setup = validateSetup(config.setup, config);
   // Nur bekannte Konfigurationsfelder persistieren.
   return Object.fromEntries(Object.keys(defaultConfig()).map(key => [key, config[key]]));
+}
+
+function validateSetup(input, config) {
+  const setup = { ...defaultSetup(), ...input };
+  setup.companyName = textValue(setup.companyName, 'Betriebsname', false, 200) || '';
+  if (typeof setup.initialized !== 'boolean') invalid('Ungültiger Einrichtungsstatus.');
+  if (!['manual', 'recorded'].includes(setup.hoursMode) || !['imputed', 'financing', 'none'].includes(setup.interestMode)) invalid('Ungültige Berechnungsgrundlage.');
+  setup.materialStock = number(setup.materialStock, 'Materialbestand');
+  for (const list of ['assets', 'loans', 'annualCosts', 'staff']) {
+    if (!Array.isArray(setup[list]) || setup[list].length > 500) invalid(`Ungültige Einrichtungsliste: ${list}.`);
+    const ids = new Set();
+    for (const item of setup[list]) {
+      if (!item || typeof item.id !== 'string' || !/^[a-zA-Z0-9_-]{1,100}$/.test(item.id) || ids.has(item.id)) invalid(`Ungültige oder doppelte ID: ${list}.`);
+      ids.add(item.id); item.name = textValue(item.name, 'Bezeichnung', true, 200);
+      if (list !== 'staff') item.centerId = reference(item.centerId, config.costCenters, 'Kostenstelle');
+    }
+  }
+  for (const asset of setup.assets) {
+    if (!['machine', 'cnc', 'vehicle', 'building', 'equipment'].includes(asset.category) || typeof asset.useReplacement !== 'boolean') invalid('Ungültiger Anlagentyp.');
+    asset.acquiredAt = dateValue(asset.acquiredAt, 'Anschaffungsdatum').toISOString().slice(0, 10);
+    for (const field of ['purchaseCost', 'replacementCost', 'maintenance', 'energy', 'space', 'operating', 'hours']) asset[field] = number(asset[field], field);
+    for (const field of ['actualMaintenance', 'actualEnergy', 'actualSpace', 'actualOperating', 'interestAmount']) asset[field] = asset[field] === null || asset[field] === '' || asset[field] === undefined ? null : number(asset[field], field);
+    asset.usefulLifeYears = number(asset.usefulLifeYears, 'Nutzungsdauer', 0.01, 100);
+    const base = asset.useReplacement ? asset.replacementCost : asset.purchaseCost;
+    if (base <= 0) invalid('Abschreibungsbasis muss größer als null sein.');
+    asset.residualValue = number(asset.residualValue, 'Restwert', 0, Math.min(base, asset.purchaseCost));
+    asset.usedYears = asset.usedYears === null || asset.usedYears === '' ? null : number(asset.usedYears, 'Vergangene Nutzungsjahre', 0, 200);
+    asset.interestRate = number(asset.interestRate, 'Kalkulatorischer Zinssatz', 0, 100);
+    asset.loanId = reference(asset.loanId, setup.loans, 'Darlehen');
+    if (!Array.isArray(asset.activityIds) || asset.activityIds.length > 200 || asset.activityIds.some(id => typeof id !== 'string' || !id || id.length > 200)) invalid('Ungültige Maschinen-Tätigkeiten.');
+  }
+  for (const loan of setup.loans) {
+    loan.balance = number(loan.balance, 'Restschuld'); loan.interestRate = number(loan.interestRate, 'Darlehenszinssatz', 0, 100); loan.repayment = number(loan.repayment, 'Jahrestilgung', 0, loan.balance);
+  }
+  for (const cost of setup.annualCosts) {
+    cost.costTypeId = reference(cost.costTypeId, config.costTypes, 'Kostenart');
+    if (!cost.costTypeId) invalid('Kostenart fehlt.');
+    cost.keyId = reference(cost.keyId, config.distributionKeys, 'Verteilungsschlüssel');
+    cost.amount = number(cost.amount, 'Jahresplanwert');
+    cost.actualAmount = cost.actualAmount === null || cost.actualAmount === '' ? null : number(cost.actualAmount, 'Kumulierte Ist-Kosten');
+    if (!['manual', 'staff'].includes(cost.source)) invalid('Ungültige Kostenquelle.');
+    if (cost.source === 'staff' && cost.costTypeId !== 'personnel') invalid('Personaldaten sind nur für Personalkosten zulässig.');
+  }
+  const staffUsers = new Set();
+  for (const staff of setup.staff) {
+    staff.userId = uuid(staff.userId);
+    if (staff.userId && staffUsers.has(staff.userId)) invalid('Ein Personalkonto darf in der Jahresplanung nur einmal vorkommen.');
+    if (staff.userId) staffUsers.add(staff.userId);
+    staff.annualHours = staff.annualHours === null || staff.annualHours === '' ? null : number(staff.annualHours, 'Produktive Jahresstunden');
+    for (const field of ['workDays', 'holidays', 'vacation', 'sickDays', 'trainingDays']) staff[field] = number(staff[field], field, 0, 366);
+    staff.hoursPerDay = number(staff.hoursPerDay, 'Tagesstunden', 0, 24);
+    staff.productivity = number(staff.productivity, 'Produktivität', 0, 100);
+    staff.annualCost = number(staff.annualCost, 'Personalkosten'); staff.fte = number(staff.fte, 'Vollzeitäquivalent', 0, 10);
+    if (!Array.isArray(staff.allocations) || staff.allocations.length > 200) invalid('Ungültige Personalstundenverteilung.');
+    const centers = new Set();
+    for (const allocation of staff.allocations) {
+      allocation.centerId = reference(allocation.centerId, config.costCenters, 'Tätigkeitsbereich');
+      if (!allocation.centerId || centers.has(allocation.centerId)) invalid('Doppelte oder fehlende Personalzuordnung.');
+      centers.add(allocation.centerId); allocation.percent = number(allocation.percent, 'Zeitanteil', 0, 100);
+    }
+  }
+  // Freigabehistorie wird ausschließlich vom Server gesetzt.
+  setup.approvals = [];
+  return Object.fromEntries(Object.keys(defaultSetup()).map(key => [key, setup[key]]));
 }
 
 export function validateTransaction(input, config) {

@@ -101,9 +101,10 @@ Alle Management-Endpunkte verlangen Admin- oder Managerrolle. Der Parameter `yea
 
 | Methode | Pfad | Zweck |
 |---|---|---|
-| `GET` | `/management?year=2026&basis=actual` | konsistenten Daten-Snapshot mit Konfiguration, Revision, Geschäftsvorfällen, Zahlungen, Anlagen, Darlehen und Berechnung laden; `basis=plan` für Plan-Kosten |
-| `GET` | `/management/references` | verfügbare Projekt- und Belegverknüpfungen laden |
+| `GET` | `/management?year=2026` | Snapshot mit Entwurf, Revision, abgeschlossenen Zeitberichten, `setupCalculation`, `operationalConfig`, fixiertem `operatingPlan`, laufendem `operatingActual` und `previous` laden |
+| `GET` | `/management/references` | verfügbare Personalkonten, Projekte und Belege laden |
 | `PUT` | `/management/settings` | `{config, revision}` validieren und für das Geschäftsjahr speichern |
+| `POST` | `/management/setup/approve` | gespeicherten Entwurf mit `{revision, note?}` prüfen und als unveränderliche Kalkulationsversion freigeben |
 | `POST` | `/management/transactions` | Geschäftsvorfall anlegen; optional eindeutige `sourceKey` zur Import-Deduplizierung |
 | `PUT` | `/management/transactions/:id` | Geschäftsvorfall mit `version` bearbeiten |
 | `DELETE` | `/management/transactions/:id?version=0` | Geschäftsvorfall und zugehörige Zahlungen entfernen |
@@ -120,7 +121,11 @@ Alle Management-Endpunkte verlangen Admin- oder Managerrolle. Der Parameter `yea
 | `DELETE` | `/management/loans/:id` | Darlehen, Tilgungen und zugehörige Geldbewegungen gemeinsam entfernen |
 | `POST` | `/files/management-document` | PDF/JPG bis 50 MB als Betriebsbeleg hochladen; Multipart-Felder `file`, `fileName` |
 
-Konflikte bei Revisionen, parallelen Änderungen oder vorhandenen Quellkennungen liefern `409`. Überzahlungen, Zahlungen zu Planwerten, ungültige Zuordnungen und überlappende Geschäftsjahre werden abgelehnt. Betriebsbelege sind ausschließlich für Manager/Admins zugänglich. Weitere Details stehen unter [Management und Betriebskalkulation](../frontend/management.md).
+Die neue Einrichtung speichert Anlagen, Restschulden, jährliche Kosten, Mitarbeiterplanung und Freigabesnapshots in `config.setup`. Die Freigabehistorie wird beim Speichern ausschließlich aus der bestehenden Serverkonfiguration übernommen; clientseitige Änderungen an ihr werden ignoriert. Eine Freigabe verlangt vollständige Zuordnungen und eine aktuelle Revision. Der Snapshot fixiert auch eine aus Zeitberichten berechnete Stundenbasis. Neue Berichte ändern anschließend die laufende Stundenanalyse, während Ist-Summen aus der aktuellen Konfiguration gelesen werden.
+
+Die bisherigen Endpunkte für Geschäftsvorfälle, Zahlungen, Anlagen und Darlehen bleiben für vorhandene Daten erhalten. Ihre Oberfläche ist ausgeblendet; die neue Setupkalkulation zählt diese Vorfälle nicht mit. `calculation` und der optionale Parameter `basis` bleiben für bestehende API-Verbraucher verfügbar.
+
+Konflikte bei Revisionen, parallelen Änderungen oder vorhandenen Quellkennungen liefern `409`. Ungültige Zuordnungen und überlappende Geschäftsjahre werden abgelehnt. Betriebsbelege sind ausschließlich für Manager/Admins zugänglich. Weitere Details stehen unter [Management und Betriebskalkulation](../frontend/management.md).
 
 ## Allgemeine Antwortkonventionen
 

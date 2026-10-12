@@ -8,7 +8,7 @@ export function Field({ label, hint, children }) {
   return <label className="block text-sm text-gray-300"><span className="mb-1.5 block">{label}</span>{children}{hint && <span className="mt-1 block text-xs text-gray-400">{hint}</span>}</label>;
 }
 export function Input({ label, hint, type = 'text', ...props }) {
-  return <Field label={label} hint={hint}><input type={type} step={type === 'number' ? '0.01' : undefined} className={inputClass} {...props}/></Field>;
+  return <Field label={label} hint={hint}><input aria-label={label} type={type} step={type === 'number' ? '0.01' : undefined} className={inputClass} {...props}/></Field>;
 }
 export function Select({ label, children, ...props }) {
   return <Field label={label}><select className={inputClass} {...props}>{children}</select></Field>;

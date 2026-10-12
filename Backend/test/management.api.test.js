@@ -18,6 +18,7 @@ if (!testUrl) {
       prisma.auditLog.deleteMany({ where: { action: { startsWith: 'management.' } } }),
       prisma.managementTransaction.deleteMany(), prisma.managementLoan.deleteMany(),
       prisma.managementAsset.deleteMany(), prisma.managementPeriod.deleteMany(),
+      prisma.customer.deleteMany({ where: { companyName: 'Management-Testzeiten' } }),
       prisma.user.deleteMany({ where: { email: { endsWith: '@management.test' } } }),
     ]);
     const app = express(); app.use(express.json()); app.use(cookieParser()); app.use('/api/management', router);
@@ -114,6 +115,47 @@ if (!testUrl) {
         assert.equal(response.status, 201); assert.equal(Number(response.body.vatRate), 0);
         assert.equal((await request(`/transactions/${response.body.id}/payments`, { method: 'POST', data: { amount: 50, date: '2026-03-01' } })).status, 400);
         const snapshot = (await request()).body; assert.equal(snapshot.calculation.payables, 0); assert.equal(snapshot.calculation.cash, 881); assert.equal(snapshot.calculation.expense, 600);
+      });
+      await t.test('Unvollständige Einrichtung lässt sich nicht freigeben', async () => {
+        assert.equal((await request('/setup/approve', { method: 'POST', data: { revision: 1 } })).status, 400);
+        assert.equal((await request('/setup/approve', { method: 'POST', data: { revision: 999 } })).status, 409);
+      });
+      const customer = await prisma.customer.create({ data: { companyName: 'Management-Testzeiten' } });
+      const project = await prisma.project.create({ data: { customerId: customer.id, title: 'Management-Stundentest' } });
+      await prisma.timeEntry.create({ data: { projectId: project.id, userId: users[0].id, workType: 'cutting', duration: 60, startedAt: new Date('2026-01-01T08:00:00Z'), endedAt: new Date('2026-01-01T09:00:00Z') } });
+      let configured;
+      await t.test('Einrichtung übernimmt Tätigkeiten und speichert Plan / Ist ohne Vorfallabhängigkeit', async () => {
+        const snapshot = (await request()).body;
+        configured = snapshot.config; configured.setup.initialized = true; configured.setup.companyName = 'Schreinerei Test'; configured.setup.assets = []; configured.setup.loans = []; configured.setup.hoursMode = 'recorded';
+        configured.costCenters[0].activityIds = ['cutting', 'edging'];
+        configured.setup.annualCosts = [{ id: 'annual-rent', name: 'Miete', costTypeId: 'space', amount: 12000, actualAmount: 3000, centerId: 'workshop', keyId: 'area', source: 'manual' }];
+        assert.equal((await request('/settings', { method: 'PUT', data: { config: configured, revision: snapshot.revision } })).status, 200);
+        const saved = (await request()).body; assert.equal(saved.setupCalculation.totalCosts, 12000); assert.equal(saved.operatingActual.totalCosts, 3000); assert.equal(saved.operatingActual.actualHours.total, 1);
+        assert.ok((await request('/references')).body.employees.some(employee => employee.id === users[0].id));
+      });
+      await t.test('Freigabe speichert Version und behält Planstunden bei späteren Berichten unverändert', async () => {
+        const before = (await request()).body;
+        assert.equal((await request('/setup/approve', { method: 'POST', data: { revision: before.revision, note: 'Erste Version' } })).status, 200);
+        const published = (await request()).body; assert.equal(published.config.setup.approvals.length, 1); assert.equal(published.operatingPlan.rates[0].hours, 1);
+        await prisma.timeEntry.create({ data: { projectId: project.id, userId: users[0].id, workType: 'edging', duration: 30, startedAt: new Date('2026-01-01T09:00:00Z'), endedAt: new Date('2026-01-01T09:30:00Z') } });
+        const live = (await request()).body; assert.equal(live.operatingActual.actualHours.total, 1.5); assert.equal(live.operatingPlan.rates[0].hours, 1); assert.equal(live.setupCalculation.rates[0].hours, 1.5);
+      });
+      await t.test('Entwurfsänderung und manipulierte Historie verändern die freigegebene Version nicht', async () => {
+        const current = (await request()).body;
+        current.config.setup.annualCosts[0].amount = 24000; current.config.setup.annualCosts[0].actualAmount = 4000;
+        current.config.setup.approvals = [{ version: 999 }];
+        assert.equal((await request('/settings', { method: 'PUT', data: { config: current.config, revision: current.revision } })).status, 200);
+        const changed = (await request()).body; assert.equal(changed.config.setup.approvals[0].version, 1); assert.equal(changed.setupCalculation.totalCosts, 24000); assert.equal(changed.operatingPlan.totalCosts, 12000); assert.equal(changed.operatingActual.totalCosts, 4000);
+        assert.equal((await request('/setup/approve', { method: 'POST', data: { revision: current.revision } })).status, 409);
+        assert.equal((await request('/setup/approve', { method: 'POST', data: { revision: changed.revision, note: 'Neue Planung' } })).status, 200);
+        const versioned = (await request()).body; assert.equal(versioned.config.setup.approvals.length, 2); assert.equal(versioned.config.setup.approvals[0].totalCosts, 12000); assert.equal(versioned.operatingPlan.totalCosts, 24000);
+      });
+      await t.test('Folgejahr erhält den gespeicherten Vorjahresvergleich und seine eigene Freigabe', async () => {
+        const next = defaultConfig(); next.mode = 'easy'; next.setup.initialized = true; next.setup.companyName = 'Folgejahr'; next.easyRates = [{ id: 'easy', name: 'Werkstatt', rate: 50 }]; next.costCenters = structuredClone(config.costCenters);
+        assert.equal((await request('/settings?year=2027', { method: 'PUT', data: { config: next, revision: 0 } })).status, 200);
+        const comparison = (await request('?year=2027')).body; assert.equal(comparison.previous.plan.totalCosts, 24000); assert.equal(comparison.previous.actual.totalCosts, 4000);
+        assert.equal((await request('/setup/approve?year=2027', { method: 'POST', data: { revision: 1 } })).status, 200);
+        assert.equal((await request('?year=2027')).body.config.setup.approvals[0].version, 1);
       });
     } finally {
       await new Promise(resolve => server.close(resolve)); await prisma.$disconnect();

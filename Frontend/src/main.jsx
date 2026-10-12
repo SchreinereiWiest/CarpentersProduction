@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 
-import { BrowserRouter, Routes, Route } from "react-router";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 
 import { AuthProvider } from "./routes/AuthContext";
 
@@ -41,11 +41,10 @@ import ProjectPurchasing from "./pages/projects/purchasing/purchasing.project.js
 import ProjectAttachments from "./pages/projects/attachments/attachments.project.jsx";
 import ManagementLayout from './pages/management/managementLayout.jsx';
 import ManagementOverview from './pages/management/overview.management.jsx';
-import ManagementTransactions, { ManagementDocuments } from './pages/management/transactions.management.jsx';
-import ManagementCostAccounting from './pages/management/costAccounting.management.jsx';
-import ManagementCalculation from './pages/management/calculation.management.jsx';
-import ManagementAssets from './pages/management/assets.management.jsx';
-import ManagementSettings from './pages/management/settings.management.jsx';
+import { ManagementDocuments } from './pages/management/transactions.management.jsx';
+import ManagementSetup from './pages/management/setup.management.jsx';
+import ManagementHours from './pages/management/hours.management.jsx';
+import ManagementOperatingCosts from './pages/management/operatingCosts.management.jsx';
 
 
 
@@ -85,11 +84,14 @@ ReactDOM.createRoot(root).render(
 
           <Route path="/Management" element={<ProtectedRoute requiredRole="admin"><ManagementLayout /></ProtectedRoute>}>
             <Route index element={<ManagementOverview />} />
-            <Route path="Transactions" element={<ManagementTransactions />} />
-            <Route path="CostAccounting" element={<ManagementCostAccounting />} />
-            <Route path="Calculation" element={<ManagementCalculation />} />
-            <Route path="Assets" element={<ManagementAssets />} />
-            <Route path="Settings" element={<ManagementSettings />} />
+            <Route path="Setup/:step" element={<ManagementSetup />} />
+            <Route path="Hours" element={<ManagementHours />} />
+            <Route path="Costs" element={<ManagementOperatingCosts />} />
+            <Route path="CostAccounting" element={<Navigate to="/Management/Setup/Bab" replace />} />
+            <Route path="Calculation" element={<Navigate to="/Management/Setup/Bab" replace />} />
+            <Route path="Assets" element={<Navigate to="/Management/Setup/Assets" replace />} />
+            <Route path="Settings" element={<Navigate to="/Management/Setup/Business" replace />} />
+            <Route path="Transactions" element={<Navigate to="/Management" replace />} />
           </Route>
 
           <Route path="/Documents" element={<ProtectedRoute requiredRole="admin"><ManagementLayout sidebarSelected={3} /></ProtectedRoute>}>

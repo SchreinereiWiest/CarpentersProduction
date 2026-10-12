@@ -4,10 +4,17 @@ export const day = value => value instanceof Date ? value.toISOString().slice(0,
 export const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 export const grossAmount = entry => round(Number(entry.amount) * (1 + Number(entry.vatRate || 0) / 100));
 
+export function defaultSetup() {
+  return {
+    companyName: '', initialized: false, hoursMode: 'manual', interestMode: 'imputed', materialStock: 0,
+    assets: [], loans: [], annualCosts: [], staff: [], approvals: [],
+  };
+}
+
 export function defaultConfig() {
   return {
     mode: 'easy', startMonth: 1, openingCash: 0, openingOtherAssets: 0, openingOtherLiabilities: 0,
-    profitPercent: 10, easyRates: [], costCenters: [], rules: [], babAdjustments: { actual: {}, plan: {} },
+    profitPercent: 10, easyRates: [], costCenters: [], rules: [], babAdjustments: { actual: {}, plan: {} }, setup: defaultSetup(),
     costTypes: [
       ['material', 'Material', 'direct', false, 'hours'],
       ['personnel', 'Personal', 'overhead', true, 'employees'],
@@ -16,6 +23,9 @@ export function defaultConfig() {
       ['vehicles', 'Fahrzeuge', 'overhead', true, 'hours'],
       ['machines', 'Maschinen', 'overhead', true, 'hours'],
       ['administration', 'Verwaltung', 'overhead', true, 'hours'],
+      ['insurance', 'Versicherungen und Beiträge', 'overhead', true, 'hours'],
+      ['maintenance', 'Wartung und Reparaturen', 'overhead', true, 'hours'],
+      ['other', 'Sonstige Gemeinkosten', 'overhead', true, 'hours'],
       ['depreciation', 'Abschreibungen', 'overhead', true, 'hours'],
       ['imputed', 'Kalkulatorische Kosten', 'overhead', true, 'hours'],
       ['interest', 'Finanzierungskosten', 'overhead', true, 'hours'],
