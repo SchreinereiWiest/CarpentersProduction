@@ -13,7 +13,7 @@ import timeRoutes from "./routes/time.routes.js";
 import userRoutes from "./routes/user.routes.js"
 import settingsRoutes from "./routes/settings.routes.js"
 import shopRoutes from "./routes/shop.routes.js";
-import managementRoutes from "./routes/management.routes.js";
+import managementRoutes from "./routes/management/management.routes.js";
 import { allowedOrigins } from "./config/security.js";
 import { verifyCsrfToken, verifyRequestOrigin } from "./middleware/csrf.middleware.js";
 import { startStorageDeletionWorker } from "./services/storageDeletion.service.js";

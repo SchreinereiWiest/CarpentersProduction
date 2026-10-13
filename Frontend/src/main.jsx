@@ -39,12 +39,12 @@ import Personal from "./pages/personal/personal.personal.jsx";
 import Purchasing from "./pages/purchasing/purchasing.jsx";
 import ProjectPurchasing from "./pages/projects/purchasing/purchasing.project.jsx";
 import ProjectAttachments from "./pages/projects/attachments/attachments.project.jsx";
-import ManagementLayout from './pages/management/managementLayout.jsx';
-import ManagementOverview from './pages/management/overview.management.jsx';
-import { ManagementDocuments } from './pages/management/transactions.management.jsx';
-import ManagementSetup from './pages/management/setup.management.jsx';
-import ManagementHours from './pages/management/hours.management.jsx';
-import ManagementOperatingCosts from './pages/management/operatingCosts.management.jsx';
+import ManagementLayout from './pages/management/layout/managementLayout.jsx';
+import ManagementOverview from './pages/management/operating/overview.management.jsx';
+import { ManagementDocuments } from './pages/management/documents/documents.management.jsx';
+import ManagementSetup from './pages/management/setup/setup.management.jsx';
+import ManagementHours from './pages/management/operating/hours.management.jsx';
+import ManagementOperatingCosts from './pages/management/operating/operatingCosts.management.jsx';
 
 
 

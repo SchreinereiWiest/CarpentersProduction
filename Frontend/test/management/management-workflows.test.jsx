@@ -1,8 +1,11 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { defaultConfig, today } from '../../../shared/management.mjs';
-import { approvedConfig, calculateSetup, prepareSetupConfig } from '../../../shared/managementSetup.mjs';
+import { defaultConfig } from '../../../shared/management/defaults/config.defaults.mjs';
+import { today } from '../../../shared/management/utils/dates.mjs';
+import { approvedConfig } from '../../../shared/management/config/approval.mjs';
+import { calculateSetup } from '../../../shared/management/calculation/accounting.mjs';
+import { prepareSetupConfig } from '../../../shared/management/config/normalize.mjs';
 
 const mocks = vi.hoisted(() => ({ request: vi.fn(), get: vi.fn() }));
 vi.mock('axios', () => ({ default: Object.assign(mocks.request, { get: mocks.get }) }));
@@ -10,11 +13,11 @@ vi.mock('../../src/components/sideBar.jsx', () => ({ default: ({ selected }) => 
 vi.mock('../../src/services/companySettings.js', async importOriginal => {
   const original = await importOriginal(); return { ...original, loadCompanySettings: vi.fn(async () => original.DEFAULT_COMPANY_SETTINGS) };
 });
-import ManagementLayout from '../../src/pages/management/managementLayout.jsx';
-import ManagementOverview from '../../src/pages/management/overview.management.jsx';
-import ManagementSetup from '../../src/pages/management/setup.management.jsx';
-import ManagementHours from '../../src/pages/management/hours.management.jsx';
-import ManagementOperatingCosts from '../../src/pages/management/operatingCosts.management.jsx';
+import ManagementLayout from '../../src/pages/management/layout/managementLayout.jsx';
+import ManagementOverview from '../../src/pages/management/operating/overview.management.jsx';
+import ManagementSetup from '../../src/pages/management/setup/setup.management.jsx';
+import ManagementHours from '../../src/pages/management/operating/hours.management.jsx';
+import ManagementOperatingCosts from '../../src/pages/management/operating/operatingCosts.management.jsx';
 
 let saved;
 function publish() {

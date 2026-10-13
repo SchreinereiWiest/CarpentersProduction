@@ -102,30 +102,16 @@ Alle Management-Endpunkte verlangen Admin- oder Managerrolle. Der Parameter `yea
 | Methode | Pfad | Zweck |
 |---|---|---|
 | `GET` | `/management?year=2026` | Snapshot mit Entwurf, Revision, abgeschlossenen Zeitberichten, `setupCalculation`, `operationalConfig`, fixiertem `operatingPlan`, laufendem `operatingActual` und `previous` laden |
-| `GET` | `/management/references` | verfügbare Personalkonten, Projekte und Belege laden |
+| `GET` | `/management/references` | aktive Personalkonten und Betriebsbelege laden |
 | `PUT` | `/management/settings` | `{config, revision}` validieren und für das Geschäftsjahr speichern |
 | `POST` | `/management/setup/approve` | gespeicherten Entwurf mit `{revision, note?}` prüfen und als unveränderliche Kalkulationsversion freigeben |
-| `POST` | `/management/transactions` | Geschäftsvorfall anlegen; optional eindeutige `sourceKey` zur Import-Deduplizierung |
-| `PUT` | `/management/transactions/:id` | Geschäftsvorfall mit `version` bearbeiten |
-| `DELETE` | `/management/transactions/:id?version=0` | Geschäftsvorfall und zugehörige Zahlungen entfernen |
-| `POST` | `/management/transactions/:id/payments` | `{amount, date, note?}` als tatsächliche Zahlung erfassen |
-| `DELETE` | `/management/payments/:id` | tatsächliche Zahlung entfernen |
-| `POST` | `/management/rules/apply` | gespeicherte Regeln auf leere Zuordnungen im Geschäftsjahr anwenden |
-| `POST` | `/management/assets` | Anlagegut mit Abschreibungsgrundlagen anlegen |
-| `PUT` | `/management/assets/:id` | Anlagegut mit `version` bearbeiten |
-| `DELETE` | `/management/assets/:id` | Anlagegut entfernen; separate Kaufzahlungen bleiben bestehen |
-| `POST` | `/management/loans` | Darlehen und bezahlten neutralen Geldzugang gemeinsam anlegen |
-| `PUT` | `/management/loans/:id` | Name, informatorischen Zinssatz und Notiz bearbeiten |
-| `POST` | `/management/loans/:id/repayments` | `{amount, date}` als Tilgung und neutralen Geldabgang gemeinsam erfassen |
-| `DELETE` | `/management/repayments/:id` | Tilgung und zugehörigen Geldabgang gemeinsam entfernen |
-| `DELETE` | `/management/loans/:id` | Darlehen, Tilgungen und zugehörige Geldbewegungen gemeinsam entfernen |
 | `POST` | `/files/management-document` | PDF/JPG bis 50 MB als Betriebsbeleg hochladen; Multipart-Felder `file`, `fileName` |
 
 Die neue Einrichtung speichert Anlagen, Restschulden, jährliche Kosten, Mitarbeiterplanung und Freigabesnapshots in `config.setup`. Die Freigabehistorie wird beim Speichern ausschließlich aus der bestehenden Serverkonfiguration übernommen; clientseitige Änderungen an ihr werden ignoriert. Eine Freigabe verlangt vollständige Zuordnungen und eine aktuelle Revision. Der Snapshot fixiert auch eine aus Zeitberichten berechnete Stundenbasis. Neue Berichte ändern anschließend die laufende Stundenanalyse, während Ist-Summen aus der aktuellen Konfiguration gelesen werden.
 
-Die bisherigen Endpunkte für Geschäftsvorfälle, Zahlungen, Anlagen und Darlehen bleiben für vorhandene Daten erhalten. Ihre Oberfläche ist ausgeblendet; die neue Setupkalkulation zählt diese Vorfälle nicht mit. `calculation` und der optionale Parameter `basis` bleiben für bestehende API-Verbraucher verfügbar.
+Die früheren Vorfall-, Zahlungs-, Regel-, Anlage- und Darlehensbuchungs-APIs sowie die alte Antwort `calculation` wurden entfernt. Anlagen und Restschulden werden im Jahresentwurf gepflegt; bestehende Tabellen werden nicht gelöscht. Die einmalige Übernahme alter Bestände bleibt vor der ersten Einrichtung erhalten. [API und Speicherung](../management/api.md) beschreibt den aktiven Vertrag ausführlich.
 
-Konflikte bei Revisionen, parallelen Änderungen oder vorhandenen Quellkennungen liefern `409`. Ungültige Zuordnungen und überlappende Geschäftsjahre werden abgelehnt. Betriebsbelege sind ausschließlich für Manager/Admins zugänglich. Weitere Details stehen unter [Management und Betriebskalkulation](../frontend/management.md).
+Konflikte bei Revisionen oder parallelen Änderungen liefern `409`. Ungültige Zuordnungen und überlappende Geschäftsjahre werden abgelehnt. Betriebsbelege sind ausschließlich für Manager/Admins zugänglich. Weitere Details stehen unter [Management und Betriebskalkulation](../frontend/management.md).
 
 ## Allgemeine Antwortkonventionen
 

@@ -28,6 +28,8 @@
 
 ## Enums
 
+Die Vorfall-, Zahlungs- und früheren Anlage-/Darlehenstabellen bleiben für vorhandene Daten gespeichert. Die aktive Oberfläche verwendet die Jahreskonfiguration; nur die einmalige Inventarübernahme liest frühere Anlagen und Restschulden. Die früheren Schreib-APIs sind entfernt.
+
 Die Einrichtung und Rechenregeln der Managementmodelle sind unter [Management und Betriebskalkulation](../frontend/management.md) dokumentiert.
 
 - `UserRole`: `admin`, `manager`, `user`
