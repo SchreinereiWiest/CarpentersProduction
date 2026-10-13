@@ -21,7 +21,7 @@ import CncPropertiesSidebar
 
 import {
     groupCncParts
-} from "./cncEngine/groupCncParts.js";
+} from "@Engine/cnc/groupCncParts.js";
 
 import ProjectBar
     from "../../../components/projectBar.jsx";

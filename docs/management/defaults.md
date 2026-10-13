@@ -12,7 +12,7 @@ Vorgaben beschreiben überprüfbare Ausgangswerte. Sie sind von tatsächlichen B
 | `validation.defaults.mjs` | Zulässige Kategorien/Modi, Feldnamen, ID-/Datumsformate und Grenzen | Backendvalidierung, Snapshot und Import |
 | `import.defaults.mjs` | CSV-Kopfzeile, Bereichs-/Bilanzzuordnung und Größenlimits | Importvorschau und Vorlagen-Download |
 
-Diese Dateien liegen unter `shared/management/defaults/`. Fachlich identische Vorgaben werden im Browser und im Backend aus derselben Quelle gelesen.
+Diese Dateien liegen unter `Engine/management/defaults/`. Fachlich identische Vorgaben werden im Browser und im Backend aus derselben Quelle gelesen.
 
 ## Wichtige Startwerte
 

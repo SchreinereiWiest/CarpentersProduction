@@ -1,0 +1,12 @@
+{
+  "name": "@carpenters/engine",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.js",
+    "./cabinetConfigurator": "./cabinetConfigurator/index.js",
+    "./cnc": "./cnc/index.js",
+    "./management": "./management/index.mjs",
+    "./utils/*": "./utils/*"
+  }
+}

@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { day, fiscalRange } from '../../../shared/management/utils/dates.mjs';
-import { distribute } from '../../../shared/management/calculation/distribution.mjs';
-import { defaultConfig } from '../../../shared/management/defaults/config.defaults.mjs';
-import { createAssetDefaults, createAnnualCostDefaults, createCenterDefaults } from '../../../shared/management/defaults/forms.defaults.mjs';
+import { day, fiscalRange } from '../../../Engine/management/utils/dates.mjs';
+import { distribute } from '../../../Engine/management/calculation/distribution.mjs';
+import { defaultConfig } from '../../../Engine/management/defaults/config.defaults.mjs';
+import { createAssetDefaults, createAnnualCostDefaults, createCenterDefaults } from '../../../Engine/management/defaults/forms.defaults.mjs';
 import { validateConfig } from '../../src/services/management/validation/configuration.js';
 import { dateValue, yearValue, versionValue } from '../../src/services/management/validation/values.js';
 import { readLegacyInventory } from '../../src/services/management/legacyInventory.js';

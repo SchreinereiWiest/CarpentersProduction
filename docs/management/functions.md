@@ -72,34 +72,34 @@ Die Referenz beschreibt die benannten Managementfunktionen und ihre Beziehungen.
 
 | Funktion | Datei | Verantwortung |
 | --- | --- | --- |
-| `calculateSetup` | `shared/management/calculation/accounting.mjs` | Rechnet Plan oder Ist über dieselben Kostenpositionen, verteilt sie im BAB und leitet Stellen- sowie Maschinenstundensätze ab; Planwerte werden nie zusätzlich als Ist gezählt. |
-| `weights` | `shared/management/calculation/accounting.mjs` | Ermittelt die passenden Verteilungsgewichte aus Arbeitsstunden, Bezugsgrößen oder individuellen Schlüsselwerten. |
-| `assetCalculation` | `shared/management/calculation/assets.mjs` | Berechnet lineare Jahresabschreibung, bisherigen Vermögenswert und durchschnittlich gebundenes Kapital unter Beachtung von Restwert und Nutzungsdauer. |
-| `distribute` | `shared/management/calculation/distribution.mjs` | Verteilt Geldbeträge in ganzen Cent nach positiven Gewichten; größte Reste erhalten die verbliebenen Cent. |
-| `productiveHours` | `shared/management/calculation/hours.mjs` | Ermittelt produktive Jahresstunden aus Kapazität und Ausfällen; ein direkter Jahreswert hat Vorrang. |
-| `activityKey` | `shared/management/calculation/hours.mjs` | Bildet eine eindeutige Zuordnungskennung für katalogisierte oder frei benannte Tätigkeiten. |
-| `aggregateWorkingHours` | `shared/management/calculation/hours.mjs` | Aggregiert abgeschlossene Zeitberichte getrennt nach Mitarbeitern, Tätigkeiten, Kostenstellen und Monaten; fehlende Zuordnungen bleiben sichtbar. |
-| `setupChecks` | `shared/management/config/approval.mjs` | Prüft die fachlichen Freigabebedingungen; Easy benötigt einen positiven Satz, Vollkosten zusätzlich eine vollständige Kosten- und Stundenverteilung. |
-| `approvedConfig` | `shared/management/config/approval.mjs` | Liest die zuletzt freigegebenen Eingaben; ohne Freigabe wird null zurückgegeben. |
-| `prepareSetupConfig` | `shared/management/config/normalize.mjs` | Ergänzt bekannte Vorgaben, entfernt die alte Vorfallkonfiguration und bereitet einen unabhängigen Einrichtungsentwurf vor. |
-| `defaultSetup` | `shared/management/defaults/config.defaults.mjs` | Erstellt eine unabhängige, noch nicht eingerichtete Jahresplanung mit leeren Bestands- und Freigabelisten. |
-| `defaultConfig` | `shared/management/defaults/config.defaults.mjs` | Erstellt ein frisches Jahresmodell mit Kostenarten und Verteilungsschlüsseln; Listen werden nicht zwischen Jahren geteilt. |
-| `createAssetDefaults` | `shared/management/defaults/forms.defaults.mjs` | Erstellt eine unabhängige Anlage mit vorgegebener ID und Anschaffungsdatum. |
-| `createStaffDefaults` | `shared/management/defaults/forms.defaults.mjs` | Erstellt eine unabhängige Personalplanung; abgeleitete Arbeitszeiten überschreiben die Vorgaben. |
-| `createCenterDefaults` | `shared/management/defaults/forms.defaults.mjs` | Erstellt eine Kostenstelle; eigene Bereiche und Katalogvorschläge verwenden dieselbe Struktur. |
-| `createLoanDefaults` | `shared/management/defaults/forms.defaults.mjs` | Erstellt eine Restschuldposition ohne Zahlungs- oder Buchungsbewegung. |
-| `createAnnualCostDefaults` | `shared/management/defaults/forms.defaults.mjs` | Erstellt eine Jahreskostenposition; null als Ist-Wert bedeutet weiterhin fehlende Daten. |
-| `createEasyRateDefaults` | `shared/management/defaults/forms.defaults.mjs` | Erstellt eine zunächst unvollständige Easy-Rate, die der Benutzer vor Freigabe ergänzen muss. |
-| `createDistributionKeyDefaults` | `shared/management/defaults/forms.defaults.mjs` | Erstellt einen eigenen Schlüssel mit unabhängigen, zunächst leeren Verteilungsgewichten. |
-| `parseCsv` | `shared/management/imports/csv.mjs` | Liest CSV mit Semikolon oder Komma, zitierten Zellen und Zeilenumbrüchen; fehlerhafte Zitierung wird abgelehnt. |
-| `normalized` | `shared/management/imports/csv.mjs` | Normalisiert Importbezeichnungen für einen von Großschreibung unabhängigen Positionsabgleich. |
-| `importNumber` | `shared/management/imports/csv.mjs` | Liest deutsche oder einfache Dezimalbeträge; leere optionale Zellen verwenden den übergebenen Vorgabewert. |
-| `importManagementCsv` | `shared/management/imports/csv.mjs` | Prüft die gesamte Importdatei und erstellt eine Vorschaukopie; Kennung oder Name aktualisieren vorhandene Positionen ohne doppelte Übernahme. |
-| `day` | `shared/management/utils/dates.mjs` | Normalisiert ISO-Zeichenketten und Prisma-Datumsobjekte auf den Kalendertag JJJJ-MM-TT. |
-| `today` | `shared/management/utils/dates.mjs` | Liefert den aktuellen Kalendertag in der für die Betriebsrechnung verwendeten Berliner Zeitzone. |
-| `fiscalRange` | `shared/management/utils/dates.mjs` | Berechnet den vollständigen zwölfmonatigen Abrechnungszeitraum ab dem gewählten Startmonat. |
-| `dateInBerlin` | `shared/management/utils/dates.mjs` | Ordnet einen UTC-Zeitstempel dem Berliner Kalendertag des Arbeitsbeginns zu. |
-| `round` | `shared/management/utils/numbers.mjs` | Rundet interne Geld- und Stundenwerte auf zwei Nachkommastellen und gleicht kleine Gleitkommaabweichungen aus. |
+| `calculateSetup` | `Engine/management/calculation/accounting.mjs` | Rechnet Plan oder Ist über dieselben Kostenpositionen, verteilt sie im BAB und leitet Stellen- sowie Maschinenstundensätze ab; Planwerte werden nie zusätzlich als Ist gezählt. |
+| `weights` | `Engine/management/calculation/accounting.mjs` | Ermittelt die passenden Verteilungsgewichte aus Arbeitsstunden, Bezugsgrößen oder individuellen Schlüsselwerten. |
+| `assetCalculation` | `Engine/management/calculation/assets.mjs` | Berechnet lineare Jahresabschreibung, bisherigen Vermögenswert und durchschnittlich gebundenes Kapital unter Beachtung von Restwert und Nutzungsdauer. |
+| `distribute` | `Engine/management/calculation/distribution.mjs` | Verteilt Geldbeträge in ganzen Cent nach positiven Gewichten; größte Reste erhalten die verbliebenen Cent. |
+| `productiveHours` | `Engine/management/calculation/hours.mjs` | Ermittelt produktive Jahresstunden aus Kapazität und Ausfällen; ein direkter Jahreswert hat Vorrang. |
+| `activityKey` | `Engine/management/calculation/hours.mjs` | Bildet eine eindeutige Zuordnungskennung für katalogisierte oder frei benannte Tätigkeiten. |
+| `aggregateWorkingHours` | `Engine/management/calculation/hours.mjs` | Aggregiert abgeschlossene Zeitberichte getrennt nach Mitarbeitern, Tätigkeiten, Kostenstellen und Monaten; fehlende Zuordnungen bleiben sichtbar. |
+| `setupChecks` | `Engine/management/config/approval.mjs` | Prüft die fachlichen Freigabebedingungen; Easy benötigt einen positiven Satz, Vollkosten zusätzlich eine vollständige Kosten- und Stundenverteilung. |
+| `approvedConfig` | `Engine/management/config/approval.mjs` | Liest die zuletzt freigegebenen Eingaben; ohne Freigabe wird null zurückgegeben. |
+| `prepareSetupConfig` | `Engine/management/config/normalize.mjs` | Ergänzt bekannte Vorgaben, entfernt die alte Vorfallkonfiguration und bereitet einen unabhängigen Einrichtungsentwurf vor. |
+| `defaultSetup` | `Engine/management/defaults/config.defaults.mjs` | Erstellt eine unabhängige, noch nicht eingerichtete Jahresplanung mit leeren Bestands- und Freigabelisten. |
+| `defaultConfig` | `Engine/management/defaults/config.defaults.mjs` | Erstellt ein frisches Jahresmodell mit Kostenarten und Verteilungsschlüsseln; Listen werden nicht zwischen Jahren geteilt. |
+| `createAssetDefaults` | `Engine/management/defaults/forms.defaults.mjs` | Erstellt eine unabhängige Anlage mit vorgegebener ID und Anschaffungsdatum. |
+| `createStaffDefaults` | `Engine/management/defaults/forms.defaults.mjs` | Erstellt eine unabhängige Personalplanung; abgeleitete Arbeitszeiten überschreiben die Vorgaben. |
+| `createCenterDefaults` | `Engine/management/defaults/forms.defaults.mjs` | Erstellt eine Kostenstelle; eigene Bereiche und Katalogvorschläge verwenden dieselbe Struktur. |
+| `createLoanDefaults` | `Engine/management/defaults/forms.defaults.mjs` | Erstellt eine Restschuldposition ohne Zahlungs- oder Buchungsbewegung. |
+| `createAnnualCostDefaults` | `Engine/management/defaults/forms.defaults.mjs` | Erstellt eine Jahreskostenposition; null als Ist-Wert bedeutet weiterhin fehlende Daten. |
+| `createEasyRateDefaults` | `Engine/management/defaults/forms.defaults.mjs` | Erstellt eine zunächst unvollständige Easy-Rate, die der Benutzer vor Freigabe ergänzen muss. |
+| `createDistributionKeyDefaults` | `Engine/management/defaults/forms.defaults.mjs` | Erstellt einen eigenen Schlüssel mit unabhängigen, zunächst leeren Verteilungsgewichten. |
+| `parseCsv` | `Engine/management/imports/csv.mjs` | Liest CSV mit Semikolon oder Komma, zitierten Zellen und Zeilenumbrüchen; fehlerhafte Zitierung wird abgelehnt. |
+| `normalized` | `Engine/management/imports/csv.mjs` | Normalisiert Importbezeichnungen für einen von Großschreibung unabhängigen Positionsabgleich. |
+| `importNumber` | `Engine/management/imports/csv.mjs` | Liest deutsche oder einfache Dezimalbeträge; leere optionale Zellen verwenden den übergebenen Vorgabewert. |
+| `importManagementCsv` | `Engine/management/imports/csv.mjs` | Prüft die gesamte Importdatei und erstellt eine Vorschaukopie; Kennung oder Name aktualisieren vorhandene Positionen ohne doppelte Übernahme. |
+| `day` | `Engine/management/utils/dates.mjs` | Normalisiert ISO-Zeichenketten und Prisma-Datumsobjekte auf den Kalendertag JJJJ-MM-TT. |
+| `today` | `Engine/management/utils/dates.mjs` | Liefert den aktuellen Kalendertag in der für die Betriebsrechnung verwendeten Berliner Zeitzone. |
+| `fiscalRange` | `Engine/management/utils/dates.mjs` | Berechnet den vollständigen zwölfmonatigen Abrechnungszeitraum ab dem gewählten Startmonat. |
+| `dateInBerlin` | `Engine/management/utils/dates.mjs` | Ordnet einen UTC-Zeitstempel dem Berliner Kalendertag des Arbeitsbeginns zu. |
+| `round` | `Engine/management/utils/numbers.mjs` | Rundet interne Geld- und Stundenwerte auf zwei Nachkommastellen und gleicht kleine Gleitkommaabweichungen aus. |
 
 ## Backend
 
@@ -132,4 +132,3 @@ Die Referenz beschreibt die benannten Managementfunktionen und ihre Beziehungen.
 | `yearValue` | `Backend/src/services/management/validation/values.js` | Prüft ein ganzzahliges Geschäftsjahr innerhalb des unterstützten Bereichs. |
 | `versionValue` | `Backend/src/services/management/validation/values.js` | Prüft eine ganzzahlige Revision für den Schutz vor konkurrierenden Schreibzugriffen. |
 | `reference` | `Backend/src/services/management/validation/values.js` | Stellt sicher, dass eine optionale Zuordnung auf einen Eintrag derselben Konfiguration verweist. |
-

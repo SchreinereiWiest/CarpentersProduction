@@ -5,7 +5,7 @@ import React, {
 
 import {
     DEFAULT_CNC
-} from "../../projects/cabinetConfigurator/engine/cnc/cncDefaults";
+} from "@Engine/cabinetConfigurator/cnc/cncDefaults.js";
 import { getGlobalFile, uploadGlobalFile } from "../../../services/globalMemoryCache";
 import { downloadFile, uploadJSONFile } from "../../../services/apiTemplates";
 import MaterialSelect from "../../projects/cabinetConfigurator/components/editor/properties/MaterialSelect";

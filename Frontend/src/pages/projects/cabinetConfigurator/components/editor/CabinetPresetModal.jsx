@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { buildPartList } from "../../engine/partList/buildPartList.js";
+import { buildPartList } from "@Engine/cabinetConfigurator/partList/buildPartList.js";
 
 const createRowKey = () => `row:${Date.now()}:${Math.random()}`;
 

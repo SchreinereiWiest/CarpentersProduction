@@ -1,4 +1,5 @@
-import { getLegraboxHeight } from "../../engine/cnc/legraboxDimensions";
+import { getMiddleWallCenter } from "@Engine/cabinetConfigurator/geometry/middleWall.js";
+import { getLegraboxHeight } from "@Engine/cabinetConfigurator/cnc/legraboxDimensions.js";
 
 export function InteriorLayer({
     cabinet,
@@ -150,119 +151,6 @@ export function InteriorLayer({
 
     /*
      * ------------------------------------------------------------
-     * Mittelwandposition berechnen
-     * ------------------------------------------------------------
-     *
-     * Das Ergebnis ist die tatsächliche Position der
-     * Mittelwand-Mittellinie im SVG.
-     */
-
-    const getMiddleWallCenter = (
-        section,
-        wall
-    ) => {
-
-        const orientation =
-            wall.orientation ?? "horizontal";
-
-        const positionReference =
-            wall.positionReference ?? "sectionBottom";
-
-        const positionOffset =
-            Number(
-                wall.positionOffset ?? 0
-            );
-
-
-        const sectionX =
-            Number(section.x) || 0;
-
-        const sectionY =
-            Number(section.y) || 0;
-
-        const sectionWidth =
-            Number(section.width) || 0;
-
-        const sectionHeight =
-            Number(section.height) || 0;
-
-
-        /*
-         * --------------------------------------------
-         * Vertikale Mittelwand
-         * --------------------------------------------
-         */
-
-        if (orientation === "vertical") {
-
-            switch (positionReference) {
-
-                case "cabinetLeft":
-                    return positionOffset;
-
-                case "cabinetRight":
-                    return width - positionOffset;
-
-                case "sectionLeft":
-                    return (
-                        sectionX +
-                        positionOffset
-                    );
-
-                case "sectionRight":
-                    return (
-                        sectionX +
-                        sectionWidth -
-                        positionOffset
-                    );
-
-                default:
-                    return (
-                        sectionX +
-                        sectionWidth / 2
-                    );
-            }
-        }
-
-
-        /*
-         * --------------------------------------------
-         * Horizontale Mittelwand
-         * --------------------------------------------
-         */
-
-        switch (positionReference) {
-
-            case "cabinetTop":
-                return positionOffset;
-
-            case "cabinetBottom":
-                return height - positionOffset;
-
-            case "sectionTop":
-                return (
-                    sectionY +
-                    positionOffset
-                );
-
-            case "sectionBottom":
-                return (
-                    sectionY +
-                    sectionHeight -
-                    positionOffset
-                );
-
-            default:
-                return (
-                    sectionY +
-                    sectionHeight / 2
-                );
-        }
-    };
-
-
-    /*
-     * ------------------------------------------------------------
      * Funktionen einer Sektion zeichnen
      * ------------------------------------------------------------
      */
@@ -282,7 +170,7 @@ export function InteriorLayer({
          */
 
         functions.forEach(
-            (func, functionIndex) => {
+            func => {
 
 
                 /*
@@ -304,27 +192,7 @@ export function InteriorLayer({
     );
 
     /*
-     * Abstände:
-     *
-     * endFromTop:
-     * Abstand vom oberen Rand der Sektion
-     *
-     * startFromBottom:
-     * Abstand vom unteren Rand der Sektion
-     */
-    const startFromBottom = Math.max(
-        0,
-        Number(func.holeRow?.startFromBottom ?? 0)
-    );
-
-    const endFromTop = Math.max(
-        0,
-        Number(func.holeRow?.endFromTop ?? 0)
-    );
-
-
-    /*
-     * Nutzbare Höhe zwischen den beiden Grenzen
+     * Nutzbare Höhe der Sektion
      */
     const usableHeight = Math.max(
         0,
@@ -337,15 +205,6 @@ export function InteriorLayer({
      */
     const areaTop =
         Number(section.y);
-
-
-    /*
-     * Unterer Endpunkt des Bereichs
-     */
-    const areaBottom =
-        Number(section.y) +
-        Number(section.height) -
-        startFromBottom;
 
 
     /*
@@ -403,10 +262,11 @@ export function InteriorLayer({
 
 
                     const center =
-                        getMiddleWallCenter(
+                        getMiddleWallCenter({
                             section,
-                            func
-                        );
+                            wall: func,
+                            cabinet
+                        });
 
 
                     /*

@@ -1,5 +1,5 @@
-import { STAFF_CAPACITY_FIELDS } from '../../../../../../shared/management/defaults/catalog.defaults.mjs';
-import { productiveHours } from '../../../../../../shared/management/calculation/hours.mjs';
+import { STAFF_CAPACITY_FIELDS } from '@Engine/management/defaults/catalog.defaults.mjs';
+import { productiveHours } from '@Engine/management/calculation/hours.mjs';
 import { newStaff } from '../../defaults/forms.defaults.js';
 import { Button, Card, Empty, Input, Notice, Select, Table } from '../../components/ui.jsx';
 import { decimal } from '../../utils/format.js';

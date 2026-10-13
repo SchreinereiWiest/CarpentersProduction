@@ -1,4 +1,4 @@
-import { SETUP_STEPS } from '../../../../../shared/management/defaults/catalog.defaults.mjs';
+import { SETUP_STEPS } from '@Engine/management/defaults/catalog.defaults.mjs';
 
 /** SVG-Pfade der acht fachlichen Schritte; Reihenfolge entspricht dem gemeinsamen Schrittkatalog. */
 const ICONS = [

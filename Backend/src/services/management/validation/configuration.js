@@ -1,5 +1,5 @@
-import { defaultConfig, defaultSetup } from '../../../../../shared/management/defaults/config.defaults.mjs';
-import { CENTER_KINDS, COST_TREATMENTS, DISTRIBUTION_METRICS, IDENTIFIER_PATTERN, LIMITS, MODES } from '../../../../../shared/management/defaults/validation.defaults.mjs';
+import { defaultConfig, defaultSetup } from '../../../../../Engine/management/defaults/config.defaults.mjs';
+import { CENTER_KINDS, COST_TREATMENTS, DISTRIBUTION_METRICS, IDENTIFIER_PATTERN, LIMITS, MODES } from '../../../../../Engine/management/defaults/validation.defaults.mjs';
 import { invalid, number, reference, textValue } from './values.js';
 import { validateSetup } from './setup.js';
 

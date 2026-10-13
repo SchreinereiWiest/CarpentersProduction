@@ -1,5 +1,5 @@
 import { newAnnualCost } from '../../defaults/forms.defaults.js';
-import { ANNUAL_COST_CATALOG } from '../../../../../../shared/management/defaults/catalog.defaults.mjs';
+import { ANNUAL_COST_CATALOG } from '@Engine/management/defaults/catalog.defaults.mjs';
 
 import { Button, Card, Empty, Input, Notice, Select } from '../../components/ui.jsx';
 import { money } from '../../utils/format.js';

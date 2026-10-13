@@ -1,7 +1,7 @@
-import { createAssetDefaults, createLoanDefaults } from '../../../../shared/management/defaults/forms.defaults.mjs';
-import { defaultSetup } from '../../../../shared/management/defaults/config.defaults.mjs';
-import { day } from '../../../../shared/management/utils/dates.mjs';
-import { round } from '../../../../shared/management/utils/numbers.mjs';
+import { createAssetDefaults, createLoanDefaults } from '../../../../Engine/management/defaults/forms.defaults.mjs';
+import { defaultSetup } from '../../../../Engine/management/defaults/config.defaults.mjs';
+import { day } from '../../../../Engine/management/utils/dates.mjs';
+import { round } from '../../../../Engine/management/utils/numbers.mjs';
 
 /** Übernimmt vorhandene Anlagen und Restschulden einmalig; bestätigte Einrichtungen lesen keine Alttabellen mehr. */
 export async function readLegacyInventory(db, input) {

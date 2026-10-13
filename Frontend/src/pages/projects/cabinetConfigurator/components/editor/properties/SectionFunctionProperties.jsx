@@ -1,35 +1,9 @@
-import React, { useState } from "react";
-import { updateSectionTree } from "../../../engine/sektions/updateSectionTree";
-import { findSection } from "../../../engine/sektions/interior/mergeSectionChildren";
-
-const DRAWER_DEPTHS = [
-    270,
-    300,
-    350,
-    400,
-    450,
-    500,
-    550,
-    600
-];
-
-export function createId() {
-    return Date.now() + Math.random();
-}
-
-const getDefaultDrawerDepth = (cabinetDepth) => {
-    const depth = Number(cabinetDepth);
-
-    const available = DRAWER_DEPTHS.filter(
-        value => value <= depth
-    );
-
-    if (available.length > 0) {
-        return available[available.length - 1];
-    }
-
-    return DRAWER_DEPTHS[0];
-};
+import { useState } from "react";
+import { DRAWER_DEPTHS, getDefaultDrawerDepth } from "@Engine/cabinetConfigurator/cnc/legraboxDimensions.js";
+import { getMiddleWallCenter } from "@Engine/cabinetConfigurator/geometry/middleWall.js";
+import { findSection } from "@Engine/cabinetConfigurator/sektions/interior/mergeSectionChildren.js";
+import { updateSectionTree } from "@Engine/cabinetConfigurator/sektions/updateSectionTree.js";
+import { createId } from "@Engine/utils/id.js";
 
 
 
@@ -401,85 +375,6 @@ export default function SectionFunctionProperties({
      * ------------------------------------------------------------
      */
 
-    const getMiddleWallCenter = (wall) => {
-
-        const orientation =
-            wall.orientation ?? "horizontal";
-
-        const offset =
-            Number(wall.positionOffset ?? 0);
-
-        const sectionX =
-            Number(selectedElement.x);
-
-        const sectionY =
-            Number(selectedElement.y);
-
-        const sectionWidth =
-            Number(selectedElement.width);
-
-        const sectionHeight =
-            Number(selectedElement.height);
-
-        const cabinetWidth =
-            Number(activeCabinet.width);
-
-        const cabinetHeight =
-            Number(activeCabinet.height);
-
-
-        if (orientation === "vertical") {
-
-            switch (wall.positionReference) {
-
-                case "cabinetLeft":
-                    return offset;
-
-                case "cabinetRight":
-                    return cabinetWidth - offset;
-
-                case "sectionLeft":
-                    return sectionX + offset;
-
-                case "sectionRight":
-                    return sectionX + sectionWidth - offset;
-
-                default:
-                    return (
-                        sectionX +
-                        sectionWidth / 2
-                    );
-            }
-        }
-
-
-        switch (wall.positionReference) {
-
-            case "cabinetTop":
-                return offset;
-
-            case "cabinetBottom":
-                return cabinetHeight - offset;
-
-            case "sectionTop":
-                return sectionY + offset;
-
-            case "sectionBottom":
-                return (
-                    sectionY +
-                    sectionHeight -
-                    offset
-                );
-
-            default:
-                return (
-                    sectionY +
-                    sectionHeight / 2
-                );
-        }
-    };
-
-
     const getMiddleWallOffset = (
         wall,
         reference
@@ -489,7 +384,11 @@ export default function SectionFunctionProperties({
             wall.orientation ?? "horizontal";
 
         const center =
-            getMiddleWallCenter(wall);
+            getMiddleWallCenter({
+                wall,
+                section: selectedElement,
+                cabinet: activeCabinet
+            });
 
         const sectionX =
             Number(selectedElement.x);

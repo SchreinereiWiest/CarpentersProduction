@@ -1,15 +1,10 @@
 import { useState } from "react";
+import { createStringId } from "@Engine/utils/id.js";
 
 export default function NestingSettingsRemaining({remainingPlates, setRemainingPlates}) {
 
 const [remainingPlateX, setRemainingPlateX] = useState("");
     const [remainingPlateY, setRemainingPlateY] = useState("");
-
-    function createId() {
-    return `${Date.now()}-${Math.random()
-        .toString(36)
-        .substring(2, 9)}`;
-}
 
     function addRemainingPlate() {
 
@@ -21,7 +16,7 @@ const [remainingPlateX, setRemainingPlateX] = useState("");
         }
 
         const plate = {
-            id: createId(),
+            id: createStringId(),
             X: x,
             Y: y
         };

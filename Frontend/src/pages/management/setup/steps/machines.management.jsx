@@ -1,4 +1,4 @@
-import { MACHINE_COST_LABELS } from '../../../../../../shared/management/defaults/catalog.defaults.mjs';
+import { MACHINE_COST_LABELS } from '@Engine/management/defaults/catalog.defaults.mjs';
 import { Card, Empty, Input, Notice, Select, Table } from '../../components/ui.jsx';
 import { decimal, money } from '../../utils/format.js';
 

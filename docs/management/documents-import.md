@@ -63,4 +63,4 @@ Es besteht noch keine direkte DATEV-Verbindung. Eine beliebige DATEV-Datei wird 
 
 ## Beziehungen im Code
 
-`documents/documentInbox.jsx` nutzt die geschützte Datei-API. `setup/import.panel.jsx` ruft `shared/management/imports/csv.mjs` auf und übernimmt die geprüfte Kopie. Spalten-/Bereichsvorgaben liegen in `defaults/import.defaults.mjs`; Positionsstrukturen kommen aus denselben Defaultfabriken wie manuelle Eingaben.
+`documents/documentInbox.jsx` nutzt die geschützte Datei-API. `setup/import.panel.jsx` ruft `Engine/management/imports/csv.mjs` auf und übernimmt die geprüfte Kopie. Spalten-/Bereichsvorgaben liegen in `defaults/import.defaults.mjs`; Positionsstrukturen kommen aus denselben Defaultfabriken wie manuelle Eingaben.

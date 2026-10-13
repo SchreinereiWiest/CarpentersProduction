@@ -1,4 +1,4 @@
-import { today } from '../../../../shared/management/utils/dates.mjs';
+import { today } from '../../../../Engine/management/utils/dates.mjs';
 import { yearValue } from './validation/values.js';
 
 /** Liest und validiert das Geschäftsjahr; ohne Parameter gilt das Berliner Kalenderjahr. */

@@ -138,7 +138,7 @@ Diese Referenz beschreibt die aus Frontend-Modulen exportierten Funktionen, Hook
 | `generateLegraboxParts`, `generateLegraboxHardware` | Legrabox-Holzteile und Beschläge erzeugen |
 | `buildPartList` | alle Generatoren koordinieren und gruppierte Ergebnisliste liefern |
 | `mergeManualPartList` | manuelle Listeneinträge bei Neugenerierung erhalten |
-| `ProjectSave` in `cabinetConfigurator/engine/projectSave.js` | Projekt-, Korpus- und Teilelistendaten konsistent speichern |
+| `prepareProjectPartList` in `Engine/cabinetConfigurator/projectSave.js` | Teilelisten rein und damit in Frontend und Backend erzeugen bzw. mit manuellen Teilen zusammenführen; der Frontend-Adapter speichert die Dateien über die API |
 
 ## Korpus – CNC-Compiler
 
@@ -165,4 +165,3 @@ Diese Referenz beschreibt die aus Frontend-Modulen exportierten Funktionen, Hook
 | `CabinetProperties`, `SectionProperties`, `FrontProperties`, `SectionFunctionProperties`, `SelectedElementProperties`, `MaterialSelect` | fachliche Eigenschaften bearbeiten |
 | `CabinetViewport`, `CabinetList` | SVG-Viewport und Korpusliste rendern |
 | `Grid`, `CarcassLayer`, `InteriorLayer`, `FrontLayer`, `DimensionLayer` | unabhängige Zeichenebenen des Korpusviewports |
-

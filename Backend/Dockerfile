@@ -22,7 +22,7 @@ COPY prisma ./prisma
 RUN pnpm exec prisma generate
 
 # Application
-COPY --from=shared . /shared
+COPY --from=engine . /Engine
 COPY . .
 
 EXPOSE 5000

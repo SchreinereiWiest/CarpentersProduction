@@ -7,6 +7,12 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
 
+  resolve: {
+    alias: {
+      '@Engine': fileURLToPath(new URL('../Engine', import.meta.url)),
+    },
+  },
+
   test: {
     environment: 'jsdom',
     setupFiles: './test/setup.js',
@@ -19,7 +25,7 @@ export default defineConfig({
    server: {
     host: true,
     fs: {
-      allow: [searchForWorkspaceRoot(fileURLToPath(new URL('.', import.meta.url))), fileURLToPath(new URL('../shared', import.meta.url))]
+      allow: [searchForWorkspaceRoot(fileURLToPath(new URL('.', import.meta.url))), fileURLToPath(new URL('../Engine', import.meta.url))]
     },
 
     watch: {

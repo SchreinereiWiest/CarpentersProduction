@@ -1,11 +1,11 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { defaultConfig } from '../../../shared/management/defaults/config.defaults.mjs';
-import { today } from '../../../shared/management/utils/dates.mjs';
-import { approvedConfig } from '../../../shared/management/config/approval.mjs';
-import { calculateSetup } from '../../../shared/management/calculation/accounting.mjs';
-import { prepareSetupConfig } from '../../../shared/management/config/normalize.mjs';
+import { defaultConfig } from '@Engine/management/defaults/config.defaults.mjs';
+import { today } from '@Engine/management/utils/dates.mjs';
+import { approvedConfig } from '@Engine/management/config/approval.mjs';
+import { calculateSetup } from '@Engine/management/calculation/accounting.mjs';
+import { prepareSetupConfig } from '@Engine/management/config/normalize.mjs';
 
 const mocks = vi.hoisted(() => ({ request: vi.fn(), get: vi.fn() }));
 vi.mock('axios', () => ({ default: Object.assign(mocks.request, { get: mocks.get }) }));

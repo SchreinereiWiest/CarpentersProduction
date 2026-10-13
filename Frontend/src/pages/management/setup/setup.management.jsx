@@ -1,5 +1,5 @@
 import { Navigate, useNavigate, useParams } from "react-router";
-import { SETUP_STEPS } from '../../../../../shared/management/defaults/catalog.defaults.mjs';
+import { SETUP_STEPS } from '@Engine/management/defaults/catalog.defaults.mjs';
 import { useManagement } from '../hooks/useManagement.js';
 import { SetupAnnualCosts } from './steps/annualCosts.management.jsx';
 import { SetupAssets } from './steps/assets.management.jsx';

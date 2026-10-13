@@ -1,84 +1,30 @@
-import React, {useState, useEffect, useRef} from "react";
+import {useState, useEffect, useRef} from "react";
 import { useLocation, useParams } from "react-router";
 import CabinetViewport from "./components/view/cabinetViewport.jsx";
 import ProjectBar from '../../../components/projectBar.jsx';
 import SideBar from '../../../components/sideBar.jsx';
-import { createInitialSections } from "./engine/sektions/interior/createInitialSections.js"
-import { generateFronts } from "./engine/sektions/front/generateFronts.js"
-import { splitFront } from "./engine/sektions/front/splitFront.js";
-import { splitSection } from "./engine/sektions/splitSections.js";
-import { mergeSectionChildren, findSection, findParent } from "./engine/sektions/interior/mergeSectionChildren.js";
-import { frontsToSections } from "./engine/sektions/functions/parseFrontSections.js";
-import { findFrontParent, mergeFrontChildren } from "./engine/sektions/front/mergeFrontChildren.js";
+import { cloneCabinetWithFreshIds, createAvailableSection } from "@Engine/cabinetConfigurator/cabinet.js";
+import { DEFAULT_CABINET } from "@Engine/cabinetConfigurator/cabinetDefaults.js";
+import { DEFAULT_CNC } from "@Engine/cabinetConfigurator/cnc/cncDefaults.js";
+import { buildPartList } from "@Engine/cabinetConfigurator/partList/buildPartList.js";
+import { createInitialSections } from "@Engine/cabinetConfigurator/sektions/interior/createInitialSections.js";
+import { generateFronts } from "@Engine/cabinetConfigurator/sektions/front/generateFronts.js";
+import { splitFront } from "@Engine/cabinetConfigurator/sektions/front/splitFront.js";
+import { splitSection } from "@Engine/cabinetConfigurator/sektions/splitSections.js";
+import { mergeSectionChildren, findParent } from "@Engine/cabinetConfigurator/sektions/interior/mergeSectionChildren.js";
+import { frontsToSections } from "@Engine/cabinetConfigurator/sektions/functions/parseFrontSections.js";
+import { findFrontParent, mergeFrontChildren } from "@Engine/cabinetConfigurator/sektions/front/mergeFrontChildren.js";
+import { createId } from "@Engine/utils/id.js";
 import CabinetSidebar from "./components/editor/sidebar/CabinetSidebar.jsx";
 import PropertiesSidebar from "./components/editor/properties/PropertiesSidebar.jsx";
-import { ProjectSave } from "./engine/projectSave.js";
-import { buildPartList } from "./engine/partList/buildPartList.js";
+import { saveCabinetProject } from "./services/projectSave.js";
 import { useNavigate } from 'react-router';
 import {getProjectFile} from "../../../services/projectMemoryCache.js";
 import {downloadFile, uploadJSONFile} from "../../../services/apiTemplates.js";
 import { getGlobalFile, uploadGlobalFile } from "../../../services/globalMemoryCache.js";
 import axios from "axios";
-import { DEFAULT_CNC } from "./engine/cnc/cncDefaults.js";
 import CabinetPresetModal from "./components/editor/CabinetPresetModal.jsx";
 import { useAuth } from "../../../routes/AuthContext.jsx";
-
-
-export function createId() {
-        return Date.now() + Math.random();
-    }
-
-function cloneCabinetWithFreshIds(cabinet) {
-    const idMap = new Map();
-
-    const cloneValue = (value) => {
-        if (Array.isArray(value)) {
-            return value.map(cloneValue);
-        }
-
-        if (value && typeof value === "object") {
-            return Object.fromEntries(
-                Object.entries(value).map(([key, nestedValue]) => {
-                    if (key === "id" && nestedValue != null) {
-                        const newId = createId();
-                        idMap.set(nestedValue, newId);
-                        return [key, newId];
-                    }
-
-                    return [key, cloneValue(nestedValue)];
-                })
-            );
-        }
-
-        return value;
-    };
-
-    const remapReferences = (value) => {
-        if (Array.isArray(value)) {
-            value.forEach(remapReferences);
-            return;
-        }
-
-        if (!value || typeof value !== "object") {
-            return;
-        }
-
-        Object.entries(value).forEach(([key, nestedValue]) => {
-            if (key.endsWith("Id") && idMap.has(nestedValue)) {
-                value[key] = idMap.get(nestedValue);
-                return;
-            }
-
-            remapReferences(nestedValue);
-        });
-    };
-
-    const clone = cloneValue(cabinet);
-    remapReferences(clone);
-    return clone;
-}
-
-
 export default function CabinetEditor() {
 
     // conmstant Section alle Editor daten
@@ -90,31 +36,11 @@ export default function CabinetEditor() {
     const { userId } = useParams();
     const location = useLocation();
 
-    const cadData = location.state?.cadData;
-
     let mode = location.state?.mode !== "create"
         ? "edit"
         : "create";
 
     if(userId) {mode="create";}
-
-    const [selectedCustomer, setSelectedCustomer] = useState(
-    location.state?.selectedCustomer ?? null
-    );
-
-    const [files, setFiles] = useState(
-        location.state?.files ?? []
-    );
-
-    const [projectDescription, setProjectDescription] =
-    useState(
-        location.state?.projectDescription ?? ""
-    );
-
-    const [projectName, setProjectName] =
-    useState(
-        location.state?.projectName ?? ""
-    );
 
     const [materials, setMaterials] = useState([]);
 
@@ -126,7 +52,7 @@ export default function CabinetEditor() {
 
     const [viewMode, setViewMode] = useState("interior");
 
-    const [sectionCount, setSectionCount] = useState(1);
+    const [, setSectionCount] = useState(1);
 
     const [cabinets, setCabinets] = useState([]);
 
@@ -152,7 +78,7 @@ export default function CabinetEditor() {
     const [sectionSplitDirection, setSectionSplitDirection] = useState("vertical");
 
     const [saving, setSaving] = useState(false);
-    const [loadingGeneratedData, setLoadingGeneratedData] = useState(false);
+    const [, setLoadingGeneratedData] = useState(false);
     const [showAbsoluteSaveWarning, setShowAbsoluteSaveWarning] = useState(false);
     const longPressTimer = useRef(null);
     const suppressSaveClick = useRef(false);
@@ -161,50 +87,7 @@ export default function CabinetEditor() {
 
     const [defaultConfig, setDefaultConfig] = useState(DEFAULT_CNC);
 
-    const [defaultCabinet, setDefaultCabinet] = useState({
-
-    width: 600,
-    height: 720,
-    depth: 535,
-    quantity: 1,
-
-    thickness: 19,
-
-    topOffset: 0,
-    bottomOffset: 0,
-
-    topExists: true,
-    bottomExists: true,
-
-    frontGap: 3,
-
-    frontGapLeft: 0,
-    frontGapRight: 0,
-    frontGapTop: 0,
-    frontGapBottom: 0,
-
-    backPanel: {
-        construction: "butt",
-        continuous: "side"
-    },
-
-    spax: true,
-
-    partListSettings: {
-        grouping: "cabinet",
-
-        separate: {
-            fronts: false,
-            shelves: false,
-            middleWalls: false,
-            legrabox: false
-    }
-},
-
-
-    sections: [],
-    fronts: []
-});
+    const [defaultCabinet, setDefaultCabinet] = useState(DEFAULT_CABINET);
 
     const addCabinet = () => {
 
@@ -249,114 +132,6 @@ export default function CabinetEditor() {
     };
 
     const [selectedElement, setSelectedElement] = useState(null);
-
-    const createAvailableSection = (
-    cabinet
-) => {
-
-    const thickness =
-        Number(cabinet.thickness) || 0;
-
-    const width =
-        Number(cabinet.width) || 0;
-
-    const height =
-        Number(cabinet.height) || 0;
-
-    const topOffset =
-        Number(
-            cabinet.topOffset ?? 0
-        );
-
-    const bottomOffset =
-        Number(
-            cabinet.bottomOffset ?? 0
-        );
-
-    const topExists =
-        cabinet.topExists ?? true;
-
-    const bottomExists =
-        cabinet.bottomExists ?? true;
-
-
-    /*
-     * Oberkante der verfügbaren Section
-     */
-
-    const sectionTop =
-        topOffset +
-        (
-            topExists
-                ? thickness
-                : 0
-        );
-
-
-    /*
-     * Unterkante der verfügbaren Section
-     */
-
-    const sectionBottom =
-        height -
-        bottomOffset -
-        (
-            bottomExists
-                ? thickness
-                : 0
-        );
-
-
-    const sectionHeight =
-        sectionBottom -
-        sectionTop;
-
-
-    if (
-        width <= 2 * thickness ||
-        sectionHeight <= 0
-    ) {
-        return null;
-    }
-
-
-    return {
-
-        id:
-            createId(),
-
-        type:
-            "section",
-
-        parentId:
-            null,
-
-        name:
-            "Section 1",
-
-        x:
-            thickness,
-
-        y:
-            sectionTop,
-
-        width:
-            width -
-            2 * thickness,
-
-        height:
-            sectionHeight,
-
-        functionType:
-            "none",
-
-        functionConfig:
-            {},
-
-        children:
-            []
-    };
-    };
 
     const updateCabinetLayout = (
     changes
@@ -574,18 +349,13 @@ export default function CabinetEditor() {
         try {
             setSaving(true);
 
-            await ProjectSave(
+            await saveCabinetProject({
                 cabinets,
                 materials,
-                selectedCustomer,
-                files,
-                projectDescription,
-                projectName,
-                mode,
                 projectId,
                 defaultConfig,
                 overwriteManual
-            );
+            });
 
             console.log("Projekt erfolgreich gespeichert");
         } catch (error) {
@@ -701,23 +471,6 @@ export default function CabinetEditor() {
                 const project = data.project;
 
                 setProject(project);
-
-                setProjectName(
-                    project.title ?? ""
-                );
-
-                setProjectDescription(
-                    project.description ?? ""
-                );
-
-                const customerResponse =
-                    await axios.get(
-                        `/api/customers/get/${project.customerId}`
-                    );
-
-                setSelectedCustomer(
-                    customerResponse.data.customer
-                );
 
             } catch (error) {
 
@@ -897,16 +650,6 @@ export default function CabinetEditor() {
         
                 try {
         
-                    const response = await axios.get(
-        
-                        `/api/settings/cnc`,
-        
-                        {
-                            withCredentials: true
-                        }
-        
-                    );
-
                     const data =
                         await getGlobalFile({
     

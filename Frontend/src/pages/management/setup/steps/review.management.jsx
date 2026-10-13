@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { setupChecks } from '../../../../../../shared/management/config/approval.mjs';
-import { round } from '../../../../../../shared/management/utils/numbers.mjs';
+import { setupChecks } from '@Engine/management/config/approval.mjs';
+import { round } from '@Engine/management/utils/numbers.mjs';
 import { Button, Card, Empty, Input, Notice, Select, Table } from '../../components/ui.jsx';
 import { dateLabel, decimal, money } from '../../utils/format.js';
 

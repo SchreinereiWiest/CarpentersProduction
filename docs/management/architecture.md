@@ -55,7 +55,7 @@ Die alten Routen `/Management/CostAccounting`, `/Calculation`, `/Assets` und `/S
 ## Gemeinsame Fachmodule
 
 ```text
-shared/management/
+Engine/management/
 ├── defaults/
 │   ├── config.defaults.mjs      Jahresmodell und Einrichtung
 │   ├── forms.defaults.mjs       Positionsstrukturen und unabhängige Fabriken

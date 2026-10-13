@@ -1,6 +1,6 @@
-import { ACTUAL_ASSET_FIELDS } from '../../../../../../shared/management/defaults/validation.defaults.mjs';
+import { ACTUAL_ASSET_FIELDS } from '@Engine/management/defaults/validation.defaults.mjs';
 import { newCenter } from '../../defaults/forms.defaults.js';
-import { fiscalRange } from '../../../../../../shared/management/utils/dates.mjs';
+import { fiscalRange } from '@Engine/management/utils/dates.mjs';
 
 import { suggestedCenters } from '../../defaults/forms.defaults.js';
 import { Button, Card, Empty, Input, Notice, Select } from '../../components/ui.jsx';

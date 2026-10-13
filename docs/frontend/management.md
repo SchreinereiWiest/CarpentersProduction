@@ -23,4 +23,4 @@ Nach der Freigabe zeigt die ManagementBar [Betriebsübersicht](../management/ope
 
 ## Entwicklung
 
-[Architektur und Dateien](../management/architecture.md), [Defaults](../management/defaults.md), [API](../management/api.md), [Funktionsreferenz](../management/functions.md) und [Tests](../management/testing.md) beschreiben die Umsetzung. Die vorhandenen Default- und Rechenmodule liegen unter `shared/management/`; Frontendmasken und Backendservices sind entsprechend untergliedert.
+[Architektur und Dateien](../management/architecture.md), [Defaults](../management/defaults.md), [API](../management/api.md), [Funktionsreferenz](../management/functions.md) und [Tests](../management/testing.md) beschreiben die Umsetzung. Die vorhandenen Default- und Rechenmodule liegen unter `Engine/management/`; Frontendmasken und Backendservices sind entsprechend untergliedert.

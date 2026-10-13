@@ -1,8 +1,8 @@
 import { createUuid } from '../utils/uuid.js';
-import { fiscalRange } from '../../../../../shared/management/utils/dates.mjs';
-import { defaultConfig } from '../../../../../shared/management/defaults/config.defaults.mjs';
-import { createAssetDefaults, createAnnualCostDefaults, createCenterDefaults, createDistributionKeyDefaults, createEasyRateDefaults, createLoanDefaults, createStaffDefaults, STAFF_DEFAULTS } from '../../../../../shared/management/defaults/forms.defaults.mjs';
-import { SUGGESTED_CENTERS } from '../../../../../shared/management/defaults/catalog.defaults.mjs';
+import { fiscalRange } from '@Engine/management/utils/dates.mjs';
+import { defaultConfig } from '@Engine/management/defaults/config.defaults.mjs';
+import { createAssetDefaults, createAnnualCostDefaults, createCenterDefaults, createDistributionKeyDefaults, createEasyRateDefaults, createLoanDefaults, createStaffDefaults, STAFF_DEFAULTS } from '@Engine/management/defaults/forms.defaults.mjs';
+import { SUGGESTED_CENTERS } from '@Engine/management/defaults/catalog.defaults.mjs';
 import { createWorkBlocks } from '../../../services/companySettings.js';
 
 /** Erstellt eine neue Anlage mit Browser-ID und Jahresbeginn als überprüfbarem Anschaffungsdatum. */

@@ -1,5 +1,5 @@
-import { round } from '../../../../../shared/management/utils/numbers.mjs';
-import { DATE_PATTERN, LIMITS, UUID_PATTERN } from '../../../../../shared/management/defaults/validation.defaults.mjs';
+import { round } from '../../../../../Engine/management/utils/numbers.mjs';
+import { DATE_PATTERN, LIMITS, UUID_PATTERN } from '../../../../../Engine/management/defaults/validation.defaults.mjs';
 
 /** Bricht eine Validierung mit einer gezielten Meldung und einem HTTP-Status ab. */
 export function invalid(message, status = 400) {

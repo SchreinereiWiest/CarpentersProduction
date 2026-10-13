@@ -3,10 +3,10 @@ import { Navigate, Outlet, useLocation, useNavigate } from "react-router";
 import axios from "axios";
 import SideBar from "../../../components/sideBar.jsx";
 import ManagementBar from './managementBar.jsx';
-import { today } from '../../../../../shared/management/utils/dates.mjs';
-import { approvedConfig } from '../../../../../shared/management/config/approval.mjs';
-import { calculateSetup } from '../../../../../shared/management/calculation/accounting.mjs';
-import { prepareSetupConfig } from '../../../../../shared/management/config/normalize.mjs';
+import { today } from '@Engine/management/utils/dates.mjs';
+import { approvedConfig } from '@Engine/management/config/approval.mjs';
+import { calculateSetup } from '@Engine/management/calculation/accounting.mjs';
+import { prepareSetupConfig } from '@Engine/management/config/normalize.mjs';
 import {
   DEFAULT_COMPANY_SETTINGS,
   loadCompanySettings

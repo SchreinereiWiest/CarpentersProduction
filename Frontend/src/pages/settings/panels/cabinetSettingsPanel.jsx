@@ -8,7 +8,7 @@ import { getGlobalFile, uploadGlobalFile } from "../../../services/globalMemoryC
 import { downloadFile, uploadJSONFile } from "../../../services/apiTemplates";
 import MaterialSelect from "../../projects/cabinetConfigurator/components/editor/properties/MaterialSelect.jsx";
 import CabinetPresetModal from "../../projects/cabinetConfigurator/components/editor/CabinetPresetModal.jsx";
-import { DEFAULT_CNC } from "../../projects/cabinetConfigurator/engine/cnc/cncDefaults.js";
+import { DEFAULT_CNC } from "@Engine/cabinetConfigurator/cnc/cncDefaults.js";
 
 
 const DEFAULT_CABINET = {

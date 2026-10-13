@@ -1,5 +1,5 @@
-import { ACTUAL_ASSET_FIELDS } from '../../../../../shared/management/defaults/validation.defaults.mjs';
-import { ACTUAL_ASSET_INPUTS } from '../../../../../shared/management/defaults/catalog.defaults.mjs';
+import { ACTUAL_ASSET_FIELDS } from '@Engine/management/defaults/validation.defaults.mjs';
+import { ACTUAL_ASSET_INPUTS } from '@Engine/management/defaults/catalog.defaults.mjs';
 import { useState } from "react";
 import { useManagement } from '../hooks/useManagement.js';
 import { BabTable } from '../components/babTable.jsx';

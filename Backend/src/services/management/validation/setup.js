@@ -1,5 +1,5 @@
-import { defaultSetup } from '../../../../../shared/management/defaults/config.defaults.mjs';
-import { ASSET_CATEGORIES, COST_SOURCES, HOURS_MODES, IDENTIFIER_PATTERN, INTEREST_MODES, LIMITS, OPTIONAL_ASSET_FIELDS } from '../../../../../shared/management/defaults/validation.defaults.mjs';
+import { defaultSetup } from '../../../../../Engine/management/defaults/config.defaults.mjs';
+import { ASSET_CATEGORIES, COST_SOURCES, HOURS_MODES, IDENTIFIER_PATTERN, INTEREST_MODES, LIMITS, OPTIONAL_ASSET_FIELDS } from '../../../../../Engine/management/defaults/validation.defaults.mjs';
 import { dateValue, invalid, number, reference, textValue, uuid } from './values.js';
 
 /** Prüft Anlagen, Restschulden, Jahreskosten und Personalplanung; Freigaben dürfen nur vom Server ergänzt werden. */

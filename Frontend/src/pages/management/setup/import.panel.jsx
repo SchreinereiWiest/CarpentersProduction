@@ -1,8 +1,8 @@
 import { downloadCsv } from '../utils/fileDownload.js';
-import { IMPORT_LIMITS } from '../../../../../shared/management/defaults/import.defaults.mjs';
+import { IMPORT_LIMITS } from '@Engine/management/defaults/import.defaults.mjs';
 import { useState } from "react";
-import { IMPORT_TEMPLATE } from '../../../../../shared/management/defaults/import.defaults.mjs';
-import { importManagementCsv } from '../../../../../shared/management/imports/csv.mjs';
+import { IMPORT_TEMPLATE } from '@Engine/management/defaults/import.defaults.mjs';
+import { importManagementCsv } from '@Engine/management/imports/csv.mjs';
 import { createUuid } from '../utils/uuid.js';
 import { Button, Card, Notice } from '../components/ui.jsx';
 

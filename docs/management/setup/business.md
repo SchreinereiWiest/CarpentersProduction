@@ -32,6 +32,6 @@ Im Entwurf werden Personalanteile, direkte Anlagen-/Darlehens-/Kostenverknüpfun
 
 ## Beziehungen im Code
 
-`setup/steps/business.management.jsx` verwendet die Formularfabriken in `defaults/forms.defaults.js`. Die gemeinsame Jahresstruktur steht in `shared/management/defaults/config.defaults.mjs`; Zeiträume berechnet `utils/dates.mjs`. Der Schritt verändert den vom Layout gehaltenen Entwurf. **Speichern & Weiter** übermittelt ihn mit Revision an die Konfigurations-API.
+`setup/steps/business.management.jsx` verwendet die Formularfabriken in `defaults/forms.defaults.js`. Die gemeinsame Jahresstruktur steht in `Engine/management/defaults/config.defaults.mjs`; Zeiträume berechnet `utils/dates.mjs`. Der Schritt verändert den vom Layout gehaltenen Entwurf. **Speichern & Weiter** übermittelt ihn mit Revision an die Konfigurations-API.
 
 Weiter: [Vermögen und Finanzierung](assets.md).

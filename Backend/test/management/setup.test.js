@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { defaultConfig } from '../../../shared/management/defaults/config.defaults.mjs';
-import { aggregateWorkingHours, productiveHours } from '../../../shared/management/calculation/hours.mjs';
-import { assetCalculation } from '../../../shared/management/calculation/assets.mjs';
-import { calculateSetup } from '../../../shared/management/calculation/accounting.mjs';
-import { prepareSetupConfig } from '../../../shared/management/config/normalize.mjs';
-import { setupChecks } from '../../../shared/management/config/approval.mjs';
-import { importManagementCsv, importNumber } from '../../../shared/management/imports/csv.mjs';
+import { defaultConfig } from '../../../Engine/management/defaults/config.defaults.mjs';
+import { aggregateWorkingHours, productiveHours } from '../../../Engine/management/calculation/hours.mjs';
+import { assetCalculation } from '../../../Engine/management/calculation/assets.mjs';
+import { calculateSetup } from '../../../Engine/management/calculation/accounting.mjs';
+import { prepareSetupConfig } from '../../../Engine/management/config/normalize.mjs';
+import { setupChecks } from '../../../Engine/management/config/approval.mjs';
+import { importManagementCsv, importNumber } from '../../../Engine/management/imports/csv.mjs';
 import { validateConfig } from '../../src/services/management/validation/configuration.js';
 
 const center = (id, values = {}) => ({ id, name: id, kind: 'production', hours: 1000, area: 100, employees: 1, directBase: 0, redistributionKey: 'hours', activityIds: [id], consumption: 1, usage: 1, ...values });

@@ -13,7 +13,7 @@ if (!testUrl) {
   const [{ default: express }, { default: cookieParser }, { default: jwt }, { default: prisma }, { default: router }, { defaultConfig }, { prepareSetupConfig }] = await Promise.all([
     import('express'), import('cookie-parser'), import('jsonwebtoken'), import('../../src/config/prisma.js'),
     import('../../src/routes/management/management.routes.js'),
-    import('../../../shared/management/defaults/config.defaults.mjs'), import('../../../shared/management/config/normalize.mjs'),
+    import('../../../Engine/management/defaults/config.defaults.mjs'), import('../../../Engine/management/config/normalize.mjs'),
   ]);
   test('Aktive Management-API: Einrichtung, Freigabe, Jahresbetrieb und bereinigte Endpunkte', async t => {
     await prisma.$transaction([

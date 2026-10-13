@@ -1,12 +1,12 @@
-import { fiscalRange } from '../../../../shared/management/utils/dates.mjs';
-import { calculateSetup } from '../../../../shared/management/calculation/accounting.mjs';
-import { setupChecks } from '../../../../shared/management/config/approval.mjs';
+import { fiscalRange } from '../../../../Engine/management/utils/dates.mjs';
+import { calculateSetup } from '../../../../Engine/management/calculation/accounting.mjs';
+import { setupChecks } from '../../../../Engine/management/config/approval.mjs';
 import { requestYear } from '../../services/management/http.js';
 import { write } from '../../services/management/persistence.js';
 import { loadTimeEntries } from '../../services/management/snapshots.js';
 import { validateConfig } from '../../services/management/validation/configuration.js';
 import { invalid, textValue, versionValue } from '../../services/management/validation/values.js';
-import { MAX_APPROVALS } from '../../../../shared/management/defaults/validation.defaults.mjs';
+import { MAX_APPROVALS } from '../../../../Engine/management/defaults/validation.defaults.mjs';
 
 /** Speichert den validierten Entwurf revisionssicher; Freigabehistorie stammt ausschließlich vom Server. */
 export async function saveManagementConfig(req, res) {
