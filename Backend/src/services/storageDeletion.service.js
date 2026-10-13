@@ -2,6 +2,8 @@ import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 
 import prisma from "../config/prisma.js";
 import { s3Upload } from "../config/s3.js";
+import { getTenantId, runWithTenant } from "../context/tenantContext.js";
+import { systemPrisma } from "../config/prisma.js";
 
 const BATCH_SIZE = 25;
 const STALE_PROCESSING_MS = 5 * 60 * 1000;
@@ -16,7 +18,8 @@ export async function enqueueStorageDeletions(transaction, objects) {
     await Promise.all(objects.map(object =>
         transaction.storageDeletionJob.upsert({
             where: {
-                bucketName_objectKey: {
+                tenantId_bucketName_objectKey: {
+                    tenantId: getTenantId(),
                     bucketName: object.bucketName,
                     objectKey: object.objectKey
                 }
@@ -117,8 +120,19 @@ export async function reconcileStorageDeletions() {
     await Promise.allSettled(jobs.map(job => processStorageDeletionJob(job.id)));
 }
 
+async function reconcileAllTenants() {
+    const tenants = await systemPrisma.tenant.findMany({
+        where: { status: "active" },
+        select: { id: true }
+    });
+
+    for (const tenant of tenants) {
+        await runWithTenant({ tenantId: tenant.id, source: "storage-deletion-worker" }, reconcileStorageDeletions);
+    }
+}
+
 export function startStorageDeletionWorker() {
-    const run = () => reconcileStorageDeletions().catch(error => {
+    const run = () => reconcileAllTenants().catch(error => {
         console.error("Storage deletion reconciliation failed:", error);
     });
 

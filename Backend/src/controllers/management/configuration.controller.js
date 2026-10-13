@@ -7,6 +7,7 @@ import { loadTimeEntries } from '../../services/management/snapshots.js';
 import { validateConfig } from '../../services/management/validation/configuration.js';
 import { invalid, textValue, versionValue } from '../../services/management/validation/values.js';
 import { MAX_APPROVALS } from '../../../../Engine/management/defaults/validation.defaults.mjs';
+import { getTenantId } from '../../context/tenantContext.js';
 
 /** Speichert den validierten Entwurf revisionssicher; Freigabehistorie stammt ausschließlich vom Server. */
 export async function saveManagementConfig(req, res) {
@@ -22,14 +23,16 @@ export async function saveManagementConfig(req, res) {
         const other = fiscalRange(period.year, period.config.startMonth);
         if (range.start <= other.end && range.end >= other.start) invalid(`Geschäftsjahr überschneidet sich mit ${period.year}. Geschäftsmonat passend zu den bestehenden Jahren wählen.`);
       }
-      const existing = await db.managementPeriod.findUnique({ where: { year } });
+      const existing = await db.managementPeriod.findFirst({ where: { year } });
       if ((existing?.revision || 0) !== revision) invalid('Einstellungen wurden zwischenzeitlich geändert. Bitte neu laden.', 409);
       config.setup.approvals = existing?.config?.setup?.approvals || [];
       for (const staff of config.setup.staff) {
-        if (staff.userId && !await db.user.findFirst({ where: { id: staff.userId, deletedAt: null } })) invalid('Mitarbeiter nicht gefunden.');
+        if (staff.userId && !await db.tenantMembership.findFirst({
+          where: { tenantId: getTenantId(), userId: staff.userId, isActive: true, user: { deletedAt: null, isActive: true } }
+        })) invalid('Mitarbeiter nicht gefunden.');
       }
       return existing
-        ? db.managementPeriod.update({ where: { year }, data: { config, revision: { increment: 1 } } })
+        ? db.managementPeriod.update({ where: { id: existing.id }, data: { config, revision: { increment: 1 } } })
         : db.managementPeriod.create({ data: { year, config, revision: 1 } });
     });
   res.json(result);
@@ -41,7 +44,7 @@ export async function approveManagementSetup(req, res) {
   const result = await write(req, 'setup.approve', 
     /** Prüft den gespeicherten Entwurf erneut und veröffentlicht Eingaben sowie Rechnung als neue Version. */
     async function publishVersion(db) {
-      const period = await db.managementPeriod.findUnique({ where: { year } });
+      const period = await db.managementPeriod.findFirst({ where: { year } });
       if (!period || period.revision !== versionValue(req.body?.revision)) invalid('Einrichtung zuerst speichern oder neu laden.', 409);
       const config = validateConfig(period.config);
       const calculation = calculateSetup(config, { year, timeEntries: await loadTimeEntries(db, year) });
@@ -57,7 +60,7 @@ export async function approveManagementSetup(req, res) {
         totalCosts: calculation.totalCosts,
       };
       config.setup.approvals = [...history, approval];
-      return db.managementPeriod.update({ where: { year }, data: { config, revision: { increment: 1 } } });
+      return db.managementPeriod.update({ where: { id: period.id }, data: { config, revision: { increment: 1 } } });
     });
   res.json(result);
 }

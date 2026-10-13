@@ -6,6 +6,10 @@ const tabs = [
         label: "Unternehmen"
     },
     {
+        id: "programSettings",
+        label: "Programmeinstellungen"
+    },
+    {
         id: "cache",
         label: "Cache"
     },

@@ -2,16 +2,17 @@ import express from "express";
 import prisma from "../config/prisma.js";
 
 import { getMaterials, createMaterial, updateMaterial, updateMaterialQuantity } from "../controllers/storage.controller.js";
-import { authenticate, authorizeRoles } from "../middleware/auth.middleware.js";
+import { authenticate, authorizeRoles, requireFeature } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
+router.use(authenticate, requireFeature("storage"));
 
-router.post("/create", authenticate, createMaterial);
+router.post("/create", createMaterial);
 
-router.get("/get", authenticate, getMaterials);
+router.get("/get", getMaterials);
 
-router.put("/:id", authenticate, authorizeRoles("admin", "manager"), updateMaterial);
+router.put("/:id", authorizeRoles("admin", "manager"), updateMaterial);
 
-router.patch("/:id/quantity", authenticate, authorizeRoles("admin", "manager"), updateMaterialQuantity);
+router.patch("/:id/quantity", authorizeRoles("admin", "manager"), updateMaterialQuantity);
 
 export default router;

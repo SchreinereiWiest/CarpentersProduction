@@ -1,4 +1,4 @@
-import { authenticate } from "../middleware/auth.middleware.js";
+import { authenticate, requireFeature } from "../middleware/auth.middleware.js";
 import express from "express";
 import prisma from "../config/prisma.js";
 import {
@@ -13,19 +13,20 @@ import {
 import { authorizeProject, authorizeProjectBody, authorizeTimeEntry, authorizeUserResource } from "../middleware/resourceAuthorization.middleware.js";
 
 const router = express.Router();
+router.use(authenticate, requireFeature("time"));
 
-router.get("/day/:date", authenticate, getDayEntrys);
+router.get("/day/:date", getDayEntrys);
 
-router.get("/open", authenticate, getOpenEntrys);
+router.get("/open", getOpenEntrys);
 
-router.post("/new/:id", authenticate, authorizeProject(), newTime);
+router.post("/new/:id", authorizeProject(), newTime);
 
-router.patch("/:id/assign", authenticate, authorizeTimeEntry(), assignTimeEntry);
+router.patch("/:id/assign", authorizeTimeEntry(), assignTimeEntry);
 
-router.patch("/:id", authenticate, authorizeTimeEntry(), authorizeProjectBody(), updateTimeEntry);
+router.patch("/:id", authorizeTimeEntry(), authorizeProjectBody(), updateTimeEntry);
 
-router.post("/uploadWeek/:id/:date", authenticate, authorizeUserResource(), createGeneratedTimeData);
+router.post("/uploadWeek/:id/:date", authorizeUserResource(), createGeneratedTimeData);
 
-router.get("/downloadWeek/:id/:date", authenticate, authorizeUserResource(), getGeneratedTimeData)
+router.get("/downloadWeek/:id/:date", authorizeUserResource(), getGeneratedTimeData)
 
 export default router;

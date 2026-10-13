@@ -1,4 +1,5 @@
 import prisma from "../config/prisma.js";
+import { getTenantId } from "../context/tenantContext.js";
 import {s3Download, s3Upload} from "../config/s3.js"
 import {
     PutObjectCommand,
@@ -534,7 +535,7 @@ export async function createGeneratedTimeData(req,res){
     
     const fileName = `weekData-${date}.json`;
             
-    const prefix = `Time/${id}`;
+    const prefix = `tenants/${getTenantId()}/time/${id}`;
     const objectKey = `${prefix}/${fileName}`;
 
 

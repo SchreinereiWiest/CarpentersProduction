@@ -8,6 +8,7 @@ import {
     getSignedUrl
 } from "@aws-sdk/s3-request-presigner";
 import { enqueueStorageDeletions, processStorageDeletions } from "../services/storageDeletion.service.js";
+import { getTenantId } from "../context/tenantContext.js";
 
 export const newProject = async (req, res) => {
 
@@ -415,7 +416,7 @@ export async function createGeneratedProjectData(req,res){
     }
 
 
-    const prefix = `projects/${id}`;
+    const prefix = `tenants/${getTenantId()}/projects/${id}`;
     const objectKey = `${prefix}/${fileName}`;
 
 

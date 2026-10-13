@@ -1,5 +1,4 @@
 import express from "express";
-import prisma from "../config/prisma.js";
 
 import {
     getAllUsers,
@@ -21,17 +20,13 @@ router.get("/users", authenticate, authorizeRoles("admin", "manager"), getAllUse
 
 //reauthorize
 router.get("/me", authenticate, async (req, res) => {
-
-    const user = await prisma.user.findUnique({
-        where: {
-            id: req.user.id
-        }
-    });
-
     res.json({
-        id: user.id,
-        email: user.email,
-        role: user.role
+        id: req.user.id,
+        email: req.user.email,
+        login: req.user.login,
+        role: req.user.role,
+        tenant: req.tenant,
+        features: req.license.features
     });
 });
 

@@ -11,6 +11,7 @@ import prisma from "../config/prisma.js";
 
 import { s3Upload, s3Download } from "../config/s3.js"
 import { enqueueStorageDeletions, processStorageDeletions } from "../services/storageDeletion.service.js";
+import { getTenantId } from "../context/tenantContext.js";
 
 export async function createUpload(req, res) {
 
@@ -76,7 +77,7 @@ export async function createUpload(req, res) {
          */
         const objectId = `${crypto.randomUUID()}-${fileName}`;
 
-        const objectKey = `${prefix}/${objectId}`;
+        const objectKey = `tenants/${getTenantId()}/${prefix}/${objectId}`;
 
 
         /*

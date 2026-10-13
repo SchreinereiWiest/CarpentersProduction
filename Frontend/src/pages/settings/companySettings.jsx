@@ -23,6 +23,9 @@ import CncSettingsPanel
 import ShopSettingsPanel
     from "./panels/shopSettingsPanel.jsx";
 
+import ProgramSettingsPanel
+    from "./panels/programSettingsPanel.jsx";
+
 
 export default function CompanySettings() {
 
@@ -73,6 +76,11 @@ export default function CompanySettings() {
             case "company":
                 return (
                     <CompanySettingsPanel />
+                );
+
+            case "programSettings":
+                return (
+                    <ProgramSettingsPanel />
                 );
 
 

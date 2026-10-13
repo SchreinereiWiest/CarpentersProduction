@@ -9,6 +9,7 @@ import tar from "tar-stream";
 
 import prisma from "../config/prisma.js";
 import { s3Download, s3Upload } from "../config/s3.js";
+import { getTenantId } from "../context/tenantContext.js";
 
 const ARCHIVE_FORMAT = "carpenters-production-project";
 const ARCHIVE_VERSION = 1;
@@ -212,8 +213,11 @@ async function validUserIds(manifest) {
         manifest.customer.data.createdById
     ].filter(Boolean));
     if (!ids.size) return new Set();
-    const users = await prisma.user.findMany({ where: { id: { in: [...ids] } }, select: { id: true } });
-    return new Set(users.map(user => user.id));
+    const memberships = await prisma.tenantMembership.findMany({
+        where: { tenantId: getTenantId(), userId: { in: [...ids] }, isActive: true },
+        select: { userId: true }
+    });
+    return new Set(memberships.map(item => item.userId));
 }
 
 async function resolveCustomer(customerSnapshot, addressMap, createdRecords, users) {
@@ -221,7 +225,7 @@ async function resolveCustomer(customerSnapshot, addressMap, createdRecords, use
     const data = restoreDates(pick(customerSnapshot.data, customerFields));
 
     if (!customer && data.customerNumber) {
-        customer = await prisma.customer.findUnique({ where: { customerNumber: data.customerNumber } });
+        customer = await prisma.customer.findFirst({ where: { customerNumber: data.customerNumber } });
     }
     if (!customer && data.email) {
         customer = await prisma.customer.findFirst({ where: { email: data.email } });
@@ -281,7 +285,7 @@ async function createImportedProject(manifest, req, state) {
     const customer = await resolveImportCustomer(manifest, req, state, users);
     const rawProject = restoreDates(pick(manifest.project, projectFields));
     if (rawProject.projectNumber) {
-        const collision = await prisma.project.findUnique({ where: { projectNumber: rawProject.projectNumber } });
+        const collision = await prisma.project.findFirst({ where: { projectNumber: rawProject.projectNumber } });
         if (collision) rawProject.projectNumber = null;
     }
 
@@ -335,7 +339,7 @@ async function importBinaryEntry(entryStream, metadata, state) {
         data: {
             provider: metadata.storage?.provider || "garage",
             bucketName: process.env.S3_BUCKET,
-            objectKey: `projects/${state.project.id}/${crypto.randomUUID()}`,
+            objectKey: `tenants/${getTenantId()}/projects/${state.project.id}/${crypto.randomUUID()}`,
             region: metadata.storage?.region || null,
             endpoint: process.env.S3_PUBLIC_ENDPOINT,
             accessUrl: null,

@@ -3,18 +3,19 @@ import prisma from "../config/prisma.js";
 import {
   newcustomer, getCustomers, getCustomerInfo, updateCustomer, searchCustomers
 } from "../controllers/customer.controller.js";
-import { authenticate, authorizeRoles } from "../middleware/auth.middleware.js";
+import { authenticate, authorizeRoles, requireFeature } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
+router.use(authenticate, requireFeature("crm"));
 
-router.post("/new", authenticate, authorizeRoles("admin", "manager"), newcustomer);
+router.post("/new", authorizeRoles("admin", "manager"), newcustomer);
 
-router.get("/all", authenticate, authorizeRoles("admin", "manager"), getCustomers);
+router.get("/all", authorizeRoles("admin", "manager"), getCustomers);
 
-router.get("/get/:id", authenticate, authorizeRoles("admin", "manager"), getCustomerInfo);
+router.get("/get/:id", authorizeRoles("admin", "manager"), getCustomerInfo);
 
-router.post("/update/:id", authenticate, authorizeRoles("admin", "manager"), updateCustomer);
+router.post("/update/:id", authorizeRoles("admin", "manager"), updateCustomer);
 
-router.get("/search", authenticate, searchCustomers);
+router.get("/search", searchCustomers);
 
 export default router;

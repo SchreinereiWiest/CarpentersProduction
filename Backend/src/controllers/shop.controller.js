@@ -1,4 +1,5 @@
 import prisma from "../config/prisma.js";
+import { getTenantId } from "../context/tenantContext.js";
 
 const LEGRABOX_VARIANTS = ["M", "K", "C", "L"];
 const LEGRABOX_COLORS = ["white", "gray"];
@@ -207,7 +208,13 @@ export const saveShopSettings = async (req, res) => {
 
             for (const mapping of mappingEntries) {
                 await transaction.shopHardwareMapping.upsert({
-                    where: { variant_color: { variant: mapping.variant, color: mapping.color } },
+                    where: {
+                        tenantId_variant_color: {
+                            tenantId: getTenantId(),
+                            variant: mapping.variant,
+                            color: mapping.color
+                        }
+                    },
                     create: mapping,
                     update: { articleId: mapping.articleId }
                 });

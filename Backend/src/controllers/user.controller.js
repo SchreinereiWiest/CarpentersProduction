@@ -1,709 +1,233 @@
-
-
-import prisma from "../config/prisma.js";
 import bcrypt from "bcrypt";
+import prisma, { systemPrisma } from "../config/prisma.js";
+import { getLicense } from "../services/license/index.js";
 
+const publicUser = (user, membership, additions = {}) => ({
+    id: user.id,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    login: user.login,
+    email: user.email,
+    role: membership.role,
+    isActive: membership.isActive && user.isActive,
+    createdAt: membership.createdAt,
+    updatedAt: membership.updatedAt,
+    ...additions
+});
 
-// ============================================================
-// GET USERS
-// ============================================================
+async function membershipFor(tenantId, userId) {
+    return systemPrisma.tenantMembership.findUnique({
+        where: { tenantId_userId: { tenantId, userId } },
+        include: { user: true }
+    });
+}
 
-export const getUsers = async (req, res) => {
-
-    try {
-
-        const users =
-            await prisma.user.findMany({
-
-                where: {
-                    deletedAt: null
-                },
-
-                orderBy: [
-                    {
-                        lastName: "asc"
-                    },
-                    {
-                        firstName: "asc"
-                    },
-                    {
-                        email: "asc"
-                    }
-                ],
-
-                select: {
-
-                    id: true,
-
-                    firstName: true,
-                    lastName: true,
-
-                    login:true,
-
-                    email: true,
-                    role: true,
-                    isActive: true,
-
-                    createdAt: true,
-                    updatedAt: true,
-
-                    _count: {
-                        select: {
-                            files: true,
-                            customersCreated: true,
-                            projectsCreated: true,
-                            communications: true,
-                            appointments: true,
-                            timeTable: true
-                        }
-                    }
-                }
-            });
-
-
-        return res.status(200).json({
-            users
-        });
-
-    } catch (error) {
-
-        console.error(
-            "getUsers:",
-            error
-        );
-
-        return res.status(500).json({
-            error: "Internal server error"
-        });
+async function requireManagedMembership(req, res) {
+    const membership = await membershipFor(req.tenant.id, req.params.id);
+    if (!membership) {
+        res.status(404).json({ error: "Benutzer nicht gefunden" });
+        return null;
     }
-};
+    return membership;
+}
 
-
-// ============================================================
-// GET USER
-// ============================================================
-
-export const getUser = async (req, res) => {
-
+export async function getUsers(req, res) {
     try {
-
-        const user =
-            await prisma.user.findFirst({
-
-                where: {
-                    id: req.params.id,
-                    deletedAt: null
-                },
-
-                select: {
-
-                    id: true,
-
-                    firstName: true,
-                    lastName: true,
-
-                    login: true,
-
-                    email: true,
-                    role: true,
-                    isActive: true,
-
-                    createdAt: true,
-                    updatedAt: true,
-                    deletedAt: true,
-
-                    files: {
-                        orderBy: {
-                            uploadedAt: "desc"
-                        },
-
-                        select: {
-                            id: true,
-                            fileName: true,
-                            mimeType: true,
-                            fileSize: true,
-                            uploadedAt: true,
-                        }
-                    },
-
-                    _count: {
-                        select: {
-                            files: true,
-                            customersCreated: true,
-                            projectsCreated: true,
-                            communications: true,
-                            appointments: true,
-                            timeTable: true
-                        }
-                    }
-                }
-            });
-
-
-        if (!user) {
-
-            return res.status(404).json({
-                error: "Benutzer nicht gefunden"
-            });
-        }
-
-
-        return res.status(200).json({
-            user
+        const memberships = await systemPrisma.tenantMembership.findMany({
+            where: { tenantId: req.tenant.id },
+            include: { user: true },
+            orderBy: [
+                { user: { lastName: "asc" } },
+                { user: { firstName: "asc" } },
+                { user: { email: "asc" } }
+            ]
         });
 
+        return res.json({ users: memberships.map(item => publicUser(item.user, item)) });
     } catch (error) {
-
-        console.error(
-            "getUser:",
-            error
-        );
-
-        return res.status(500).json({
-            error: "Internal server error"
-        });
-    }
-};
-
-
-// ============================================================
-// NEW USER
-// ============================================================
-
-export const newUser = async (req, res) => {
-
-    try {
-
-        const {
-            firstName,
-            lastName,
-            login,
-            email,
-            password,
-            role = "user"
-        } = req.body;
-
-
-        if (
-            !email ||
-            !password || !login
-        ) {
-
-            return res.status(400).json({
-                error:
-                    "E-Mail und Passwort sind erforderlich"
-            });
-        }
-
-
-        if (
-            password.length < 8
-        ) {
-
-            return res.status(400).json({
-                error:
-                    "Das Passwort muss mindestens 8 Zeichen lang sein"
-            });
-        }
-
-
-        const normalizedEmail =
-            email
-                .trim()
-                .toLowerCase();
-
-
-        const existingUser =
-            await prisma.user.findUnique({
-                where: {
-                    email:
-                        normalizedEmail
-                }
-            });
-
-        const existingLogin =
-            await prisma.user.findUnique({
-                where: {
-                    login:
-                       login
-                }
-            });
-
-
-        if (existingUser || existingLogin) {
-
-            return res.status(409).json({
-                error:
-                    "Diese E-Mail-Adresse wird bereits verwendet"
-            });
-        }
-
-
-        const passwordHash =
-            await bcrypt.hash(
-                password,
-                12
-            );
-
-
-        const user =
-            await prisma.user.create({
-
-                data: {
-
-                    firstName:
-                        firstName?.trim() ||
-                        null,
-
-                    lastName:
-                        lastName?.trim() ||
-                        null,
-
-                    login: login,
-
-                    email:
-                        normalizedEmail,
-
-                    passwordHash,
-
-                    role,
-
-                    isActive:
-                        true
-                },
-
-                select: {
-
-                    id: true,
-
-                    firstName: true,
-                    lastName: true,
-
-                    login: true,
-
-                    email: true,
-
-                    role: true,
-                    isActive: true,
-
-                    createdAt: true,
-                    updatedAt: true
-                }
-            });
-
-
-        return res.status(201).json({
-            user
-        });
-
-    } catch (error) {
-
-        console.error(
-            "newUser:",
-            error
-        );
-
-
-        if (
-            error.code === "P2002"
-        ) {
-
-            return res.status(409).json({
-                error:
-                    "Diese E-Mail-Adresse wird bereits verwendet"
-            });
-        }
-
-
-        return res.status(500).json({
-            error:
-                "Internal server error"
-        });
-    }
-};
-
-
-// ============================================================
-// UPDATE USER
-// ============================================================
-
-export const updateUser = async (
-    req,
-    res
-) => {
-
-    try {
-
-        const {
-            firstName,
-            lastName,
-            login,
-            email,
-            role,
-            isActive
-        } = req.body;
-
-
-        const data = {};
-
-
-        if (
-            firstName !== undefined
-        ) {
-            data.firstName =
-                firstName?.trim() || null;
-        }
-
-
-        if (
-            lastName !== undefined
-        ) {
-            data.lastName =
-                lastName?.trim() || null;
-        }
-
-        if (
-            login !== undefined
-        ) {
-            if (!login.trim()) {
-
-                return res.status(400).json({
-                    error:
-                        "login darf nicht leer sein"
-                });
-            }
-
-            data.login =
-                login?.trim() || null;
-        }
-
-
-        if (
-            email !== undefined
-        ) {
-
-            if (!email.trim()) {
-
-                return res.status(400).json({
-                    error:
-                        "E-Mail-Adresse darf nicht leer sein"
-                });
-            }
-
-
-            data.email =
-                email
-                    .trim()
-                    .toLowerCase();
-        }
-
-
-        if (
-            role !== undefined
-        ) {
-            data.role = role;
-        }
-
-
-        if (
-            isActive !== undefined
-        ) {
-            data.isActive =
-                Boolean(isActive);
-            data.authVersion = { increment: 1 };
-        }
-
-        if (role !== undefined) {
-            data.authVersion = { increment: 1 };
-        }
-
-
-        const user =
-            await prisma.user.update({
-
-                where: {
-                    id:
-                        req.params.id
-                },
-
-                data,
-
-                select: {
-
-                    id: true,
-
-                    firstName: true,
-                    lastName: true,
-
-                    login: true,
-
-                    email: true,
-
-                    role: true,
-                    isActive: true,
-
-                    createdAt: true,
-                    updatedAt: true
-                }
-            });
-
-
-        return res.status(200).json({
-            user
-        });
-
-    } catch (error) {
-
-        console.error(
-            "updateUser:",
-            error
-        );
-
-
-        if (
-            error.code === "P2002"
-        ) {
-
-            return res.status(409).json({
-                error:
-                    "Diese E-Mail-Adresse wird bereits verwendet"
-            });
-        }
-
-
-        if (
-            error.code === "P2025"
-        ) {
-
-            return res.status(404).json({
-                error:
-                    "Benutzer nicht gefunden"
-            });
-        }
-
-
-        return res.status(500).json({
-            error:
-                "Internal server error"
-        });
-    }
-};
-
-
-// ============================================================
-// CHANGE PASSWORD
-// ============================================================
-
-export const changeUserPassword = async (
-    req,
-    res
-) => {
-
-    try {
-
-        const {
-            password
-        } = req.body;
-
-
-        if (
-            !password ||
-            password.length < 8
-        ) {
-
-            return res.status(400).json({
-                error:
-                    "Das Passwort muss mindestens 8 Zeichen lang sein"
-            });
-        }
-
-
-        const passwordHash =
-            await bcrypt.hash(
-                password,
-                12
-            );
-
-
-        await prisma.user.update({
-
-            where: {
-                id:
-                    req.params.id
-            },
-
-            data: {
-                passwordHash,
-                authVersion: { increment: 1 }
-            }
-        });
-
-
-        return res.status(200).json({
-            message:
-                "Passwort erfolgreich geändert"
-        });
-
-    } catch (error) {
-
-        console.error(
-            "changeUserPassword:",
-            error
-        );
-
-
-        if (
-            error.code === "P2025"
-        ) {
-
-            return res.status(404).json({
-                error:
-                    "Benutzer nicht gefunden"
-            });
-        }
-
-
-        return res.status(500).json({
-            error:
-                "Internal server error"
-        });
-    }
-};
-
-
-// ============================================================
-// DELETE USER
-// ============================================================
-
-export const deleteUser = async (
-    req,
-    res
-) => {
-
-    try {
-
-        const userId =
-            req.params.id;
-
-
-        /*
-         * Soft Delete
-         *
-         * Deine Tabelle besitzt bereits deletedAt.
-         * Dadurch bleiben die vom Benutzer erzeugten
-         * Daten erhalten.
-         */
-
-        const user =
-            await prisma.user.update({
-
-                where: {
-                    id: userId
-                },
-
-                data: {
-
-                    isActive:
-                        false,
-
-                    deletedAt:
-                        new Date(),
-
-                    authVersion: {
-                        increment: 1
-                    }
-                },
-
-                select: {
-
-                    id: true,
-
-                    firstName: true,
-                    lastName: true,
-
-                    email: true,
-
-                    role: true,
-                    isActive: true,
-
-                    deletedAt: true
-                }
-            });
-
-
-        return res.status(200).json({
-            user
-        });
-
-    } catch (error) {
-
-        console.error(
-            "deleteUser:",
-            error
-        );
-
-
-        if (
-            error.code === "P2025"
-        ) {
-
-            return res.status(404).json({
-                error:
-                    "Benutzer nicht gefunden"
-            });
-        }
-
-
-        return res.status(500).json({
-            error:
-                "Internal server error"
-        });
-    }
-};
-
-
-// ============================================================
-// CURRENT USER PROFILE
-// ============================================================
-
-const currentUserSelect = {
-    id: true,
-    firstName: true,
-    lastName: true,
-    email: true,
-    login: true,
-    role: true
-};
-
-export const getCurrentUser = async (req, res) => {
-    try {
-        const user = await prisma.user.findUnique({
-            where: { id: req.user.id },
-            select: currentUserSelect
-        });
-
-        if (!user) {
-            return res.status(404).json({ error: "Benutzer nicht gefunden" });
-        }
-
-        return res.status(200).json({ user });
-    } catch (error) {
-        console.error("getCurrentUser:", error);
+        console.error("getUsers:", error);
         return res.status(500).json({ error: "Internal server error" });
     }
-};
+}
 
-export const updateCurrentUser = async (req, res) => {
+export async function getUser(req, res) {
     try {
-        const email = req.body.email?.trim().toLowerCase();
+        const membership = await requireManagedMembership(req, res);
+        if (!membership) return;
 
-        if (!email) {
-            return res.status(400).json({
-                error: "E-Mail-Adresse darf nicht leer sein"
-            });
+        const files = await prisma.file.findMany({
+            where: { uploadedById: membership.userId, deletedAt: null },
+            orderBy: { uploadedAt: "desc" },
+            select: { id: true, fileName: true, mimeType: true, fileSize: true, uploadedAt: true }
+        });
+
+        return res.json({ user: publicUser(membership.user, membership, { files }) });
+    } catch (error) {
+        console.error("getUser:", error);
+        return res.status(500).json({ error: "Internal server error" });
+    }
+}
+
+export async function newUser(req, res) {
+    try {
+        const { firstName, lastName, login, email, password, role = "user" } = req.body;
+        if (!email || !password || !login) {
+            return res.status(400).json({ error: "E-Mail, Login und Passwort sind erforderlich" });
+        }
+        if (password.length < 8) {
+            return res.status(400).json({ error: "Das Passwort muss mindestens 8 Zeichen lang sein" });
         }
 
-        const user = await prisma.user.update({
+        const normalizedEmail = email.trim().toLowerCase();
+        const normalizedLogin = login.trim();
+        const license = await getLicense(req.tenant);
+
+        if (license.maxUsers != null) {
+            const currentUsers = await systemPrisma.tenantMembership.count({
+                where: { tenantId: req.tenant.id, isActive: true }
+            });
+            if (currentUsers >= license.maxUsers) {
+                return res.status(409).json({ error: `Die Lizenz erlaubt maximal ${license.maxUsers} Benutzer` });
+            }
+        }
+
+        const [byEmail, byLogin] = await Promise.all([
+            systemPrisma.user.findUnique({ where: { email: normalizedEmail } }),
+            systemPrisma.user.findUnique({ where: { login: normalizedLogin } })
+        ]);
+
+        if ((byEmail || byLogin) && byEmail?.id !== byLogin?.id) {
+            return res.status(409).json({ error: "E-Mail oder Login wird bereits verwendet" });
+        }
+
+        const result = await systemPrisma.$transaction(async db => {
+            const user = byEmail ?? byLogin ?? await db.user.create({
+                data: {
+                    firstName: firstName?.trim() || null,
+                    lastName: lastName?.trim() || null,
+                    login: normalizedLogin,
+                    email: normalizedEmail,
+                    passwordHash: await bcrypt.hash(password, 12),
+                    role,
+                    isActive: true
+                }
+            });
+
+            const existing = await db.tenantMembership.findUnique({
+                where: { tenantId_userId: { tenantId: req.tenant.id, userId: user.id } }
+            });
+            if (existing) {
+                const error = new Error("Benutzer gehört bereits zu diesem Unternehmen");
+                error.statusCode = 409;
+                throw error;
+            }
+
+            const membership = await db.tenantMembership.create({
+                data: { tenantId: req.tenant.id, userId: user.id, role }
+            });
+            return { user, membership };
+        });
+
+        return res.status(201).json({ user: publicUser(result.user, result.membership) });
+    } catch (error) {
+        console.error("newUser:", error);
+        if (error.statusCode) return res.status(error.statusCode).json({ error: error.message });
+        if (error.code === "P2002") return res.status(409).json({ error: "E-Mail oder Login wird bereits verwendet" });
+        return res.status(500).json({ error: "Internal server error" });
+    }
+}
+
+export async function updateUser(req, res) {
+    try {
+        const membership = await requireManagedMembership(req, res);
+        if (!membership) return;
+
+        const userData = {};
+        if (req.body.firstName !== undefined) userData.firstName = req.body.firstName?.trim() || null;
+        if (req.body.lastName !== undefined) userData.lastName = req.body.lastName?.trim() || null;
+        if (req.body.login !== undefined) {
+            if (!req.body.login.trim()) return res.status(400).json({ error: "Login darf nicht leer sein" });
+            userData.login = req.body.login.trim();
+        }
+        if (req.body.email !== undefined) {
+            if (!req.body.email.trim()) return res.status(400).json({ error: "E-Mail-Adresse darf nicht leer sein" });
+            userData.email = req.body.email.trim().toLowerCase();
+        }
+
+        const membershipData = {};
+        if (req.body.role !== undefined) membershipData.role = req.body.role;
+        if (req.body.isActive !== undefined) membershipData.isActive = Boolean(req.body.isActive);
+
+        const result = await systemPrisma.$transaction(async db => ({
+            user: Object.keys(userData).length
+                ? await db.user.update({ where: { id: membership.userId }, data: userData })
+                : membership.user,
+            membership: Object.keys(membershipData).length
+                ? await db.tenantMembership.update({ where: { id: membership.id }, data: membershipData })
+                : membership
+        }));
+
+        return res.json({ user: publicUser(result.user, result.membership) });
+    } catch (error) {
+        console.error("updateUser:", error);
+        if (error.code === "P2002") return res.status(409).json({ error: "E-Mail oder Login wird bereits verwendet" });
+        return res.status(500).json({ error: "Internal server error" });
+    }
+}
+
+export async function changeUserPassword(req, res) {
+    try {
+        const membership = await requireManagedMembership(req, res);
+        if (!membership) return;
+        if (!req.body.password || req.body.password.length < 8) {
+            return res.status(400).json({ error: "Das Passwort muss mindestens 8 Zeichen lang sein" });
+        }
+
+        await systemPrisma.user.update({
+            where: { id: membership.userId },
+            data: { passwordHash: await bcrypt.hash(req.body.password, 12), authVersion: { increment: 1 } }
+        });
+        return res.json({ message: "Passwort erfolgreich geändert" });
+    } catch (error) {
+        console.error("changeUserPassword:", error);
+        return res.status(500).json({ error: "Internal server error" });
+    }
+}
+
+export async function deleteUser(req, res) {
+    try {
+        const membership = await requireManagedMembership(req, res);
+        if (!membership) return;
+        if (membership.userId === req.user.id) {
+            return res.status(409).json({ error: "Das eigene Firmenkonto kann nicht entfernt werden" });
+        }
+
+        const updated = await systemPrisma.tenantMembership.update({
+            where: { id: membership.id },
+            data: { isActive: false }
+        });
+        return res.json({ user: publicUser(membership.user, updated) });
+    } catch (error) {
+        console.error("deleteUser:", error);
+        return res.status(500).json({ error: "Internal server error" });
+    }
+}
+
+const currentUserSelect = {
+    id: true, firstName: true, lastName: true, email: true, login: true
+};
+
+export async function getCurrentUser(req, res) {
+    const user = await systemPrisma.user.findUnique({ where: { id: req.user.id }, select: currentUserSelect });
+    if (!user) return res.status(404).json({ error: "Benutzer nicht gefunden" });
+    return res.json({ user: { ...user, role: req.user.role, tenant: req.tenant } });
+}
+
+export async function updateCurrentUser(req, res) {
+    try {
+        const email = req.body.email?.trim().toLowerCase();
+        if (!email) return res.status(400).json({ error: "E-Mail-Adresse darf nicht leer sein" });
+        const user = await systemPrisma.user.update({
             where: { id: req.user.id },
             data: {
                 firstName: req.body.firstName?.trim() || null,
@@ -712,63 +236,32 @@ export const updateCurrentUser = async (req, res) => {
             },
             select: currentUserSelect
         });
-
-        return res.status(200).json({ user });
+        return res.json({ user: { ...user, role: req.user.role, tenant: req.tenant } });
     } catch (error) {
+        if (error.code === "P2002") return res.status(409).json({ error: "Diese E-Mail-Adresse wird bereits verwendet" });
         console.error("updateCurrentUser:", error);
-
-        if (error.code === "P2002") {
-            return res.status(409).json({
-                error: "Diese E-Mail-Adresse wird bereits verwendet"
-            });
-        }
-
-        if (error.code === "P2025") {
-            return res.status(404).json({ error: "Benutzer nicht gefunden" });
-        }
-
         return res.status(500).json({ error: "Internal server error" });
     }
-};
+}
 
-export const changeCurrentUserPassword = async (req, res) => {
+export async function changeCurrentUserPassword(req, res) {
     try {
         const { currentPassword, password } = req.body;
+        if (!currentPassword) return res.status(400).json({ error: "Das aktuelle Passwort ist erforderlich" });
+        if (!password || password.length < 8) return res.status(400).json({ error: "Das neue Passwort muss mindestens 8 Zeichen lang sein" });
 
-        if (!currentPassword) {
-            return res.status(400).json({ error: "Das aktuelle Passwort ist erforderlich" });
-        }
-
-        if (!password || password.length < 8) {
-            return res.status(400).json({
-                error: "Das neue Passwort muss mindestens 8 Zeichen lang sein"
-            });
-        }
-
-        const currentUser = await prisma.user.findUnique({
-            where: { id: req.user.id },
-            select: { passwordHash: true }
-        });
-
-        if (!currentUser || !await bcrypt.compare(currentPassword, currentUser.passwordHash)) {
+        const current = await systemPrisma.user.findUnique({ where: { id: req.user.id } });
+        if (!current || !await bcrypt.compare(currentPassword, current.passwordHash)) {
             return res.status(401).json({ error: "Das aktuelle Passwort ist nicht korrekt" });
         }
 
-        const passwordHash = await bcrypt.hash(password, 12);
-
-        await prisma.user.update({
+        await systemPrisma.user.update({
             where: { id: req.user.id },
-            data: {
-                passwordHash,
-                authVersion: { increment: 1 }
-            }
+            data: { passwordHash: await bcrypt.hash(password, 12), authVersion: { increment: 1 } }
         });
-
-        return res.status(200).json({
-            message: "Passwort erfolgreich geändert"
-        });
+        return res.json({ message: "Passwort erfolgreich geändert" });
     } catch (error) {
         console.error("changeCurrentUserPassword:", error);
         return res.status(500).json({ error: "Internal server error" });
     }
-};
+}

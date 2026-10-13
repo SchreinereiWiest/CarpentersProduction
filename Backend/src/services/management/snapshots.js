@@ -23,8 +23,8 @@ export function loadSnapshot(year) {
   return prisma.$transaction(
     /** Liest Jahreskonfiguration, Vorjahr, gegebenenfalls Inventar und Zeitberichte innerhalb desselben Read-Snapshots. */
     async function readYearSnapshot(db) {
-      const period = await db.managementPeriod.findUnique({ where: { year } });
-      const previous = await db.managementPeriod.findUnique({ where: { year: year - 1 } });
+      const period = await db.managementPeriod.findFirst({ where: { year } });
+      const previous = await db.managementPeriod.findFirst({ where: { year: year - 1 } });
       const config = await readLegacyInventory(db, period?.config || defaultConfig());
       return {
         year, config, revision: period?.revision || 0,

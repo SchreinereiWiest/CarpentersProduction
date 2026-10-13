@@ -1,4 +1,5 @@
 import prisma from "../config/prisma.js";
+import { getTenantId } from "../context/tenantContext.js";
 import {s3Download, s3Upload} from "../config/s3.js"
 import {
     S3Client,
@@ -138,7 +139,7 @@ export async function createSettingsData(req,res){
         });
     }
 
-    const prefix = `settings`;
+    const prefix = `tenants/${getTenantId()}/settings`;
     const objectKey = `${prefix}/${fileName}`;
 
 

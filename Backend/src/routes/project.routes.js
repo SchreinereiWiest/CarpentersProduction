@@ -2,7 +2,7 @@ import express from "express";
 import prisma from "../config/prisma.js";
 
 import { newProject, getAllProjectsID, getProject, getGeneratedProjectData, createGeneratedProjectData, getAllProjects, updateProject, deleteProject } from "../controllers/project.controller.js";
-import { authenticate, authorizeRoles } from "../middleware/auth.middleware.js";
+import { authenticate, authorizeRoles, requireFeature } from "../middleware/auth.middleware.js";
 import { authorizeCustomer, authorizeCustomerBody, authorizeProject, authorizeTimeEntry } from "../middleware/resourceAuthorization.middleware.js";
 import { getTime, manualTime, startTime, stopTime } from "../controllers/time.controller.js";
 import { exportProject, importProject } from "../controllers/projectArchive.controller.js";
@@ -11,6 +11,7 @@ import os from "os";
 import crypto from "crypto";
 
 const router = express.Router();
+router.use(authenticate, requireFeature("cabinet"));
 
 const archiveUpload = multer({
     storage: multer.diskStorage({
@@ -20,35 +21,35 @@ const archiveUpload = multer({
     limits: { fileSize: 2 * 1024 * 1024 * 1024, files: 1 }
 });
 
-router.post("/new", authenticate, authorizeCustomerBody(), newProject);
+router.post("/new", authorizeCustomerBody(), newProject);
 
-router.put("/update/:id", authenticate, authorizeProject(), authorizeCustomerBody(), updateProject);
+router.put("/update/:id", authorizeProject(), authorizeCustomerBody(), updateProject);
 
-router.delete("/delete/:projectId", authenticate, authorizeRoles("admin", "manager"), deleteProject);
+router.delete("/delete/:projectId", authorizeRoles("admin", "manager"), deleteProject);
 
-router.get("/getAll/:id", authenticate, authorizeCustomer(), getAllProjectsID);
+router.get("/getAll/:id", authorizeCustomer(), getAllProjectsID);
 
-router.get("/getAll", authenticate, getAllProjects);
+router.get("/getAll", getAllProjects);
 
 // Backwards-compatible route for older clients.
-router.get("/getActive", authenticate, getAllProjects);
+router.get("/getActive", getAllProjects);
 
-router.get("/get/:id", authenticate, authorizeProject(), getProject);
+router.get("/get/:id", authorizeProject(), getProject);
 
-router.get("/export/:id", authenticate, authorizeProject(), exportProject);
+router.get("/export/:id", authorizeProject(), exportProject);
 
-router.post("/import", authenticate, authorizeRoles("admin", "manager"), archiveUpload.single("projectFile"), importProject);
+router.post("/import", authorizeRoles("admin", "manager"), archiveUpload.single("projectFile"), importProject);
 
-router.get("/generated/:id/:name", authenticate, authorizeProject(), getGeneratedProjectData);
+router.get("/generated/:id/:name", authorizeProject(), getGeneratedProjectData);
 
-router.post("/generated/:id/:name", authenticate, authorizeProject(), createGeneratedProjectData);
+router.post("/generated/:id/:name", authorizeProject(), createGeneratedProjectData);
 
-router.post("/time/:id/start", authenticate, authorizeProject(), startTime);
+router.post("/time/:id/start", requireFeature("time"), authorizeProject(), startTime);
 
-router.patch("/time/:id/stop", authenticate, authorizeTimeEntry(), stopTime);
+router.patch("/time/:id/stop", requireFeature("time"), authorizeTimeEntry(), stopTime);
 
-router.get("/time/:id", authenticate, authorizeProject(), getTime);
+router.get("/time/:id", requireFeature("time"), authorizeProject(), getTime);
 
-router.post("/time/:id/new", authenticate, authorizeProject(), manualTime);
+router.post("/time/:id/new", requireFeature("time"), authorizeProject(), manualTime);
 
 export default router;

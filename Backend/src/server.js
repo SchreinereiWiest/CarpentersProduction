@@ -1,5 +1,5 @@
 
-import dotenv from "dotenv";
+import "dotenv/config";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import express from "express";
@@ -14,11 +14,11 @@ import userRoutes from "./routes/user.routes.js"
 import settingsRoutes from "./routes/settings.routes.js"
 import shopRoutes from "./routes/shop.routes.js";
 import managementRoutes from "./routes/management/management.routes.js";
+import licenseRoutes from "./routes/license.routes.js";
 import { allowedOrigins } from "./config/security.js";
 import { verifyCsrfToken, verifyRequestOrigin } from "./middleware/csrf.middleware.js";
 import { startStorageDeletionWorker } from "./services/storageDeletion.service.js";
-
-dotenv.config();
+import { ensureDevelopmentTenant } from "./services/tenantBootstrap.service.js";
 
 const app = express();
 
@@ -72,8 +72,25 @@ app.use("/api/settings", settingsRoutes);
 
 app.use("/api/shop", shopRoutes);
 app.use("/api/management", managementRoutes);
+app.use("/api/license", licenseRoutes);
 
-app.listen(5000, () => {
-  console.log("Backend running on port 5000");
-  startStorageDeletionWorker();
+app.use((error, _req, res, _next) => {
+  const status = Number(error?.statusCode) || 500;
+  if (status >= 500) console.error(error);
+  res.status(status).json({
+    error: error?.code || "INTERNAL_SERVER_ERROR",
+    message: status >= 500 ? "Internal server error" : error.message
+  });
 });
+
+ensureDevelopmentTenant()
+  .then(() => {
+    app.listen(5000, () => {
+      console.log("Backend running on port 5000");
+      startStorageDeletionWorker();
+    });
+  })
+  .catch(error => {
+    console.error("Tenant initialization failed:", error);
+    process.exitCode = 1;
+  });
