@@ -1,18 +1,11 @@
+import { createUuid } from "../../services/uuid.js";
+
 const toPositiveNumber = (value, fallback = 1) => {
     const parsed = Number(value);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 };
 
 const keyPart = value => encodeURIComponent(String(value ?? "").trim().toLowerCase());
-const createUuid = () => {
-    if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
-    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, character => {
-        const random = Math.floor(Math.random() * 16);
-        const value = character === "x" ? random : (random & 0x3) | 0x8;
-        return value.toString(16);
-    });
-};
-
 export const LEGRABOX_VARIANTS = ["M", "K", "C", "L"];
 export const LEGRABOX_COLORS = ["white", "gray"];
 

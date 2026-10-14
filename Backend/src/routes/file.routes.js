@@ -5,6 +5,7 @@ import {createUpload, createDownloadUrl, deleteFile} from "../middleware/upload.
 import {uploadcomplete} from "../controllers/file.controller.js";
 import { authenticate, authorizeRoles } from "../middleware/auth.middleware.js";
 import { authorizeFile, authorizeUploadTarget } from "../middleware/resourceAuthorization.middleware.js";
+import { subscribeToFileChanges } from "../services/fileChangeEvents.service.js";
 
 import multer from "multer";
 
@@ -32,6 +33,8 @@ const projectAttachmentUpload = multer({
 });
 
 const router = express.Router();
+
+router.get("/events", authenticate, subscribeToFileChanges);
 
 router.post(
     '/management-document', authenticate, authorizeRoles('admin', 'manager'),

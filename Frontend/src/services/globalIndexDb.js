@@ -1,399 +1,143 @@
-import { getGlobalFile } from "./globalMemoryCache";
-import { downloadFile } from "./apiTemplates";
-import axios from "axios";
-
 const DB_NAME = "carpentersproduction";
 export const STORE_NAME = "projectFiles";
-const DB_VERSION = 1;
+export const API_STORE_NAME = "apiResponses";
+export const OFFLINE_PROJECT_STORE_NAME = "offlineProjects";
+export const META_STORE_NAME = "metadata";
+const DB_VERSION = 2;
 
-export const loadSettings =
-            async () => {
+export const openDb = () => new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-                try {
-                    const data =
-                        await getGlobalFile({
-    
-                            file: "settings-cache.json",
-    
-                            loadFromServer: {download: downloadFile, path:"/api/settings/cache"},
-
-                            noExpiration:true
-    
-                        });
-                    
-                    if(data) {return data;}
-
-                    const response =
-                        await axios.get(
-                            "/api/settings/cache",
-                            {
-                                withCredentials:
-                                    true
-                            }
-                        );
-
-                    if (
-                        response.data
-                    ) {
-                        return response.data
-                    }
-
-                    return;
-
-                } catch (error) {
-
-                    console.warn(
-                        "Cache-Einstellungen konnten nicht geladen werden:",
-                        error
-                    );
-
-                }
-
-                return;
-            };
-            
-
-export const openDb = () => {
-
-    return new Promise(
-        (resolve, reject) => {
-
-            const request =
-                indexedDB.open(
-                    DB_NAME,
-                    DB_VERSION
-                );
-
-
-            request.onupgradeneeded =
-                () => {
-
-                    const db =
-                        request.result;
-
-
-                    if (
-                        !db.objectStoreNames.contains(
-                            STORE_NAME
-                        )
-                    ) {
-
-                        db.createObjectStore(
-                            STORE_NAME,
-                            {
-                                keyPath: "key"
-                            }
-                        );
-
-                    }
-
-                };
-
-
-            request.onsuccess =
-                () => {
-
-                    resolve(
-                        request.result
-                    );
-
-                };
-
-
-            request.onerror =
-                () => {
-
-                    reject(
-                        request.error
-                    );
-
-                };
-
+    request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME, { keyPath: "key" });
         }
-    );
-
-};
-
-const getGlobalCacheKey = (
-    file
-) => {
-
-    return `global:${file}`;
-
-};
-
-/* =========================================================
- * Globale Datei aus IndexedDB lesen
- * ========================================================= */
-
-export const getCachedGlobalFile = async ({
-    file, noExpiration=false
-}) => {
-
-    const db =
-        await openDb();
-
-    let healthDuration = 12 * 60 * 60 * 1000;
-
-    if(!noExpiration) {
-        const cacheSettings = await loadSettings();
-        const configuredHours = Number(cacheSettings?.healthDurationHours);
-
-        if (Number.isFinite(configuredHours) && configuredHours > 0) {
-            healthDuration = configuredHours * 60 * 60 * 1000;
+        if (!db.objectStoreNames.contains(API_STORE_NAME)) {
+            db.createObjectStore(API_STORE_NAME, { keyPath: "key" });
         }
-    }
-
-    return new Promise(
-        (resolve, reject) => {
-
-            const transaction =
-                db.transaction(
-                    STORE_NAME,
-                    "readonly"
-                );
-
-
-            const store =
-                transaction.objectStore(
-                    STORE_NAME
-                );
-
-
-            const request =
-                store.get(
-                    getGlobalCacheKey(
-                        file
-                    )
-                );
-
-
-            request.onsuccess = () => {
-
-                    const entry =
-                        request.result;
-
-
-                    if (!entry) {
-
-                        resolve(
-                            null
-                        );
-
-                        return;
-
-                    }
-
-                    if(Date.now() - request.result?.version < healthDuration || noExpiration) {
-
-                        resolve(
-                            entry
-                        );
-
-                        return;
-
-                    }
-
-
-                    const cacheVersion =
-                        Number(
-                            entry.version ??
-                            entry.cachedAt ??
-                            0
-                        );
-
-
-                    const age =
-                        Date.now() -
-                        cacheVersion;
-
-
-                    /*
-                     * Noch gültig
-                     */
-
-                    if (
-                        age <= healthDuration
-                    ) {
-
-                        resolve(
-                            entry
-                        );
-
-                        return;
-
-                    }
-
-
-                    /*
-                     * Zu alt
-                     */
-
-                    resolve(
-                        null
-                    );
-
-                };
-
-
-            request.onerror =
-                () => {
-
-                    reject(
-                        request.error
-                    );
-
-                };
-
+        if (!db.objectStoreNames.contains(OFFLINE_PROJECT_STORE_NAME)) {
+            db.createObjectStore(OFFLINE_PROJECT_STORE_NAME, { keyPath: "projectId" });
         }
-    );
+        if (!db.objectStoreNames.contains(META_STORE_NAME)) {
+            db.createObjectStore(META_STORE_NAME, { keyPath: "key" });
+        }
+    };
 
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+});
+
+const globalKey = file => `global:${file}`;
+
+export const getCachedGlobalFile = async ({ file }) => {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+        const request = db.transaction(STORE_NAME, "readonly")
+            .objectStore(STORE_NAME)
+            .get(globalKey(file));
+        request.onsuccess = () => resolve(request.result ?? null);
+        request.onerror = () => reject(request.error);
+    });
 };
-
-
-/* =========================================================
- * Globale Datei speichern
- * ========================================================= */
 
 export const setCachedGlobalFile = async ({
     file,
     data,
-    version = null
+    version = null,
+    fileId = null,
+    sourcePath = null,
+    lastAccessedAt = Date.now(),
+    lastValidatedAt = Date.now()
 }) => {
-
-    const db =
-        await openDb();
-
-
-    const cacheVersion =
-        version ??
-        Date.now();
-
-
+    const db = await openDb();
     const entry = {
-
-        key:
-            getGlobalCacheKey(
-                file
-            ),
-
+        key: globalKey(file),
         file,
-
         data,
-
-        version:
-            cacheVersion,
-
-        cachedAt:
-            Date.now(),
-
-        scope:
-            "global"
-
+        version: version ?? Date.now(),
+        fileId,
+        sourcePath,
+        lastAccessedAt,
+        lastValidatedAt,
+        cachedAt: Date.now(),
+        scope: "global"
     };
 
-
-    return new Promise(
-        (resolve, reject) => {
-
-            const transaction =
-                db.transaction(
-                    STORE_NAME,
-                    "readwrite"
-                );
-
-
-            const store =
-                transaction.objectStore(
-                    STORE_NAME
-                );
-
-
-            const request =
-                store.put(
-                    entry
-                );
-
-
-            request.onsuccess =
-                () => {
-
-                    resolve(
-                        entry
-                    );
-
-                };
-
-
-            request.onerror =
-                () => {
-
-                    reject(
-                        request.error
-                    );
-
-                };
-
-        }
-    );
-
+    return new Promise((resolve, reject) => {
+        const request = db.transaction(STORE_NAME, "readwrite")
+            .objectStore(STORE_NAME)
+            .put(entry);
+        request.onsuccess = () => resolve(entry);
+        request.onerror = () => reject(request.error);
+    });
 };
 
+const cacheEntryMatchesChange = (entry, change) => {
+    if (change.fileId && entry.fileId === change.fileId) return true;
+    if (entry.scope === "project") {
+        return change.projectId === entry.projectId && change.fileName === entry.file;
+    }
+    if (entry.scope === "global" && change.cacheFile) {
+        return entry.file === change.cacheFile;
+    }
+    return entry.scope === "asset" && change.fileId === entry.fileId;
+};
 
-/* =========================================================
- * Globale Datei invalidieren
- * ========================================================= */
+export const markCachedFileStale = async change => {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+        let affected = 0;
+        const store = db.transaction(STORE_NAME, "readwrite").objectStore(STORE_NAME);
+        const request = store.openCursor();
+        request.onsuccess = event => {
+            const cursor = event.target.result;
+            if (!cursor) return resolve(affected);
+            const entry = cursor.value;
+            const hasLocalChanges = entry.scope === "project"
+                && ["pending", "conflict", "error"].includes(entry.syncStatus);
+            if (cacheEntryMatchesChange(entry, change) && !hasLocalChanges) {
+                affected += 1;
+                if (change.action === "deleted") {
+                    cursor.delete();
+                } else {
+                    cursor.update({
+                        ...entry,
+                        lastValidatedAt: 0,
+                        announcedServerVersion: change.serverVersion ?? null
+                    });
+                }
+            }
+            cursor.continue();
+        };
+        request.onerror = () => reject(request.error);
+    });
+};
 
-export const invalidateGlobalFile = async ({
-    file
-}) => {
+export const listCachedGlobalFiles = async () => {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+        const entries = [];
+        const request = db.transaction(STORE_NAME, "readonly")
+            .objectStore(STORE_NAME)
+            .openCursor();
+        request.onsuccess = event => {
+            const cursor = event.target.result;
+            if (!cursor) return resolve(entries);
+            if (cursor.value.scope === "global") entries.push(cursor.value);
+            cursor.continue();
+        };
+        request.onerror = () => reject(request.error);
+    });
+};
 
-    const db =
-        await openDb();
-
-
-    return new Promise(
-        (resolve, reject) => {
-
-            const transaction =
-                db.transaction(
-                    STORE_NAME,
-                    "readwrite"
-                );
-
-
-            const store =
-                transaction.objectStore(
-                    STORE_NAME
-                );
-
-
-            const request =
-                store.delete(
-                    getGlobalCacheKey(
-                        file
-                    )
-                );
-
-
-            request.onsuccess =
-                () => {
-
-                    resolve();
-
-                };
-
-
-            request.onerror =
-                () => {
-
-                    reject(
-                        request.error
-                    );
-
-                };
-
-        }
-    );
-
+export const invalidateGlobalFile = async ({ file }) => {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+        const request = db.transaction(STORE_NAME, "readwrite")
+            .objectStore(STORE_NAME)
+            .delete(globalKey(file));
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+    });
 };

@@ -1,5 +1,6 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import axios from "axios";
+import { connectFileChangeEvents } from "../services/fileChangeClient.js";
 
 // Bei Reload credencials überprüfen und User setzen, falls vorhanden
 // Log out bei fehlendem cookie oder fehlender Session
@@ -13,13 +14,7 @@ export const AuthProvider = ({ children }) => {
 
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-
-        checkAuth();
-
-    }, []);
-
-    const checkAuth = async () => {
+    const checkAuth = useCallback(async () => {
 
         setLoading(true);
 
@@ -35,7 +30,7 @@ export const AuthProvider = ({ children }) => {
             setUser(response.data);
             
 
-        } catch (error) {
+        } catch {
 
             setUser(null);
 
@@ -46,7 +41,18 @@ export const AuthProvider = ({ children }) => {
 
         }
 
-    };
+    }, []);
+
+    useEffect(() => {
+
+        checkAuth();
+
+    }, [checkAuth]);
+
+    useEffect(() => {
+        if (!user) return undefined;
+        return connectFileChangeEvents();
+    }, [user]);
 
     return (
         <AuthContext.Provider value={{

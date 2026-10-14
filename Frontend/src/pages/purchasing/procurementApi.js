@@ -1,9 +1,18 @@
 import { downloadFile, uploadJSONFile } from "../../services/apiTemplates.js";
+import { getProjectFile, uploadProjectFile } from "../../services/projectMemoryCache.js";
 import axios from "axios";
+import { getS3FileUrl } from "../../services/projectAssetCache.js";
 
 export const loadProjectProcurement = async projectId => {
     try {
-        const data = await downloadFile(`/api/projects/generated/${projectId}/procurement`);
+        const data = await getProjectFile({
+            projectId,
+            file: "procurement.json",
+            loadFromServer: {
+                download: downloadFile,
+                path: `/api/projects/generated/${projectId}/procurement`
+            }
+        });
         return data ?? { version: 1, items: [] };
     } catch (error) {
         console.error("Projekt-Einkaufswagen konnte nicht geladen werden", error);
@@ -11,9 +20,15 @@ export const loadProjectProcurement = async projectId => {
     }
 };
 
-export const saveProjectProcurement = (projectId, payload) => (
-    uploadJSONFile(`/api/projects/generated/${projectId}/procurement`, payload)
-);
+export const saveProjectProcurement = (projectId, payload) => uploadProjectFile({
+    projectId,
+    file: "procurement.json",
+    data: payload,
+    uploadFunction: {
+        upload: uploadJSONFile,
+        path: `/api/projects/generated/${projectId}/procurement`
+    }
+});
 
 export const loadProcurementCatalog = async () => {
     try {
@@ -57,6 +72,5 @@ export const uploadShopImage = async file => {
 
 export const loadShopImageUrl = async fileId => {
     if (!fileId) return null;
-    const response = await axios.get(`/api/files/download/${fileId}`);
-    return response.data.url;
+    return getS3FileUrl({ id: fileId });
 };

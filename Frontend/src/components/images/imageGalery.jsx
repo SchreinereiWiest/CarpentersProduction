@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
 import ImageCarousel from "./ImageCarousel";
+import { getS3FileUrl } from "../../services/projectAssetCache.js";
 
 
 export default function ImageGallery({ files = [] }) {
@@ -24,18 +24,10 @@ export default function ImageGallery({ files = [] }) {
 
                     imageFiles.map(async (file) => {
 
-                        const response = await axios.get(
-                            `/api/files/download/${file.id}`,
-                            {
-                                withCredentials: true
-                            }
-                        );
-
-
                         return {
                             id: file.id,
                             name: file.fileName,
-                            url: response.data.url
+                            url: await getS3FileUrl(file)
                         };
 
                     })

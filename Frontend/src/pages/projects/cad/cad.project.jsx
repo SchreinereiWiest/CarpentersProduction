@@ -1,5 +1,6 @@
 import React, { Children, useEffect, useRef, useState, useMemo } from "react";
 import axios from "axios";
+import { getProjectAssetUrl } from "../../../services/projectAssetCache.js";
 import { useNavigate, useParams } from 'react-router';
 
 import SideBar from "../../../components/sideBar.jsx";
@@ -160,16 +161,7 @@ const load = async () => {
 
             if (!glbFile) return;
 
-            const response = await axios.get(
-                `/api/files/download/${glbFile.id}`,
-                {
-                    withCredentials:true
-                }
-            );
-
-            setGlbUrl(
-                response.data.url
-            );
+            setGlbUrl(await getProjectAssetUrl(glbFile));
         }
     };
     load();

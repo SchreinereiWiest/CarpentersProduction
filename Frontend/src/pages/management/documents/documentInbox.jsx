@@ -3,6 +3,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import { useManagement } from '../hooks/useManagement.js';
 import { Card, ConfirmButton, Empty, Table } from '../components/ui.jsx';
+import { getS3FileUrl } from '../../../services/projectAssetCache.js';
 
 /** Lädt Betriebsbelege hoch, öffnet geschützte Downloads und entfernt Dateien nach Bestätigung; daraus werden keine Kosten gebucht. */
 export function DocumentInbox() {
@@ -44,8 +45,8 @@ export function DocumentInbox() {
   const download = async (file) => {
     setError("");
     try {
-      const { data } = await axios.get(`/api/files/download/${file.id}`);
-      window.open(data.url, "_blank", "noopener,noreferrer");
+      const url = await getS3FileUrl(file);
+      window.open(url, "_blank", "noopener,noreferrer");
     } catch {
       setError("Beleg konnte nicht geöffnet werden.");
     }

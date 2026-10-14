@@ -1,4 +1,5 @@
 import { downloadFile } from "./apiTemplates.js";
+import { getGlobalFile } from "./globalMemoryCache.js";
 
 export const CUSTOM_WORK_TYPE_ID = "__custom__";
 
@@ -117,9 +118,13 @@ export function getWorkTypeLabel(workTypes, workType, customWorkType) {
 }
 
 export async function loadCompanySettings() {
-    // Always refresh this small file when entering time tracking so schedule
-    // changes made by an administrator are visible to every employee.
-    const data = await downloadFile("/api/settings/company");
+    const data = await getGlobalFile({
+        file: "settings-company.json",
+        loadFromServer: {
+            download: downloadFile,
+            path: "/api/settings/company"
+        }
+    });
 
     return normalizeCompanySettings(data);
 }

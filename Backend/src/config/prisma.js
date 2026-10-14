@@ -26,6 +26,7 @@ const TENANT_DELEGATES = new Set([
     "appointment",
     "s3Object",
     "file",
+    "syncMutation",
     "projectStorage",
     "material",
     "supplier",

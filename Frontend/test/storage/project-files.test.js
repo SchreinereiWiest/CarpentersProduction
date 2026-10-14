@@ -2,8 +2,10 @@ import axios from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { downloadFile, uploadJSONFile } from '../../src/services/apiTemplates.js';
-import { setCachedGlobalFile } from '../../src/services/globalIndexDb.js';
+import { getCachedGlobalFile, markCachedFileStale, setCachedGlobalFile } from '../../src/services/globalIndexDb.js';
+import { getGlobalFile, refreshCachedGlobalFiles } from '../../src/services/globalMemoryCache.js';
 import { uploadProjectFile } from '../../src/services/projectMemoryCache.js';
+import { getCachedProjectFile, setCachedProjectFile } from '../../src/services/projectIndexDb.js';
 import { loadCadFile } from '../../src/pages/projects/cad/cadLoader.project.js';
 
 vi.mock('axios', () => ({
@@ -134,5 +136,115 @@ describe('Dateispeicherung und -abruf', () => {
     })).resolves.toEqual(payload);
 
     expect(serverDownload).not.toHaveBeenCalled();
+  });
+
+  it('liefert einen S3-Cache-Treffer sofort und ersetzt eine alte Version im Hintergrund', async () => {
+    const file = 'stale-while-revalidate.json';
+    const oldData = { version: 'local-cache' };
+    const newData = { version: 'server' };
+    await setCachedGlobalFile({
+      file,
+      data: oldData,
+      version: 1,
+      sourcePath: '/api/settings/revalidation-test',
+      lastValidatedAt: 0,
+    });
+
+    let resolveDescriptor;
+    const descriptorPromise = new Promise(resolve => { resolveDescriptor = resolve; });
+    const download = vi.fn();
+    download.getDescriptor = vi.fn(() => descriptorPromise);
+    download.fromDescriptor = vi.fn().mockResolvedValue(newData);
+
+    await expect(getGlobalFile({
+      file,
+      loadFromServer: {
+        download,
+        path: '/api/settings/revalidation-test',
+      },
+    })).resolves.toEqual(oldData);
+
+    expect(download.fromDescriptor).not.toHaveBeenCalled();
+    resolveDescriptor({ exists: true, serverVersion: 2 });
+
+    await vi.waitFor(async () => {
+      expect((await getCachedGlobalFile({ file })).data).toEqual(newData);
+    });
+    expect(download.fromDescriptor).toHaveBeenCalledOnce();
+  });
+
+  it('markiert fremde Serveränderungen als veraltet, schützt aber lokale Änderungen', async () => {
+    await setCachedProjectFile({
+      projectId: 'project-live-update',
+      file: 'list.json',
+      fileId: 'server-file-live',
+      data: { source: 'server' },
+      serverVersion: 3,
+      syncStatus: 'synced',
+      lastValidatedAt: Date.now(),
+    });
+    await setCachedProjectFile({
+      projectId: 'project-live-update',
+      file: 'cabinet.json',
+      fileId: 'server-file-pending',
+      data: { source: 'local' },
+      serverVersion: 3,
+      syncStatus: 'pending',
+      lastValidatedAt: Date.now(),
+    });
+
+    await markCachedFileStale({
+      action: 'updated',
+      resourceType: 'project-json',
+      fileId: 'server-file-live',
+      projectId: 'project-live-update',
+      fileName: 'list.json',
+      serverVersion: 4,
+    });
+    await markCachedFileStale({
+      action: 'updated',
+      resourceType: 'project-json',
+      fileId: 'server-file-pending',
+      projectId: 'project-live-update',
+      fileName: 'cabinet.json',
+      serverVersion: 4,
+    });
+
+    const stale = await getCachedProjectFile({ projectId: 'project-live-update', file: 'list.json' });
+    const pending = await getCachedProjectFile({ projectId: 'project-live-update', file: 'cabinet.json' });
+    expect(stale).toMatchObject({ lastValidatedAt: 0, announcedServerVersion: 4 });
+    expect(pending.syncStatus).toBe('pending');
+    expect(pending.lastValidatedAt).not.toBe(0);
+  });
+
+  it('lädt eine bereits gecachte Datei auf Anforderung auch bei gleicher Version neu', async () => {
+    const file = 'manual-redownload.json';
+    await setCachedGlobalFile({
+      file,
+      data: { content: 'old' },
+      version: 7,
+      sourcePath: '/api/settings/manual-redownload',
+    });
+    axios.get.mockResolvedValue({
+      data: {
+        exists: true,
+        fileId: 'manual-redownload-id',
+        serverVersion: 7,
+        downloadUrl: 'https://storage.test/manual-redownload.json',
+      },
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({ content: 'fresh' }),
+    }));
+
+    const result = await refreshCachedGlobalFiles({
+      force: true,
+      includeInactive: true,
+      redownload: true,
+    });
+
+    expect(result.refreshed).toBeGreaterThan(0);
+    expect((await getCachedGlobalFile({ file })).data).toEqual({ content: 'fresh' });
   });
 });

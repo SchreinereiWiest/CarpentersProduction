@@ -25,8 +25,9 @@ model Tenant {
   slug   String @unique
   status String @default("active")
 
-  memberships TenantMembership[]
-  license     TenantLicense?
+  memberships   TenantMembership[]
+  license       TenantLicense?
+  syncMutations SyncMutation[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -377,11 +378,34 @@ model File {
 
   status String? @map("status")
 
+  // Monoton steigende, serverseitig vergebene Inhaltsversion. Sie wird fuer
+  // optimistische Offline-Synchronisierung verwendet und ist bewusst kein
+  // Zeitstempel.
+  serverVersion Int      @default(1) @map("server_version")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
   shopArticles           ShopArticle[]           @relation("ShopArticleImage")
   managementTransactions ManagementTransaction[]
+  syncMutations          SyncMutation[]
 
   @@unique([tenantId, id])
   @@map("files")
+}
+
+model SyncMutation {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  idempotencyKey String   @map("idempotency_key")
+  fileId         String?  @map("file_id") @db.Uuid
+  file           File?    @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  response       Json
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, idempotencyKey])
+  @@unique([tenantId, id])
+  @@index([fileId])
+  @@map("sync_mutations")
 }
 
 model ProjectStorage {

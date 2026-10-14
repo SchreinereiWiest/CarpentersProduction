@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
+import { getProjectAssetUrl } from "../../../services/projectAssetCache.js";
 import { useParams } from "react-router";
 import SideBar from "../../../components/sideBar.jsx";
 import ProjectBar from "../../../components/projectBar.jsx";
@@ -148,8 +149,7 @@ export default function ProjectAttachments() {
             const nextProject = data.project;
             const files = (nextProject?.files || []).filter(file => file.category === ATTACHMENT_CATEGORY);
             const loaded = await Promise.all(files.map(async file => {
-                const response = await axios.get(`/api/files/download/${file.id}`);
-                return { ...file, url: response.data.url };
+                return { ...file, url: await getProjectAssetUrl(file) };
             }));
             setProject(nextProject);
             setAttachments(loaded);

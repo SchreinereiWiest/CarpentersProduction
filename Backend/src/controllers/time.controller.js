@@ -5,6 +5,7 @@ import {
     PutObjectCommand,
     GetObjectCommand
 } from "@aws-sdk/client-s3";
+import { publishFileChange } from "../services/fileChangeEvents.service.js";
 import {
     getSignedUrl
 } from "@aws-sdk/s3-request-presigner";
@@ -508,6 +509,9 @@ export const getGeneratedTimeData = async (req, res) => {
             return res.json({
                 exists: true,
                 downloadUrl,
+                fileId: file.id,
+                serverVersion: file.serverVersion,
+                updatedAt: file.updatedAt,
             });
         }
 
@@ -652,6 +656,16 @@ export async function createGeneratedTimeData(req,res){
 
             });
 
+        publishFileChange({
+            tenantId: req.tenant.id,
+            action: "updated",
+            resourceType: "time-json",
+            fileId: fileEntry.id,
+            fileName,
+            cacheFile: `weekData:${id}:${date}`,
+            serverVersion: fileEntry.serverVersion
+        });
+
 
         return res.json({
 
@@ -717,11 +731,25 @@ export async function createGeneratedTimeData(req,res){
                     body.length,
 
                 status:
-                    "complete"
+                    "complete",
+
+                serverVersion: {
+                    increment: 1
+                }
 
             }
 
         });
+
+    publishFileChange({
+        tenantId: req.tenant.id,
+        action: "updated",
+        resourceType: "time-json",
+        fileId: fileEntry.id,
+        fileName,
+        cacheFile: `weekData:${id}:${date}`,
+        serverVersion: fileEntry.serverVersion
+    });
 
 
     return res.json({

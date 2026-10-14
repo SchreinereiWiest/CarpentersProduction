@@ -12,6 +12,7 @@ import prisma from "../config/prisma.js";
 import { s3Upload, s3Download } from "../config/s3.js"
 import { enqueueStorageDeletions, processStorageDeletions } from "../services/storageDeletion.service.js";
 import { getTenantId } from "../context/tenantContext.js";
+import { publishFileChange } from "../services/fileChangeEvents.service.js";
 
 export async function createUpload(req, res) {
 
@@ -166,6 +167,16 @@ export async function createUpload(req, res) {
             },
         });
 
+        publishFileChange({
+            tenantId: req.tenant.id,
+            action: "updated",
+            resourceType: "asset",
+            fileId: fileEntry.id,
+            projectId: fileEntry.projectId,
+            fileName: fileEntry.fileName,
+            serverVersion: fileEntry.serverVersion
+        });
+
 
         /*
          * --------------------------------------------------
@@ -243,7 +254,12 @@ export async function createDownloadUrl(req, res) {
         );
 
         res.json({
-            url
+            url,
+            fileId: file.id,
+            projectId: file.projectId,
+            mimeType: file.mimeType,
+            serverVersion: file.serverVersion,
+            updatedAt: file.updatedAt
         });
 
 
@@ -344,6 +360,16 @@ export async function deleteFile(req, res) {
                 console.error("Immediate storage deletion failed:", error);
             });
         }
+
+        publishFileChange({
+            tenantId: req.tenant.id,
+            action: "deleted",
+            resourceType: "asset",
+            fileId: fileEntry.id,
+            projectId: fileEntry.projectId,
+            fileName: fileEntry.fileName,
+            serverVersion: fileEntry.serverVersion
+        });
 
 
         /*

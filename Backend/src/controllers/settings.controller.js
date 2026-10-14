@@ -10,6 +10,7 @@ import {
 import {
     getSignedUrl
 } from "@aws-sdk/s3-request-presigner";
+import { publishFileChange } from "../services/fileChangeEvents.service.js";
 
 export const getSettingsData = async (req, res) => {
 
@@ -78,9 +79,13 @@ export const getSettingsData = async (req, res) => {
             }
             );
 
+            res.set("ETag", `"${file.serverVersion}"`);
             return res.json({
                 exists: true,
                 downloadUrl,
+                fileId: file.id,
+                serverVersion: file.serverVersion,
+                updatedAt: file.updatedAt,
             });
         }
 
@@ -249,6 +254,16 @@ export async function createSettingsData(req,res){
 
             });
 
+        publishFileChange({
+            tenantId: req.tenant.id,
+            action: "updated",
+            resourceType: "global-setting",
+            fileId: fileEntry.id,
+            fileName,
+            cacheFile: fileName,
+            serverVersion: fileEntry.serverVersion
+        });
+
 
         return res.json({
 
@@ -314,11 +329,25 @@ export async function createSettingsData(req,res){
                     body.length,
 
                 status:
-                    "complete"
+                    "complete",
+
+                serverVersion: {
+                    increment: 1
+                }
 
             }
 
         });
+
+    publishFileChange({
+        tenantId: req.tenant.id,
+        action: "updated",
+        resourceType: "global-setting",
+        fileId: fileEntry.id,
+        fileName,
+        cacheFile: fileName,
+        serverVersion: fileEntry.serverVersion
+    });
 
 
     return res.json({

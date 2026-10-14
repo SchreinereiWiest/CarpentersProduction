@@ -45,8 +45,35 @@ import { ManagementDocuments } from './pages/management/documents/documents.mana
 import ManagementSetup from './pages/management/setup/setup.management.jsx';
 import ManagementHours from './pages/management/operating/hours.management.jsx';
 import ManagementOperatingCosts from './pages/management/operating/operatingCosts.management.jsx';
+import OfflineStatusCenter from './components/offline/OfflineStatusCenter.jsx';
+import CacheRefreshBoundary from './components/offline/CacheRefreshBoundary.jsx';
+import OfflineMergeView from './pages/offline/OfflineMergeView.jsx';
+import { installNetworkClient } from './services/networkClient.js';
+import { installS3CacheRefresh } from './services/s3CacheRefresh.js';
 
+installNetworkClient();
+installS3CacheRefresh();
 
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js")
+      .then(async () => {
+        if (!import.meta.env.DEV || !("caches" in window)) return;
+        await navigator.serviceWorker.ready;
+        const cache = await caches.open("carpentersproduction-assets-development");
+        const resourceUrls = performance.getEntriesByType("resource")
+          .map(entry => new URL(entry.name, window.location.origin))
+          .filter(url => url.origin === window.location.origin
+            && !url.pathname.startsWith("/api/")
+            && url.pathname !== "/sw.js")
+          .map(url => url.href);
+        await Promise.allSettled([...new Set(resourceUrls)].map(url => cache.add(url)));
+      })
+      .catch(error => {
+        console.error("Service Worker konnte nicht registriert werden", error);
+      });
+  });
+}
 
 const root = document.getElementById("root");
 
@@ -79,6 +106,10 @@ ReactDOM.createRoot(root).render(
     <AuthProvider>
 
       <BrowserRouter>
+
+        <OfflineStatusCenter />
+
+        <CacheRefreshBoundary>
 
         <Routes>
 
@@ -262,7 +293,15 @@ ReactDOM.createRoot(root).render(
             }
             />
 
+            <Route path="/Offline/Merge/:conflictKey" element={ <ProtectedRoute requiredRole="user">
+            <OfflineMergeView />
+            </ProtectedRoute>
+            }
+            />
+
         </Routes>
+
+        </CacheRefreshBoundary>
 
       </BrowserRouter>
 

@@ -1,414 +1,187 @@
+import { openDb, STORE_NAME } from "./globalIndexDb.js";
 
-import { openDb, STORE_NAME } from "./globalIndexDb"; 
-import { loadSettings } from "./globalIndexDb";
+export const getProjectCacheKey = (projectId, file) => `project:${projectId}:${file}`;
+export const getProjectAssetCacheKey = fileId => `asset:${fileId}`;
 
+const requestResult = request => new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+});
 
-/* =========================================================
- * Cache-Key
- * ========================================================= */
-
-const getCacheKey = (
-    projectId,
-    file
-) => {
-
-    return (
-        `project:${projectId}:${file}`
-    );
-
+export const getCachedProjectFile = async ({ projectId, file }) => {
+    const db = await openDb();
+    const request = db.transaction(STORE_NAME, "readonly")
+        .objectStore(STORE_NAME)
+        .get(getProjectCacheKey(projectId, file));
+    return (await requestResult(request)) ?? null;
 };
 
+export const getCachedProjectFileByKey = async key => {
+    const db = await openDb();
+    const request = db.transaction(STORE_NAME, "readonly")
+        .objectStore(STORE_NAME)
+        .get(key);
+    return (await requestResult(request)) ?? null;
+};
 
-/* =========================================================
- * Aus IndexedDB lesen
- * ========================================================= */
+export const getCachedProjectAsset = async fileId => getCachedProjectFileByKey(
+    getProjectAssetCacheKey(fileId)
+);
 
-export const getCachedProjectFile = async ({
+export const invalidateProjectAsset = async fileId => {
+    const db = await openDb();
+    const request = db.transaction(STORE_NAME, "readwrite")
+        .objectStore(STORE_NAME)
+        .delete(getProjectAssetCacheKey(fileId));
+    await requestResult(request);
+};
+
+export const setCachedProjectAsset = async ({
     projectId,
     file,
-    noExpiration = false
+    blob,
+    serverVersion = null,
+    lastAccessedAt = Date.now(),
+    lastValidatedAt = Date.now()
 }) => {
-
-    const db =
-        await openDb();
-
-    let cacheSettings = {healthDuration: 12 * 60 * 60 * 1000}
-
-    if(!noExpiration) {
-        cacheSettings = await loadSettings();
-    }
-
-
-    return new Promise(
-        (resolve, reject) => {
-
-            const transaction =
-                db.transaction(
-                    STORE_NAME,
-                    "readonly"
-                );
-
-
-            const store =
-                transaction.objectStore(
-                    STORE_NAME
-                );
-
-
-            const request =
-                store.get(
-                    getCacheKey(
-                        projectId,
-                        file
-                    )
-                );
-
-
-            request.onsuccess =
-                () => {
-
-                    if(Date.now() - request.result?.version < cacheSettings.healthDuration || noExpiration) {
-
-                        resolve(
-                            request.result ?? null
-                        );
-
-                    } else {
-                        resolve(null);
-                    }
-
-                };
-
-
-            request.onerror =
-                () => {
-
-                    reject(
-                        request.error
-                    );
-
-                };
-
-        }
-    );
-
+    const db = await openDb();
+    const entry = {
+        key: getProjectAssetCacheKey(file.id),
+        projectId,
+        fileId: file.id,
+        fileName: file.fileName,
+        mimeType: file.mimeType || blob.type,
+        blob,
+        serverVersion,
+        lastAccessedAt,
+        lastValidatedAt,
+        cachedAt: Date.now(),
+        scope: "asset"
+    };
+    const request = db.transaction(STORE_NAME, "readwrite")
+        .objectStore(STORE_NAME)
+        .put(entry);
+    await requestResult(request);
+    return entry;
 };
-
-
-/* =========================================================
- * Datei im Cache speichern
- * ========================================================= */
 
 export const setCachedProjectFile = async ({
     projectId,
     file,
     data,
-    version = null
+    fileId = null,
+    serverVersion = null,
+    baseVersion = serverVersion,
+    baseData = data,
+    localRevision = 0,
+    syncStatus = "synced",
+    updatedLocallyAt = null,
+    idempotencyKey = null,
+    remoteData = null,
+    remoteVersion = null,
+    error = null,
+    sourcePath = null,
+    lastAccessedAt = Date.now(),
+    lastValidatedAt = Date.now()
 }) => {
-
-    const db =
-        await openDb();
-
-
+    const db = await openDb();
     const entry = {
-
-        key:
-            getCacheKey(
-                projectId,
-                file
-            ),
-
+        key: getProjectCacheKey(projectId, file),
         projectId,
-
         file,
-
         data,
-
-        version,
-
-        cachedAt:
-            Date.now()
-
+        fileId,
+        serverVersion,
+        baseVersion,
+        baseData,
+        localRevision,
+        syncStatus,
+        updatedLocallyAt,
+        idempotencyKey,
+        remoteData,
+        remoteVersion,
+        error,
+        sourcePath,
+        lastAccessedAt,
+        lastValidatedAt,
+        cachedAt: Date.now(),
+        scope: "project"
     };
-
-
-    return new Promise(
-        (resolve, reject) => {
-
-            const transaction =
-                db.transaction(
-                    STORE_NAME,
-                    "readwrite"
-                );
-
-
-            const store =
-                transaction.objectStore(
-                    STORE_NAME
-                );
-
-
-            const request =
-                store.put(
-                    entry
-                );
-
-
-            request.onsuccess =
-                () => {
-
-                    resolve(
-                        entry
-                    );
-
-                };
-
-
-            request.onerror =
-                () => {
-
-                    reject(
-                        request.error
-                    );
-
-                };
-
-        }
-    );
-
+    const request = db.transaction(STORE_NAME, "readwrite")
+        .objectStore(STORE_NAME)
+        .put(entry);
+    await requestResult(request);
+    return entry;
 };
 
-
-/* =========================================================
- * Datei aus Cache löschen
- * ========================================================= */
-
-export const invalidateProjectFile = async ({
-    projectId,
-    file
-}) => {
-
-    const db =
-        await openDb();
-
-
-    return new Promise(
-        (resolve, reject) => {
-
-            const transaction =
-                db.transaction(
-                    STORE_NAME,
-                    "readwrite"
-                );
-
-
-            const store =
-                transaction.objectStore(
-                    STORE_NAME
-                );
-
-
-            const request =
-                store.delete(
-                    getCacheKey(
-                        projectId,
-                        file
-                    )
-                );
-
-
-            request.onsuccess =
-                () => resolve();
-
-
-            request.onerror =
-                () => {
-
-                    reject(
-                        request.error
-                    );
-
-                };
-
-        }
-    );
-
+export const listProjectAssets = async () => {
+    const db = await openDb();
+    const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
+    return new Promise((resolve, reject) => {
+        const entries = [];
+        const request = store.openCursor();
+        request.onsuccess = event => {
+            const cursor = event.target.result;
+            if (!cursor) return resolve(entries);
+            if (cursor.value.scope === "asset") entries.push(cursor.value);
+            cursor.continue();
+        };
+        request.onerror = () => reject(request.error);
+    });
 };
 
-
-/* =========================================================
- * kompletten Projektcache löschen
- * ========================================================= */
-
-export const invalidateProject = async (
-    projectId
-) => {
-
-    const db =
-        await openDb();
-
-
-    return new Promise(
-        async (resolve, reject) => {
-
-            try {
-
-                const transaction =
-                    db.transaction(
-                        STORE_NAME,
-                        "readwrite"
-                    );
-
-
-                const store =
-                    transaction.objectStore(
-                        STORE_NAME
-                    );
-
-
-                const request =
-                    store.openCursor();
-
-
-                request.onsuccess =
-                    event => {
-
-                        const cursor =
-                            event.target.result;
-
-
-                        if (!cursor) {
-
-                            resolve();
-
-                            return;
-
-                        }
-
-
-                        if (
-                            cursor.value.projectId ===
-                            projectId
-                        ) {
-
-                            cursor.delete();
-
-                        }
-
-
-                        cursor.continue();
-
-                    };
-
-
-                request.onerror =
-                    () => {
-
-                        reject(
-                            request.error
-                        );
-
-                    };
-
-            } catch (error) {
-
-                reject(
-                    error
-                );
-
-            }
-
-        }
-    );
-
+export const updateCachedProjectFile = async (key, changes) => {
+    const current = await getCachedProjectFileByKey(key);
+    if (!current) return null;
+    return setCachedProjectFile({ ...current, ...changes });
 };
 
-
-
-export const invalidateAllProjects = async () => {
-
-    return new Promise(
-        (resolve, reject) => {
-
-            const request =
-                indexedDB.open(
-                    "carpentersproduction"
-                );
-
-
-            request.onsuccess =
-                () => {
-
-                    const db =
-                        request.result;
-
-
-                    if (
-                        !db.objectStoreNames.contains(
-                            "projectFiles"
-                        )
-                    ) {
-
-                        db.close();
-
-                        resolve();
-
-                        return;
-
-                    }
-
-
-                    const transaction =
-                        db.transaction(
-                            "projectFiles",
-                            "readwrite"
-                        );
-
-
-                    const store =
-                        transaction.objectStore(
-                            "projectFiles"
-                        );
-
-
-                    const clearRequest =
-                        store.clear();
-
-
-                    clearRequest.onsuccess =
-                        () => {
-
-                            db.close();
-
-                            resolve();
-
-                        };
-
-
-                    clearRequest.onerror =
-                        () => {
-
-                            db.close();
-
-                            reject(
-                                clearRequest.error
-                            );
-
-                        };
-
-                };
-
-
-            request.onerror =
-                () => {
-
-                    reject(
-                        request.error
-                    );
-
-                };
-
-        }
-    );
-
+export const listProjectFiles = async ({ statuses, projectId } = {}) => {
+    const db = await openDb();
+    const store = db.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME);
+    return new Promise((resolve, reject) => {
+        const entries = [];
+        const request = store.openCursor();
+        request.onsuccess = event => {
+            const cursor = event.target.result;
+            if (!cursor) return resolve(entries);
+            const entry = cursor.value;
+            const projectMatches = !projectId || entry.projectId === projectId;
+            const statusMatches = !statuses || statuses.includes(entry.syncStatus);
+            if (entry.scope === "project" && projectMatches && statusMatches) entries.push(entry);
+            cursor.continue();
+        };
+        request.onerror = () => reject(request.error);
+    });
 };
+
+export const invalidateProjectFile = async ({ projectId, file }) => {
+    const db = await openDb();
+    const request = db.transaction(STORE_NAME, "readwrite")
+        .objectStore(STORE_NAME)
+        .delete(getProjectCacheKey(projectId, file));
+    await requestResult(request);
+};
+
+const deleteMatchingEntries = async predicate => {
+    const db = await openDb();
+    const store = db.transaction(STORE_NAME, "readwrite").objectStore(STORE_NAME);
+    return new Promise((resolve, reject) => {
+        const request = store.openCursor();
+        request.onsuccess = event => {
+            const cursor = event.target.result;
+            if (!cursor) return resolve();
+            if (predicate(cursor.value)) cursor.delete();
+            cursor.continue();
+        };
+        request.onerror = () => reject(request.error);
+    });
+};
+
+export const invalidateProject = projectId => deleteMatchingEntries(
+    entry => ["project", "asset"].includes(entry.scope) && entry.projectId === projectId
+);
+
+export const invalidateAllProjects = () => deleteMatchingEntries(
+    entry => ["project", "asset"].includes(entry.scope)
+);

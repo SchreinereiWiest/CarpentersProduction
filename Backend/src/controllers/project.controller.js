@@ -4,6 +4,7 @@ import {
     PutObjectCommand,
     GetObjectCommand,
 } from "@aws-sdk/client-s3";
+import { publishFileChange } from "../services/fileChangeEvents.service.js";
 import {
     getSignedUrl
 } from "@aws-sdk/s3-request-presigner";
@@ -361,9 +362,13 @@ export const getGeneratedProjectData = async (req, res) => {
             }
             );
 
+            res.set("ETag", `"${file.serverVersion}"`);
             return res.json({
                 exists: true,
                 downloadUrl,
+                fileId: file.id,
+                serverVersion: file.serverVersion,
+                updatedAt: file.updatedAt,
             });
         }
 
@@ -417,7 +422,31 @@ export async function createGeneratedProjectData(req,res){
 
 
     const prefix = `tenants/${getTenantId()}/projects/${id}`;
-    const objectKey = `${prefix}/${fileName}`;
+    const idempotencyKey = req.get("idempotency-key") || null;
+    const ifMatch = req.get("if-match");
+    const expectedVersion = ifMatch == null
+        ? null
+        : Number(String(ifMatch).replace(/^W\//, "").replaceAll('"', ""));
+
+    if (ifMatch != null && !Number.isInteger(expectedVersion)) {
+        return res.status(400).json({
+            error: "INVALID_IF_MATCH",
+            message: "If-Match must contain a numeric server version"
+        });
+    }
+
+    if (idempotencyKey) {
+        const completedMutation = await prisma.syncMutation.findFirst({
+            where: { idempotencyKey }
+        });
+
+        if (completedMutation) {
+            if (completedMutation.response?.version != null) {
+                res.set("ETag", `"${completedMutation.response.version}"`);
+            }
+            return res.status(200).json(completedMutation.response);
+        }
+    }
 
 
     /*
@@ -426,28 +455,6 @@ export async function createGeneratedProjectData(req,res){
     const jsonContent = JSON.stringify(req.body);
 
     const body = Buffer.from(jsonContent, "utf-8");
-
-
-    /*
-     * --------------------------------------------------
-     * 1. Datei direkt zu Garage hochladen
-     * --------------------------------------------------
-     */
-
-    const command = new PutObjectCommand({
-
-        Bucket: process.env.S3_BUCKET,
-
-        Key: objectKey,
-
-        Body: body,
-
-        ContentType: "application/json"
-
-    });
-
-
-    await s3Upload.send(command);
 
 
     /*
@@ -478,78 +485,117 @@ export async function createGeneratedProjectData(req,res){
      */
 
     if (!existingFile) {
+        if (expectedVersion != null && expectedVersion !== 0) {
+            return res.status(412).json({
+                error: "VERSION_CONFLICT",
+                fileId: null,
+                expectedVersion,
+                currentVersion: 0
+            });
+        }
 
-        const storageObject =
-            await prisma.s3Object.create({
+        const version = 1;
+        const objectKey = `${prefix}/versions/${version}-${idempotencyKey || Date.now()}-${fileName}`;
+        try {
+            const response = await prisma.$transaction(async transaction => {
+                // Auch die erstmalige Erstellung wird pro Projekt/Dateiname
+                // serialisiert. Der Verlierer erkennt den inzwischen
+                // vorhandenen Datensatz, bevor er S3 berührt.
+                const lockKey = `${getTenantId()}:${id}:${fileName}`;
+                await transaction.$queryRaw`
+                    SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))
+                `;
 
-                data: {
+                if (idempotencyKey) {
+                    const duplicate = await transaction.syncMutation.findFirst({
+                        where: { idempotencyKey }
+                    });
+                    if (duplicate) return duplicate.response;
+                }
 
-                    provider: "garage",
+                const createdByOtherClient = await transaction.file.findFirst({
+                    where: { projectId: id, fileName, deletedAt: null }
+                });
+                if (createdByOtherClient) {
+                    const conflict = new Error("VERSION_CONFLICT");
+                    conflict.code = "VERSION_CONFLICT";
+                    conflict.currentVersion = createdByOtherClient.serverVersion;
+                    conflict.fileId = createdByOtherClient.id;
+                    throw conflict;
+                }
 
-                    bucketName:
-                        process.env.S3_BUCKET,
+                await s3Upload.send(new PutObjectCommand({
+                    Bucket: process.env.S3_BUCKET,
+                    Key: objectKey,
+                    Body: body,
+                    ContentType: "application/json"
+                }));
 
-                    objectKey:
-
+                const storageObject = await transaction.s3Object.create({
+                    data: {
+                        provider: "garage",
+                        bucketName: process.env.S3_BUCKET,
                         objectKey,
+                        endpoint: process.env.S3_PUBLIC_ENDPOINT
+                    }
+                });
 
-                    endpoint:
-                        process.env.S3_PUBLIC_ENDPOINT
-
-                }
-
-            });
-
-        const fileEntry =
-            await prisma.file.create({
-
-                data: {
-
-                    project: {
-                        connect: {
-                            id: id
-                        }
-                    },
-
-                    storageObject: {
-                        connect: {
-                            id: storageObject.id
-                        }
-                    },
-
-                    uploadedBy: {
-                        connect: {
-                            id: req.user.id
-                        }
-                    },
-
-                    fileName:
+                const fileEntry = await transaction.file.create({
+                    data: {
+                        project: { connect: { id } },
+                        storageObject: { connect: { id: storageObject.id } },
+                        uploadedBy: { connect: { id: req.user.id } },
                         fileName,
+                        mimeType: "application/json",
+                        fileSize: body.length,
+                        status: "complete",
+                        serverVersion: version
+                    }
+                });
 
-                    mimeType:
-                        "application/json",
+                const result = {
+                    fileId: fileEntry.id,
+                    version,
+                    status: "synced",
+                    objectKey,
+                    fileEntry
+                };
 
-                    fileSize:
-                        body.length,
-
-                    status:
-                        "complete"
-
+                if (idempotencyKey) {
+                    await transaction.syncMutation.create({
+                        data: {
+                            idempotencyKey,
+                            fileId: fileEntry.id,
+                            response: JSON.parse(JSON.stringify(result))
+                        }
+                    });
                 }
 
+                return result;
+            }, { timeout: 30_000 });
+
+            res.set("ETag", `"${response.version}"`);
+            publishFileChange({
+                tenantId: req.tenant.id,
+                action: "updated",
+                resourceType: "project-json",
+                fileId: response.fileId,
+                projectId: id,
+                fileName,
+                serverVersion: response.version
             });
-
-
-        return res.json({
-
-            success: true,
-
-            objectKey,
-
-            fileEntry
-
-        });
-
+            return res.json(response);
+        } catch (error) {
+            if (error?.code === "VERSION_CONFLICT") {
+                return res.status(412).json({
+                    error: "VERSION_CONFLICT",
+                    fileId: error.fileId ?? null,
+                    expectedVersion: expectedVersion ?? 0,
+                    currentVersion: error.currentVersion ?? 1
+                });
+            }
+            throw error;
+        }
     }
 
 
@@ -559,66 +605,181 @@ export async function createGeneratedProjectData(req,res){
      * --------------------------------------------------
      */
 
-    const storageObject =
-        await prisma.s3Object.update({
+    const versionToMatch = expectedVersion ?? existingFile.serverVersion;
 
-            where: {
-                id: existingFile.storageObject.id
-            },
+    if (existingFile.serverVersion !== versionToMatch) {
+        return res.status(412).json({
+            error: "VERSION_CONFLICT",
+            fileId: existingFile.id,
+            expectedVersion: versionToMatch,
+            currentVersion: existingFile.serverVersion
+        });
+    }
 
-            data: {
+    const nextVersion = versionToMatch + 1;
+    const objectKey = `${prefix}/versions/${nextVersion}-${idempotencyKey || Date.now()}-${fileName}`;
 
-                provider:
-                    "garage",
+    try {
+        const response = await prisma.$transaction(async transaction => {
+            // Das bedingte Update sperrt die Dateizeile. Ein zweiter Client mit
+            // derselben Basisversion erhaelt count=0 und laedt keinen Inhalt hoch.
+            const claim = await transaction.file.updateMany({
+                where: { id: existingFile.id, serverVersion: versionToMatch },
+                data: { serverVersion: { increment: 1 } }
+            });
 
-                bucketName:
-                    process.env.S3_BUCKET,
+            if (claim.count !== 1) {
+                const conflict = new Error("VERSION_CONFLICT");
+                conflict.code = "VERSION_CONFLICT";
+                throw conflict;
+            }
 
-                objectKey:
+            await s3Upload.send(new PutObjectCommand({
+                Bucket: process.env.S3_BUCKET,
+                Key: objectKey,
+                Body: body,
+                ContentType: "application/json"
+            }));
+
+            await enqueueStorageDeletions(transaction, [{
+                bucketName: existingFile.storageObject.bucketName,
+                objectKey: existingFile.storageObject.objectKey
+            }]);
+
+            await transaction.s3Object.update({
+                where: { id: existingFile.storageObject.id },
+                data: {
+                    provider: "garage",
+                    bucketName: process.env.S3_BUCKET,
                     objectKey,
+                    endpoint: process.env.S3_PUBLIC_ENDPOINT
+                }
+            });
 
-                endpoint:
-                    process.env.S3_PUBLIC_ENDPOINT
-
-            }
-
-        });
-
-
-    const fileEntry =
-        await prisma.file.update({
-
-            where: {
-                id: existingFile.id
-            },
-
-            data: {
-
-                fileName:
+            const fileEntry = await transaction.file.update({
+                where: { id: existingFile.id },
+                data: {
                     fileName,
+                    mimeType: "application/json",
+                    fileSize: body.length,
+                    status: "complete"
+                }
+            });
 
-                mimeType:
-                    "application/json",
+            const result = {
+                fileId: fileEntry.id,
+                version: nextVersion,
+                status: "synced",
+                objectKey,
+                fileEntry
+            };
 
-                fileSize:
-                    body.length,
-
-                status:
-                    "complete"
-
+            if (idempotencyKey) {
+                await transaction.syncMutation.create({
+                    data: {
+                        idempotencyKey,
+                        fileId: fileEntry.id,
+                        response: JSON.parse(JSON.stringify(result))
+                    }
+                });
             }
 
+            return result;
+        }, { timeout: 30_000 });
+
+        res.set("ETag", `"${response.version}"`);
+        publishFileChange({
+            tenantId: req.tenant.id,
+            action: "updated",
+            resourceType: "project-json",
+            fileId: response.fileId,
+            projectId: id,
+            fileName,
+            serverVersion: response.version
         });
+        return res.json(response);
+    } catch (error) {
+        if (error?.code === "VERSION_CONFLICT") {
+            if (idempotencyKey) {
+                const duplicate = await prisma.syncMutation.findFirst({
+                    where: { idempotencyKey }
+                });
+                if (duplicate) {
+                    res.set("ETag", `"${duplicate.response.version}"`);
+                    return res.status(200).json(duplicate.response);
+                }
+            }
+            const current = await prisma.file.findFirst({
+                where: { id: existingFile.id },
+                select: { serverVersion: true }
+            });
 
+            return res.status(412).json({
+                error: "VERSION_CONFLICT",
+                fileId: existingFile.id,
+                expectedVersion: versionToMatch,
+                currentVersion: current?.serverVersion ?? existingFile.serverVersion
+            });
+        }
 
-    return res.json({
-
-        success: true,
-
-        objectKey,
-
-        fileEntry
-
-    });
+        throw error;
+    }
 
 }
+
+export const getOfflineProjects = async (req, res) => {
+    const mode = req.query.mode === "active" ? "active" : "selected";
+    const requestedIds = String(req.query.projectIds || "")
+        .split(",")
+        .map(value => value.trim())
+        .filter(Boolean);
+    const privileged = ["admin", "manager"].includes(req.user?.role);
+
+    const projects = await prisma.project.findMany({
+        where: {
+            deletedAt: null,
+            ...(privileged ? {} : { status: "active" }),
+            ...(mode === "active"
+                ? { status: "active" }
+                : { id: { in: requestedIds } })
+        },
+        include: {
+            customer: {
+                include: {
+                    addresses: { where: { deletedAt: null } }
+                }
+            },
+            files: {
+                where: { deletedAt: null },
+                select: {
+                    id: true,
+                    projectId: true,
+                    fileName: true,
+                    originalName: true,
+                    mimeType: true,
+                    fileSize: true,
+                    category: true,
+                    status: true,
+                    serverVersion: true,
+                    updatedAt: true
+                }
+            },
+            storage: true,
+            communications: { where: { deletedAt: null } },
+            appointments: { where: { deletedAt: null } },
+            timeEntries: true
+        },
+        orderBy: { title: "asc" }
+    });
+
+    const materials = await prisma.material.findMany({
+        orderBy: { name: "asc" }
+    });
+
+    return res.json({
+        schemaVersion: 1,
+        downloadedAt: new Date().toISOString(),
+        projects,
+        materials
+    });
+};

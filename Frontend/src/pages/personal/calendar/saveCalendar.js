@@ -1,5 +1,7 @@
 import { insertSlot, updateSlot } from "./SlotsCalendar";
 import axios from "axios";
+import { uploadJSONFile } from "../../../services/apiTemplates.js";
+import { uploadGlobalFile } from "../../../services/globalMemoryCache.js";
 
 export async function saveEditedSlot(entry, mode, Cal) {
 
@@ -55,14 +57,13 @@ export async function saveWeek(data, Cal) {
 
     if (!weekStart) return;
 
-    await axios.post(
-    `/api/time/uploadWeek/${Cal.user.id}/${weekStart}`,
-    data,
-    {
-                    withCredentials: true,
-                    headers: {
-                        "Content-Type": "application/json"
-                    }
-                }
-);
+    await uploadGlobalFile({
+        file: `weekData:${Cal.user.id}:${weekStart}`,
+        data,
+        uploadFunction: {
+            upload: uploadJSONFile,
+            path: `/api/time/uploadWeek/${Cal.user.id}/${weekStart}`,
+            sourcePath: `/api/time/downloadWeek/${Cal.user.id}/${weekStart}`
+        }
+    });
 }

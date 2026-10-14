@@ -1,31 +1,12 @@
-import axios from "axios";
 import { parseCadJson } from "./cadParser.project";
+import { getProjectAssetBlob } from "../../../services/projectAssetCache.js";
 
  export async function loadCadFile (file) {
 
     try {
 
-      /*
-      Signed Download URL vom Backend holen
-      */
-
-      const response = await axios.get(
-        `/api/files/download/${file.id}`,
-        {
-          withCredentials: true
-        }
-      );
-
-      const url = response.data.url;
-      /*
-      JSON direkt aus Garage laden
-      */
-
-      const jsonResponse =
-        await fetch(url);
-
-      let raw =
-        await jsonResponse.text();
+      const blob = await getProjectAssetBlob(file);
+      let raw = await blob.text();
 
       /*
       defekten JSON Tail entfernen

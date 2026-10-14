@@ -1,6 +1,6 @@
 import { prepareProjectPartList } from "@Engine/cabinetConfigurator/projectSave.js";
 import { downloadFile, uploadJSONFile } from "../../../../services/apiTemplates.js";
-import { uploadProjectFile } from "../../../../services/projectMemoryCache.js";
+import { getProjectFile, uploadProjectFile } from "../../../../services/projectMemoryCache.js";
 
 export async function saveCabinetProject({
     cabinets,
@@ -11,7 +11,14 @@ export async function saveCabinetProject({
 }) {
     const existingData = overwriteManual
         ? []
-        : await downloadFile(`/api/projects/generated/${projectId}/list`);
+        : await getProjectFile({
+            projectId,
+            file: "list.json",
+            loadFromServer: {
+                download: downloadFile,
+                path: `/api/projects/generated/${projectId}/list`
+            }
+        });
 
     const listToSave = await prepareProjectPartList({
         cabinets,

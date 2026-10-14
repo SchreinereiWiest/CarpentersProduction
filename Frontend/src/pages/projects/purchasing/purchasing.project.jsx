@@ -4,6 +4,7 @@ import { useParams } from "react-router";
 import SideBar from "../../../components/sideBar.jsx";
 import ProjectBar from "../../../components/projectBar.jsx";
 import { downloadFile } from "../../../services/apiTemplates.js";
+import { getProjectFile } from "../../../services/projectMemoryCache.js";
 import {
     buildHardwareItems,
     buildPlateItems,
@@ -27,7 +28,14 @@ const money = new Intl.NumberFormat("de-DE", {
 
 const safeProjectFile = async (projectId, name) => {
     try {
-        return await downloadFile(`/api/projects/generated/${projectId}/${name}`);
+        return await getProjectFile({
+            projectId,
+            file: `${name}.json`,
+            loadFromServer: {
+                download: downloadFile,
+                path: `/api/projects/generated/${projectId}/${name}`
+            }
+        });
     } catch (error) {
         console.warn(`${name}.json konnte nicht geladen werden`, error);
         return null;

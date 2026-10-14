@@ -2,6 +2,8 @@ import { getBlockForEntry } from "./helper";
 import { createCalendarEntry, createWeek } from "./createCalendar";
 import { findInsertSlot, insertSlot } from "./SlotsCalendar";
 import axios from "axios";
+import { downloadFile } from "../../../services/apiTemplates.js";
+import { getGlobalFile } from "../../../services/globalMemoryCache.js";
 
 export async function loadWeek(userId, Cal, weekOffset) {
     if(Cal.user==null && userId==null) return;
@@ -31,54 +33,20 @@ export async function loadWeek(userId, Cal, weekOffset) {
 
         // console.log(userId, dateString);
 
-        try {
-
-                const response = await axios.get(
-
-                    `/api/time/downloadWeek/${userId.id}/${dateString}`,
-
-                    {
-                        withCredentials: true
-                    }
-
-                );
-
-                const {
-
-                    exists,
-
-                    downloadUrl,
-
-                } = response.data;
-
-                // console.log(response.data);
-
-                if (exists) {
-
-                    try {
-                        const fileResponse = await fetch(
-                            downloadUrl
-                        );
-
-                        const data = await fileResponse.json();
-
-
-                        // Cal.setWeekData(data);
-                        return {weekData: data, days: Cal.days};
-
-                        // console.log(data);
-                    } catch (error) {
-                        console.warn("cant fetch data, try new upload", error);
-                        return;
-                    }
-
-                } else {
-                    // Cal.setWeekData(createWeek(Cal));
-                    return {weekData: createWeek(Cal, weekOffset), days: Cal.days};
-                }
-
+    try {
+        const data = await getGlobalFile({
+            file: `weekData:${userId.id}:${dateString}`,
+            loadFromServer: {
+                download: downloadFile,
+                path: `/api/time/downloadWeek/${userId.id}/${dateString}`
+            }
+        });
+        return {
+            weekData: data ?? createWeek(Cal, weekOffset),
+            days: Cal.days
+        };
     } catch(error) {
-        console.log(error);
+        console.warn("Wochendaten konnten nicht geladen werden", error);
     }
     
 }
