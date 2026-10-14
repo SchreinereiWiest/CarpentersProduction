@@ -3,8 +3,13 @@ import { systemPrisma } from "../config/prisma.js";
 import { runWithTenant } from "../context/tenantContext.js";
 import { assertActiveLicense, LicenseError } from "../services/license/index.js";
 
-// token überprüfung middleware
-// wenn kein token erkannt access verweigert
+/**
+ * Gemeinsame Sitzungsprüfung für alle geschützten Endpunkte.
+ *
+ * Der JWT ist nur ein Verweis auf Benutzer und Mandant. Mitgliedschaft, Rolle,
+ * Benutzerstatus, Firmenstatus, authVersion und Lizenz werden bei jedem Request
+ * aus vertrauenswürdigen serverseitigen Quellen neu geprüft.
+ */
 
 async function authenticateRequest(req, res) {
 
@@ -19,11 +24,15 @@ async function authenticateRequest(req, res) {
 
         const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
 
+        // Tokens aus der Zeit vor der Mandantenmigration werden absichtlich
+        // abgelehnt; ein stiller Fallback auf die Entwicklungsfirma wäre unsicher.
         if (!decoded.tenantId) {
             res.status(401).json({ message: "Tenant session is missing" });
             return null;
         }
 
+        // User ist die globale Identität. Rolle und Firmenzugriff stammen immer
+        // aus der konkreten TenantMembership.
         const membership = await systemPrisma.tenantMembership.findUnique({
             where: {
                 tenantId_userId: {
@@ -48,6 +57,8 @@ async function authenticateRequest(req, res) {
             return null;
         }
 
+        // Diese Prüfung nutzt den mandantengetrennten Lizenzcache und verursacht
+        // daher keinen Lizenzserver-Aufruf pro Datenbankabfrage.
         req.license = await assertActiveLicense(membership.tenant);
 
         req.tenant = {
@@ -57,6 +68,8 @@ async function authenticateRequest(req, res) {
             status: membership.tenant.status
         };
 
+        // Nachgelagerte Rollenprüfungen dürfen nur diese Membership-Rolle nutzen,
+        // nicht das historische globale role-Feld des User-Modells.
         req.user = {
             id: user.id,
             email: user.email,
@@ -84,6 +97,8 @@ async function authenticateRequest(req, res) {
 
 export const authenticate = async (req, res, next) => {
     if (!await authenticateRequest(req, res)) return;
+    // Express muss innerhalb des ALS-Kontexts fortgesetzt werden, damit alle im
+    // Controller erzeugten Promises denselben Mandanten erben.
     return runWithTenant({ tenantId: req.tenant.id, userId: req.user.id }, next);
 };
 
@@ -111,6 +126,8 @@ export const authorizeRoles = (...allowedRoles) => (req, res, next) => {
 };
 
 export const requireFeature = feature => (req, res, next) => {
+    // Lizenzfunktionen werden im Backend erzwungen. Ausgeblendete React-Menüs
+    // wären allein kein Schutz vor direkten API-Aufrufen.
     if (!req.license) return res.status(401).json({ message: "Not authenticated" });
     if (!req.license.features.includes(feature)) {
         return res.status(403).json({

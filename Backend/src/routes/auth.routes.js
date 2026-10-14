@@ -14,6 +14,7 @@ const router = express.Router();
 // authenticate middleware für reauthorization
 
 router.post("/login", login);
+
 router.post("/logout", authenticate, logout);
 
 router.get("/users", authenticate, authorizeRoles("admin", "manager"), getAllUsers);

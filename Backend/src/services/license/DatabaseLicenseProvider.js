@@ -10,6 +10,11 @@ const normalizeName = (value) =>
 const hashKey = (value) =>
   crypto.createHash("sha256").update(value).digest("hex");
 
+/**
+ * Erzeugt die API-Darstellung ohne Zertifikat oder vollständigen Schlüssel.
+ * Signierte Claims haben Vorrang vor DB-Spalten, damit manipulierte lokale
+ * Metadaten keine zusätzlichen Features oder Laufzeiten freischalten können.
+ */
 function publicLicense(record, payload = null) {
   const validUntil = payload?.exp
     ? new Date(payload.exp * 1000)
@@ -38,6 +43,13 @@ function publicLicense(record, payload = null) {
 }
 
 export class DatabaseLicenseProvider extends LicenseProvider {
+  /**
+   * Prüft ein bereits aktiviertes Zertifikat vollständig lokal.
+   *
+   * `ignoreExpiration` betrifft nur die kryptografische Verifikation: Ein
+   * abgelaufenes, aber echt signiertes Zertifikat soll als `expired` angezeigt
+   * werden können. `assertActiveLicense` verweigert anschließend den Zugriff.
+   */
   async getLicense(tenant) {
     const record = await systemPrisma.tenantLicense.findUnique({
       where: { tenantId: tenant.id }
@@ -50,6 +62,7 @@ export class DatabaseLicenseProvider extends LicenseProvider {
       );
     }
 
+    // In .env-Dateien liegen PEM-Zeilenumbrüche häufig escaped als "\n" vor.
     const publicKey = process.env.LICENSE_PUBLIC_KEY?.replaceAll("\\n", "\n");
     if (!publicKey) {
       throw new LicenseError(
@@ -72,6 +85,9 @@ export class DatabaseLicenseProvider extends LicenseProvider {
       );
     }
 
+    // Mandant, Firmenname und Lizenz-ID sind signiert. Damit kann dasselbe
+    // Zertifikat weder kopiert noch nach einer Firmenumbenennung still weiter
+    // verwendet werden.
     if (
       payload.tenantId !== tenant.id ||
       normalizeName(payload.companyName) !== normalizeName(tenant.name) ||
@@ -96,6 +112,8 @@ export class DatabaseLicenseProvider extends LicenseProvider {
       );
     }
 
+    // Bei der Aktivierung gilt die normale Ablaufprüfung von jsonwebtoken;
+    // bereits abgelaufene Schlüssel werden nicht erst gespeichert.
     let payload;
     try {
       payload = jwt.verify(licenseKey, publicKey, { algorithms: ["RS256"] });
@@ -127,6 +145,8 @@ export class DatabaseLicenseProvider extends LicenseProvider {
       );
     }
 
+    // Das Originalzertifikat wird für spätere Offline-Prüfungen gespeichert.
+    // Der Hash dient nur einer gefahrlosen, gekürzten Anzeige im Frontend.
     const data = {
       licenseId: String(payload.licenseId),
       companyName: tenant.name,

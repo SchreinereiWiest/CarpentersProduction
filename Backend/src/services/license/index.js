@@ -3,8 +3,13 @@ import { DevelopmentLicenseProvider } from "./DevelopmentLicenseProvider.js";
 import { LicenseError } from "./LicenseProvider.js";
 
 const CACHE_TTL_MS = Number(process.env.LICENSE_CACHE_TTL_MS) || 5 * 60 * 1000;
+
+// Der Cache verhindert, dass eine spätere externe Lizenzquelle bei jeder
+// normalen API-Abfrage kontaktiert wird. Er ist pro Mandant getrennt und kurz
+// genug, damit Sperrungen zeitnah wirksam werden.
 const cache = new Map();
 
+/** Wählt die Lizenzquelle ausschließlich an dieser zentralen Stelle aus. */
 function configuredProvider() {
   const name =
     process.env.LICENSE_PROVIDER ??
@@ -15,6 +20,8 @@ function configuredProvider() {
   throw new Error(`Unsupported LICENSE_PROVIDER: ${name}`);
 }
 
+// Lazy-Initialisierung ist wichtig, weil dotenv bei manchen CLI-Einstiegen erst
+// nach dem Laden der ES-Module konfiguriert wird.
 let provider;
 const getProvider = () => (provider ??= configuredProvider());
 
@@ -47,6 +54,7 @@ export async function hasFeature(tenant, feature) {
 
 export async function activateLicense(tenant, licenseKey) {
   const license = await getProvider().activateLicense(tenant, licenseKey);
+  // Nach einer Aktivierung darf kein alter Status bis zum TTL-Ablauf bleiben.
   cache.delete(tenant.id);
   return license;
 }

@@ -10,12 +10,14 @@ import { issueCsrfToken } from "../middleware/csrf.middleware.js";
 import { comparePassword } from "../utils/passwords.js";
 import { assertActiveLicense } from "../services/license/index.js";
 
-// User login
-// Überprüfung der credentials und Erstellung eines JWT-Tokens, das im Cookie gespeichert wird
+/**
+ * Firmengebundener Login.
+ * Firma, Benutzer und Passwort bilden gemeinsam die Zugangsdaten; erst nach
+ * Membership- und Lizenzprüfung wird das HttpOnly-Sitzungscookie ausgestellt.
+ */
 
 export const login = async (req, res) => {
   try {
-    //check login
     const { company, login, password } = req.body;
 
     if (!company || !login || !password) {
@@ -24,6 +26,8 @@ export const login = async (req, res) => {
         .json({ error: "Firma, Benutzer und Passwort sind erforderlich" });
     }
 
+    // Name und Slug sind zulässig: Name ist benutzerfreundlich und an die Lizenz
+    // gebunden, der Slug bleibt eine stabile technische Login-Alternative.
     const companyInput = String(company).trim();
     const tenant = await systemPrisma.tenant.findFirst({
       where: {
@@ -39,6 +43,8 @@ export const login = async (req, res) => {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
+    // Einheitliche Fehlerantworten verhindern die Enumeration vorhandener
+    // Unternehmen, Benutzernamen und Mitgliedschaften.
     const user = await systemPrisma.user.findUnique({
       where: {
         login: login
@@ -59,6 +65,8 @@ export const login = async (req, res) => {
       });
     }
 
+    // Ein gültiges globales Konto erhält nur Zugriff, wenn es genau diesem
+    // Mandanten aktiv zugeordnet ist.
     const membership = await systemPrisma.tenantMembership.findUnique({
       where: { tenantId_userId: { tenantId: tenant.id, userId: user.id } }
     });
@@ -67,11 +75,12 @@ export const login = async (req, res) => {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
+    // Ohne aktive, zum Firmennamen passende Lizenz wird keine Sitzung erzeugt.
     const license = await assertActiveLicense(tenant);
 
-    //wenn user found und password valid, dann token erstellen und im cookie speichern
-
-    //create cookie and sign
+    // tenantId und authVersion binden die Sitzung an Firma und Kontostand. Die
+    // Rolle wird serverseitig trotzdem bei jedem Request neu aus der Membership
+    // gelesen und nicht blind aus dem Token übernommen.
     const token = jwt.sign(
       {
         id: user.id,
@@ -110,6 +119,8 @@ export const login = async (req, res) => {
 
 export const logout = async (req, res) => {
   try {
+    // Cookie-Löschen beendet nur diesen Browser. Die authVersion widerruft auch
+    // kopierte oder auf anderen Geräten noch vorhandene Tokens dieses Kontos.
     await systemPrisma.user.update({
       where: { id: req.user.id },
       data: { authVersion: { increment: 1 } }
@@ -126,6 +137,8 @@ export const logout = async (req, res) => {
 
 export const getAllUsers = async (req, res) => {
   try {
+    // Die Benutzerliste wird über die Membership gefiltert. Ein globales
+    // user.findMany würde Identitäten anderer Unternehmen sichtbar machen.
     const memberships = await systemPrisma.tenantMembership.findMany({
       where: { tenantId: req.tenant.id, isActive: true },
       include: { user: true },
