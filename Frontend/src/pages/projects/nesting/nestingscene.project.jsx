@@ -222,7 +222,7 @@ export default function NestingScene({
                 fontSize={90}
                 anchorX="left"
                 anchorY="middle"
-                color="#d1d5db"
+                color="#d2d6dd"
             >
                 {is2DNesting ? "Leerer Bauteil-Pool" : "Leerer Strip Pool"}
             </Text>

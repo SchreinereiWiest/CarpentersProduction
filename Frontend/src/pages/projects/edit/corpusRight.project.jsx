@@ -1,11 +1,6 @@
-import { useState, useEffect } from 'react'
-import { setCurrentStack } from "three/src/nodes/tsl/TSLCore.js";
-import axios from 'axios';
+import { useState } from 'react'
 import { useNavigate } from 'react-router';
-import { useParams } from 'react-router';
 
-import { corpusPresets, platePresets } from "./helper";
-import { useCorpus } from "./useProjectEditor";
 import { ProjectSave } from './uploadProject';
 import CustomerSearch from './customerSearch.project';
 
@@ -15,47 +10,42 @@ export default function CorpusRight({EditorState, mode, id, incomingCabinets, nC
     const [projectDescription, setProjectDescription] = useState("");
     const [files, setFiles] = useState([]);
     const [selectedCustomer, setSelectedCustomer] = useState(nCustomer);
+    const [renamingCorpusId, setRenamingCorpusId] = useState(null);
+    const [corpusName, setCorpusName] = useState("");
     
     const navigate = useNavigate();
 
 const {
     corpuses,
-    setCorpuses,
     activeCorpus,
     setActiveCorpus,
     activePlate,
     setActivePlate,
-    selectedQuantity,
     setSelectedQuantity,
-    selectedWidth,
     setSelectedWidth,
-    selectedHeigth,
     setSelectedHeigth,
-    selectedDepth,
     setSelectedDepth,
-    selectedName,
     setSelectedName,
-    selectedPreset,
     setSelectedPreset,
     KorpusMaterialId,
     setKorpusMaterialId,
-    EdgeMaterialId,
-    setEdgeMaterialId,
     materials,
-    setMaterials,
-    loading,
-    setLoading,
-    error,
-    setError,
-    selectedEdges,
     setSelectedEdges,
-    createCorpus,
-    updateInput,
     addChildPlate,
-    updateChildMaterial,
-    updateChildren,
-    deleteCorpus
+    deleteCorpus,
+    renameCorpus
 } = EditorState;
+
+const isRenamingCorpus = renamingCorpusId === activeCorpus?.id;
+
+const submitCorpusName = () => {
+    if (!activeCorpus || !renameCorpus(activeCorpus.id, corpusName)) {
+        return;
+    }
+
+    setRenamingCorpusId(null);
+};
+
 return <>
     {/* =======================================
     Rechte Seite
@@ -195,12 +185,75 @@ setProjectName(e.target.value)
 
         </div>
 
-        <div className={activeCorpus ? ` border-t border-gray-700 p-5 ` : <>
-</>}>
+        <div>
 
 {activeCorpus?.type === "KO" && (
-    <div className="border-t border-gray-700 p-5">
+    <div className="space-y-3 border-t border-gray-700 p-5">
+        {isRenamingCorpus ? (
+            <div className="space-y-2">
+                <label htmlFor="corpus-name" className="block text-sm text-gray-300">
+                    Neuer Name
+                </label>
+                <input
+                    id="corpus-name"
+                    autoFocus
+                    type="text"
+                    value={corpusName}
+                    onChange={(e) => setCorpusName(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                            e.preventDefault();
+                            submitCorpusName();
+                        }
+
+                        if (e.key === "Escape") {
+                            setCorpusName(activeCorpus.name ?? "");
+                            setRenamingCorpusId(null);
+                        }
+                    }}
+                    className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
+                />
+                <div className="grid grid-cols-2 gap-2">
+                    <button
+                        type="button"
+                        className="rounded-lg bg-gray-600 py-2 font-semibold hover:bg-gray-500"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setCorpusName(activeCorpus.name ?? "");
+                            setRenamingCorpusId(null);
+                        }}
+                    >
+                        Abbrechen
+                    </button>
+                    <button
+                        type="button"
+                        disabled={!corpusName.trim()}
+                        className="rounded-lg bg-blue-600 py-2 font-semibold hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            submitCorpusName();
+                        }}
+                    >
+                        Speichern
+                    </button>
+                </div>
+            </div>
+        ) : (
+            <button
+                type="button"
+                className="w-full rounded-lg bg-blue-600 py-3 font-semibold hover:bg-blue-500"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    setCorpusName(activeCorpus.name ?? "");
+                    setRenamingCorpusId(activeCorpus.id);
+                }}
+            >
+                Gruppe / Korpus umbenennen
+            </button>
+        )}
+
         <button
+            type="button"
             className="w-full rounded-lg bg-red-600 py-3 font-semibold hover:bg-red-500"
             onClick={(e) => {
                 e.stopPropagation();

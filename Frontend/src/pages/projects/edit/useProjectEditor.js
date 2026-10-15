@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
 export function useCorpus() {
     const [corpuses, setCorpuses] = useState([]);
@@ -39,6 +39,30 @@ export function useCorpus() {
         }
 
     }   
+
+    function renameCorpus(corpusId, name) {
+        const trimmedName = name.trim();
+
+        if (!trimmedName) {
+            return false;
+        }
+
+        setCorpuses(prev =>
+            prev.map(corpus =>
+                corpus.id === corpusId
+                    ? { ...corpus, name: trimmedName, manual: true }
+                    : corpus
+            )
+        );
+
+        setActiveCorpus(prev =>
+            prev?.id === corpusId
+                ? { ...prev, name: trimmedName, manual: true }
+                : prev
+        );
+
+        return true;
+    }
 
 function createCorpus(override = null, type = "KO") {
 
@@ -750,7 +774,8 @@ return {
     addChildPlate,
     updateChildMaterial,
     updateChildren,
-    deleteCorpus
+    deleteCorpus,
+    renameCorpus
 
 };
 }

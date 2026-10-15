@@ -38,6 +38,7 @@ function StripItemObject({
     itemLayout,
     layoutType,
     stripRotation = 0,
+    stripOriginalIndex,
     itemIndex,
     onSelectPart,
     selectedPartKey,
@@ -69,6 +70,7 @@ function StripItemObject({
         onSelectPart?.({
             key: partKey,
             stripId: strip.id,
+            stripOriginalIndex,
             plate,
             width,
             height
@@ -176,6 +178,7 @@ export default function CutScene({ stack, onSelectPart, selectedPartKey, finishe
                                     itemLayout={itemLayout}
                                     layoutType={layout.layoutType}
                                     stripRotation={layout.rotation}
+                                    stripOriginalIndex={originalIndex}
                                     itemIndex={itemIndex}
                                     onSelectPart={onSelectPart}
                                     selectedPartKey={selectedPartKey}

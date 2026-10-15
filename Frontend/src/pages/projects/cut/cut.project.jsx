@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
+import axios from "axios";
 import { useParams } from "react-router";
 import SideBar from "../../../components/sideBar.jsx";
 import ProjectBar from "../../../components/projectBar.jsx";
@@ -8,6 +9,8 @@ import { getProjectFile, uploadProjectFile } from "../../../services/projectMemo
 import { downloadFile, uploadJSONFile } from "../../../services/apiTemplates.js";
 import CutScene from "./cutScene.project.jsx";
 import { getStripLayout } from "../nesting/algorythm/placement/manualStripPlacement.js";
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function PanControls({ controlsRef, onBackgroundClick }) {
     const { camera, gl } = useThree();
@@ -231,7 +234,33 @@ function CutingView() {
     const [finishedPartKeys, setFinishedPartKeys] = useState(() => new Set());
     const [savingFinishedPart, setSavingFinishedPart] = useState(false);
     const [finishedSaveError, setFinishedSaveError] = useState("");
+    const [materialCatalog, setMaterialCatalog] = useState(null);
+    const [materialLoadError, setMaterialLoadError] = useState("");
     const orbitControlsRef = useRef(null);
+
+    useEffect(() => {
+        const controller = new AbortController();
+
+        const loadMaterials = async () => {
+            setMaterialLoadError("");
+            try {
+                const response = await axios.get("/api/materials/get", {
+                    signal: controller.signal
+                });
+                setMaterialCatalog(
+                    Array.isArray(response.data?.materials) ? response.data.materials : []
+                );
+            } catch (error) {
+                if (error.code === "ERR_CANCELED") return;
+                console.error("Materialien konnten nicht geladen werden", error);
+                setMaterialCatalog([]);
+                setMaterialLoadError("Kantenmaterialien konnten nicht geladen werden.");
+            }
+        };
+
+        loadMaterials();
+        return () => controller.abort();
+    }, []);
 
     useEffect(() => {
         if (!projectId) return undefined;
@@ -282,6 +311,49 @@ function CutingView() {
     const isDirect2DNesting = activeStack?.strips.some(
         ({ strip }) => strip.packingMode === "2d"
     ) ?? false;
+    const selectedStripEntry = useMemo(() => {
+        if (!activeStack || !selectedPart) return null;
+
+        return activeStack.strips.find(({ strip, originalIndex }) => (
+            selectedPart.stripOriginalIndex != null
+                ? originalIndex === selectedPart.stripOriginalIndex
+                : strip.id === selectedPart.stripId
+        )) ?? null;
+    }, [activeStack, selectedPart]);
+    const materialsByReference = useMemo(() => {
+        const references = new Map();
+        (materialCatalog ?? []).forEach((material) => {
+            if (material.id) references.set(String(material.id), material);
+            if (material.materialNumber) {
+                references.set(String(material.materialNumber), material);
+            }
+        });
+        return references;
+    }, [materialCatalog]);
+
+    const getEdgeMaterialNumber = (reference) => {
+        if (!reference) return "–";
+
+        const normalizedReference = String(reference);
+        const material = materialsByReference.get(normalizedReference);
+        if (material) return material.materialNumber || material.name || "–";
+        if (materialCatalog === null) return "Wird geladen …";
+        return UUID_PATTERN.test(normalizedReference) ? "Material nicht gefunden" : normalizedReference;
+    };
+
+    const selectStripPart = (stripEntry, itemLayout, itemIndex) => {
+        const { strip, originalIndex } = stripEntry;
+        const { plate, width, height } = itemLayout;
+
+        setSelectedPart({
+            key: `${strip.id}-${plate.id ?? itemIndex}-${itemIndex}`,
+            stripId: strip.id,
+            stripOriginalIndex: originalIndex,
+            plate,
+            width,
+            height
+        });
+    };
 
     const changeSheet = (index) => {
         setActiveSheetIndex(index);
@@ -369,7 +441,7 @@ function CutingView() {
                         </div>
                     </div>
 
-                    <div className="absolute top-17 xl:top-24 right-2 xl:right-4 z-20">
+                    <div className="absolute top-17 xl:top-24 right-2 xl:right-4 z-20 flex w-[min(24rem,calc(100%-1rem))] flex-col gap-2 xl:gap-3">
                         <div className="flex items-center gap-1 xl:gap-3 bg-gray-800/90 backdrop-blur border border-gray-700 rounded-lg px-2 xl:px-4 py-1 xl:py-3 shadow-lg">
                             <span className="rounded-lg border border-gray-700 bg-gray-900 px-2 xl:px-4 py-1 xl:py-2 whitespace-nowrap text-gray-400 text-xs xl:text-sm">
                                 Stapel {stacks.length ? activeStackIndex + 1 : 0} | {stacks.length}
@@ -388,6 +460,65 @@ function CutingView() {
                             >
                                 Next
                             </button>
+                        </div>
+
+                        <div className="max-h-[calc(100vh-13rem)] overflow-y-auto rounded-lg border border-gray-700 bg-gray-800/90 px-2 py-2 shadow-lg backdrop-blur xl:px-4 xl:py-3">
+                            <div className="text-xs text-gray-400">Bauteile im Strip</div>
+                            {selectedStripEntry ? (
+                                <>
+                                    <div className="mt-1 text-sm font-semibold text-white xl:text-base">
+                                        {selectedStripEntry.layout.items.length} Bauteile
+                                    </div>
+                                    <div className="mt-3 space-y-2">
+                                        {selectedStripEntry.layout.items.map((itemLayout, itemIndex) => {
+                                            const plate = itemLayout.plate;
+                                            const origin = plate.original?.Herkunftsobjekt ?? plate.Herkunftsobjekt;
+                                            const partKey = `${selectedStripEntry.strip.id}-${plate.id ?? itemIndex}-${itemIndex}`;
+                                            const isSelected = selectedPart?.key === partKey;
+                                            const isFinished = finishedPartKeys.has(partKey);
+
+                                            return (
+                                                <button
+                                                    key={partKey}
+                                                    type="button"
+                                                    onClick={() => selectStripPart(selectedStripEntry, itemLayout, itemIndex)}
+                                                    className={`w-full rounded-lg border px-3 py-2 text-left transition ${isSelected
+                                                        ? "border-blue-500 bg-blue-600/30"
+                                                        : "border-gray-700 bg-gray-900 hover:border-gray-600 hover:bg-gray-700"
+                                                        }`}
+                                                >
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div className="min-w-0">
+                                                            <div className="text-sm font-medium text-white">
+                                                                <span>
+                                                                    {plate.original?.Objektname ?? plate.Objektname ?? `Bauteil ${itemIndex + 1}`}
+                                                                </span>
+                                                                {origin && (
+                                                                    <span className="ml-2 text-xs font-normal text-gray-400">
+                                                                        ({origin})
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <div className="mt-0.5 text-xs text-gray-400">
+                                                                {itemLayout.width} × {itemLayout.height} mm
+                                                            </div>
+                                                        </div>
+                                                        {isFinished && (
+                                                            <span className="shrink-0 rounded bg-emerald-900/70 px-2 py-0.5 text-[11px] text-emerald-300">
+                                                                Fertig
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="mt-2 text-sm text-gray-400">
+                                    Bauteil anklicken, um alle Bauteile des zugehörigen Strips anzuzeigen.
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -421,11 +552,16 @@ function CutingView() {
                                                     </div>
                                                 )}
                                                 <div className="text-xs text-gray-400 mt-2 space-y-1">
-                                                    <div>Kante Oben: {selectedPart.plate.EdgeT || "–"}</div>
-                                                    <div>Kante Rechts: {selectedPart.plate.EdgeR || "–"}</div>
-                                                    <div>Kante Links: {selectedPart.plate.EdgeL || "–"}</div>
-                                                    <div>Kante Unten: {selectedPart.plate.EdgeB || "–"}</div>
+                                                    <div>Kante Oben: {getEdgeMaterialNumber(selectedPart.plate.EdgeT)}</div>
+                                                    <div>Kante Rechts: {getEdgeMaterialNumber(selectedPart.plate.EdgeR)}</div>
+                                                    <div>Kante Links: {getEdgeMaterialNumber(selectedPart.plate.EdgeL)}</div>
+                                                    <div>Kante Unten: {getEdgeMaterialNumber(selectedPart.plate.EdgeB)}</div>
                                                 </div>
+                                                {materialLoadError && (
+                                                    <div className="mt-2 text-xs text-amber-300">
+                                                        {materialLoadError}
+                                                    </div>
+                                                )}
                                                 {finishedSaveError && (
                                                     <div className="mt-2 text-xs text-red-300">
                                                         {finishedSaveError}
