@@ -131,29 +131,6 @@ export default function SectionFunctionProperties({
 
     /*
      * ------------------------------------------------------------
-     * FunctionType für Legacy-Kompatibilität
-     * ------------------------------------------------------------
-     *
-     * none     = keine Funktion
-     * shelf    = genau eine Funktion
-     * multiple = mehrere Funktionen
-     */
-    const getSectionFunctionType = (functionList) => {
-
-        if (functionList.length === 0) {
-            return "none";
-        }
-
-        if (functionList.length === 1) {
-            return functionList[0].type;
-        }
-
-        return "multiple";
-    };
-
-
-    /*
-     * ------------------------------------------------------------
      * Neue Funktion erstellen
      * ------------------------------------------------------------
      */
@@ -266,9 +243,6 @@ export default function SectionFunctionProperties({
         ];
 
         updateSection({
-            functionType:
-                getSectionFunctionType(newFunctions),
-
             functionConfig:
                 newFunctions
         });
@@ -293,9 +267,6 @@ export default function SectionFunctionProperties({
         );
 
         updateSection({
-            functionType:
-                getSectionFunctionType(newFunctions),
-
             functionConfig:
                 newFunctions
         });
@@ -328,9 +299,6 @@ export default function SectionFunctionProperties({
         });
 
         updateSection({
-            functionType:
-                getSectionFunctionType(newFunctions),
-
             functionConfig:
                 newFunctions
         });

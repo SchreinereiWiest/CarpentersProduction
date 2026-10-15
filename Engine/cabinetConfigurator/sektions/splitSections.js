@@ -153,6 +153,8 @@ export const splitSection = (
                             ? numericSize
                             : section.height,
 
+                    functionConfig: [],
+
 
                     /*
                      * Jede neue Section

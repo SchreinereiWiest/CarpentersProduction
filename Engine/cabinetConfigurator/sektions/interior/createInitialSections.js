@@ -77,6 +77,8 @@ export const createInitialSections = (
                         : activeCabinet.height -
                           activeCabinet.thickness * 2,
 
+                functionConfig: [],
+
                 children: []
 
             };

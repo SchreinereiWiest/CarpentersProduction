@@ -9,67 +9,10 @@ const childrenOf = node =>
         : [];
 
 
-const inferDirection = nodes => {
-    if (nodes.length < 2) {
-        return "vertical";
-    }
-
-    return Number(nodes[0]?.x) !== Number(nodes[1]?.x)
-        ? "horizontal"
-        : "vertical";
-};
-
-
-const inferLayout = (
-    nodes,
-    preferredLayout,
-    fallbackLayout
-) => {
-    const candidates = [
-        preferredLayout,
-        fallbackLayout
-    ];
-
-    for (const candidate of candidates) {
-        if (
-            candidate?.spec &&
-            candidate?.direction &&
-            String(candidate.spec)
-                .split(":")
-                .filter(Boolean)
-                .length === nodes.length
-        ) {
-            return candidate;
-        }
-    }
-
-    const direction =
-        preferredLayout?.direction ??
-        fallbackLayout?.direction ??
-        inferDirection(nodes);
-
-    return {
-        direction,
-        spec: nodes
-            .map(node =>
-                direction === "vertical"
-                    ? Number(node.height) || 1
-                    : Number(node.width) || 1
-            )
-            .join(":"),
-        gap:
-            preferredLayout?.gap ??
-            fallbackLayout?.gap ??
-            0
-    };
-};
-
-
 const reflowNodes = ({
     nodes,
     bounds,
     layout,
-    fallbackLayout,
     kind,
     defaultGap
 }) => {
@@ -77,15 +20,12 @@ const reflowNodes = ({
         return [];
     }
 
-    const resolvedLayout =
-        inferLayout(
-            nodes,
-            layout,
-            fallbackLayout
-        );
+    if (!layout?.spec || !layout?.direction) {
+        return nodes;
+    }
 
     const direction =
-        resolvedLayout.direction === "horizontal"
+        layout.direction === "horizontal"
             ? "horizontal"
             : "vertical";
 
@@ -94,14 +34,14 @@ const reflowNodes = ({
             ? Math.max(
                 0,
                 Number(
-                    resolvedLayout.gap ??
+                    layout.gap ??
                     defaultGap ??
                     0
                 ) || 0
             )
             : Math.max(
                 0,
-                Number(resolvedLayout.gap ?? 0) || 0
+                Number(layout.gap ?? 0) || 0
             );
 
     const totalSize =
@@ -112,7 +52,7 @@ const reflowNodes = ({
     const sizes =
         calculateSplitSizes(
             totalSize,
-            resolvedLayout.spec,
+            layout.spec,
             gap,
             kind === "front"
         );
@@ -180,8 +120,7 @@ const reflowNodes = ({
 const reflowFronts = (
     fronts,
     cabinet,
-    layout,
-    fallbackLayout
+    layout
 ) => {
     const gapLeft =
         Math.max(0, Number(cabinet.frontGapLeft ?? 0) || 0);
@@ -210,7 +149,6 @@ const reflowFronts = (
             ...layout,
             gap: cabinet.frontGap ?? 3
         },
-        fallbackLayout,
         kind: "front",
         defaultGap: cabinet.frontGap ?? 3
     });
@@ -220,8 +158,7 @@ const reflowFronts = (
 const reflowSections = (
     sections,
     cabinet,
-    layout,
-    fallbackLayout
+    layout
 ) => {
     const area = getAvailableCabinetArea(cabinet);
 
@@ -238,21 +175,13 @@ const reflowSections = (
             height: area.height
         },
         layout,
-        fallbackLayout,
         kind: "section"
     });
 };
 
 
-const sectionsComeFromFronts = (
-    sections,
-    layout
-) =>
-    layout?.source === "fronts" ||
-    (
-        sections.length > 0 &&
-        sections.every(section => section?.frontId != null)
-    );
+const sectionsComeFromFronts = layout =>
+    layout?.source === "fronts";
 
 
 const mergeGeneratedSections = (
@@ -319,6 +248,7 @@ const mergeGeneratedSections = (
                 ...section,
                 id,
                 parentId,
+                functionConfig: previous.functionConfig,
                 children
             };
         });
@@ -329,11 +259,7 @@ const mergeGeneratedSections = (
 
 export const resizeCabinetContents = (
     cabinet,
-    changes,
-    {
-        fallbackSectionLayout,
-        fallbackFrontLayout
-    } = {}
+    changes
 ) => {
     const resizedCabinet = {
         ...cabinet,
@@ -345,13 +271,17 @@ export const resizeCabinetContents = (
             ? cabinet.fronts
             : [];
 
+    let frontsWereReflowed = false;
+
     if (previousFronts.length > 0) {
         resizedCabinet.fronts = reflowFronts(
             previousFronts,
             resizedCabinet,
-            cabinet.frontLayout,
-            fallbackFrontLayout
+            cabinet.frontLayout
         );
+
+        frontsWereReflowed =
+            resizedCabinet.fronts !== previousFronts;
     }
 
     const previousSections =
@@ -365,11 +295,15 @@ export const resizeCabinetContents = (
 
     if (
         sectionsComeFromFronts(
-            previousSections,
             cabinet.sectionLayout
         ) &&
         resizedCabinet.fronts?.length > 0
     ) {
+        if (!frontsWereReflowed) {
+            resizedCabinet.sections = previousSections;
+            return resizedCabinet;
+        }
+
         const generatedSections =
             frontsToSections(
                 resizedCabinet.fronts,
@@ -390,8 +324,7 @@ export const resizeCabinetContents = (
     resizedCabinet.sections = reflowSections(
         previousSections,
         resizedCabinet,
-        cabinet.sectionLayout,
-        fallbackSectionLayout
+        cabinet.sectionLayout
     );
 
     return resizedCabinet;

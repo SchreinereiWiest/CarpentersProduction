@@ -25,6 +25,7 @@ describe('shared Engine helpers', () => {
             y: 19,
             width: 562,
             height: 682,
+            functionConfig: [],
             children: []
         });
     });
@@ -124,5 +125,40 @@ describe('shared Engine helpers', () => {
             sections: [],
             fronts: []
         });
+    });
+
+    it('preserves functions when front-derived sections are regenerated at small sizes', () => {
+        const functionConfig = [{ id: 'shelf-1', type: 'shelf' }];
+        const cabinet = {
+            width: 600,
+            height: 1000,
+            thickness: 0,
+            frontGap: 0,
+            frontLayout: {
+                spec: '1:300mm',
+                direction: 'vertical'
+            },
+            sectionLayout: {
+                source: 'fronts'
+            },
+            fronts: [
+                { id: 'front-1', x: 0, y: 0, width: 600, height: 700, children: [] },
+                { id: 'front-2', x: 0, y: 700, width: 600, height: 300, children: [] }
+            ],
+            sections: [
+                { id: 'section-1', frontId: 'front-1', x: 0, y: 0, width: 600, height: 700, functionConfig, children: [] },
+                { id: 'section-2', frontId: 'front-2', x: 0, y: 700, width: 600, height: 300, functionConfig: [], children: [] }
+            ]
+        };
+
+        const invalidSize = resizeCabinetContents(cabinet, { height: 200 });
+        const smaller = resizeCabinetContents(invalidSize, { height: 500 });
+        const larger = resizeCabinetContents(smaller, { height: 1500 });
+
+        expect(invalidSize.sections).toHaveLength(2);
+        expect(invalidSize.sections[0].functionConfig).toBe(functionConfig);
+        expect(smaller.sections[0].functionConfig).toBe(functionConfig);
+        expect(larger.sections[0].functionConfig).toBe(functionConfig);
+        expect(larger.sections[0].id).toBe('section-1');
     });
 });

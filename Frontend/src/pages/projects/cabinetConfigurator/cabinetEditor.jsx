@@ -153,17 +153,7 @@ export default function CabinetEditor() {
 
                     return resizeCabinetContents(
                         cabinet,
-                        changes,
-                        {
-                            fallbackSectionLayout: {
-                                spec: sectionSplitSpec,
-                                direction: sectionSplitDirection
-                            },
-                            fallbackFrontLayout: {
-                                spec: frontSplitSpec,
-                                direction: frontSplitDirection
-                            }
-                        }
+                        changes
                     );
 
                 }
@@ -261,17 +251,7 @@ export default function CabinetEditor() {
                 ) {
                     return resizeCabinetContents(
                         cabinet,
-                        changes,
-                        {
-                            fallbackSectionLayout: {
-                                spec: sectionSplitSpec,
-                                direction: sectionSplitDirection
-                            },
-                            fallbackFrontLayout: {
-                                spec: frontSplitSpec,
-                                direction: frontSplitDirection
-                            }
-                        }
+                        changes
                     );
                 }
 
@@ -632,29 +612,18 @@ export default function CabinetEditor() {
                     })
                 ]);
 
-
-                const legacyPresets = Array.isArray(data?.presets)
-                    ? data.presets
-                    : null;
-
                 // Datei existiert bereits
                 if (data) {
-                    const cabinetDefaults = { ...data };
-                    delete cabinetDefaults.presets;
                     setDefaultCabinet(prev => ({
                         ...prev,
-                        ...cabinetDefaults
+                        ...data
                     }));
                 }
 
                 setCabinetPresets(
                     Array.isArray(presetData)
                         ? presetData
-                        : Array.isArray(presetData?.presets)
-                            ? presetData.presets
-                            : legacyPresets
-                                ? legacyPresets
-                                : []
+                        : []
                 );
 
             } catch (error) {

@@ -427,6 +427,8 @@ if (!isLast) {
                         height:
                             sectionHeight,
 
+                        functionConfig: [],
+
                         children: []
                     };
 
@@ -630,6 +632,8 @@ if (!isLast) {
                         sectionWidth,
 
                     height,
+
+                    functionConfig: [],
 
                     children: []
                 };

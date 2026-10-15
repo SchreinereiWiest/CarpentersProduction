@@ -3,21 +3,8 @@ import { flattenSections } from "../flattenSections.js";
 import { getDefaultDrawerDepth, getLegraboxBackHeight } from "../../../cnc/legraboxDimensions.js";
 
 const getLegraboxFunctions = (section) => {
-    if (Array.isArray(section.functionConfig)) {
-        return section.functionConfig.filter(func => func.type === "legrabox");
-    }
-
-    const config = section.functionConfig ?? {};
-
-    if (Array.isArray(config.legraboxes)) {
-        return config.legraboxes;
-    }
-
-    if (section.functionType === "legrabox") {
-        return [config];
-    }
-
-    return [];
+    return (section.functionConfig ?? [])
+        .filter(func => func.type === "legrabox");
 };
 
 export const generateLegraboxParts = ({

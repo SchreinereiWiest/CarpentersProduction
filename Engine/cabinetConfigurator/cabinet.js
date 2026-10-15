@@ -75,8 +75,7 @@ export function createAvailableSection(cabinet) {
         y: sectionTop,
         width: width - 2 * thickness,
         height: sectionHeight,
-        functionType: "none",
-        functionConfig: {},
+        functionConfig: [],
         children: []
     };
 }

@@ -16,14 +16,8 @@ export const generateLegraboxHardware = (
     sections.forEach(
         section => {
 
-            const config = section.functionConfig ?? {};
-            const boxes = Array.isArray(section.functionConfig)
-                ? section.functionConfig.filter(func => func.type === "legrabox")
-                : Array.isArray(config.legraboxes)
-                    ? config.legraboxes
-                    : section.functionType === "legrabox"
-                        ? [config]
-                        : [];
+            const boxes = (section.functionConfig ?? [])
+                .filter(func => func.type === "legrabox");
 
 
             boxes.forEach(
