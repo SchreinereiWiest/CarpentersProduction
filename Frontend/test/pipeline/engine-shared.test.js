@@ -4,6 +4,7 @@ import {
     createAvailableSection
 } from '@Engine/cabinetConfigurator/cabinet.js';
 import { getMiddleWallCenter } from '@Engine/cabinetConfigurator/geometry/middleWall.js';
+import { resizeCabinetContents } from '@Engine/cabinetConfigurator/geometry/resizeCabinetContents.js';
 import {
     findTreeNode,
     findTreeParent,
@@ -56,5 +57,72 @@ describe('shared Engine helpers', () => {
             section: { x: 40, width: 300 },
             cabinet: { width: 600 }
         })).toBe(320);
+    });
+
+    it('reflows existing sections and fronts on resize while preserving section functions', () => {
+        const functionConfig = [{ id: 'function-1', type: 'middleWall' }];
+        const cabinet = {
+            width: 600,
+            height: 1000,
+            thickness: 0,
+            frontGap: 0,
+            sectionLayout: {
+                source: 'split',
+                spec: '1:300mm:300mm',
+                direction: 'vertical'
+            },
+            frontLayout: {
+                spec: '1:300mm:300mm',
+                direction: 'vertical'
+            },
+            sections: [
+                { id: 'section-1', x: 0, y: 0, width: 600, height: 400, functionConfig, children: [] },
+                { id: 'section-2', x: 0, y: 400, width: 600, height: 300, children: [] },
+                { id: 'section-3', x: 0, y: 700, width: 600, height: 300, children: [] }
+            ],
+            fronts: [
+                { id: 'front-1', x: 0, y: 0, width: 600, height: 400, children: [] },
+                { id: 'front-2', x: 0, y: 400, width: 600, height: 300, children: [] },
+                { id: 'front-3', x: 0, y: 700, width: 600, height: 300, children: [] }
+            ]
+        };
+
+        const resized = resizeCabinetContents(cabinet, { height: 1500 });
+
+        expect(resized.sections.map(section => section.height)).toEqual([900, 300, 300]);
+        expect(resized.fronts.map(front => front.height)).toEqual([900, 300, 300]);
+        expect(resized.sections.map(section => section.id)).toEqual([
+            'section-1',
+            'section-2',
+            'section-3'
+        ]);
+        expect(resized.sections[0].functionConfig).toBe(functionConfig);
+
+        const temporarilyInvalid = resizeCabinetContents(
+            resized,
+            { height: 0 }
+        );
+
+        expect(temporarilyInvalid.sections).toHaveLength(3);
+        expect(temporarilyInvalid.fronts).toHaveLength(3);
+    });
+
+    it('only changes the cabinet size when it has no sections or fronts', () => {
+        const resized = resizeCabinetContents(
+            {
+                width: 600,
+                height: 1000,
+                sections: [],
+                fronts: []
+            },
+            { width: 800 }
+        );
+
+        expect(resized).toMatchObject({
+            width: 800,
+            height: 1000,
+            sections: [],
+            fronts: []
+        });
     });
 });

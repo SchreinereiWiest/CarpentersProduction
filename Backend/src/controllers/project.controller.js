@@ -502,7 +502,7 @@ export async function createGeneratedProjectData(req,res){
                 // serialisiert. Der Verlierer erkennt den inzwischen
                 // vorhandenen Datensatz, bevor er S3 berührt.
                 const lockKey = `${getTenantId()}:${id}:${fileName}`;
-                await transaction.$queryRaw`
+                await transaction.$executeRaw`
                     SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))
                 `;
 

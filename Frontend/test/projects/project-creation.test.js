@@ -106,4 +106,43 @@ describe('Projektanlage im Frontend', () => {
       MID: 'BOARD-19',
     });
   });
+
+  it('meldet einen fehlgeschlagenen Listen-Upload an den Aufrufer zurück', async () => {
+    axios.post.mockImplementation(async (path) => {
+      if (path === '/api/projects/new') {
+        return { data: { id: 'project-with-failed-list' } };
+      }
+
+      if (path === '/api/projects/generated/project-with-failed-list/list') {
+        const error = new Error('Backend error');
+        error.response = {
+          status: 500,
+          data: { message: 'Internal server error' },
+        };
+        throw error;
+      }
+
+      throw new Error(`Unerwarteter POST: ${path}`);
+    });
+
+    await expect(ProjectSave(
+      [legacyCorpus],
+      materials,
+      { id: 'customer-1' },
+      [],
+      'Fehlertest',
+      'Projekt mit Uploadfehler',
+      'create',
+      null,
+      [{ id: 'cabinet-1' }],
+    )).rejects.toMatchObject({
+      projectId: 'project-with-failed-list',
+    });
+
+    expect(axios.post).not.toHaveBeenCalledWith(
+      '/api/projects/generated/project-with-failed-list/cabinet',
+      expect.anything(),
+      expect.anything(),
+    );
+  });
 });

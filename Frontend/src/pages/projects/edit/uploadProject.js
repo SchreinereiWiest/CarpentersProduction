@@ -9,7 +9,6 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
         console.warn("No customer selected");
         selectedCustomer = {id: "1a87d110-bb96-4af3-9bc5-c0753e1fdadc"}
     }
-    let cadData = null;
     console.log(corpuses);
 
     let pid = 0;
@@ -57,7 +56,7 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
     };
 
     console.log(corpuses);
-    cadData = corpuses.map(corpus => {
+    const cadData = corpuses.map(corpus => {
 
         const corpusMaterial = getMaterial(corpus.MID);
         const source = corpus._source ?? {};
@@ -235,7 +234,7 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
         
     try {
 
-        const response = await uploadProjectFile({
+        await uploadProjectFile({
 
             projectId,
 
@@ -245,8 +244,6 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
             
             uploadFunction: {upload: uploadJSONFile, path:`/api/projects/generated/${projectId}/list`}
         });
-
-        console.log("Upload response:", response.data);
 
     } catch (error) {
 
@@ -260,12 +257,15 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
             error.response?.data
         );
 
+        error.projectId = projectId;
+        throw error;
+
     }
 
     if(incomingCabinets) {
         try {
 
-        const response = await uploadProjectFile({
+        await uploadProjectFile({
         
             projectId,
 
@@ -287,8 +287,13 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
             "Response:",
             error.response?.data
         );
+
+        error.projectId = projectId;
+        throw error;
     }
     }
-    
+
+
+    return { projectId };
 
 }

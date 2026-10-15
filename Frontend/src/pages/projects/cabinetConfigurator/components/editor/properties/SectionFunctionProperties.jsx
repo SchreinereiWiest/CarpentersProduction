@@ -163,6 +163,9 @@ export default function SectionFunctionProperties({
         const cabinetDepth =
             Number(activeCabinet?.depth ?? 0);
 
+        const halfMaterialThickness =
+            (Number(activeCabinet?.thickness) || 19) / 2;
+
 
         switch (type) {
 
@@ -202,9 +205,9 @@ export default function SectionFunctionProperties({
                      */
                     positionReference: "sectionBottom",
 
-                    positionOffset: 0,
+                    positionOffset: halfMaterialThickness,
 
-                    absoluteOffset: 0
+                    absoluteOffset: halfMaterialThickness
                 };
 
 
@@ -1036,14 +1039,17 @@ export default function SectionFunctionProperties({
 
                                         <button
                                             type="button"
-                                            onClick={() =>
+                                            onClick={() => {
+                                                const halfMaterialThickness =
+                                                    (Number(activeCabinet?.thickness) || 19) / 2;
+
                                                 updateFunction(func.id, {
                                                     orientation: "horizontal",
                                                     positionReference: "sectionBottom",
-                                                    positionOffset: 0,
-                                                    absoluteOffset: 0
-                                                })
-                                            }
+                                                    positionOffset: halfMaterialThickness,
+                                                    absoluteOffset: halfMaterialThickness
+                                                });
+                                            }}
                                             className={`
                                                 rounded-lg px-3 py-2 text-sm transition
                                                 ${

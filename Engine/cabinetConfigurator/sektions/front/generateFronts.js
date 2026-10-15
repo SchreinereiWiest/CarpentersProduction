@@ -323,7 +323,11 @@ export const generateFronts = (
 
     updateActiveCabinet({
         fronts:
-            validFronts
+            validFronts,
+        frontLayout: {
+            spec,
+            direction
+        }
     });
 
 

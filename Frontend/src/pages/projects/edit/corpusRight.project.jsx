@@ -12,6 +12,9 @@ export default function CorpusRight({EditorState, mode, id, incomingCabinets, nC
     const [selectedCustomer, setSelectedCustomer] = useState(nCustomer);
     const [renamingCorpusId, setRenamingCorpusId] = useState(null);
     const [corpusName, setCorpusName] = useState("");
+    const [savingProject, setSavingProject] = useState(false);
+    const [saveError, setSaveError] = useState("");
+    const [createdProjectId, setCreatedProjectId] = useState(null);
     
     const navigate = useNavigate();
 
@@ -339,9 +342,11 @@ setProjectName(e.target.value)
         Gruppe speichern
     </button>
 ) : (
+    <>
     <button
-        className="w-full rounded-lg bg-green-600 py-3 font-semibold hover:bg-green-500"
-        onClick={(e) => {
+        disabled={savingProject}
+        className="w-full rounded-lg bg-green-600 py-3 font-semibold hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-50"
+        onClick={async (e) => {
             e.stopPropagation();
 
             if (projectName === "" && mode === "create") {
@@ -354,23 +359,52 @@ setProjectName(e.target.value)
                 return;
             }
 
-            ProjectSave(
-                corpuses,
-                materials,
-                selectedCustomer,
-                files,
-                projectDescription,
-                projectName,
-                mode,
-                id,
-                incomingCabinets
-            );
+            setSavingProject(true);
+            setSaveError("");
 
-            navigate(`/Projects`);
+            try {
+                await ProjectSave(
+                    corpuses,
+                    materials,
+                    selectedCustomer,
+                    files,
+                    projectDescription,
+                    projectName,
+                    createdProjectId ? "edit" : mode,
+                    createdProjectId ?? id,
+                    incomingCabinets
+                );
+
+                navigate(`/Projects`);
+            } catch (error) {
+                if (error?.projectId) {
+                    setCreatedProjectId(error.projectId);
+                }
+
+                setSaveError(
+                    error?.response?.data?.message ??
+                    "Das Projekt konnte nicht vollständig gespeichert werden. Bitte erneut versuchen."
+                );
+            } finally {
+                setSavingProject(false);
+            }
         }}
     >
-        Projekt speichern
+        {savingProject
+            ? "Projekt wird gespeichert ..."
+            : "Projekt speichern"
+        }
     </button>
+
+    {saveError && (
+        <div
+            role="alert"
+            className="mt-3 rounded-lg border border-red-700 bg-red-950/60 p-3 text-sm text-red-200"
+        >
+            {saveError}
+        </div>
+    )}
+    </>
 )}
 
 </div>

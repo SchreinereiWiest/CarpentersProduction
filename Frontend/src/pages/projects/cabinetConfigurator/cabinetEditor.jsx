@@ -3,10 +3,11 @@ import { useLocation, useParams } from "react-router";
 import CabinetViewport from "./components/view/cabinetViewport.jsx";
 import ProjectBar from '../../../components/projectBar.jsx';
 import SideBar from '../../../components/sideBar.jsx';
-import { cloneCabinetWithFreshIds, createAvailableSection } from "@Engine/cabinetConfigurator/cabinet.js";
+import { cloneCabinetWithFreshIds } from "@Engine/cabinetConfigurator/cabinet.js";
 import { DEFAULT_CABINET } from "@Engine/cabinetConfigurator/cabinetDefaults.js";
 import { DEFAULT_CNC } from "@Engine/cabinetConfigurator/cnc/cncDefaults.js";
 import { buildPartList } from "@Engine/cabinetConfigurator/partList/buildPartList.js";
+import { resizeCabinetContents } from "@Engine/cabinetConfigurator/geometry/resizeCabinetContents.js";
 import { createInitialSections } from "@Engine/cabinetConfigurator/sektions/interior/createInitialSections.js";
 import { generateFronts } from "@Engine/cabinetConfigurator/sektions/front/generateFronts.js";
 import { splitFront } from "@Engine/cabinetConfigurator/sektions/front/splitFront.js";
@@ -150,26 +151,20 @@ export default function CabinetEditor() {
                     }
 
 
-                    const updatedCabinet = {
-                        ...cabinet,
-                        ...changes
-                    };
-
-
-                    const newSection =
-                        createAvailableSection(
-                            updatedCabinet
-                        );
-
-
-                    return {
-                        ...updatedCabinet,
-
-                        sections:
-                            newSection
-                                ? [newSection]
-                                : []
-                    };
+                    return resizeCabinetContents(
+                        cabinet,
+                        changes,
+                        {
+                            fallbackSectionLayout: {
+                                spec: sectionSplitSpec,
+                                direction: sectionSplitDirection
+                            },
+                            fallbackFrontLayout: {
+                                spec: frontSplitSpec,
+                                direction: frontSplitDirection
+                            }
+                        }
+                    );
 
                 }
             )
@@ -232,6 +227,17 @@ export default function CabinetEditor() {
         changesOrUpdater
     ) => {
 
+        const resizesCabinet =
+            typeof changesOrUpdater !== "function" &&
+            (
+                Object.hasOwn(changesOrUpdater, "width") ||
+                Object.hasOwn(changesOrUpdater, "height")
+            );
+
+        if (resizesCabinet) {
+            setSelectedElement(null);
+        }
+
         setCabinets(prev =>
 
             prev.map(cabinet => {
@@ -247,6 +253,27 @@ export default function CabinetEditor() {
                     typeof changesOrUpdater === "function"
                         ? changesOrUpdater(cabinet)
                         : changesOrUpdater;
+
+
+                if (
+                    Object.hasOwn(changes, "width") ||
+                    Object.hasOwn(changes, "height")
+                ) {
+                    return resizeCabinetContents(
+                        cabinet,
+                        changes,
+                        {
+                            fallbackSectionLayout: {
+                                spec: sectionSplitSpec,
+                                direction: sectionSplitDirection
+                            },
+                            fallbackFrontLayout: {
+                                spec: frontSplitSpec,
+                                direction: frontSplitDirection
+                            }
+                        }
+                    );
+                }
 
 
                 return {
@@ -325,7 +352,10 @@ export default function CabinetEditor() {
         );
 
     updateActiveCabinet({
-        sections: newSections
+        sections: newSections,
+        sectionLayout: {
+            source: "fronts"
+        }
     });
 
     setSelectedElement(null);

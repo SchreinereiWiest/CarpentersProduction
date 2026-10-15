@@ -91,7 +91,13 @@ export const createInitialSections = (
 
 
     updateActiveCabinet({
-        sections
+        sections,
+        sectionLayout: {
+            source: "split",
+            spec,
+            direction,
+            gap
+        }
     });
 
 
