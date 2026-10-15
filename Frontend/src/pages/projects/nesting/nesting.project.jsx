@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import SideBar from '../../../components/sideBar.jsx';
 import axios from 'axios';
 import { useNavigate } from 'react-router';
@@ -27,6 +27,12 @@ import { Canvas, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import {getProjectFile, uploadProjectFile} from "../../../services/projectMemoryCache.js";
 import {downloadFile, uploadJSONFile} from "../../../services/apiTemplates.js";
+import { calculateEdgeRequirements } from "./edgeRequirements.js";
+
+const edgeLengthFormatter = new Intl.NumberFormat("de-DE", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+});
 
 function HorizontalPanControls({ controlsRef }) {
     const { camera, gl } = useThree();
@@ -172,6 +178,7 @@ function NestingView() {
     const [cadfiles, setcadfiles] = useState([]);
     const [content, setContent] = useState([]);
     const [processedContent, setProcessedContent] = useState();
+    const [storageMaterials, setStorageMaterials] = useState([]);
 
     const [nestingResult, setNestingResult] = useState();
 
@@ -189,9 +196,11 @@ function NestingView() {
             const materials = Array.isArray(response.data?.materials)
                 ? response.data.materials
                 : [];
+            setStorageMaterials(materials);
             return materials;
         } catch (error) {
             console.error("Storage-Materialien konnten nicht geladen werden", error);
+            setStorageMaterials([]);
             return [];
         }
     }
@@ -429,6 +438,10 @@ function NestingView() {
 
     const [activeSheetIndex, setActiveSheetIndex] = useState(0);
     const activeSheet = nestingResult?.[activeSheetIndex];
+    const activeMaterialEdgeRequirements = useMemo(
+        () => calculateEdgeRequirements(nestingResult, activeSheet?.MID, storageMaterials),
+        [nestingResult, activeSheet?.MID, storageMaterials]
+    );
     const activeSettingsForSheet = settings[activeSheetIndex] ?? activeSheet?.settings ?? defaultSettings;
     const isDirect2DNesting = activeSettingsForSheet.nestingMode === "2d";
 
@@ -909,7 +922,16 @@ function NestingView() {
                     <div className="bg-gray-800/90 backdrop-blur border border-gray-700 rounded-lg xl:px-4 px-2 py-3 shadow-lg">
                         <div className="text-xs text-gray-400 mb-1"> Aktive Hauptplatte </div>
                         <div className="font-semibold text-white xl:text-md text-sm"> Platte #{activeSheetIndex + 1} </div>
-                        <div className="xl:text-sm text-xs text-gray-400 mt-1"> {activeSheet.MID} </div>
+                        <div className="xl:text-sm text-xs text-gray-400 mt-1">{activeSheet.MID}</div>
+                        {activeMaterialEdgeRequirements.byEdgeMaterial.length > 0 && (
+                            <div className="mt-1 text-xs text-gray-500">
+                                {activeMaterialEdgeRequirements.byEdgeMaterial.map((requirement) => (
+                                    <span className="mr-3 whitespace-nowrap" key={requirement.materialNumber}>
+                                        {requirement.materialNumber}: {edgeLengthFormatter.format(requirement.meters)} m
+                                    </span>
+                                ))}
+                            </div>
+                        )}
                         <div className="flex gap-4 mt-2 text-xs text-gray-500"> <span>
                                 {activeSheet.nestingPlates?.length ?? 0} {""}Nesting-Platten </span>
                             <span> {activeSheet.strips?.length ?? 0} {isDirect2DNesting ? "Bauteile" : "Strips"} </span>

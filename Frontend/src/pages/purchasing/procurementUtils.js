@@ -1,4 +1,5 @@
 import { createUuid } from "../../services/uuid.js";
+import { calculateEdgeRequirements } from "../projects/nesting/edgeRequirements.js";
 
 const toPositiveNumber = (value, fallback = 1) => {
     const parsed = Number(value);
@@ -11,6 +12,7 @@ export const LEGRABOX_COLORS = ["white", "gray"];
 
 export const DEFAULT_SHOP_SETTINGS = {
     version: 1,
+    edgeWastePercentage: 10,
     suppliers: [],
     legraboxArticleIds: Object.fromEntries(
         LEGRABOX_VARIANTS.map(variant => [variant, { white: "", gray: "" }])
@@ -18,6 +20,7 @@ export const DEFAULT_SHOP_SETTINGS = {
 };
 
 export const normalizeShopSettings = data => {
+    const configuredEdgeWaste = Number(data?.edgeWastePercentage);
     const suppliers = (Array.isArray(data?.suppliers) ? data.suppliers : [])
         .filter(supplier => supplier?.id && supplier?.name)
         .map(supplier => ({
@@ -31,6 +34,9 @@ export const normalizeShopSettings = data => {
     return {
         ...DEFAULT_SHOP_SETTINGS,
         ...(data && typeof data === "object" ? data : {}),
+        edgeWastePercentage: Number.isFinite(configuredEdgeWaste) && configuredEdgeWaste >= 0
+            ? configuredEdgeWaste
+            : DEFAULT_SHOP_SETTINGS.edgeWastePercentage,
         suppliers,
         legraboxArticleIds: Object.fromEntries(
             LEGRABOX_VARIANTS.map(variant => [variant, {
@@ -133,6 +139,97 @@ export const buildPlateItems = (nestingData = [], storageMaterials = [], shopSet
     return [...grouped.values()];
 };
 
+const roundUpToCentimeter = meters => Math.ceil((meters - 1e-9) * 100) / 100;
+
+export const applyEdgeQuantityMode = (item, quantityMode = "meter") => {
+    if (item?.category !== "Kanten") return item;
+
+    const requiredMeters = toPositiveNumber(item.requiredMeters, 0);
+    const purchaseLength = toPositiveNumber(item.purchaseLength, 75);
+    const pricePerMeter = item.pricePerMeter === null || item.pricePerMeter === undefined || item.pricePerMeter === ""
+        ? null
+        : Number(item.pricePerMeter);
+
+    if (quantityMode === "piece") {
+        return {
+            ...item,
+            quantityMode: "piece",
+            quantity: Math.max(1, Math.ceil(requiredMeters / purchaseLength)),
+            unit: "Stk.",
+            netPrice: Number.isFinite(pricePerMeter)
+                ? Math.round(pricePerMeter * purchaseLength * 100) / 100
+                : null
+        };
+    }
+
+    return {
+        ...item,
+        quantityMode: "meter",
+        quantity: roundUpToCentimeter(requiredMeters),
+        unit: "m",
+        netPrice: Number.isFinite(pricePerMeter) ? pricePerMeter : null
+    };
+};
+
+export const buildEdgeItems = (nestingData = [], storageMaterials = [], shopSettings = DEFAULT_SHOP_SETTINGS) => {
+    const normalizedSettings = normalizeShopSettings(shopSettings);
+    const storage = Array.isArray(storageMaterials) ? storageMaterials : [];
+    const requirements = calculateEdgeRequirements(nestingData, undefined, storage);
+    const wastePercentage = normalizedSettings.edgeWastePercentage;
+
+    return requirements.byEdgeMaterial.map(requirement => {
+        const matchingMaterials = storage.filter(material => (
+            [material?.materialNumber, material?.edgeArticleNumber].some(reference => (
+                String(reference ?? "").trim().toLocaleLowerCase("de") ===
+                String(requirement.materialNumber).trim().toLocaleLowerCase("de")
+            ))
+        ));
+        const material = matchingMaterials.find(candidate => (
+            candidate?.edgeArticleNumber ||
+            candidate?.edgePricePerMeter !== null && candidate?.edgePricePerMeter !== undefined
+        )) ?? matchingMaterials[0] ?? null;
+        const supplier = resolveSupplier(material?.supplierId, normalizedSettings);
+        const baseRequiredMeters = requirement.meters;
+        const requiredMeters = baseRequiredMeters * (1 + wastePercentage / 100);
+        const purchaseLength = toPositiveNumber(material?.edgePurchaseLength, 75);
+        const storedPrice = material?.edgePricePerMeter;
+        const pricePerMeter = storedPrice === null || storedPrice === undefined || storedPrice === ""
+            ? null
+            : Number(storedPrice);
+        const sourceKey = `nesting-edge:${keyPart(requirement.materialNumber)}`;
+        const item = {
+            id: sourceKey,
+            sourceKey,
+            source: "nesting",
+            category: "Kanten",
+            name: `Kante ${material?.name || requirement.materialNumber}`,
+            sku: material?.edgeArticleNumber || "",
+            description: [
+                `Material ${requirement.materialNumber}`,
+                `Grundbedarf ${roundUpToCentimeter(baseRequiredMeters)} m`,
+                `${wastePercentage} % Verschnitt`,
+                `Standardmenge ${purchaseLength} m`
+            ].join(" · "),
+            baseRequiredMeters,
+            requiredMeters,
+            wastePercentage,
+            purchaseLength,
+            pricePerMeter: Number.isFinite(pricePerMeter) ? pricePerMeter : null,
+            quantityMode: "meter",
+            quantity: 0,
+            unit: "m",
+            netPrice: null,
+            supplierId: supplier?.id || null,
+            supplierName: supplier?.name || "",
+            purchased: false,
+            purchasedAt: null,
+            released: false
+        };
+
+        return applyEdgeQuantityMode(item, "meter");
+    });
+};
+
 const collectLegraboxColors = cabinetData => {
     const colorsById = new Map();
     const stack = Array.isArray(cabinetData) ? [...cabinetData] : [];
@@ -226,16 +323,35 @@ export const mergeGeneratedItems = (generatedItems, savedItems = []) => {
     const generatedKeys = new Set(generatedItems.map(item => item.sourceKey));
     const mergedGenerated = generatedItems.map(item => {
         const saved = savedByKey.get(item.sourceKey);
-        return saved
+        const merged = saved
             ? {
                 ...item,
                 netPrice: saved.netPrice ?? item.netPrice,
+                pricePerMeter: saved.pricePerMeter ?? item.pricePerMeter,
                 quantity: saved.purchased ? saved.quantity : item.quantity,
                 purchased: Boolean(saved.purchased),
                 purchasedAt: saved.purchasedAt ?? null,
                 released: Boolean(saved.released) && !saved.purchased
             }
             : item;
+
+        if (item.category === "Kanten" && saved?.quantityMode) {
+            if (saved.purchased) {
+                return {
+                    ...merged,
+                    quantityMode: saved.quantityMode,
+                    unit: saved.unit ?? merged.unit
+                };
+            }
+
+            const converted = applyEdgeQuantityMode(merged, saved.quantityMode);
+            return {
+                ...converted,
+                netPrice: saved.netPrice ?? converted.netPrice
+            };
+        }
+
+        return merged;
     });
     const retainedSavedItems = (Array.isArray(savedItems) ? savedItems : [])
         .filter(item => (item?.source === "shop" || item?.purchased) && !generatedKeys.has(item.sourceKey));

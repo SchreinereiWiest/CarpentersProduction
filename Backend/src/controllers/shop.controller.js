@@ -43,9 +43,10 @@ const readCatalog = async () => {
 };
 
 const readSettings = async () => {
-    const [suppliers, mappings] = await Promise.all([
+    const [suppliers, mappings, configuration] = await Promise.all([
         prisma.supplier.findMany({ orderBy: { name: "asc" } }),
-        prisma.shopHardwareMapping.findMany()
+        prisma.shopHardwareMapping.findMany(),
+        prisma.shopConfiguration.findFirst()
     ]);
     const legraboxArticleIds = Object.fromEntries(
         LEGRABOX_VARIANTS.map(variant => [variant, { white: "", gray: "" }])
@@ -59,6 +60,9 @@ const readSettings = async () => {
 
     return {
         version: 1,
+        edgeWastePercentage: configuration
+            ? Number(configuration.edgeWastePercentage)
+            : 10,
         suppliers: suppliers.map(supplier => ({
             id: supplier.id,
             name: supplier.name,
@@ -165,9 +169,14 @@ export const getShopSettings = async (_req, res) => {
 export const saveShopSettings = async (req, res) => {
     const suppliers = Array.isArray(req.body?.suppliers) ? req.body.suppliers : null;
     const mappings = req.body?.legraboxArticleIds;
+    const edgeWastePercentage = Number(req.body?.edgeWastePercentage ?? 10);
 
     if (!suppliers || !mappings || typeof mappings !== "object") {
         return res.status(400).json({ error: "Suppliers and Legrabox mappings are required" });
+    }
+
+    if (!Number.isFinite(edgeWastePercentage) || edgeWastePercentage < 0 || edgeWastePercentage > 1000) {
+        return res.status(400).json({ error: "Edge waste percentage must be between 0 and 1000" });
     }
 
     if (suppliers.some(supplier => !UUID_PATTERN.test(supplier?.id || "") || !String(supplier?.name || "").trim())) {
@@ -187,6 +196,12 @@ export const saveShopSettings = async (req, res) => {
 
     try {
         await prisma.$transaction(async transaction => {
+            await transaction.shopConfiguration.upsert({
+                where: { tenantId: getTenantId() },
+                create: { edgeWastePercentage },
+                update: { edgeWastePercentage }
+            });
+
             for (const supplier of suppliers) {
                 const data = {
                     name: String(supplier.name).trim(),

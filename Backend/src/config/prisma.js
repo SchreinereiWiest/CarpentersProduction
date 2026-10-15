@@ -33,6 +33,7 @@ const TENANT_DELEGATES = new Set([
     "shopArticleGroup",
     "shopArticle",
     "shopHardwareMapping",
+    "shopConfiguration",
     "timeEntry",
     "managementPeriod",
     "managementTransaction",

@@ -91,6 +91,7 @@ export default function ShopSettingsPanel() {
         try {
             const payload = {
                 ...config,
+                edgeWastePercentage: Math.max(0, Number(config.edgeWastePercentage) || 0),
                 suppliers: config.suppliers
                     .map(supplier => ({
                         ...supplier,
@@ -123,7 +124,7 @@ export default function ShopSettingsPanel() {
                     <div>
                         <h1 className="text-xl font-semibold">Shop</h1>
                         <p className="mt-1 max-w-2xl text-sm text-gray-500">
-                            Lieferanten verwalten und Legrabox-Ausführungen mit Artikeln aus dem internen Shop verknüpfen.
+                            Einkaufsvorgaben und Lieferanten verwalten sowie Legrabox-Ausführungen mit Artikeln aus dem internen Shop verknüpfen.
                         </p>
                     </div>
                     <button
@@ -147,6 +148,39 @@ export default function ShopSettingsPanel() {
                         Im internen Shop sind noch keine Artikel angelegt. Lege dort zuerst die benötigten Legrabox-Artikel an.
                     </div>
                 )}
+
+                <section className="rounded-xl border border-gray-700 bg-gray-800">
+                    <div className="border-b border-gray-700 px-5 py-4">
+                        <h2 className="font-semibold">Kanteneinkauf</h2>
+                        <p className="mt-1 text-sm text-gray-400">
+                            Dieser pauschale Zuschlag wird auf den aus dem Nesting berechneten Kantenbedarf aufgeschlagen.
+                        </p>
+                    </div>
+                    <div className="px-5 py-4">
+                        <label className="block max-w-xs">
+                            <span className="mb-1.5 block text-xs uppercase tracking-wide text-gray-500">Verschnittzuschlag</span>
+                            <div className="relative">
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="1000"
+                                    step="0.1"
+                                    value={config.edgeWastePercentage}
+                                    onChange={event => {
+                                        setConfig(current => ({
+                                            ...current,
+                                            edgeWastePercentage: event.target.value
+                                        }));
+                                        setMessage(null);
+                                    }}
+                                    className="w-full rounded-lg border border-gray-600 bg-gray-900 py-2 pl-3 pr-9 text-white outline-none focus:border-blue-500"
+                                />
+                                <span className="pointer-events-none absolute right-3 top-2 text-gray-500">%</span>
+                            </div>
+                            <span className="mt-1.5 block text-xs text-gray-500">Standard: 10 %</span>
+                        </label>
+                    </div>
+                </section>
 
                 <section className="overflow-hidden rounded-xl border border-gray-700 bg-gray-800">
                     <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-700 px-5 py-4">

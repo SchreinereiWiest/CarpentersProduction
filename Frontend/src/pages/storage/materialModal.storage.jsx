@@ -16,6 +16,9 @@ export function MaterialModal({ onClose, onSaved, material = null }) {
         category: material?.category ?? "",
         thickness: material?.thickness ?? "",
         pricePerSquareMeter: material?.pricePerSquareMeter ?? "",
+        edgeArticleNumber: material?.edgeArticleNumber ?? "",
+        edgePricePerMeter: material?.edgePricePerMeter ?? "",
+        edgePurchaseLength: material?.edgePurchaseLength ?? 75,
         supplierId: material?.supplierId ?? "",
         width: material?.width ?? "",
         height: material?.height ?? "",
@@ -116,6 +119,19 @@ export function MaterialModal({ onClose, onSaved, material = null }) {
                                 )
                                 : null,
 
+                        edgeArticleNumber:
+                            formData.edgeArticleNumber || null,
+
+                        edgePricePerMeter:
+                            formData.edgePricePerMeter !== ""
+                                ? Number(formData.edgePricePerMeter)
+                                : null,
+
+                        edgePurchaseLength:
+                            formData.edgePurchaseLength
+                                ? Number(formData.edgePurchaseLength)
+                                : 75,
+
                         supplierId:
                             formData.supplierId || null
 
@@ -177,6 +193,9 @@ export function MaterialModal({ onClose, onSaved, material = null }) {
                 className="
                     w-full
                     max-w-2xl
+                    max-h-[calc(100vh-2rem)]
+                    flex
+                    flex-col
                     rounded-xl
                     border
                     border-gray-700
@@ -247,7 +266,7 @@ export function MaterialModal({ onClose, onSaved, material = null }) {
 
                 <form
                     onSubmit={handleSubmit}
-                    className="p-6"
+                    className="overflow-y-auto p-6"
                 >
 
                     <div
@@ -619,52 +638,77 @@ export function MaterialModal({ onClose, onSaved, material = null }) {
                             />
                         </div>
 
-                        {/* Maserung */}
-
-                    <div className="
-                        flex
-                        items-center
-                        gap-3
-                        rounded-lg
-                        border
-                        border-gray-700
-                        bg-gray-900
-                        px-4
-                        py-3
-                    ">
-
-                        <input
-                            type="checkbox"
-                            name="maser"
-                            checked={formData.maser}
-                            onChange={handleChange}
-                            className="
-                                h-4
-                                w-4
-                                accent-blue-500
-                            "
-                        />
-
-                        <div>
-
-                            <label className="
-                                block
-                                cursor-pointer
-                                font-medium
-                            ">
-                                Maserung vorhanden
-                            </label>
-
-                            <p className="
-                                text-sm
-                                text-gray-400
-                            ">
-                                NestingDirection
-                            </p>
-
+                        <div className="flex items-center gap-3 rounded-lg border border-gray-700 bg-gray-900 px-4 py-3">
+                            <input
+                                type="checkbox"
+                                name="maser"
+                                checked={formData.maser}
+                                onChange={handleChange}
+                                className="h-4 w-4 accent-blue-500"
+                            />
+                            <div>
+                                <label className="block cursor-pointer font-medium">
+                                    Maserung der Platte vorhanden
+                                </label>
+                                <p className="text-sm text-gray-400">
+                                    Steuert die Drehrichtung beim Nesting
+                                </p>
+                            </div>
                         </div>
 
-                    </div>
+                        <div className="md:col-span-2 border-t border-gray-700 pt-5">
+                            <h3 className="font-semibold text-white">Kantendaten</h3>
+                            <p className="mt-1 text-sm text-gray-400">
+                                Einkaufsdaten für die zu dieser Materialnummer gehörende Kante.
+                            </p>
+                        </div>
+
+                        <div>
+                            <label className="mb-1 block text-sm text-gray-300">
+                                Kantenartikelnummer
+                            </label>
+                            <input
+                                type="text"
+                                name="edgeArticleNumber"
+                                value={formData.edgeArticleNumber}
+                                onChange={handleChange}
+                                placeholder="z. B. K-W980"
+                                className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-white outline-none placeholder:text-gray-500 focus:border-blue-500"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="mb-1 block text-sm text-gray-300">
+                                Kantenpreis pro Meter
+                            </label>
+                            <input
+                                type="number"
+                                name="edgePricePerMeter"
+                                value={formData.edgePricePerMeter}
+                                onChange={handleChange}
+                                min="0"
+                                step="0.01"
+                                placeholder="z. B. 0.85"
+                                className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-white outline-none placeholder:text-gray-500 focus:border-blue-500"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="mb-1 block text-sm text-gray-300">
+                                Standardeinkaufsmenge (m)
+                            </label>
+                            <input
+                                type="number"
+                                name="edgePurchaseLength"
+                                value={formData.edgePurchaseLength}
+                                onChange={handleChange}
+                                min="0.01"
+                                step="0.01"
+                                placeholder="75"
+                                className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-white outline-none placeholder:text-gray-500 focus:border-blue-500"
+                            />
+                            <p className="mt-1 text-xs text-gray-500">Standardrolle: 75 m</p>
+                        </div>
 
 
                         {/* Lieferant */}

@@ -52,6 +52,9 @@ export async function createMaterial(req, res) {
             category,
             thickness,
             pricePerSquareMeter,
+            edgeArticleNumber,
+            edgePricePerMeter,
+            edgePurchaseLength,
             supplierId
 
         } = req.body;
@@ -72,6 +75,9 @@ export async function createMaterial(req, res) {
                     category,
                     thickness,
                     pricePerSquareMeter,
+                    edgeArticleNumber,
+                    edgePricePerMeter,
+                    edgePurchaseLength,
                     supplierId
 
                 }
@@ -105,14 +111,16 @@ export async function updateMaterial(req, res) {
         const { id } = req.params;
         const {
             materialNumber, name, width, height, minimumStorage, maser,
-            manufacturer, category, thickness, pricePerSquareMeter, supplierId
+            manufacturer, category, thickness, pricePerSquareMeter,
+            edgeArticleNumber, edgePricePerMeter, edgePurchaseLength, supplierId
         } = req.body;
 
         const material = await prisma.material.update({
             where: { id },
             data: {
                 materialNumber, name, width, height, minimumStorage, maser,
-                manufacturer, category, thickness, pricePerSquareMeter, supplierId
+                manufacturer, category, thickness, pricePerSquareMeter,
+                edgeArticleNumber, edgePricePerMeter, edgePurchaseLength, supplierId
             }
         });
 

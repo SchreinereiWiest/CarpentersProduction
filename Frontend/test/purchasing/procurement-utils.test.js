@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
     addArticleToProcurement,
+    applyEdgeQuantityMode,
+    buildEdgeItems,
     buildHardwareItems,
     buildPlateItems,
     mergeGeneratedItems,
@@ -48,6 +50,99 @@ describe("procurement data", () => {
         }]);
 
         expect(items[0].netPrice).toBe(57.96);
+    });
+
+    it("creates edge purchases with waste, article data and meter pricing", () => {
+        const items = buildEdgeItems([
+            {
+                MID: "W1000",
+                T: 19,
+                plates: [{
+                    width: 1000,
+                    height: 500,
+                    EdgeT: "6f41a980-74bf-4e5e-b622-5f04767d8080",
+                    EdgeR: "W1000"
+                }]
+            },
+            {
+                MID: "W1000",
+                T: 25,
+                plates: [{ width: 500, height: 800, EdgeB: "W1000" }]
+            }
+        ], [{
+            id: "6f41a980-74bf-4e5e-b622-5f04767d8080",
+            materialNumber: "W1000",
+            name: "Premiumweiß",
+            edgeArticleNumber: "K-W1000",
+            edgePricePerMeter: "0.80",
+            edgePurchaseLength: 75,
+            supplierId: "supplier-1"
+        }], {
+            edgeWastePercentage: 10,
+            suppliers: [{ id: "supplier-1", name: "Kanten GmbH" }]
+        });
+
+        expect(items).toHaveLength(1);
+        expect(items[0]).toMatchObject({
+            sourceKey: "nesting-edge:k-w1000",
+            category: "Kanten",
+            sku: "K-W1000",
+            baseRequiredMeters: 2,
+            requiredMeters: 2.2,
+            quantity: 2.2,
+            quantityMode: "meter",
+            unit: "m",
+            netPrice: 0.8,
+            supplierName: "Kanten GmbH"
+        });
+    });
+
+    it("rounds edge purchases up to complete standard rolls in piece mode", () => {
+        const item = {
+            category: "Kanten",
+            requiredMeters: 76,
+            purchaseLength: 75,
+            pricePerMeter: 0.8,
+            quantity: 76,
+            unit: "m"
+        };
+
+        expect(applyEdgeQuantityMode(item, "piece")).toMatchObject({
+            quantityMode: "piece",
+            quantity: 2,
+            unit: "Stk.",
+            netPrice: 60
+        });
+    });
+
+    it("keeps the selected edge unit while refreshing an open purchase", () => {
+        const generated = [{
+            sourceKey: "nesting-edge:w1000",
+            source: "nesting",
+            category: "Kanten",
+            requiredMeters: 80,
+            purchaseLength: 75,
+            pricePerMeter: 1,
+            quantityMode: "meter",
+            quantity: 80,
+            unit: "m",
+            netPrice: 1,
+            released: false
+        }];
+        const saved = [{
+            ...generated[0],
+            quantityMode: "piece",
+            quantity: 1,
+            unit: "Stk.",
+            netPrice: 75
+        }];
+
+        expect(mergeGeneratedItems(generated, saved)[0]).toMatchObject({
+            quantityMode: "piece",
+            quantity: 2,
+            unit: "Stk.",
+            netPrice: 75
+        });
     });
 
     it("collects hardware and respects the cabinet quantity", () => {

@@ -6,6 +6,8 @@ import ProjectBar from "../../../components/projectBar.jsx";
 import { downloadFile } from "../../../services/apiTemplates.js";
 import { getProjectFile } from "../../../services/projectMemoryCache.js";
 import {
+    applyEdgeQuantityMode,
+    buildEdgeItems,
     buildHardwareItems,
     buildPlateItems,
     createProcurementPayload,
@@ -79,7 +81,7 @@ function PurchaseTable({ title, description, items, lockedReleasedKeys, onChange
                                 <th className="px-5 py-3">Artikel</th>
                                 <th className="px-4 py-3">Herkunft</th>
                                 <th className="px-4 py-3">Lieferant</th>
-                                <th className="px-4 py-3">Stück</th>
+                                <th className="px-4 py-3">Menge</th>
                                 <th className="px-4 py-3">Netto / Einheit</th>
                                 <th className="px-4 py-3">Summe</th>
                                 <th className="px-5 py-3 text-right">Freigabe</th>
@@ -108,7 +110,7 @@ function PurchaseTable({ title, description, items, lockedReleasedKeys, onChange
                                                     aria-label={`Menge ${item.name}`}
                                                     type="number"
                                                     min="0.01"
-                                                    step="0.01"
+                                                    step={item.quantityMode === "piece" ? "1" : "0.01"}
                                                     value={item.quantity}
                                                     disabled={readOnly}
                                                     onChange={event => onChange(item.sourceKey, "quantity", event.target.value)}
@@ -116,6 +118,18 @@ function PurchaseTable({ title, description, items, lockedReleasedKeys, onChange
                                                 />
                                                 <span className="text-sm text-gray-400">{item.unit}</span>
                                             </div>
+                                            {item.category === "Kanten" && (
+                                                <select
+                                                    aria-label={`Einkaufseinheit ${item.name}`}
+                                                    value={item.quantityMode || "meter"}
+                                                    disabled={readOnly}
+                                                    onChange={event => onChange(item.sourceKey, "quantityMode", event.target.value)}
+                                                    className="mt-2 w-36 rounded-lg border border-gray-600 bg-gray-900 px-2 py-1.5 text-xs text-gray-300 outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+                                                >
+                                                    <option value="meter">Meter</option>
+                                                    <option value="piece">Stück ({item.purchaseLength || 75} m)</option>
+                                                </select>
+                                            )}
                                         </td>
                                         <td className="px-4 py-4">
                                             <div className="relative w-32">
@@ -221,6 +235,7 @@ export default function ProjectPurchasing() {
                 const suppliersById = new Map(normalizeShopSettings(shopSettings).suppliers.map(supplier => [supplier.id, supplier.name]));
                 const generated = [
                     ...buildPlateItems(nesting, storageMaterials, shopSettings),
+                    ...buildEdgeItems(nesting, storageMaterials, shopSettings),
                     ...buildHardwareItems(partList, shopSettings, catalogArticles, cabinetData)
                 ];
 
@@ -267,7 +282,23 @@ export default function ProjectPurchasing() {
             if (item.sourceKey !== sourceKey) return item;
             if (item.purchased || lockedReleasedKeys.has(item.sourceKey)) return item;
             if (field === "released") return { ...item, released: value };
-            if (field === "netPrice") return { ...item, netPrice: value === "" ? null : Number(value) };
+            if (field === "quantityMode") return applyEdgeQuantityMode(item, value);
+            if (field === "netPrice") {
+                const netPrice = value === "" ? null : Number(value);
+                if (item.category === "Kanten") {
+                    const purchaseLength = Number(item.purchaseLength) || 75;
+                    return {
+                        ...item,
+                        netPrice,
+                        pricePerMeter: netPrice === null
+                            ? null
+                            : item.quantityMode === "piece"
+                                ? netPrice / purchaseLength
+                                : netPrice
+                    };
+                }
+                return { ...item, netPrice };
+            }
             if (field === "quantity") return { ...item, quantity: value };
             return item;
         }));
@@ -322,7 +353,7 @@ export default function ProjectPurchasing() {
                                 <p className="text-sm font-medium uppercase tracking-widest text-blue-400">Projekt-Einkaufswagen</p>
                                 <h1 className="mt-1 text-2xl font-bold xl:text-3xl">{project?.title || "Projekt"}</h1>
                                 <p className="mt-2 max-w-2xl text-gray-400">
-                                    Benötigte Platten aus dem Nesting und Hardware aus der Cabinet-Liste prüfen und für den Einkauf freigeben.
+                                    Benötigte Platten und Kanten aus dem Nesting sowie Hardware aus der Cabinet-Liste prüfen und für den Einkauf freigeben.
                                 </p>
                             </div>
 
@@ -369,8 +400,8 @@ export default function ProjectPurchasing() {
                         ) : (
                             <div className="mt-7 space-y-6">
                                 <PurchaseTable
-                                    title="Nesting-Platten"
-                                    description="Benötigte Rohplatten aus dem zuletzt gespeicherten Nesting."
+                                    title="Nesting-Material"
+                                    description="Benötigte Rohplatten und Kanten aus dem zuletzt gespeicherten Nesting. Kanten enthalten den eingestellten Verschnittzuschlag."
                                     items={groupedItems.plates}
                                     lockedReleasedKeys={lockedReleasedKeys}
                                     onChange={changeItem}
