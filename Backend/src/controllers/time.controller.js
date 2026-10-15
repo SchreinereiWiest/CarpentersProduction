@@ -108,6 +108,16 @@ export const getTime = async (req, res) => {
                 projectId:req.params.id
             },
 
+            include: {
+                user: {
+                    select: {
+                        firstName: true,
+                        lastName: true,
+                        login: true
+                    }
+                }
+            },
+
             orderBy:{
                 createdAt:"desc"
             }

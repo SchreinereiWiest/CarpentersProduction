@@ -4,6 +4,11 @@ import { getWorkTypeLabel } from "../../../services/companySettings";
 
 export default function TimeRow({ entry, workTypes }) {
 
+    console.log(entry);
+    const userName = [entry.user?.firstName, entry.user?.lastName]
+        .filter(Boolean)
+        .join(" ") || entry.user?.login || "Unbekannter Benutzer";
+
     function formatTime(date) {
 
         if (!date) return "--:--";
@@ -54,15 +59,21 @@ export default function TimeRow({ entry, workTypes }) {
 
             <div className="flex flex-col">
 
-                <span
-                    className="
-                        text-base
-                        font-semibold
-                        text-white
-                    "
-                >
-                    {getWorkTypeLabel(workTypes, entry.workType, entry.customWorkType)}
-                </span>
+                <div className="flex flex-wrap items-baseline gap-x-2">
+                    <span
+                        className="
+                            text-base
+                            font-semibold
+                            text-white
+                        "
+                    >
+                        {getWorkTypeLabel(workTypes, entry.workType, entry.customWorkType)}
+                    </span>
+
+                    <span className="text-sm font-normal text-gray-400">
+                        {userName}
+                    </span>
+                </div>
 
                 <span
                     className="
