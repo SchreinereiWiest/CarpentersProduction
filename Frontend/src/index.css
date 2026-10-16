@@ -315,3 +315,36 @@ textarea {
         min-height: 0;
     }
 }
+
+/* Aufmaß workspace: fixed instrument panels around a flexible drawing surface. */
+.aufmas-shell {
+    grid-template-columns: 232px minmax(0, 1fr) 304px;
+    grid-template-rows: minmax(0, 1fr) 172px;
+}
+
+.aufmas-right-sidebar {
+    grid-column: 3;
+    grid-row: 1 / 3;
+    grid-template-rows: minmax(0, 1fr) 172px;
+}
+
+.aufmas-views {
+    grid-column: 1 / 3;
+    grid-row: 2;
+}
+
+.aufmas-view-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: #435460 transparent;
+}
+
+@media (min-width: 768px) and (max-width: 1180px) {
+    .aufmas-shell {
+        grid-template-columns: 205px minmax(0, 1fr) 270px;
+        grid-template-rows: minmax(0, 1fr) 164px;
+    }
+
+    .aufmas-right-sidebar {
+        grid-template-rows: minmax(0, 1fr) 164px;
+    }
+}

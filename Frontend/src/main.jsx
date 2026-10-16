@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 
-import { BrowserRouter, Routes, Route, Navigate } from "react-router";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router";
 
 import { AuthProvider } from "./routes/AuthContext";
 
@@ -15,7 +15,7 @@ import ShowContactsAdmin from "./pages/contacts/showcontact.admin.jsx";
 import EditContactsAdmin from "./pages/contacts/editcontact.admin.jsx";
 import ShowProject from "./pages/projects/home.project.jsx";
 import Login from "./pages/public/Login";
-import CadViewer from "./pages/projects/cad/cad.project.jsx";
+import AufmasWorkspace from "./pages/projects/aufmas/aufmas.project.jsx";
 import ListMaterial from "./pages/projects/list/list.project.jsx";
 import NestingView from "./pages/projects/nesting/nesting.project.jsx";
 import CutingView from "./pages/projects/cut/cut.project.jsx";
@@ -53,6 +53,11 @@ import { installS3CacheRefresh } from './services/s3CacheRefresh.js';
 
 installNetworkClient();
 installS3CacheRefresh();
+
+function LegacyCadRedirect() {
+  const { projectId } = useParams();
+  return <Navigate to={`/Projects/Aufmas/${projectId}`} replace />;
+}
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
@@ -153,8 +158,14 @@ ReactDOM.createRoot(root).render(
             }
             />
 
+            <Route path="/Projects/Aufmas/:projectId" element={ <ProtectedRoute requiredRole="user">
+            <AufmasWorkspace />
+            </ProtectedRoute>
+            }
+            />
+
             <Route path="/Projects/CAD/:projectId" element={ <ProtectedRoute requiredRole="user">
-            <CadViewer />
+            <LegacyCadRedirect />
             </ProtectedRoute>
             }
             />

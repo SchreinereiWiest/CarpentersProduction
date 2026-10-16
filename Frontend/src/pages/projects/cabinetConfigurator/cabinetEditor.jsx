@@ -564,10 +564,12 @@ export default function CabinetEditor() {
                     });
 
                 // Datei existiert bereits
-                if (data) {
+                if (Array.isArray(data) && data.length) {
 
                     setCabinets(data);
-                    setActiveCabinetId(data[0].id);
+                    const requestedCabinetId = new URLSearchParams(location.search).get("cabinet");
+                    const requestedCabinet = data.find(cabinet => String(cabinet.id) === requestedCabinetId);
+                    setActiveCabinetId(requestedCabinet?.id ?? data[0].id);
 
                     return;
 
@@ -593,7 +595,7 @@ export default function CabinetEditor() {
 
         loadGeneratedData();
 
-    }, [projectId, project, defaultCabinet]);
+    }, [projectId, project, defaultCabinet, location.search]);
 
     //fetch cabinet default config file
     useEffect(() => {

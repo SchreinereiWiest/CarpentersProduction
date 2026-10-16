@@ -7,7 +7,7 @@ import { useEffect } from "react";
 import { Link } from "react-router";
 import ProjectBar from '../../../components/projectBar.jsx';
 import MobileWorkspaceGuard from '../../../components/MobileWorkspaceGuard.jsx';
-import { loadCadFile } from '../cad/cadLoader.project.js';
+import { loadCadFile } from '../aufmas/cadLoader.project.js';
 import { processContent } from '../list/listProcess.project.js';
 import { calculateNesting } from './algorythm/nestingAlgorythm.js';
 import { findStorageMaterial } from './algorythm/helper/parseStorageMaterial.js';
