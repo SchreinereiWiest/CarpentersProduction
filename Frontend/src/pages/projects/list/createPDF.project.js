@@ -90,30 +90,14 @@ function drawEdgeSketch(doc, item, x, y, size = 12) {
 }
 
 /*
- * Erstellt die Teileliste als PDF
+ * Fuegt die bestehende Teileliste in ein vorhandenes PDF ein.
+ * So verwendet die Projekt-PDF exakt denselben Tabellen-Generator.
  */
-export function createPartsListPDF(processedContent) {
+export function appendPartsListPDF(doc, processedContent, { addPage = false } = {}) {
 
-    const doc = new jsPDF({
-
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4"
-
-    });
-
-
-    /*
-     * --------------------------------------------------
-     * Seitengröße
-     * --------------------------------------------------
-     */
-
-    const pageWidth =
-        doc.internal.pageSize.getWidth();
-
-    const pageHeight =
-        doc.internal.pageSize.getHeight();
+    if (addPage) {
+        doc.addPage("a4", "portrait");
+    }
 
 
     /*
@@ -542,12 +526,19 @@ autoTable(doc, {
     });
 
 
-    /*
-     * --------------------------------------------------
-     * PDF speichern
-     * --------------------------------------------------
-     */
+}
 
+/*
+ * Erstellt die Teileliste als eigenstaendiges PDF.
+ */
+export function createPartsListPDF(processedContent) {
+
+    const doc = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4"
+    });
+
+    appendPartsListPDF(doc, processedContent);
     doc.save("Teileliste.pdf");
-
 }

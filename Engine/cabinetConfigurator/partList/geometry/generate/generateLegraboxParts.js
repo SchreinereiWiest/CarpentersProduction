@@ -1,6 +1,7 @@
 import { createPart } from "../createPart.js";
 import { flattenSections } from "../flattenSections.js";
 import { getDefaultDrawerDepth, getLegraboxBackHeight } from "../../../cnc/legraboxDimensions.js";
+import { getMaterialNumber } from "../../materials.js";
 
 const getLegraboxFunctions = (section) => {
     return (section.functionConfig ?? [])
@@ -75,18 +76,21 @@ export const generateLegraboxParts = ({
                         type: "Rückwand",
                         edges: {
 
-                        ELID:
-                            "",
+                            ELID:
+                                "",
 
-                        ERID:
-                            materialId,
+                            ERID:
+                                getMaterialNumber(
+                                    materials,
+                                    materialId
+                                ),
 
-                        ETID:
-                            "",
+                            ETID:
+                                "",
 
-                        EBID:
-                            ""
-                    },
+                            EBID:
+                                ""
+                        },
                         quantity: 1,
                         L: backHeight,
                         B: backWidth,
