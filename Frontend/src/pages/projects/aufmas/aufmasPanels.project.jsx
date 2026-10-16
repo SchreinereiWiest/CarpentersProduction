@@ -292,7 +292,17 @@ export function PropertiesPanel({ selected, objects, cabinets = [], onSelect, on
                             Maßverknüpfung
                             <div className="relative">
                                 <AufmasIcon name="link" className="absolute left-3 top-4 size-4 text-[#688092]" />
-                                <input value={selected.variableName ?? ""} onChange={event => onUpdate(selected.id, { variableName: event.target.value.replace(/\s+/g, "_") })} className={`${INPUT_CLASS} pl-9 font-mono`} placeholder="raum_breite" />
+                                <input
+                                    value={selected.variableName ?? ""}
+                                    onChange={event => onUpdate(selected.id, {
+                                        variableName: event.target.value
+                                            .replace(/\s+/g, "_")
+                                            .replace(/[^\p{L}\p{N}_]/gu, "")
+                                            .replace(/^\p{N}+/u, "")
+                                    })}
+                                    className={`${INPUT_CLASS} pl-9 font-mono`}
+                                    placeholder="raum_breite"
+                                />
                             </div>
                             <span className="mt-1.5 block normal-case tracking-normal text-[#61727f]">Wird als Variable für den Korpus-Editor gespeichert.</span>
                         </label>}

@@ -1,5 +1,6 @@
 import React from "react";
 import { CabinetList } from "../../view/cabinetList.view.jsx";
+import FormulaNumberInput from "../FormulaNumberInput.jsx";
 
 export default function CabinetSidebar({
 
@@ -19,6 +20,7 @@ export default function CabinetSidebar({
     saveCabinetAsPreset,
 
     updateActiveCabinet,
+    measurementVariables = [],
 
     // ---------------------------------------------------------
     // Section-Unterteilungen
@@ -35,6 +37,16 @@ export default function CabinetSidebar({
 
     setSelectedElement
 }) {
+
+const updateDimension = (field, expression, evaluation) => {
+    updateActiveCabinet({
+        measurementExpressions: {
+            ...(activeCabinet?.measurementExpressions ?? {}),
+            [field]: expression
+        },
+        ...(evaluation.valid ? { [field]: evaluation.value } : {})
+    });
+};
 
 return (
 
@@ -172,109 +184,31 @@ return (
                     space-y-3
                     px-3
                 ">
+            <FormulaNumberInput
+                label="Breite"
+                value={activeCabinet?.width}
+                expression={activeCabinet?.measurementExpressions?.width}
+                variables={measurementVariables}
+                onChange={(expression, evaluation) => updateDimension("width", expression, evaluation)}
+            />
 
-            {/* Breite */}
+            <FormulaNumberInput
+                label="Höhe"
+                value={activeCabinet?.height}
+                expression={activeCabinet?.measurementExpressions?.height}
+                variables={measurementVariables}
+                onChange={(expression, evaluation) => updateDimension("height", expression, evaluation)}
+            />
 
-            <label className="block">
+            <FormulaNumberInput
+                label="Tiefe"
+                value={activeCabinet?.depth}
+                expression={activeCabinet?.measurementExpressions?.depth}
+                variables={measurementVariables}
+                onChange={(expression, evaluation) => updateDimension("depth", expression, evaluation)}
+            />
 
-                <span className="
-                            text-xs
-                            text-neutral-400
-                        ">
-                    Breite
-                </span>
 
-                <input type="number" value={activeCabinet?.width ?? "" } onChange={(event)=> {
-
-                updateActiveCabinet({
-                width:
-                Number(
-                event.target.value
-                )
-                });
-
-                }}
-                className="
-                w-full
-                rounded
-                border
-                border-neutral-700
-                bg-gray-800
-                px-3
-                py-1
-                "
-                />
-
-            </label>
-
-            {/* Höhe */}
-
-            <label className="block">
-
-                <span className="
-                            text-xs
-                            text-neutral-400
-                        ">
-                    Höhe
-                </span>
-
-                <input type="number" value={activeCabinet?.height ?? "" } onChange={(event)=> {
-
-                updateActiveCabinet({
-                height:
-                Number(
-                event.target.value
-                )
-                });
-
-                }}
-                className="
-                w-full
-                rounded
-                border
-                border-neutral-700
-                bg-gray-800
-                px-3
-                py-1
-                "
-                />
-
-            </label>
-
-            {/* Tiefe */}
-
-            <label className="block">
-
-                <span className="
-                            text-xs
-                            text-neutral-400
-                        ">
-                    Tiefe
-                </span>
-
-                <input type="number" value={activeCabinet?.depth ?? "" } onChange={(event)=> {
-
-                updateActiveCabinet({
-                depth:
-                Number(
-                event.target.value
-                )
-                });
-
-                }}
-                className="
-                mt-1
-                w-full
-                rounded
-                border
-                border-gray-700
-                bg-gray-800
-                px-3
-                py-1
-                "
-                />
-
-            </label>
 
         </div>
 

@@ -4,6 +4,7 @@ import { getMiddleWallCenter } from "@Engine/cabinetConfigurator/geometry/middle
 import { findSection } from "@Engine/cabinetConfigurator/sektions/interior/mergeSectionChildren.js";
 import { updateSectionTree } from "@Engine/cabinetConfigurator/sektions/updateSectionTree.js";
 import { createId } from "@Engine/utils/id.js";
+import FormulaNumberInput from "../FormulaNumberInput.jsx";
 
 
 
@@ -36,7 +37,8 @@ export default function SectionFunctionProperties({
     selectedElement,
     activeCabinet,
     updateActiveCabinet,
-    setSelectedElement
+    setSelectedElement,
+    measurementVariables = []
 }) {
 
     const [newFunctionType, setNewFunctionType] = useState("");
@@ -339,6 +341,27 @@ export default function SectionFunctionProperties({
         );
     };
 
+    const updateFunctionFormula = (
+        functionId,
+        fieldPath,
+        expression,
+        evaluation,
+        createChanges,
+        exclusivePaths = []
+    ) => {
+        updateFunction(functionId, func => {
+            const measurementExpressions = {
+                ...(func.measurementExpressions ?? {}),
+                [fieldPath]: expression
+            };
+            exclusivePaths.forEach(path => delete measurementExpressions[path]);
+            return {
+                measurementExpressions,
+                ...(evaluation.valid ? createChanges(evaluation.value, func) : {})
+            };
+        });
+    };
+
 
     /*
      * ------------------------------------------------------------
@@ -430,44 +453,38 @@ export default function SectionFunctionProperties({
     };
 
 
-    /*
-     * Beim Ändern eines der vier Felder wird automatisch
-     * dieser Bezug aktiv.
-     */
-    const setMiddleWallPosition = (
-        functionId,
-        wall,
-        reference,
-        value
-    ) => {
-
-        const numericValue =
-            Number(value);
-
-        if (
-            !Number.isFinite(numericValue) ||
-            numericValue < 0
-        ) {
-            return;
-        }
-
-        updateFunction(
-            functionId,
-            {
-                positionReference: reference,
-
-                positionOffset: numericValue,
-
-                absoluteOffset:
-                    getMiddleWallOffset(
-                        {
-                            ...wall,
-                            positionReference: reference,
-                            positionOffset: numericValue
-                        },
-                        reference
-                    )
-            }
+    const middleWallFormulaInput = (wall, reference, label) => {
+        const fieldPath = `position.${reference}`;
+        const positionPaths = [
+            "position.cabinetTop",
+            "position.cabinetBottom",
+            "position.sectionTop",
+            "position.sectionBottom",
+            "position.cabinetLeft",
+            "position.cabinetRight",
+            "position.sectionLeft",
+            "position.sectionRight"
+        ];
+        return (
+            <FormulaNumberInput
+                label={label}
+                value={Number(getMiddleWallOffset(wall, reference)).toFixed(1)}
+                expression={wall.measurementExpressions?.[fieldPath]}
+                variables={measurementVariables}
+                min={0}
+                onChange={(expression, evaluation) => updateFunctionFormula(
+                    wall.id,
+                    fieldPath,
+                    expression,
+                    evaluation,
+                    value => ({
+                        positionReference: reference,
+                        positionOffset: value,
+                        absoluteOffset: value
+                    }),
+                    positionPaths.filter(path => path !== fieldPath)
+                )}
+            />
         );
     };
 
@@ -640,171 +657,59 @@ export default function SectionFunctionProperties({
                                     <div className="mt-4 space-y-4">
 
                                         {/* Fächeranzahl */}
-                                        <label className="block">
-
-                                            <span className="text-xs text-gray-400">
-                                                Fächeranzahl
-                                            </span>
-
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                value={
-                                                    func.compartmentCount ?? 2
-                                                }
-                                                onChange={(event) =>
-                                                    updateFunction(
-                                                        func.id,
-                                                        {
-                                                            compartmentCount:
-                                                                Math.max(
-                                                                    1,
-                                                                    Number(
-                                                                        event.target.value
-                                                                    )
-                                                                )
-                                                        }
-                                                    )
-                                                }
-                                                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
-                                            />
-
-                                        </label>
+                                        <FormulaNumberInput
+                                            label="Fächeranzahl"
+                                            value={func.compartmentCount ?? 2}
+                                            expression={func.measurementExpressions?.compartmentCount}
+                                            variables={measurementVariables}
+                                            min={1}
+                                            unit=""
+                                            onChange={(expression, evaluation) => updateFunctionFormula(
+                                                func.id,
+                                                "compartmentCount",
+                                                expression,
+                                                evaluation,
+                                                value => ({ compartmentCount: Math.max(1, value) })
+                                            )}
+                                        />
 
 
                                         {/* Fachtiefe */}
-                                        <label className="block">
-
-                                            <span className="text-xs text-gray-400">
-                                                Fachtiefe
-                                            </span>
-
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                max={
-                                                    Number(
-                                                        activeCabinet.depth ?? 0
-                                                    )
-                                                }
-                                                step="1"
-                                                value={
-                                                    Math.max(
-                                                        0,
-                                                        Number(
-                                                            activeCabinet.depth ?? 0
-                                                        ) -
-                                                        Number(
-                                                            func.shelfFrontOffset ?? 0
-                                                        )
-                                                    )
-                                                }
-                                                onChange={(event) => {
-
-                                                    const depth =
-                                                        Number(
-                                                            event.target.value
-                                                        );
-
-                                                    if (
-                                                        !Number.isFinite(
-                                                            depth
-                                                        )
-                                                    ) {
-                                                        return;
-                                                    }
-
-                                                    const cabinetDepth =
-                                                        Number(
-                                                            activeCabinet.depth ?? 0
-                                                        );
-
-                                                    const clampedDepth =
-                                                        Math.max(
-                                                            0,
-                                                            Math.min(
-                                                                cabinetDepth,
-                                                                depth
-                                                            )
-                                                        );
-
-                                                    updateFunction(
-                                                        func.id,
-                                                        {
-                                                            shelfFrontOffset:
-                                                                cabinetDepth -
-                                                                clampedDepth
-                                                        }
-                                                    );
-
-                                                }}
-                                                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
-                                            />
-
-                                        </label>
+                                        <FormulaNumberInput
+                                            label="Fachtiefe"
+                                            value={Math.max(0, Number(activeCabinet.depth ?? 0) - Number(func.shelfFrontOffset ?? 0))}
+                                            expression={func.measurementExpressions?.shelfDepth}
+                                            variables={measurementVariables}
+                                            min={0}
+                                            max={Number(activeCabinet.depth ?? 0)}
+                                            onChange={(expression, evaluation) => updateFunctionFormula(
+                                                func.id,
+                                                "shelfDepth",
+                                                expression,
+                                                evaluation,
+                                                value => ({ shelfFrontOffset: Number(activeCabinet.depth ?? 0) - value }),
+                                                ["shelfFrontOffset"]
+                                            )}
+                                        />
 
 
                                         {/* Abstand vorne */}
-                                        <label className="block">
-
-                                            <span className="text-xs text-gray-400">
-                                                Abstand von vorne
-                                            </span>
-
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                max={
-                                                    Number(
-                                                        activeCabinet.depth ?? 0
-                                                    )
-                                                }
-                                                step="1"
-                                                value={
-                                                    func.shelfFrontOffset ?? 0
-                                                }
-                                                onChange={(event) => {
-
-                                                    const frontOffset =
-                                                        Number(
-                                                            event.target.value
-                                                        );
-
-                                                    if (
-                                                        !Number.isFinite(
-                                                            frontOffset
-                                                        )
-                                                    ) {
-                                                        return;
-                                                    }
-
-                                                    const cabinetDepth =
-                                                        Number(
-                                                            activeCabinet.depth ?? 0
-                                                        );
-
-                                                    const clampedOffset =
-                                                        Math.max(
-                                                            0,
-                                                            Math.min(
-                                                                cabinetDepth,
-                                                                frontOffset
-                                                            )
-                                                        );
-
-                                                    updateFunction(
-                                                        func.id,
-                                                        {
-                                                            shelfFrontOffset:
-                                                                clampedOffset
-                                                        }
-                                                    );
-
-                                                }}
-                                                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
-                                            />
-
-                                        </label>
+                                        <FormulaNumberInput
+                                            label="Abstand von vorne"
+                                            value={func.shelfFrontOffset ?? 0}
+                                            expression={func.measurementExpressions?.shelfFrontOffset}
+                                            variables={measurementVariables}
+                                            min={0}
+                                            max={Number(activeCabinet.depth ?? 0)}
+                                            onChange={(expression, evaluation) => updateFunctionFormula(
+                                                func.id,
+                                                "shelfFrontOffset",
+                                                expression,
+                                                evaluation,
+                                                value => ({ shelfFrontOffset: value }),
+                                                ["shelfDepth"]
+                                            )}
+                                        />
 
                                     </div>
 
@@ -824,163 +729,88 @@ export default function SectionFunctionProperties({
                                     <div className="mt-4 space-y-4">
 
                                         {/* Lochabstand */}
-                                        <label className="block">
-
-                                            <span className="text-xs text-gray-400">
-                                                Lochabstand
-                                            </span>
-
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                step="0.1"
-                                                value={
-                                                    func.holeRow?.spacing ?? 32
-                                                }
-                                                onChange={(event) =>
-                                                    updateFunctionNested(
-                                                        func.id,
-                                                        "holeRow",
-                                                        {
-                                                            spacing:
-                                                                Number(
-                                                                    event.target.value
-                                                                )
-                                                        }
-                                                    )
-                                                }
-                                                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
-                                            />
-
-                                        </label>
+                                        <FormulaNumberInput
+                                            label="Lochabstand"
+                                            value={func.holeRow?.spacing ?? 32}
+                                            expression={func.measurementExpressions?.["holeRow.spacing"]}
+                                            variables={measurementVariables}
+                                            min={1}
+                                            onChange={(expression, evaluation) => updateFunctionFormula(
+                                                func.id,
+                                                "holeRow.spacing",
+                                                expression,
+                                                evaluation,
+                                                (value, current) => ({ holeRow: { ...(current.holeRow ?? {}), spacing: value } })
+                                            )}
+                                        />
 
 
                                         {/* Vorne */}
-                                        <label className="block">
-
-                                            <span className="text-xs text-gray-400">
-                                                Abstand von vorne
-                                            </span>
-
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                step="0.5"
-                                                value={
-                                                    func.holeRow?.frontOffset ?? 37
-                                                }
-                                                onChange={(event) =>
-                                                    updateFunctionNested(
-                                                        func.id,
-                                                        "holeRow",
-                                                        {
-                                                            frontOffset:
-                                                                Number(
-                                                                    event.target.value
-                                                                )
-                                                        }
-                                                    )
-                                                }
-                                                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
-                                            />
-
-                                        </label>
+                                        <FormulaNumberInput
+                                            label="Abstand von vorne"
+                                            value={func.holeRow?.frontOffset ?? 37}
+                                            expression={func.measurementExpressions?.["holeRow.frontOffset"]}
+                                            variables={measurementVariables}
+                                            min={0}
+                                            onChange={(expression, evaluation) => updateFunctionFormula(
+                                                func.id,
+                                                "holeRow.frontOffset",
+                                                expression,
+                                                evaluation,
+                                                (value, current) => ({ holeRow: { ...(current.holeRow ?? {}), frontOffset: value } })
+                                            )}
+                                        />
 
 
                                         {/* Hinten */}
-                                        <label className="block">
-
-                                            <span className="text-xs text-gray-400">
-                                                Abstand von hinten
-                                            </span>
-
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                step="0.5"
-                                                value={
-                                                    func.holeRow?.backOffset ?? 37
-                                                }
-                                                onChange={(event) =>
-                                                    updateFunctionNested(
-                                                        func.id,
-                                                        "holeRow",
-                                                        {
-                                                            backOffset:
-                                                                Number(
-                                                                    event.target.value
-                                                                )
-                                                        }
-                                                    )
-                                                }
-                                                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
-                                            />
-
-                                        </label>
+                                        <FormulaNumberInput
+                                            label="Abstand von hinten"
+                                            value={func.holeRow?.backOffset ?? 37}
+                                            expression={func.measurementExpressions?.["holeRow.backOffset"]}
+                                            variables={measurementVariables}
+                                            min={0}
+                                            onChange={(expression, evaluation) => updateFunctionFormula(
+                                                func.id,
+                                                "holeRow.backOffset",
+                                                expression,
+                                                evaluation,
+                                                (value, current) => ({ holeRow: { ...(current.holeRow ?? {}), backOffset: value } })
+                                            )}
+                                        />
 
 
                                         {/* Start unten */}
-                                        <label className="block">
-
-                                            <span className="text-xs text-gray-400">
-                                                Lochreihe Start von unten
-                                            </span>
-
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                step="1"
-                                                value={
-                                                    func.holeRow?.startFromBottom ?? 150
-                                                }
-                                                onChange={(event) =>
-                                                    updateFunctionNested(
-                                                        func.id,
-                                                        "holeRow",
-                                                        {
-                                                            startFromBottom:
-                                                                Number(
-                                                                    event.target.value
-                                                                )
-                                                        }
-                                                    )
-                                                }
-                                                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
-                                            />
-
-                                        </label>
+                                        <FormulaNumberInput
+                                            label="Lochreihe Start von unten"
+                                            value={func.holeRow?.startFromBottom ?? 150}
+                                            expression={func.measurementExpressions?.["holeRow.startFromBottom"]}
+                                            variables={measurementVariables}
+                                            min={0}
+                                            onChange={(expression, evaluation) => updateFunctionFormula(
+                                                func.id,
+                                                "holeRow.startFromBottom",
+                                                expression,
+                                                evaluation,
+                                                (value, current) => ({ holeRow: { ...(current.holeRow ?? {}), startFromBottom: value } })
+                                            )}
+                                        />
 
 
                                         {/* Ende oben */}
-                                        <label className="block">
-
-                                            <span className="text-xs text-gray-400">
-                                                Lochreihe Ende von oben
-                                            </span>
-
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                step="1"
-                                                value={
-                                                    func.holeRow?.endFromTop ?? 150
-                                                }
-                                                onChange={(event) =>
-                                                    updateFunctionNested(
-                                                        func.id,
-                                                        "holeRow",
-                                                        {
-                                                            endFromTop:
-                                                                Number(
-                                                                    event.target.value
-                                                                )
-                                                        }
-                                                    )
-                                                }
-                                                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
-                                            />
-
-                                        </label>
+                                        <FormulaNumberInput
+                                            label="Lochreihe Ende von oben"
+                                            value={func.holeRow?.endFromTop ?? 150}
+                                            expression={func.measurementExpressions?.["holeRow.endFromTop"]}
+                                            variables={measurementVariables}
+                                            min={0}
+                                            onChange={(expression, evaluation) => updateFunctionFormula(
+                                                func.id,
+                                                "holeRow.endFromTop",
+                                                expression,
+                                                evaluation,
+                                                (value, current) => ({ holeRow: { ...(current.holeRow ?? {}), endFromTop: value } })
+                                            )}
+                                        />
 
                                     </div>
 
@@ -1076,127 +906,19 @@ export default function SectionFunctionProperties({
                                         <div className="mt-4 grid grid-cols-1 gap-4">
 
                                             {/* Korpusoberkante */}
-                                            <label className="block">
-
-                                                <span className="text-xs text-gray-400">
-                                                    Abstand zur Korpusoberkante
-                                                </span>
-
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.5"
-                                                    value={Number(
-                                                        getMiddleWallOffset(
-                                                            func,
-                                                            "cabinetTop"
-                                                        )
-                                                    ).toFixed(1)}
-                                                    onChange={(event) =>
-                                                        setMiddleWallPosition(
-                                                            func.id,
-                                                            func,
-                                                            "cabinetTop",
-                                                            event.target.value
-                                                        )
-                                                    }
-                                                    className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
-                                                />
-
-                                            </label>
+                                            {middleWallFormulaInput(func, "cabinetTop", "Abstand zur Korpusoberkante")}
 
 
                                             {/* Korpusunterkante */}
-                                            <label className="block">
-
-                                                <span className="text-xs text-gray-400">
-                                                    Abstand zur Korpusunterkante
-                                                </span>
-
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.5"
-                                                    value={Number(
-                                                        getMiddleWallOffset(
-                                                            func,
-                                                            "cabinetBottom"
-                                                        )
-                                                    ).toFixed(1)}
-                                                    onChange={(event) =>
-                                                        setMiddleWallPosition(
-                                                            func.id,
-                                                            func,
-                                                            "cabinetBottom",
-                                                            event.target.value
-                                                        )
-                                                    }
-                                                    className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
-                                                />
-
-                                            </label>
+                                            {middleWallFormulaInput(func, "cabinetBottom", "Abstand zur Korpusunterkante")}
 
 
                                             {/* Sektionoberkante */}
-                                            <label className="block">
-
-                                                <span className="text-xs text-gray-400">
-                                                    Abstand zur Sektionoberkante
-                                                </span>
-
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.5"
-                                                    value={Number(
-                                                        getMiddleWallOffset(
-                                                            func,
-                                                            "sectionTop"
-                                                        )
-                                                    ).toFixed(1)}
-                                                    onChange={(event) =>
-                                                        setMiddleWallPosition(
-                                                            func.id,
-                                                            func,
-                                                            "sectionTop",
-                                                            event.target.value
-                                                        )
-                                                    }
-                                                    className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
-                                                />
-
-                                            </label>
+                                            {middleWallFormulaInput(func, "sectionTop", "Abstand zur Sektionoberkante")}
 
 
                                             {/* Sektionunterkante */}
-                                            <label className="block">
-
-                                                <span className="text-xs text-gray-400">
-                                                    Abstand zur Sektionunterkante
-                                                </span>
-
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.5"
-                                                    value={Number(
-                                                        getMiddleWallOffset(
-                                                            func,
-                                                            "sectionBottom"
-                                                        )
-                                                    ).toFixed(1)}
-                                                    onChange={(event) =>
-                                                        setMiddleWallPosition(
-                                                            func.id,
-                                                            func,
-                                                            "sectionBottom",
-                                                            event.target.value
-                                                        )
-                                                    }
-                                                    className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
-                                                />
-
-                                            </label>
+                                            {middleWallFormulaInput(func, "sectionBottom", "Abstand zur Sektionunterkante")}
 
                                         </div>
 
@@ -1209,127 +931,19 @@ export default function SectionFunctionProperties({
                                         <div className="mt-4 grid grid-cols-1 gap-4">
 
                                             {/* Korpus linke Kante */}
-                                            <label className="block">
-
-                                                <span className="text-xs text-gray-400">
-                                                    Abstand zur Korpus linke Kante
-                                                </span>
-
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.5"
-                                                    value={Number(
-                                                        getMiddleWallOffset(
-                                                            func,
-                                                            "cabinetLeft"
-                                                        )
-                                                    ).toFixed(1)}
-                                                    onChange={(event) =>
-                                                        setMiddleWallPosition(
-                                                            func.id,
-                                                            func,
-                                                            "cabinetLeft",
-                                                            event.target.value
-                                                        )
-                                                    }
-                                                    className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
-                                                />
-
-                                            </label>
+                                            {middleWallFormulaInput(func, "cabinetLeft", "Abstand zur Korpus linken Kante")}
 
 
                                             {/* Korpus rechte Kante */}
-                                            <label className="block">
-
-                                                <span className="text-xs text-gray-400">
-                                                    Abstand zur Korpus rechten Kante
-                                                </span>
-
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.5"
-                                                    value={Number(
-                                                        getMiddleWallOffset(
-                                                            func,
-                                                            "cabinetRight"
-                                                        )
-                                                    ).toFixed(1)}
-                                                    onChange={(event) =>
-                                                        setMiddleWallPosition(
-                                                            func.id,
-                                                            func,
-                                                            "cabinetRight",
-                                                            event.target.value
-                                                        )
-                                                    }
-                                                    className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
-                                                />
-
-                                            </label>
+                                            {middleWallFormulaInput(func, "cabinetRight", "Abstand zur Korpus rechten Kante")}
 
 
                                             {/* Sektion linke Kante */}
-                                            <label className="block">
-
-                                                <span className="text-xs text-gray-400">
-                                                    Abstand zur Sektion linken Kante
-                                                </span>
-
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.5"
-                                                    value={Number(
-                                                        getMiddleWallOffset(
-                                                            func,
-                                                            "sectionLeft"
-                                                        )
-                                                    ).toFixed(1)}
-                                                    onChange={(event) =>
-                                                        setMiddleWallPosition(
-                                                            func.id,
-                                                            func,
-                                                            "sectionLeft",
-                                                            event.target.value
-                                                        )
-                                                    }
-                                                    className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
-                                                />
-
-                                            </label>
+                                            {middleWallFormulaInput(func, "sectionLeft", "Abstand zur Sektion linken Kante")}
 
 
                                             {/* Sektion rechte Kante */}
-                                            <label className="block">
-
-                                                <span className="text-xs text-gray-400">
-                                                    Abstand zur Sektion rechten Kante
-                                                </span>
-
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.5"
-                                                    value={Number(
-                                                        getMiddleWallOffset(
-                                                            func,
-                                                            "sectionRight"
-                                                        )
-                                                    ).toFixed(1)}
-                                                    onChange={(event) =>
-                                                        setMiddleWallPosition(
-                                                            func.id,
-                                                            func,
-                                                            "sectionRight",
-                                                            event.target.value
-                                                        )
-                                                    }
-                                                    className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
-                                                />
-
-                                            </label>
+                                            {middleWallFormulaInput(func, "sectionRight", "Abstand zur Sektion rechten Kante")}
 
                                         </div>
                                     )}
@@ -1464,64 +1078,40 @@ export default function SectionFunctionProperties({
 
 
                                 {/* Position */}
-                                <label className="block">
-
-                                    <span className="text-xs text-gray-400">
-                                        Position über Sektionunterkante
-                                    </span>
-
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        step="0.5"
-                                        value={
-                                            func.positionFromBottom ??
-                                            40
-                                        }
-                                        onChange={(event) =>
-                                            updateLegrabox(
-                                                func.id,
-                                                {
-                                                    positionFromBottom:
-                                                        Number(
-                                                            event.target.value
-                                                        )
-                                                }
-                                            )
-                                        }
-                                        className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
-                                    />
-
-                                </label>
+                                <FormulaNumberInput
+                                    label="Position über Sektionunterkante"
+                                    value={func.positionFromBottom ?? 40}
+                                    expression={func.measurementExpressions?.positionFromBottom}
+                                    variables={measurementVariables}
+                                    min={0}
+                                    onChange={(expression, evaluation) => updateFunctionFormula(
+                                        func.id,
+                                        "positionFromBottom",
+                                        expression,
+                                        evaluation,
+                                        value => ({ positionFromBottom: value })
+                                    )}
+                                />
 
                                         
 
                                 {/* Aufdopplungen */}
                                 <div className="border-t border-gray-800 pt-2">
 
-                                    <label className="block">
-
-                                            <span className="text-xs text-gray-400">
-                                                Innenliegend (mm)
-                                            </span>
-
-                                            <input
-                                                type="number"
-                                                step="0.5"
-                                                value={func.doubling?.insideRightOffset ?? 0}
-                                                onChange={event =>
-                                                    updateLegraboxDoubling(
-                                                        func.id,
-                                                        {
-                                                            insideRightOffset:
-                                                                Number(event.target.value) || 0
-                                                        }
-                                                    )
-                                                }
-                                                className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
-                                            />
-
-                                        </label>
+                                    <FormulaNumberInput
+                                        label="Innenliegend"
+                                        value={func.doubling?.insideRightOffset ?? 0}
+                                        expression={func.measurementExpressions?.["doubling.insideRightOffset"]}
+                                        variables={measurementVariables}
+                                        min={0}
+                                        onChange={(expression, evaluation) => updateFunctionFormula(
+                                            func.id,
+                                            "doubling.insideRightOffset",
+                                            expression,
+                                            evaluation,
+                                            (value, current) => ({ doubling: { ...(current.doubling ?? {}), insideRightOffset: value } })
+                                        )}
+                                    />
 
                                     <div className="text-xs uppercase tracking-wide text-gray-500 mt-4 ">
                                         Aufdopplungen
@@ -1584,35 +1174,20 @@ export default function SectionFunctionProperties({
                                         {(func.doubling?.left ||
                                             func.doubling?.right) && (
 
-                                            <label className="block">
-
-                                                <span className="text-xs text-gray-400">
-                                                    Stärke der Aufdopplung
-                                                </span>
-
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.5"
-                                                    value={
-                                                        func.doubling?.thickness ??
-                                                        0
-                                                    }
-                                                    onChange={(event) =>
-                                                        updateLegraboxDoubling(
-                                                            func.id,
-                                                            {
-                                                                thickness:
-                                                                    Number(
-                                                                        event.target.value
-                                                                    )
-                                                            }
-                                                        )
-                                                    }
-                                                    className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white"
-                                                />
-
-                                            </label>
+                                            <FormulaNumberInput
+                                                label="Stärke der Aufdopplung"
+                                                value={func.doubling?.thickness ?? 0}
+                                                expression={func.measurementExpressions?.["doubling.thickness"]}
+                                                variables={measurementVariables}
+                                                min={0}
+                                                onChange={(expression, evaluation) => updateFunctionFormula(
+                                                    func.id,
+                                                    "doubling.thickness",
+                                                    expression,
+                                                    evaluation,
+                                                    (value, current) => ({ doubling: { ...(current.doubling ?? {}), thickness: value } })
+                                                )}
+                                            />
 
                                         )}
 

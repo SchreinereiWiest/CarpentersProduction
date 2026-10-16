@@ -73,6 +73,8 @@ export default function PropertiesSidebar({
     loadingMaterials,
     materialError,
 
+    measurementVariables = [],
+
     updateCabinetLayout
 
 }) {
@@ -354,6 +356,10 @@ export default function PropertiesSidebar({
 
                                 setSelectedElement={
                                     setSelectedElement
+                                }
+
+                                measurementVariables={
+                                    measurementVariables
                                 }
                             />
 

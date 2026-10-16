@@ -27,6 +27,12 @@ import { getGlobalFile, uploadGlobalFile } from "../../../services/globalMemoryC
 import axios from "axios";
 import CabinetPresetModal from "./components/editor/CabinetPresetModal.jsx";
 import { useAuth } from "../../../routes/AuthContext.jsx";
+import {
+    extractMeasurementVariables,
+    resolveCabinetFunctionExpressions,
+    resolveCabinetMeasurementExpressions
+} from "./measurementExpressions.js";
+import { getAufmasWorkspaceCache } from "../aufmas/aufmasWorkspaceCache.project.js";
 export default function CabinetEditor() {
 
     // conmstant Section alle Editor daten
@@ -57,6 +63,8 @@ export default function CabinetEditor() {
     const [, setSectionCount] = useState(1);
 
     const [cabinets, setCabinets] = useState([]);
+
+    const [measurementVariables, setMeasurementVariables] = useState([]);
 
     const [cabinetPresets, setCabinetPresets] = useState([]);
 
@@ -597,6 +605,59 @@ export default function CabinetEditor() {
 
     }, [projectId, project, defaultCabinet, location.search]);
 
+    useEffect(() => {
+        if (mode !== "edit" || !projectId) {
+            setMeasurementVariables([]);
+            return;
+        }
+
+        const cachedAufmas = getAufmasWorkspaceCache(projectId);
+        if (Array.isArray(cachedAufmas?.objects)) {
+            setMeasurementVariables(extractMeasurementVariables({ objects: cachedAufmas.objects }));
+            return;
+        }
+
+        let cancelled = false;
+        getProjectFile({
+            projectId,
+            file: "aufmas.json",
+            loadFromServer: {
+                download: downloadFile,
+                path: `/api/projects/generated/${projectId}/aufmas`
+            }
+        }).then(data => {
+            if (!cancelled) setMeasurementVariables(extractMeasurementVariables(data));
+        }).catch(error => {
+            if (error.response?.status !== 404 && error.code !== "OFFLINE_RESOURCE_UNAVAILABLE") {
+                console.warn("Aufmaßverknüpfungen konnten nicht geladen werden", error);
+            }
+            if (!cancelled) setMeasurementVariables([]);
+        });
+
+        return () => { cancelled = true; };
+    }, [mode, projectId]);
+
+    useEffect(() => {
+        if (!measurementVariables.length || !cabinets.length) return;
+        setCabinets(previous => {
+            let changed = false;
+            const next = previous.map(cabinet => {
+                const resolved = resolveCabinetMeasurementExpressions(cabinet, measurementVariables);
+                const fields = Object.keys(resolved);
+                const dimensionsChanged = fields.some(field => cabinet[field] !== resolved[field]);
+                const resized = !dimensionsChanged
+                    ? cabinet
+                    : Object.hasOwn(resolved, "width") || Object.hasOwn(resolved, "height")
+                        ? resizeCabinetContents(cabinet, resolved)
+                        : { ...cabinet, ...resolved };
+                const withFunctions = resolveCabinetFunctionExpressions(resized, measurementVariables);
+                if (withFunctions !== cabinet) changed = true;
+                return withFunctions;
+            });
+            return changed ? next : previous;
+        });
+    }, [cabinets, measurementVariables]);
+
     //fetch cabinet default config file
     useEffect(() => {
 
@@ -722,6 +783,7 @@ export default function CabinetEditor() {
                     saveCabinetAsPreset={isAdmin ? saveCabinetAsPreset : undefined}
 
                     updateActiveCabinet={updateActiveCabinet}
+                    measurementVariables={measurementVariables}
 
                     sectionSplitSpec={sectionSplitSpec}
                     setSectionSplitSpec={setSectionSplitSpec}
@@ -996,6 +1058,8 @@ export default function CabinetEditor() {
         loadingMaterials
     }
     materialError={materialError}
+
+    measurementVariables={measurementVariables}
 
     updateCabinetLayout={updateCabinetLayout}
 />
