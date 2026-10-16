@@ -21,7 +21,7 @@ function AttachmentPreview({ attachment, focused = false }) {
             <iframe
                 src={attachment.url}
                 title={attachment.fileName}
-                className="h-full min-h-[420px] w-full bg-white"
+                className="h-full min-h-[280px] w-full bg-white sm:min-h-[420px]"
             />
         );
     }
@@ -218,8 +218,8 @@ export default function ProjectAttachments() {
                                     key={attachment.id}
                                     className={`flex flex-col overflow-hidden rounded-xl border border-gray-700 bg-gray-800 shadow-lg ${
                                         columns === 1
-                                            ? "h-[calc(100dvh-13rem)] min-h-[520px]"
-                                            : "min-h-[420px]"
+                                            ? "min-h-[320px] sm:h-[calc(100dvh-13rem)] sm:min-h-[520px]"
+                                            : "min-h-[320px] sm:min-h-[420px]"
                                     }`}
                                 >
                                     <div className="flex items-center justify-between gap-3 border-b border-gray-700 px-4 py-3">

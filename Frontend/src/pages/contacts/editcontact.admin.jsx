@@ -138,13 +138,13 @@ return (
 
         <SideBar selected={5} className="flex-1" />
 
-        <main className="pt-10 h-full flex-1">
+        <main className="h-full min-w-0 flex-1 overflow-y-auto px-4 pt-4 sm:px-8 sm:pt-8">
 
-            <div className="justify-left pl-8">
+            <div>
 
                 <div>
-                    <form className="flex flex-col" onSubmit={handleSubmit}>
-                        <div className="w-2/5">
+                    <form className="grid gap-8 lg:grid-cols-2 lg:gap-12 lg:pr-12" onSubmit={handleSubmit}>
+                        <div className="w-full">
                             <label className="mb-5 block text-base font-semibold text-gray-300 sm:text-xl">
                                 User Details
                             </label>
@@ -266,7 +266,7 @@ return (
 
                         </div>
 
-                        <div className="absolute right-20 w-2/5">
+                        <div className="w-full">
                             <label className="mb-5 block text-base font-semibold text-gray-300 sm:text-xl">
                                 Address Details
                             </label>

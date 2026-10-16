@@ -114,11 +114,11 @@ export default function ShopSettingsPanel() {
     };
 
     if (loading) {
-        return <div className="h-full overflow-y-auto p-6 text-sm text-gray-500">Shop-Einstellungen werden geladen …</div>;
+        return <div className="responsive-settings-panel h-full overflow-y-auto p-6 text-sm text-gray-500">Shop-Einstellungen werden geladen …</div>;
     }
 
     return (
-        <div className="h-full overflow-y-auto p-6">
+        <div className="responsive-settings-panel h-full overflow-y-auto p-6">
             <div className="max-w-5xl space-y-6">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>

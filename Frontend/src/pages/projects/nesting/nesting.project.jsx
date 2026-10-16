@@ -6,6 +6,7 @@ import { useParams } from 'react-router';
 import { useEffect } from "react";
 import { Link } from "react-router";
 import ProjectBar from '../../../components/projectBar.jsx';
+import MobileWorkspaceGuard from '../../../components/MobileWorkspaceGuard.jsx';
 import { loadCadFile } from '../cad/cadLoader.project.js';
 import { processContent } from '../list/listProcess.project.js';
 import { calculateNesting } from './algorythm/nestingAlgorythm.js';
@@ -879,6 +880,8 @@ function NestingView() {
 
     <SideBar selected={2} />
 
+    <MobileWorkspaceGuard title="Nesting-Editor" />
+
     <main className="flex-1 flex flex-col overflow-hidden">
 
         {/* bleibt immer oben */}
@@ -897,7 +900,7 @@ function NestingView() {
                                     setActiveSheetIndex(index);
                                     setActiveStrip(null);
                                     setPlacementMessage("");
-                                }} className={` flex items-center xl:gap-3 gap-2 xl:px-4 px-2 xl:py-2 py-1
+                                }} className={` flex items-center xl:gap-3 gap-2 xl:px-4 px-2 py-2
                                     rounded-lg border transition-all duration-200 whitespace-nowrap ${ isActive ?
                                     "bg-blue-600 border-blue-500 text-white xl:shadow-lg shadow-md shadow-blue-900/30" : "bg-gray-900 border-gray-700 text-gray-400 hover:bg-gray-700 hover:text-white" } `} > <span
                                         className="text-xs text-gray-400"> #{index + 1}
@@ -918,7 +921,7 @@ function NestingView() {
 
                 </div>
 
-                {activeSheet && ( <div className="absolute xl:top-24 xl:left-4 top-17 left-2 z-20">
+                {activeSheet && ( <div className="absolute xl:top-24 xl:left-4 top-20 left-2 z-20">
                     <div className="bg-gray-800/90 backdrop-blur border border-gray-700 rounded-lg xl:px-4 px-2 py-3 shadow-lg">
                         <div className="text-xs text-gray-400 mb-1"> Aktive Hauptplatte </div>
                         <div className="font-semibold text-white xl:text-md text-sm"> Platte #{activeSheetIndex + 1} </div>
@@ -940,7 +943,7 @@ function NestingView() {
                     </div>
                 </div> )}
 
-                {activeStrip && ( <div className="absolute xl:top-56 xl:left-4 top-47 left-2 z-20">
+                {activeStrip && ( <div className="absolute xl:top-56 xl:left-4 top-56 left-2 z-20">
                     <div className="bg-gray-800/90 backdrop-blur border border-gray-700 rounded-lg xl:px-4 px-2 py-3 shadow-lg">
                         <div className="text-gray-400 mb-1"><span className="xl:text-sm text-xs">{isDirect2DNesting ? "Aktives Bauteil" : "Aktiver Strip"}</span> <span className="ml-8 font-semibold text-white xl:text-l text-sm">{activeStrip.id}</span></div>
                         <div className="font-semibold text-white xl:text-lg text-sm"> {activeStrip.placedWidth} x {activeStrip.placedHeight} </div>
@@ -988,7 +991,7 @@ function NestingView() {
 
                 </div> )}
 
-                <div className="absolute xl:top-24 top-17 right-4 z-20">
+                <div className="absolute xl:top-24 top-20 right-4 z-20">
     <div className="
         flex
         items-center
@@ -999,7 +1002,7 @@ function NestingView() {
         border-gray-700
         rounded-lg
         xl:px-4 px-2
-        xl:py-3 py-1
+        xl:py-3 py-2
         shadow-lg
     ">
 
@@ -1025,7 +1028,7 @@ function NestingView() {
                 border-gray-700
                 bg-gray-900
                 xl:px-4 px-2
-                xl:py-2 py-1
+                py-2
                 whitespace-nowrap
                 text-gray-400
                 transition-all
@@ -1054,7 +1057,7 @@ function NestingView() {
                 border-gray-700
                 bg-gray-900
                 xl:px-4 px-2
-                xl:py-2 py-1
+                py-2
                 whitespace-nowrap
                 text-gray-400
                 transition-all
@@ -1072,8 +1075,8 @@ function NestingView() {
     </div>
 </div>
 
-                {( <div className="absolute xl:top-44 top-30 right-4 z-20">
-                    <div className="bg-gray-800/90 backdrop-blur border border-gray-700 rounded-lg xl:px-4 px-2 xl:py-3 py-1 shadow-lg">
+                {( <div className="absolute xl:top-44 top-38 right-4 z-20">
+                    <div className="bg-gray-800/90 backdrop-blur border border-gray-700 rounded-lg xl:px-4 px-2 xl:py-3 py-2 shadow-lg">
                         <div className="text-gray-400 mb-1"><span className="text-sm"> Legende: </span> </div>
                         
                         {content?.map((list, index) => (

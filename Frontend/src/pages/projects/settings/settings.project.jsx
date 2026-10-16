@@ -423,7 +423,7 @@ export default function ProjectSettings() {
                     )}
 
 
-                    <div className="max-w-6xl mx-auto px-8 py-8">
+                    <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-6 xl:px-8 xl:py-8">
 
 
                         {/* -------------------------------- */}
@@ -472,7 +472,7 @@ export default function ProjectSettings() {
                             </div>
 
 
-                            <div className="grid grid-cols-3 gap-3">
+                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
 
 
                                 {/* Active */}

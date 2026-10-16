@@ -55,7 +55,7 @@ export default function TimeTracking() {
 
     <SideBar selected={2} />
 
-    <main className="flex-1 flex flex-col overflow-hidden">
+    <main className="min-w-0 min-h-0 flex-1 flex flex-col overflow-hidden">
 
         {/* bleibt immer oben */}
         <div className="sticky top-0 z-20 bg-gray-900 border-b border-gray-700">
@@ -63,12 +63,17 @@ export default function TimeTracking() {
         </div>
 
         <div className="
-            m-4
-            grid
-            grid-cols-2
-            gap-6
-            h-full
+            m-2
+            min-h-0
+            flex-1
             overflow-y-auto
+            overscroll-contain
+            space-y-3
+            sm:m-4
+            lg:grid
+            lg:grid-cols-2
+            lg:gap-6
+            lg:space-y-0
         ">
 
             <TimeControls

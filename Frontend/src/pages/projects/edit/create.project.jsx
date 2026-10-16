@@ -1,5 +1,6 @@
 import SideBar from "../../../components/sideBar"
 import ProjectBar from "../../../components/projectBar"
+import MobileWorkspaceGuard from "../../../components/MobileWorkspaceGuard.jsx"
 
 import { useState, useEffect } from 'react'
 import { setCurrentStack } from "three/src/nodes/tsl/TSLCore.js";
@@ -185,11 +186,13 @@ function CreateProject() {
 
         <SideBar selected={2} />
 
+        <MobileWorkspaceGuard title="Projekteditor" />
+
         <main className="flex-1 overflow-hidden flex flex-col">
 
             <div className="flex-1 overflow-hidden xl:p-6 p-2">
 
-                <div className="grid grid-cols-[280px_1fr_340px] xl:gap-6 gap-2 h-full">
+                <div className="project-editor-layout grid grid-cols-[280px_1fr_340px] xl:gap-6 gap-2 h-full">
 
                     <CorpusLeft EditorState={EditorState} />
 

@@ -7,11 +7,11 @@ function ProjectBar({selected=0}) {
     const { projectId } = useParams();
 
 return (
-<nav className="bg-gray-800 xl:h-20 h-16 w-full">
-    <div className="relative flex xl:space-x-3 space-x-2 xl:p-3 p-2"
+<nav aria-label="Projektnavigation" className="project-bar bg-gray-800 xl:h-20 h-16 w-full overflow-x-auto overflow-y-hidden">
+    <div className="project-bar__items relative flex w-max min-w-full xl:space-x-3 space-x-2 xl:p-3 p-2"
          >
 
-        <Link to={`/Projects/${projectId}`} className={selected===0
+        <Link to={`/Projects/${projectId}`} aria-label="Projektübersicht" title="Projektübersicht" className={selected===0
             ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             
@@ -25,7 +25,7 @@ return (
             </svg>
         </Link>
 
-        <Link to={`/Projects/CAD/${projectId}`} className={selected===1
+        <Link to={`/Projects/CAD/${projectId}`} aria-label="CAD" title="CAD" className={selected===1
             ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             
@@ -37,7 +37,7 @@ return (
 
         </Link>
 
-        <Link to={`/Projects/Cabinet/${projectId}`} className={selected===2
+        <Link to={`/Projects/Cabinet/${projectId}`} aria-label="Schrankkonfigurator" title="Schrankkonfigurator" className={selected===2
             ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             
@@ -50,7 +50,7 @@ return (
 
         </Link>
 
-        <Link to={`/Projects/List/${projectId}`} className={selected===3
+        <Link to={`/Projects/List/${projectId}`} aria-label="Stückliste" title="Stückliste" className={selected===3
             ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             
@@ -63,7 +63,7 @@ return (
 
         </Link>
 
-        <Link to={`/Projects/Nesting/${projectId}`} className={selected===4
+        <Link to={`/Projects/Nesting/${projectId}`} aria-label="Nesting" title="Nesting" className={selected===4
             ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             }>
@@ -74,7 +74,7 @@ return (
 
         </Link>
 
-        <Link to={`/Projects/Cut/${projectId}`} className={selected===5
+        <Link to={`/Projects/Cut/${projectId}`} aria-label="Zuschnitt" title="Zuschnitt" className={selected===5
             ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             }>
@@ -86,7 +86,7 @@ return (
 
         </Link>
 
-        <Link to={`/Projects/Cnc/${projectId}`} className={selected===6
+        <Link to={`/Projects/Cnc/${projectId}`} aria-label="CNC" title="CNC" className={selected===6
             ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             }>
@@ -109,7 +109,7 @@ return (
 
         </Link>
 
-        <Link to={`/Projects/Time/${projectId}`} className={selected===7
+        <Link to={`/Projects/Time/${projectId}`} aria-label="Zeiterfassung" title="Zeiterfassung" className={selected===7
             ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             }>
@@ -134,7 +134,7 @@ return (
 
         <ProtectedElement requiredRole="user">
 
-            <Link to={`/`} className={selected===11
+            <Link to={`/`} aria-label="Kalkulation" title="Kalkulation" className={selected===11
                 ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
                 : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
                 }>
@@ -148,7 +148,7 @@ return (
             </Link>
         </ProtectedElement>
 
-        <Link to={`/Projects/Settings/${projectId}`} className={selected===8
+        <Link to={`/Projects/Settings/${projectId}`} aria-label="Projekteinstellungen" title="Projekteinstellungen" className={selected===8
             ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             }>

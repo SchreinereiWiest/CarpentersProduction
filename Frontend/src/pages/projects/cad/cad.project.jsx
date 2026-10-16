@@ -7,6 +7,7 @@ import SideBar from "../../../components/sideBar.jsx";
 import Board from "./cadBoard.project.jsx";
 import EditorPanel from "./cadPanel.project.jsx";
 import ProjectBar from "../../../components/projectBar.jsx";
+import MobileWorkspaceGuard from "../../../components/MobileWorkspaceGuard.jsx";
 import { loadCadFile } from "./cadLoader.project.js";
 
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader'
@@ -173,6 +174,8 @@ const load = async () => {
 return (<div className='bg-gray-900 text-white justify-left h-screen overflow-hidden flex'>
 
 <SideBar selected={2} />
+
+<MobileWorkspaceGuard title="CAD-Ansicht" />
 
 <main className="flex-1 overflow-y-auto">
 

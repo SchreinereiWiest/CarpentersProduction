@@ -67,10 +67,12 @@ export default function Personal() {
             <SideBar selected={7}/>
 
 
-            <main className="
+            <main className="personal-main
                 flex-1
-                p-6
-                overflow-hidden
+                min-w-0
+                p-3
+                overflow-y-auto
+                sm:p-6
             ">
 
                 <h1 className="
@@ -82,35 +84,37 @@ export default function Personal() {
                 </h1>
 
 
-                <div className="
+                <div className="personal-layout
                     grid
-                    grid-cols-[1fr_350px]
-                    gap-6
-                    h-[calc(100%-100px)]
+                    grid-cols-1
+                    gap-4
                 ">
 
+                    <div className="personal-calendar">
+                        <EmployeeCalendar
 
-                    <EmployeeCalendar
+                            data={Calendar}
 
-                        data={Calendar}
+                        />
+                    </div>
 
-/>
+                    <div className="personal-open-times">
+                        <MissingTimes
 
-<MissingTimes
+                            entries={Calendar.missingEntries}
 
-    entries={Calendar.missingEntries}
+                            selected={Calendar.selectedOpenEntry}
 
-    selected={Calendar.selectedOpenEntry}
+                            setSelected={Calendar.selectOpenEntry}
 
-    setSelected={Calendar.selectOpenEntry}
+                            workTypes={Calendar.workTypes}
 
-    workTypes={Calendar.workTypes}
+                            assigningEntryId={Calendar.assigningEntryId}
 
-    assigningEntryId={Calendar.assigningEntryId}
+                            message={Calendar.assignmentMessage}
 
-    message={Calendar.assignmentMessage}
-
-/>
+                        />
+                    </div>
 
 <EditTimeModal
 

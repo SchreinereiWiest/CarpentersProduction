@@ -74,9 +74,9 @@ function ProjectOverview() {
 
         <SideBar selected={2} className="flex-1" />
 
-        <main className="xl:pt-10 pt-5 h-full flex-1 overflow-y-auto">
+        <main className="h-full min-w-0 flex-1 overflow-y-auto pt-4 sm:pt-5 xl:pt-10">
 
-            <div className="ml-8 flex items-center gap-3">
+            <div className="mx-4 flex flex-wrap items-center gap-3 sm:mx-8">
             <button
              onClick={() => navigate(`/projects/create`, {
                     state: {
@@ -113,8 +113,8 @@ function ProjectOverview() {
         </button>
         </div>
 
-            <div className="rounded-lg mt-4 flex justify-left ml-8 mr-8 overflow-hidden">
-                        <table className="w-full table-fixed">
+            <div className="mx-4 mt-4 overflow-hidden rounded-lg sm:mx-8">
+                        <table className="responsive-card-table w-full table-fixed">
                             <thead>
                                 <tr className="bg-gray-800">
                                     <th className="w-1/4 xl:py-4 py-2 px-6 text-left text-gray-300 font-bold uppercase">Title</th>
@@ -132,23 +132,23 @@ function ProjectOverview() {
                                 <tr key={project.id} className="bg-gray-700 hover:bg-gray-600 transition duration-300 cursor-pointer"
                                     onClick={()=> {navigate(`/Projects/${project.id}`)}}
                                     >
-                                    <td className="xl:py-4 py-3 px-6">
+                                    <td data-label="Titel" className="xl:py-4 py-3 px-6">
                                         {project.title}
                                     </td>
 
-                                    <td className="xl:py-4 py-3 px-6">
+                                    <td data-label="Kunde" className="xl:py-4 py-3 px-6">
                                         {project.customer.lastName}
                                     </td>
 
-                                    <td className="xl:py-4 py-3 px-6 truncate">
+                                    <td data-label="Start" className="xl:py-4 py-3 px-6 truncate">
                                         {project.startDate}
                                     </td>
 
-                                    <td className="xl:py-4 py-3 px-6 truncate">
+                                    <td data-label="Priorität" className="xl:py-4 py-3 px-6 truncate">
                                         {project.priority}
                                     </td>
 
-                                    <td className="xl:py-4 py-3 px-6 truncate">
+                                    <td data-label="Status" className="xl:py-4 py-3 px-6 truncate">
                                         {project.status}
                                     </td>
 
@@ -168,7 +168,7 @@ function ProjectOverview() {
             >
                 <form
                     onSubmit={handleImport}
-                    className="w-full max-w-xl rounded-xl border border-gray-700 bg-gray-800 p-6 shadow-2xl"
+                    className="w-full max-w-xl rounded-xl border border-gray-700 bg-gray-800 p-4 shadow-2xl sm:p-6"
                 >
                     <div className="flex items-start justify-between gap-4">
                         <div>

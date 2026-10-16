@@ -38,6 +38,7 @@ return (
 <nav
     aria-label="Sidebar"
     className="
+        app-sidebar
         h-dvh
         shrink-0
         overflow-y-auto
@@ -47,11 +48,11 @@ return (
         bg-gray-800
     "
 >
-    <div className={SideBarCollapsed ? "relative flex xl:w-20 flex-col xl:space-y-2 p-3 space-y-0 w-16"
-        : "relative flex xl:w-60 flex-col xl:space-y-2 p-3 space-y-0" }>
+    <div className={SideBarCollapsed ? "app-sidebar__items relative flex xl:w-20 flex-col xl:space-y-2 p-3 space-y-0 w-16"
+        : "app-sidebar__items relative flex xl:w-60 flex-col xl:space-y-2 p-3 space-y-0" }>
         
         <ProtectedElement requiredRole="user">
-            <Link to="/" className={SideBarCollapsed ? selected===0
+            <Link to="/" aria-label="Home" title="Home" className={SideBarCollapsed ? selected===0
                 ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : selected===0
@@ -92,7 +93,7 @@ return (
         </ProtectedElement>
 
         <ProtectedElement requiredRole="user">
-        <Link to="/Projects" className={SideBarCollapsed ? selected===2
+        <Link to="/Projects" aria-label="Projekte" title="Projekte" className={SideBarCollapsed ? selected===2
             ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
             : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
             : selected===2
@@ -132,7 +133,7 @@ return (
         </ProtectedElement>
 
         <ProtectedElement requiredRole="user">
-            <Link to="/" className={SideBarCollapsed ? selected===4
+            <Link to="/" aria-label="Planung" title="Planung" className={SideBarCollapsed ? selected===4
                 ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : selected===4
@@ -152,7 +153,7 @@ return (
         </ProtectedElement>
 
         <ProtectedElement requiredRole="admin">
-            <Link to="/Kontakte" className={SideBarCollapsed ? selected===5
+            <Link to="/Kontakte" aria-label="Kontakte" title="Kontakte" className={SideBarCollapsed ? selected===5
                 ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : selected===5
@@ -171,7 +172,7 @@ return (
         </ProtectedElement>
 
         <ProtectedElement requiredRole="user">
-            <Link to="/Storage" className={SideBarCollapsed ? selected===6
+            <Link to="/Storage" aria-label="Lager" title="Lager" className={SideBarCollapsed ? selected===6
                 ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : selected===6
@@ -190,7 +191,7 @@ return (
         </ProtectedElement>
 
         <ProtectedElement requiredRole="user">
-            <Link to="/Mitarbeiter" className={SideBarCollapsed ? selected===7
+            <Link to="/Mitarbeiter" aria-label="Mitarbeiter" title="Mitarbeiter" className={SideBarCollapsed ? selected===7
                 ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : selected===7
@@ -207,7 +208,7 @@ return (
         </ProtectedElement>
 
                 <ProtectedElement requiredRole="user">
-                        <Link to="/Purchasing" className={SideBarCollapsed ? selected===10
+                        <Link to="/Purchasing" aria-label="Einkauf" title="Einkauf" className={SideBarCollapsed ? selected===10
                     ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                     : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                     : selected===10
@@ -225,7 +226,7 @@ return (
         </ProtectedElement>
 
         <ProtectedElement requiredRole="adminOnly">
-            <Link to="/CompanySettings" className={SideBarCollapsed ? selected===8
+            <Link to="/CompanySettings" aria-label="Firmeneinstellungen" title="Firmeneinstellungen" className={SideBarCollapsed ? selected===8
                 ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : selected===8
@@ -244,7 +245,7 @@ return (
         </ProtectedElement>
 
         <ProtectedElement requiredRole="user">
-            <Link to="/User" className={SideBarCollapsed ? selected===9
+            <Link to="/User" aria-label="Benutzer" title="Benutzer" className={SideBarCollapsed ? selected===9
                 ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : selected===9
@@ -262,7 +263,7 @@ return (
 
         
 
-        <a onClick={()=> setSideBarCollapsed(!SideBarCollapsed)} className={SideBarCollapsed ?
+        <button type="button" aria-label={SideBarCollapsed ? "Navigation ausklappen" : "Navigation einklappen"} title={SideBarCollapsed ? "Navigation ausklappen" : "Navigation einklappen"} onClick={()=> setSideBarCollapsed(!SideBarCollapsed)} className={SideBarCollapsed ?
             "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
             : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-left pl-4 h-14 w-full rounded-lg"
             }>
@@ -288,9 +289,12 @@ return (
             </svg>
 
             <span className={SideBarCollapsed ? "hidden" : "pl-2 block" }>Einklappen</span>
-        </a>
+        </button>
 
                 <button
+    type="button"
+    aria-label={isFullscreen ? "Vollbild verlassen" : "Vollbild aktivieren"}
+    title={isFullscreen ? "Vollbild verlassen" : "Vollbild aktivieren"}
     onClick={() => toggleFullscreen()}
     className={
         SideBarCollapsed

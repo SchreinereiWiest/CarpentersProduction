@@ -5,6 +5,7 @@ import axios from "axios";
 import { useParams } from "react-router";
 import SideBar from "../../../components/sideBar.jsx";
 import ProjectBar from "../../../components/projectBar.jsx";
+import MobileWorkspaceGuard from "../../../components/MobileWorkspaceGuard.jsx";
 import { getProjectFile, uploadProjectFile } from "../../../services/projectMemoryCache.js";
 import { downloadFile, uploadJSONFile } from "../../../services/apiTemplates.js";
 import CutScene from "./cutScene.project.jsx";
@@ -404,6 +405,7 @@ function CutingView() {
     return (
         <div className="bg-gray-900 text-white h-screen flex overflow-hidden">
             <SideBar selected={2} />
+            <MobileWorkspaceGuard title="Zuschnittansicht" />
 
             <main className="flex-1 flex flex-col overflow-hidden">
                 <div className="sticky top-0 z-20 bg-gray-900 border-b border-gray-700">
@@ -425,7 +427,7 @@ function CutingView() {
                                             <button
                                                 key={`${sheetPlate.MID}-${sheetPlate.T}-${index}`}
                                                 onClick={() => changeSheet(index)}
-                                                className={`flex items-center gap-2 xl:gap-3 px-2 xl:px-4 py-1 xl:py-2 rounded-lg border transition-all duration-200 whitespace-nowrap ${isActive
+                                                className={`flex items-center gap-2 xl:gap-3 px-2 xl:px-4 py-2 rounded-lg border transition-all duration-200 whitespace-nowrap ${isActive
                                                     ? "bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-900/30"
                                                     : "bg-gray-900 border-gray-700 text-gray-400 hover:bg-gray-700 hover:text-white"
                                                     }`}
@@ -441,22 +443,22 @@ function CutingView() {
                         </div>
                     </div>
 
-                    <div className="absolute top-17 xl:top-24 right-2 xl:right-4 z-20 flex w-[min(24rem,calc(100%-1rem))] flex-col gap-2 xl:gap-3">
-                        <div className="flex items-center gap-1 xl:gap-3 bg-gray-800/90 backdrop-blur border border-gray-700 rounded-lg px-2 xl:px-4 py-1 xl:py-3 shadow-lg">
-                            <span className="rounded-lg border border-gray-700 bg-gray-900 px-2 xl:px-4 py-1 xl:py-2 whitespace-nowrap text-gray-400 text-xs xl:text-sm">
+                    <div className="absolute top-20 xl:top-24 right-2 xl:right-4 z-20 flex w-[min(24rem,calc(100%-1rem))] flex-col gap-2 xl:gap-3">
+                        <div className="flex items-center gap-1 xl:gap-3 bg-gray-800/90 backdrop-blur border border-gray-700 rounded-lg px-2 xl:px-4 py-2 xl:py-3 shadow-lg">
+                            <span className="rounded-lg border border-gray-700 bg-gray-900 px-2 xl:px-4 py-2 whitespace-nowrap text-gray-400 text-xs xl:text-sm">
                                 Stapel {stacks.length ? activeStackIndex + 1 : 0} | {stacks.length}
                             </span>
                             <button
                                 onClick={() => changeStack(Math.max(0, activeStackIndex - 1))}
                                 disabled={activeStackIndex <= 0}
-                                className="rounded-lg border border-gray-700 bg-gray-900 px-2 xl:px-4 py-1 xl:py-2 whitespace-nowrap text-gray-400 transition hover:bg-gray-700 hover:text-white disabled:opacity-40 disabled:hover:bg-gray-900 disabled:hover:text-gray-400"
+                                className="rounded-lg border border-gray-700 bg-gray-900 px-2 xl:px-4 py-2 whitespace-nowrap text-gray-400 transition hover:bg-gray-700 hover:text-white disabled:opacity-40 disabled:hover:bg-gray-900 disabled:hover:text-gray-400"
                             >
                                 Prev
                             </button>
                             <button
                                 onClick={() => changeStack(Math.min(stacks.length - 1, activeStackIndex + 1))}
                                 disabled={activeStackIndex >= stacks.length - 1}
-                                className="rounded-lg border border-gray-700 bg-gray-900 px-2 xl:px-4 py-1 xl:py-2 whitespace-nowrap text-gray-400 transition hover:bg-gray-700 hover:text-white disabled:opacity-40 disabled:hover:bg-gray-900 disabled:hover:text-gray-400"
+                                className="rounded-lg border border-gray-700 bg-gray-900 px-2 xl:px-4 py-2 whitespace-nowrap text-gray-400 transition hover:bg-gray-700 hover:text-white disabled:opacity-40 disabled:hover:bg-gray-900 disabled:hover:text-gray-400"
                             >
                                 Next
                             </button>
@@ -522,7 +524,7 @@ function CutingView() {
                         </div>
                     </div>
 
-                    <div className="absolute top-17 xl:top-24 left-2 xl:left-4 z-20 max-w-[min(24rem,calc(100%-1rem))]">
+                    <div className="absolute top-20 xl:top-24 left-2 xl:left-4 z-20 max-w-[min(24rem,calc(100%-1rem))]">
                         <div className="bg-gray-800/90 backdrop-blur border border-gray-700 rounded-lg px-2 xl:px-4 py-2 xl:py-3 shadow-lg max-h-[calc(100vh-12rem)] overflow-y-auto">
                             {activeStack ? (
                                 <>

@@ -37,7 +37,7 @@ export default function SettingsBar({
 }) {
 
     return (
-        <nav className="
+        <nav aria-label="Einstellungsbereiche" className="settings-bar
             h-16
             w-full
             bg-gray-800
@@ -45,7 +45,7 @@ export default function SettingsBar({
             border-gray-700
         ">
 
-            <div className="
+            <div className="settings-bar__items
                 flex
                 items-center
                 gap-2

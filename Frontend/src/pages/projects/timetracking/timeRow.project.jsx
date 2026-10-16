@@ -4,7 +4,6 @@ import { getWorkTypeLabel } from "../../../services/companySettings";
 
 export default function TimeRow({ entry, workTypes }) {
 
-    console.log(entry);
     const userName = [entry.user?.firstName, entry.user?.lastName]
         .filter(Boolean)
         .join(" ") || entry.user?.login || "Unbekannter Benutzer";
@@ -41,14 +40,21 @@ export default function TimeRow({ entry, workTypes }) {
         <div
             className="
                 flex
-                items-center
+                flex-col
+                items-stretch
                 justify-between
+                gap-3
                 rounded-lg
                 bg-gray-900
                 border
                 border-gray-700
-                px-5
-                py-4
+                px-4
+                py-3
+                sm:flex-row
+                sm:items-center
+                sm:gap-4
+                sm:px-5
+                sm:py-4
                 transition
                 hover:border-gray-500
                 hover:bg-gray-800
@@ -100,6 +106,7 @@ export default function TimeRow({ entry, workTypes }) {
                     text-green-400
                     font-semibold
                     whitespace-nowrap
+                    text-center
                 "
             >
                 {formatDuration(entry.duration)}

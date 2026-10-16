@@ -153,11 +153,11 @@ export default function CacheSettingsPanel() {
     };
 
     if (loading) {
-        return <div className="h-full overflow-y-auto p-6 text-sm text-gray-500">Offline-Einstellungen werden geladen …</div>;
+        return <div className="responsive-settings-panel h-full overflow-y-auto p-6 text-sm text-gray-500">Offline-Einstellungen werden geladen …</div>;
     }
 
     return (
-        <div className="h-full overflow-y-auto p-6">
+        <div className="responsive-settings-panel h-full overflow-y-auto p-6">
             <div className="max-w-4xl space-y-6">
                 <header>
                     <h1 className="text-xl font-semibold">Offline-Modus</h1>

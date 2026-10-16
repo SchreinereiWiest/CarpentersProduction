@@ -3,6 +3,7 @@ import { useLocation, useParams } from "react-router";
 import CabinetViewport from "./components/view/cabinetViewport.jsx";
 import ProjectBar from '../../../components/projectBar.jsx';
 import SideBar from '../../../components/sideBar.jsx';
+import MobileWorkspaceGuard from '../../../components/MobileWorkspaceGuard.jsx';
 import { cloneCabinetWithFreshIds } from "@Engine/cabinetConfigurator/cabinet.js";
 import { DEFAULT_CABINET } from "@Engine/cabinetConfigurator/cabinetDefaults.js";
 import { DEFAULT_CNC } from "@Engine/cabinetConfigurator/cnc/cncDefaults.js";
@@ -688,6 +689,8 @@ export default function CabinetEditor() {
 
     <SideBar selected={2} />
 
+    <MobileWorkspaceGuard title="Schrankkonfigurator" />
+
     <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {mode != "create" && ( <div className="shrink-0 bg-gray-900 border-b border-gray-700">
             <ProjectBar selected={2} />
@@ -696,7 +699,7 @@ export default function CabinetEditor() {
 
         <div className="flex-1 min-h-0">
 
-            <div className="
+            <div className="cabinet-editor-layout
                 grid
                 h-full
                 min-h-0
@@ -754,6 +757,7 @@ export default function CabinetEditor() {
             gap-2
             px-3
         ">
+                        <div className="cabinet-editor-toolbar-actions flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
                         <button
                             type="button"
                             onClick={() => toggleViewMode("front")}
@@ -764,6 +768,8 @@ export default function CabinetEditor() {
                                 py-2
                                 text-sm
                                 transition
+                                shrink-0
+                                whitespace-nowrap
 
                                 ${
                                     viewMode === "front"
@@ -785,6 +791,8 @@ export default function CabinetEditor() {
                                 py-2
                                 text-sm
                                 transition
+                                shrink-0
+                                whitespace-nowrap
 
                                 ${
                                     viewMode === "combined"
@@ -812,6 +820,8 @@ export default function CabinetEditor() {
                                             shadow-lg
                                             backdrop-blur
                                             hover:bg-gray-700
+                                            shrink-0
+                                            whitespace-nowrap
                                         "
                                     >
                                         ParseFront
@@ -823,12 +833,13 @@ export default function CabinetEditor() {
                                 setSelectedPresetId(String(cabinetPresets[0]?.id ?? ""));
                                 setShowPresetInsertModal(true);
                             }}
-                            className="rounded border border-gray-700 bg-gray-800/90 px-3 py-2 text-sm text-gray-200 shadow-lg hover:bg-gray-700"
+                            className="shrink-0 whitespace-nowrap rounded border border-gray-700 bg-gray-800/90 px-3 py-2 text-sm text-gray-200 shadow-lg hover:bg-gray-700"
                         >
                             Preset einfügen
                         </button>
 
-                        <div className="mx-2 h-6 w-px bg-gray-700" />
+                        <div className="mx-2 h-6 w-px shrink-0 bg-gray-700" />
+                        </div>
 
                         {/* <button type="button" className="
                 rounded
@@ -857,7 +868,7 @@ export default function CabinetEditor() {
                             onContextMenu={event => event.preventDefault()}
                             title={mode === "edit" ? "Gedrückt halten, um manuelle Listeneinträge vollständig zu überschreiben" : undefined}
                             disabled={saving}
-                            className="ml-auto rounded border border-blue-700 bg-blue-600 px-4 py-2 text-sm text-white shadow hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="shrink-0 whitespace-nowrap rounded border border-blue-700 bg-blue-600 px-4 py-2 text-sm text-white shadow hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             {mode === "create"
                                 ? "Weiter"

@@ -44,16 +44,17 @@ export default function TimeHistory({ entries, workTypes }) {
     }
 
     const groupedEntries = groupEntries(entries);
-    console.log(groupedEntries);
-
     return (
 
         <div
             className="
-                h-full
-                overflow-y-auto
-                pr-3
-                space-y-6
+                min-h-0
+                w-full
+                space-y-4
+                lg:h-full
+                lg:overflow-y-auto
+                lg:pr-3
+                lg:space-y-6
             "
         >
 
@@ -74,7 +75,8 @@ export default function TimeHistory({ entries, workTypes }) {
                         className="
                             rounded-xl
                             bg-gray-800
-                            p-5
+                            p-3
+                            sm:p-5
                         "
 
                     >
@@ -83,6 +85,8 @@ export default function TimeHistory({ entries, workTypes }) {
                             className="
                                 mb-5
                                 flex
+                                flex-wrap
+                                gap-3
                                 items-center
                                 justify-between
                                 border-b
@@ -117,8 +121,8 @@ export default function TimeHistory({ entries, workTypes }) {
                                 className="
                                     rounded-lg
                                     bg-gray-900
-                                    px-4
-                                    py-2
+                                    px-3
+                                    py-1.5
                                     text-green-400
                                     font-semibold
                                 "

@@ -90,11 +90,11 @@ function NewProject() {
 
         <SideBar selected={5} />
 
-        <main className="pt-12 pl-12 h-full w-full overflow-y-auto">
+        <main className="h-full min-w-0 flex-1 overflow-y-auto px-4 pt-4 sm:px-8 sm:pt-8 lg:px-12 lg:pt-12">
             <div className="justify-left">
 
-                <form className="flex flex-col" onSubmit={handleSubmit}>
-                    <div className="w-1/5">
+                <form className="relative flex flex-col lg:pr-[48%]" onSubmit={handleSubmit}>
+                    <div className="w-full">
 
                         <div className="mb-5">
 
@@ -105,14 +105,14 @@ function NewProject() {
                         </div>
 
                     </div>
-                    <div className="mb-5 w-2/5">
+                    <div className="mb-5 w-full">
                         <textarea name="projectDescription" id="projectDescription" placeholder="Project Description"
                             value={projectDescription} onChange={(e)=> setProjectDescription(e.target.value)}
                                 className="w-full h-48 rounded-md border border-[#e0e0e0] bg-white py-3 px-6 text-base font-medium text-[#6B7280] outline-none focus:border-[#6A64F1] focus:shadow-md resize-none"
                             />
                         </div>
 
-                        <div className="mb-5 w-2/5">
+                        <div className="mb-5 w-full">
                     <a className="w-full" href="#">
                         <link rel="stylesheet"
                             href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
@@ -142,14 +142,14 @@ function NewProject() {
                 <div className="space-y-2">
 
                     {files.map(file=>(
-                    <div key={file.name} className="bg-gray-700 rounded p-2 w-2/5">
+                    <div key={file.name} className="w-full rounded bg-gray-700 p-2">
                         {file.name}
                     </div>
                     ))}
 
                 </div>
 
-                        <div className="absolute right-20 mt-18 w-2/5">
+                        <div className="mt-6 w-full lg:absolute lg:left-[56%] lg:top-0 lg:mt-0 lg:w-[42%]">
 
                         <div className="mb-5">
                             {cadFiles ? (
@@ -157,7 +157,7 @@ function NewProject() {
 
                     
                     {cadFiles.map(file=>(
-                    <div key={file.name} className="bg-gray-700 rounded p-2 w-2/5">
+                    <div key={file.name} className="w-full rounded bg-gray-700 p-2">
                         {file.name}
                     </div>
                     ))}

@@ -51,7 +51,7 @@ const sortBySupplier = (items, suppliers) => [...items].sort((left, right) => (
 function ReleasedTable({ rows, suppliers, showProject, selectedKeys, processing, onToggle }) {
     return (
         <div className="overflow-x-auto">
-            <table className="w-full min-w-[920px] text-left">
+            <table className="responsive-card-table w-full min-w-[920px] text-left">
                 <thead className="bg-gray-900/60 text-xs uppercase tracking-wide text-gray-400">
                     <tr>
                         <th className="px-5 py-3">Artikel</th>
@@ -69,21 +69,21 @@ function ReleasedTable({ rows, suppliers, showProject, selectedKeys, processing,
                         const rowKey = `${project.id}:${item.sourceKey}`;
                         return (
                             <tr key={rowKey} className="hover:bg-gray-700/40">
-                                <td className="px-5 py-4">
+                                <td data-label="Artikel" className="px-5 py-4">
                                     <div className="font-medium">{item.name}</div>
                                     <div className="mt-1 text-sm text-gray-500">{[item.sku, item.description].filter(Boolean).join(" · ")}</div>
                                 </td>
                                 {showProject ? (
-                                    <td className="px-4 py-4">
+                                    <td data-label="Projekt" className="px-4 py-4">
                                         <div className="font-medium text-gray-200">{project.title}</div>
                                         <div className="mt-1 text-xs text-gray-500">{project.projectNumber || "Ohne Projektnummer"}</div>
                                     </td>
-                                ) : <td className="px-4 py-4 text-gray-300">{getSupplierName(item, suppliers)}</td>}
-                                <td className="px-4 py-4 text-gray-300">{item.category}</td>
-                                <td className="px-4 py-4 text-right">{item.quantity} {item.unit}</td>
-                                <td className="px-4 py-4 text-right">{item.netPrice === null ? "–" : money.format(Number(item.netPrice))}</td>
-                                <td className="px-4 py-4 text-right font-medium">{item.netPrice === null ? "–" : money.format(Number(item.netPrice) * Number(item.quantity || 0))}</td>
-                                <td className="px-5 py-4 text-right">
+                                ) : <td data-label="Lieferant" className="px-4 py-4 text-gray-300">{getSupplierName(item, suppliers)}</td>}
+                                <td data-label="Kategorie" className="px-4 py-4 text-gray-300">{item.category}</td>
+                                <td data-label="Menge" className="px-4 py-4 text-right">{item.quantity} {item.unit}</td>
+                                <td data-label="Netto" className="px-4 py-4 text-right">{item.netPrice === null ? "–" : money.format(Number(item.netPrice))}</td>
+                                <td data-label="Summe" className="px-4 py-4 text-right font-medium">{item.netPrice === null ? "–" : money.format(Number(item.netPrice) * Number(item.quantity || 0))}</td>
+                                <td data-label="Auswahl" className="px-5 py-4 text-right">
                                     <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-gray-300">
                                         <input
                                             type="checkbox"
@@ -225,7 +225,7 @@ function PurchasedHistory({ groups, suppliers, loading }) {
                                 <div className="text-right"><div className="text-sm text-gray-400">{rows.length} Positionen</div><div className="font-semibold">{money.format(total)} netto</div></div>
                             </div>
                             <div className="overflow-x-auto">
-                                <table className="w-full min-w-[980px] text-left">
+                                <table className="responsive-card-table w-full min-w-[980px] text-left">
                                     <thead className="bg-gray-900/60 text-xs uppercase tracking-wide text-gray-400">
                                         <tr>
                                             <th className="px-5 py-3">Artikel</th>
@@ -242,12 +242,12 @@ function PurchasedHistory({ groups, suppliers, loading }) {
                                             const validPurchasedDate = purchasedDate && !Number.isNaN(purchasedDate.getTime());
                                             return (
                                                 <tr key={`${project.id}:${item.sourceKey}`} className="bg-emerald-950/10 hover:bg-emerald-950/20">
-                                                    <td className="px-5 py-4"><div className="font-medium">{item.name}</div><div className="mt-1 text-sm text-gray-500">{[item.sku, item.description].filter(Boolean).join(" · ")}</div></td>
-                                                    <td className="px-4 py-4"><div className="font-medium text-gray-200">{project.title}</div><div className="mt-1 text-xs text-gray-500">{project.projectNumber || "Ohne Kommissionsnummer"}</div></td>
-                                                    <td className="px-4 py-4 text-right">{item.quantity} {item.unit}</td>
-                                                    <td className="px-4 py-4 text-right">{item.netPrice === null ? "–" : money.format(Number(item.netPrice))}</td>
-                                                    <td className="px-4 py-4 text-right font-medium">{item.netPrice === null ? "–" : money.format(Number(item.netPrice) * Number(item.quantity || 0))}</td>
-                                                    <td className="px-5 py-4 text-right text-sm text-gray-300">{validPurchasedDate ? dateTime.format(purchasedDate) : "Kein Zeitstempel"}</td>
+                                                    <td data-label="Artikel" className="px-5 py-4"><div className="font-medium">{item.name}</div><div className="mt-1 text-sm text-gray-500">{[item.sku, item.description].filter(Boolean).join(" · ")}</div></td>
+                                                    <td data-label="Projekt" className="px-4 py-4"><div className="font-medium text-gray-200">{project.title}</div><div className="mt-1 text-xs text-gray-500">{project.projectNumber || "Ohne Kommissionsnummer"}</div></td>
+                                                    <td data-label="Menge" className="px-4 py-4 text-right">{item.quantity} {item.unit}</td>
+                                                    <td data-label="Netto" className="px-4 py-4 text-right">{item.netPrice === null ? "–" : money.format(Number(item.netPrice))}</td>
+                                                    <td data-label="Summe" className="px-4 py-4 text-right font-medium">{item.netPrice === null ? "–" : money.format(Number(item.netPrice) * Number(item.quantity || 0))}</td>
+                                                    <td data-label="Gekauft am" className="px-5 py-4 text-right text-sm text-gray-300">{validPurchasedDate ? dateTime.format(purchasedDate) : "Kein Zeitstempel"}</td>
                                                 </tr>
                                             );
                                         })}
@@ -580,7 +580,7 @@ export default function Purchasing() {
             <SideBar selected={10} />
 
             <main className="min-w-0 flex-1 overflow-y-auto">
-                <div className="mx-auto max-w-[1500px] p-5 xl:p-8">
+                <div className="mx-auto max-w-[1500px] p-3 sm:p-5 xl:p-8">
                     <div className="flex flex-wrap items-start justify-between gap-5">
                         <div>
                             <p className="text-sm font-medium uppercase tracking-widest text-blue-400">Zentraler Einkauf</p>
@@ -601,7 +601,7 @@ export default function Purchasing() {
                         )}
                     </div>
 
-                    <div className="mt-7 flex border-b border-gray-700">
+                    <div className="mt-7 flex overflow-x-auto border-b border-gray-700">
                         <button type="button" onClick={() => setActiveTab("released")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "released" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Freigegebene Artikel</button>
                         <button type="button" onClick={() => setActiveTab("shop")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "shop" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Interner Shop</button>
                         <button type="button" onClick={() => setActiveTab("purchased")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "purchased" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Gekaufte Artikel</button>

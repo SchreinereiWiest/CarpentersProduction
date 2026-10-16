@@ -14,17 +14,20 @@ export default function DeleteConfirm({
             justify-center
             bg-black/50
             backdrop-blur-sm
+            p-4
         ">
 
             {/* Modal */}
 
             <div className="
-                w-[500px]
+                w-full
+                max-w-[500px]
                 rounded-2xl
                 border
                 border-white/10
                 bg-gray-900/95
-                p-6
+                p-4
+                sm:p-6
                 text-white
                 shadow-2xl
             ">
@@ -48,6 +51,7 @@ export default function DeleteConfirm({
 
                 <div className="
                     flex
+                    flex-wrap
                     justify-end
                     gap-3
                 ">

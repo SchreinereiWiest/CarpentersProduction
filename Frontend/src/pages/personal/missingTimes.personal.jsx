@@ -18,10 +18,11 @@ export default function MissingTimes({
         <div className="
             rounded-xl
             bg-gray-800
-            h-full
+            min-h-80
             flex
             flex-col
             overflow-hidden
+            xl:h-full
         ">
 
             <div className="

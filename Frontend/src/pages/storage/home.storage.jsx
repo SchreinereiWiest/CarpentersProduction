@@ -95,21 +95,30 @@ return (
 
     <main className="
                     flex-1
+                    min-w-0
                     overflow-y-auto
-                    p-8
+                    p-4
+                    sm:p-6
+                    xl:p-8
                 ">
 
         <div className="
                         flex
-                        items-center
+                        flex-col
+                        items-start
                         justify-between
-                        mb-8
+                        gap-4
+                        mb-6
+                        sm:items-center
+                        sm:flex-row
+                        xl:mb-8
                     ">
 
             <div>
 
                 <h1 className="
-                                text-3xl
+                                text-2xl
+                                sm:text-3xl
                                 font-bold
                             ">
                     Lagerverwaltung
@@ -125,12 +134,14 @@ return (
             </div>
 
             <button className="
+                            w-full
                             rounded-lg
                             bg-blue-600
                             px-4
                             py-2
                             font-medium
                             hover:bg-blue-500
+                            sm:w-auto
                         " onClick={() => {
                             setSelectedMaterial(null);
                             setShowMaterialModal(true);
@@ -198,7 +209,7 @@ return (
                             bg-gray-800
                         ">
 
-                <table className="
+                <table className="responsive-card-table
                                 w-full
                                 text-left
                             ">
@@ -268,7 +279,7 @@ return (
                                             focus:outline-none
                                         ">
 
-                            <td className="
+                            <td data-label="Material" className="
                                                 px-6
                                                 py-4
                                             ">
@@ -292,19 +303,19 @@ return (
 
                             </td>
 
-                            <td className="px-6 py-4">
+                            <td data-label="Hersteller" className="px-6 py-4">
 
                                 {material.manufacturer || "-"}
 
                             </td>
 
-                            <td className="px-6 py-4">
+                            <td data-label="Kategorie" className="px-6 py-4">
 
                                 {material.category || "-"}
 
                             </td>
 
-                            <td className="px-6 py-4">
+                            <td data-label="Stärke" className="px-6 py-4">
 
                                 {material.thickness
                                 ? `${material.thickness} mm`
@@ -313,7 +324,7 @@ return (
 
                             </td>
 
-                            <td className="px-6 py-4">
+                            <td data-label="Preis / m²" className="px-6 py-4">
 
                                 {material.pricePerSquareMeter
                                 ? `${material.pricePerSquareMeter} $`
@@ -322,7 +333,7 @@ return (
 
                             </td>
 
-                            <td className="px-6 py-4">
+                            <td data-label="Lagerbestand" className="px-6 py-4">
 
                                 <div className="
                                     flex

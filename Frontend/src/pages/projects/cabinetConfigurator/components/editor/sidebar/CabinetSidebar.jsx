@@ -43,6 +43,8 @@ return (
             h-full
             min-h-0
             flex-col
+            overflow-y-auto
+            overscroll-contain
             border-r
             border-gray-700
             bg-gray-900

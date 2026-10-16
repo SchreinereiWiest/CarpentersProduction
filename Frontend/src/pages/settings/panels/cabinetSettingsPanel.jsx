@@ -286,7 +286,7 @@ export default function CabinetSettingsPanel() {
     };
 
     return (
-        <div className="
+        <div className="responsive-settings-panel
             h-full
             overflow-y-auto
             p-6

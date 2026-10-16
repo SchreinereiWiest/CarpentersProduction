@@ -75,7 +75,7 @@ function PurchaseTable({ title, description, items, lockedReleasedKeys, onChange
                 </div>
             ) : (
                 <div className="overflow-x-auto">
-                    <table className="w-full min-w-[980px] text-left">
+                    <table className="responsive-card-table w-full min-w-[980px] text-left">
                         <thead className="bg-gray-900/60 text-xs uppercase tracking-wide text-gray-400">
                             <tr>
                                 <th className="px-5 py-3">Artikel</th>
@@ -96,15 +96,15 @@ function PurchaseTable({ title, description, items, lockedReleasedKeys, onChange
 
                                 return (
                                     <tr key={item.sourceKey} className={item.purchased ? "bg-emerald-950/35 hover:bg-emerald-950/50" : releaseLocked ? "bg-amber-950/20 hover:bg-amber-950/30" : "hover:bg-gray-700/40"}>
-                                        <td className="px-5 py-4">
+                                        <td data-label="Artikel" className="px-5 py-4">
                                             <div className="font-medium text-white">{item.name}</div>
                                             <div className="mt-1 text-sm text-gray-400">
                                                 {[item.sku, item.description].filter(Boolean).join(" · ") || "Keine weiteren Angaben"}
                                             </div>
                                         </td>
-                                        <td className="px-4 py-4"><SourceBadge source={item.source} /></td>
-                                        <td className="px-4 py-4 text-sm text-gray-300">{item.supplierName || "Ohne Lieferant"}</td>
-                                        <td className="px-4 py-4">
+                                        <td data-label="Herkunft" className="px-4 py-4"><SourceBadge source={item.source} /></td>
+                                        <td data-label="Lieferant" className="px-4 py-4 text-sm text-gray-300">{item.supplierName || "Ohne Lieferant"}</td>
+                                        <td data-label="Menge" className="px-4 py-4">
                                             <div className="flex items-center gap-2">
                                                 <input
                                                     aria-label={`Menge ${item.name}`}
@@ -131,7 +131,7 @@ function PurchaseTable({ title, description, items, lockedReleasedKeys, onChange
                                                 </select>
                                             )}
                                         </td>
-                                        <td className="px-4 py-4">
+                                        <td data-label="Netto / Einheit" className="px-4 py-4">
                                             <div className="relative w-32">
                                                 <input
                                                     aria-label={`Nettopreis ${item.name}`}
@@ -147,10 +147,10 @@ function PurchaseTable({ title, description, items, lockedReleasedKeys, onChange
                                                 <span className="absolute right-3 top-2 text-gray-500">€</span>
                                             </div>
                                         </td>
-                                        <td className="px-4 py-4 font-medium text-gray-200">
+                                        <td data-label="Summe" className="px-4 py-4 font-medium text-gray-200">
                                             {lineTotal === null ? "–" : money.format(lineTotal)}
                                         </td>
-                                        <td className="px-5 py-4">
+                                        <td data-label="Freigabe" className="px-5 py-4">
                                             <div className="flex items-center justify-end gap-3">
                                                 {item.source === "shop" && !readOnly && (
                                                     <button
@@ -347,7 +347,7 @@ export default function ProjectPurchasing() {
                 </div>
 
                 <div className="flex-1 overflow-y-auto">
-                    <div className="mx-auto max-w-[1500px] p-5 xl:p-8">
+                    <div className="mx-auto max-w-[1500px] p-3 sm:p-5 xl:p-8">
                         <div className="flex flex-wrap items-start justify-between gap-5">
                             <div>
                                 <p className="text-sm font-medium uppercase tracking-widest text-blue-400">Projekt-Einkaufswagen</p>

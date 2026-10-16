@@ -211,11 +211,11 @@ export default function CompanySettingsPanel() {
     };
 
     if (loading) {
-        return <div className="h-full overflow-y-auto p-6 text-sm text-gray-500">Unternehmenseinstellungen werden geladen...</div>;
+        return <div className="responsive-settings-panel h-full overflow-y-auto p-6 text-sm text-gray-500">Unternehmenseinstellungen werden geladen...</div>;
     }
 
     return (
-        <div className="h-full overflow-y-auto p-6">
+        <div className="responsive-settings-panel h-full overflow-y-auto p-6">
             <div className="max-w-4xl space-y-6">
                 <div>
                     <h1 className="text-xl font-semibold">Unternehmen</h1>
@@ -236,7 +236,7 @@ export default function CompanySettingsPanel() {
 
                 <section className="rounded-xl border border-gray-700 bg-gray-800 p-5">
                     <div className="text-xs uppercase tracking-wide text-gray-500">Reguläre Arbeitszeit</div>
-                    <div className="mt-4 grid max-w-xl grid-cols-2 gap-4">
+                    <div className="mt-4 grid max-w-xl grid-cols-1 gap-4 sm:grid-cols-2">
                         <TimeField
                             label="Arbeitsbeginn"
                             value={config.workingHours.start}
@@ -269,7 +269,7 @@ export default function CompanySettingsPanel() {
 
                     <div className="mt-4 space-y-3">
                         {sortedBreaks.map(entry => (
-                            <div key={entry.id} className="grid grid-cols-[1fr_140px_140px_auto] items-end gap-3 rounded-lg bg-gray-900 p-3">
+                            <div key={entry.id} className="grid grid-cols-1 items-end gap-3 rounded-lg bg-gray-900 p-3 sm:grid-cols-[1fr_140px_140px_auto]">
                                 <TextField
                                     label="Bezeichnung"
                                     value={entry.label}
@@ -299,7 +299,7 @@ export default function CompanySettingsPanel() {
 
                     <div className="mt-4 space-y-3">
                         {config.workTypes.map(type => (
-                            <div key={type.id} className="grid grid-cols-[1fr_180px_auto] items-end gap-3 rounded-lg bg-gray-900 p-3">
+                            <div key={type.id} className="grid grid-cols-1 items-end gap-3 rounded-lg bg-gray-900 p-3 sm:grid-cols-[1fr_180px_auto]">
                                 <TextField
                                     label="Bezeichnung"
                                     value={type.label}
@@ -315,7 +315,7 @@ export default function CompanySettingsPanel() {
                             </div>
                         ))}
 
-                        <div className="grid grid-cols-[1fr_auto] items-end gap-3 rounded-lg border border-dashed border-gray-600 p-3">
+                        <div className="grid grid-cols-1 items-end gap-3 rounded-lg border border-dashed border-gray-600 p-3 sm:grid-cols-[1fr_auto]">
                             <TextField
                                 label="Neue Tätigkeit"
                                 value={newWorkType.label}

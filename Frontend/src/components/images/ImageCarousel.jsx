@@ -6,11 +6,11 @@ export default function ImageCarousel({ images }) {
     let columnClass = "columns-1";
 
     if (images.length >= 6) {
-        columnClass = "columns-4";
+        columnClass = "columns-1 sm:columns-2 lg:columns-4";
     } else if (images.length >= 5) {
-        columnClass = "columns-3";
+        columnClass = "columns-1 sm:columns-2 lg:columns-3";
     } else if (images.length >= 2) {
-        columnClass = "columns-2";
+        columnClass = "columns-1 sm:columns-2";
     }
 
     if (!images.length) return null;
@@ -48,7 +48,7 @@ export default function ImageCarousel({ images }) {
 
                     <button
                         onClick={() => setSelectedImage(null)}
-                        className="absolute top-6 right-6 text-white text-3xl"
+                    className="absolute right-4 top-[max(1rem,env(safe-area-inset-top))] text-3xl text-white sm:right-6 sm:top-6"
                     >
                         ×
                     </button>

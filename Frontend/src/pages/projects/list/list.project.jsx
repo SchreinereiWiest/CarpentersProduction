@@ -169,10 +169,10 @@ return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden ove
         </div>
 
         {/* nur dieser Bereich scrollt */}
-        <div className="flex overflow-y-auto">
+        <div className="flex flex-1 flex-col overflow-y-auto lg:flex-row">
 
             {/* LINKER BEREICH */}
-            <div className="w-2/3 xl:p-8 p-6">
+            <div className="w-full p-3 sm:p-5 lg:w-2/3 xl:p-8">
 
                 {leftItems?.map((item) => (
 
@@ -198,7 +198,7 @@ return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden ove
 
                     </div>
 
-                    <table className="mt-2 w-full">
+                    <table className="responsive-card-table mt-2 w-full">
 
                         <thead>
 
@@ -221,7 +221,7 @@ return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden ove
 
                             <tr key={child.PID} className="border-b border-gray-700 hover:bg-gray-700 transition">
 
-                                <td className="py-2">
+                                <td data-label="Bauteil" className="py-2">
                                     {child.Objektname}
                                     {child.Herkunftsobjekt && (
                                         <span className="ml-2 text-sm text-gray-400">
@@ -230,23 +230,23 @@ return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden ove
                                     )}
                                 </td>
 
-                                <td className="text-gray-300">
+                                <td data-label="Material" className="text-gray-300">
                                     {child.MID || "-"}
                                 </td>
 
-                                <td className="text-center">
+                                <td data-label="L" className="text-center">
                                     {child.L}
                                 </td>
 
-                                <td className="text-center">
+                                <td data-label="B" className="text-center">
                                     {child.B}
                                 </td>
 
-                                <td className="text-center">
+                                <td data-label="T" className="text-center">
                                     {child.T}
                                 </td>
 
-                                <td className="text-center">
+                                <td data-label="Menge" className="text-center">
                                     {child.Anzahl}
                                 </td>
 
@@ -266,7 +266,7 @@ return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden ove
 
             {/* RECHTER BEREICH */}
 
-            <div className="w-1/3 min-w-0 border-l border-gray-700 p-8">
+            <div className="w-full min-w-0 border-t border-gray-700 p-3 sm:p-5 lg:w-1/3 lg:border-l lg:border-t-0 xl:p-8">
 
     <div className="flex flex-col gap-3">
 

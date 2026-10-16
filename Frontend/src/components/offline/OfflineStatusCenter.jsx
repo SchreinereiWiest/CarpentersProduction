@@ -94,7 +94,7 @@ export default function OfflineStatusCenter() {
                 disabled={status.syncing || (!status.online && queue.conflicts === 0)}
                 title={actionLabel}
                 aria-label={actionLabel}
-                className="pointer-events-auto flex items-center gap-2 rounded-full border border-gray-700 bg-gray-900/95 px-3 py-2 text-xs text-gray-200 shadow-xl backdrop-blur transition-colors enabled:hover:border-blue-500 enabled:hover:bg-gray-800 disabled:cursor-default"
+                className="pointer-events-auto hidden items-center gap-2 rounded-full border border-gray-700 bg-gray-900/95 px-3 py-2 text-xs text-gray-200 shadow-xl backdrop-blur transition-colors enabled:hover:border-blue-500 enabled:hover:bg-gray-800 disabled:cursor-default sm:flex"
             >
                 {(status.pendingRequests > 0 || status.syncing) && (
                     <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-gray-500 border-t-blue-400" aria-label="Browserantwort wird erwartet" />

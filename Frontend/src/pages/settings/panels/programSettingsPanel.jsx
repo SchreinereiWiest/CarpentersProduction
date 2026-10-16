@@ -69,7 +69,7 @@ export default function ProgramSettingsPanel() {
     const development = license?.provider === "development";
 
     return (
-        <div className="h-full overflow-y-auto p-6">
+        <div className="responsive-settings-panel h-full overflow-y-auto p-6">
             <div className="mx-auto max-w-5xl">
                 <div className="mb-6 flex items-start justify-between gap-4">
                     <div>

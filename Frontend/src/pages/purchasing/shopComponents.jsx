@@ -96,7 +96,7 @@ export function ArticleModal({ article, groups, suppliers = [], imageUrl, onClos
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onMouseDown={event => {
             if (event.target === event.currentTarget && !saving) onClose();
         }}>
-            <form onSubmit={submit} className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-gray-700 bg-gray-800 p-6 shadow-2xl">
+            <form onSubmit={submit} className="max-h-[92dvh] w-full max-w-2xl overflow-y-auto rounded-xl border border-gray-700 bg-gray-800 p-4 shadow-2xl sm:p-6">
                 <div className="flex items-start justify-between gap-4">
                     <div>
                         <h2 className="text-xl font-semibold">{article?.id ? "Artikel bearbeiten" : "Artikel anlegen"}</h2>
@@ -185,7 +185,7 @@ export function GroupModal({ group, articles, onClose, onSave }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onMouseDown={event => {
             if (event.target === event.currentTarget) onClose();
         }}>
-            <form onSubmit={submit} className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-gray-700 bg-gray-800 p-6 shadow-2xl">
+            <form onSubmit={submit} className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-xl border border-gray-700 bg-gray-800 p-4 shadow-2xl sm:p-6">
                 <div className="flex items-start justify-between gap-4">
                     <div>
                         <h2 className="text-xl font-semibold">{group ? "Artikelgruppe bearbeiten" : "Artikelgruppe anlegen"}</h2>
@@ -342,7 +342,7 @@ export function GroupArticlesModal({ group, articles, imageUrls, suppliers = [],
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/75 p-4" onMouseDown={event => {
             if (event.target === event.currentTarget) onClose();
         }}>
-            <section className="max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-xl border border-gray-700 bg-gray-900 p-6 shadow-2xl">
+            <section className="max-h-[92dvh] w-full max-w-6xl overflow-y-auto rounded-xl border border-gray-700 bg-gray-900 p-4 shadow-2xl sm:p-6">
                 <div className="flex items-start justify-between gap-4">
                     <div>
                         <span className="text-xs font-medium uppercase tracking-widest text-blue-400">Artikelgruppe</span>

@@ -150,7 +150,7 @@ export default function UserProfile() {
         <div className="flex h-dvh w-full overflow-hidden bg-gray-900 text-white">
             <SideBar selected={9} />
 
-            <main className="min-w-0 flex-1 overflow-y-auto p-6">
+            <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6">
                 <div className="max-w-4xl space-y-6">
                     <div>
                         <h1 className="text-xl font-semibold">Benutzer</h1>

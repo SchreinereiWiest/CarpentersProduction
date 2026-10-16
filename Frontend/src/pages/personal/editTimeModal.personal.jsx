@@ -73,9 +73,9 @@ export default function EditTimeModal({
 
     return (
 
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4">
 
-            <div className="w-[450px] rounded-xl bg-gray-900 p-6 text-white">
+            <div className="w-full max-w-[450px] rounded-xl bg-gray-900 p-4 text-white sm:p-6">
 
                 <h2 className="mb-6 text-xl font-semibold">
 

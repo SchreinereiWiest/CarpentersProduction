@@ -174,7 +174,7 @@ export default function TimeControls({
             h-fit
         ">
 
-            <div className="flex items-end justify-between mb-5">
+            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
 
     <h2
         className="
@@ -185,7 +185,7 @@ export default function TimeControls({
         Zeiterfassung
     </h2>
 
-    <div className="w-64">
+    <div className="w-full sm:w-64">
 
 
 
@@ -222,7 +222,7 @@ export default function TimeControls({
 
             
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
 
     {workTypes.map(work => {
 

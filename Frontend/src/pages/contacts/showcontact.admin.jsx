@@ -73,22 +73,22 @@ return (
 
         <SideBar selected={5} className="flex-1" />
 
-        <main className="pt-10 h-full flex-1 overflow-y-auto">
+        <main className="h-full min-w-0 flex-1 overflow-y-auto px-4 pt-4 sm:px-8 sm:pt-8">
 
-            <div className="justify-left pl-8">
-                <div className="relative flex items-left">
+            <div>
+                <div className="flex flex-wrap items-center gap-3">
                     <h2 className="text-2xl font-bold mt-2">{customer?.firstName} {customer?.lastName}</h2>
-                    <div className="relative left-8">
+                    <div>
                         <Link to={`/Kontakte/edit/${userid}`}
-                            className="bg-gray-700 text-white rounded-full h-12 w-full mx-4 flex items-center justify-center hover:bg-gray-600 transition duration-300">
+                            className="flex h-12 items-center justify-center rounded-full bg-gray-700 px-5 text-white transition duration-300 hover:bg-gray-600">
                         
                         <span className="ml-2 text-gray-300 font-medium">Edit</span>
                         </Link>
                     </div>
-                    <div className="absolute left-1/3 mt-2">
+                    <div className="order-last mt-3 w-full lg:order-none lg:ml-auto lg:w-auto">
                         <h2 className="text-2xl font-bold">Projekte:</h2>
                     </div>
-                    <div className="absolute right-8 flex items-center gap-3">
+                    <div className="flex w-full flex-wrap items-center gap-3 lg:w-auto">
                         <button
                             type="button"
                             onClick={() => setShowImport(true)}
@@ -113,8 +113,8 @@ return (
                         </Link>
                     </div>
                 </div>
-                <div className="relative flex items-left">
-                    <div className="relative items-left w-2/5">
+                <div className="mt-4 flex flex-col gap-6 lg:flex-row">
+                    <div className="w-full rounded-lg bg-gray-800 p-4 lg:w-1/3">
                         <p className="">{customer?.companyName}</p>
                         <p className="">{customer?.email}</p>
                         <p className="">{customer?.phoneMobile}</p>
@@ -138,8 +138,8 @@ return (
                         ))}
                     </div> 
 
-                    <div className="rounded-lg absolute left-1/3 mt-4 flex justify-left right-18 overflow-hidden">
-                        <table className="w-full table-fixed">
+                    <div className="w-full overflow-hidden rounded-lg lg:flex-1">
+                        <table className="responsive-card-table w-full table-fixed">
                             <thead>
                                 <tr className="bg-gray-800">
                                     <th className="w-1/4 py-4 px-6 text-left text-gray-300 font-bold uppercase">Title</th>
@@ -154,11 +154,11 @@ return (
                                 <tr key={project.id} className="bg-gray-700 hover:bg-gray-600 transition duration-300 cursor-pointer"
                                     onClick={()=> {navigate(`/Projects/${project.id}`)}}
                                     >
-                                    <td className="py-4 px-6">
+                                    <td data-label="Titel" className="py-4 px-6">
                                         {project.title}
                                     </td>
 
-                                    <td className="py-4 px-6 truncate">
+                                    <td data-label="Start" className="py-4 px-6 truncate">
                                         {project.startDate}
                                     </td>
 
@@ -181,7 +181,7 @@ return (
             >
                 <form
                     onSubmit={handleImport}
-                    className="w-full max-w-xl rounded-xl border border-gray-700 bg-gray-800 p-6 shadow-2xl"
+                    className="w-full max-w-xl rounded-xl border border-gray-700 bg-gray-800 p-4 shadow-2xl sm:p-6"
                 >
                     <div className="flex items-start justify-between gap-4">
                         <div>

@@ -355,7 +355,7 @@ export default function CncSettingsPanel() {
 
     return (
 
-        <div className="
+        <div className="responsive-settings-panel
             h-full
             min-h-0
             flex
@@ -459,7 +459,7 @@ export default function CncSettingsPanel() {
              * Hauptbereich
              * ================================================= */}
 
-            <div className="
+            <div className="settings-panel-split
                 flex-1
                 min-h-0
                 grid

@@ -54,13 +54,13 @@ function Login() {
 
     return (
 
-        <div className='h-screen bg-gray-900 text-white justify-left'>
+        <div className="h-screen overflow-y-auto bg-gray-900 text-white">
 
-            <main className="pt-25 pl-25 w-full overflow-y-auto">
+            <main className="flex min-h-full w-full items-center justify-center p-4 sm:p-8">
 
-                <div className="w-full justify-center items-center dark:bg-gray-900 p-2">
+                <div className="w-full items-center justify-center p-0 dark:bg-gray-900 sm:p-2">
 
-                    <div className="relative mx-auto w-full max-w-md bg-white px-6 pt-10 pb-8 shadow-xl ring-1 ring-gray-900/5 sm:rounded-xl sm:px-10">
+                    <div className="relative mx-auto w-full max-w-md rounded-xl bg-white px-6 pb-8 pt-8 shadow-xl ring-1 ring-gray-900/5 sm:px-10 sm:pt-10">
 
                         <div className="w-full">
 

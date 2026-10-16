@@ -69,13 +69,8 @@ export default function EmployeeCalendar({
 
 </div>
 
-            <div className="
-                grid
-                grid-cols-5
-                gap-4
-                flex-1
-                overflow-hidden
-            ">
+            <div className="flex-1 overflow-x-auto overflow-y-hidden">
+            <div className="grid h-full min-w-[700px] grid-cols-5 gap-4">
 
                 {
 
@@ -99,6 +94,7 @@ export default function EmployeeCalendar({
 
                 }
 
+            </div>
             </div>
 
         </div>

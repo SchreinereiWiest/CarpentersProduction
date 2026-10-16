@@ -39,23 +39,23 @@ fetchProject();
         <div className="sticky top-0 z-20 bg-gray-900 border-b border-gray-700">
             <ProjectBar selected={0}/>
         </div>
-                <div className="pl-8 pt-4 pr-4 overflow-y-auto">
+                <div className="overflow-y-auto px-4 pt-4 sm:pl-8">
 
                     {/* Kunde + Bilder */}
                     <div className="flex flex-col md:flex-row md:items-center">
 
-                        <h2 className="text-2xl font-bold mt-2 truncate md:w-1/5">
+                        <h2 className="mt-2 truncate text-xl font-bold sm:text-2xl md:w-1/5">
                             {customer?.lastName}
                         </h2>
 
-                        <h2 className="text-2xl font-bold mt-2 md:ml-0">
+                        <h2 className="mt-2 text-xl font-bold sm:text-2xl md:ml-0">
                             Bilder:
                         </h2>
 
                     </div>
 
                     {/* Projektname */}
-                    <h2 className="text-2xl font-bold mt-2 truncate">
+                    <h2 className="mt-2 truncate text-xl font-bold sm:text-2xl">
                         {project?.title}
                     </h2>
 

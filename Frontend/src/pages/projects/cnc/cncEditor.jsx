@@ -28,6 +28,8 @@ import ProjectBar
 
 import SideBar
     from "../../../components/sideBar.jsx";
+import MobileWorkspaceGuard
+    from "../../../components/MobileWorkspaceGuard.jsx";
     import {getProjectFile} from "../../../services/projectMemoryCache.js";
 import {downloadFile, uploadJSONFile} from "../../../services/apiTemplates.js";
 
@@ -348,6 +350,8 @@ export default function CncEditor() {
             <SideBar
                 selected={2}
             />
+
+            <MobileWorkspaceGuard title="CNC-Editor" />
 
 
             <main className="

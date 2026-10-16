@@ -193,7 +193,7 @@ export function MaterialModal({ onClose, onSaved, material = null }) {
                 className="
                     w-full
                     max-w-2xl
-                    max-h-[calc(100vh-2rem)]
+                    max-h-[calc(100dvh-1rem)]
                     flex
                     flex-col
                     rounded-xl
@@ -213,8 +213,9 @@ export function MaterialModal({ onClose, onSaved, material = null }) {
                         justify-between
                         border-b
                         border-gray-700
-                        px-6
+                        px-4
                         py-4
+                        sm:px-6
                     "
                 >
 
@@ -266,7 +267,7 @@ export function MaterialModal({ onClose, onSaved, material = null }) {
 
                 <form
                     onSubmit={handleSubmit}
-                    className="overflow-y-auto p-6"
+                    className="overflow-y-auto p-4 sm:p-6"
                 >
 
                     <div
