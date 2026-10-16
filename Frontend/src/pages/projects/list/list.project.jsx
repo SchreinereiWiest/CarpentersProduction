@@ -6,7 +6,7 @@ import { useParams } from 'react-router';
 import { useEffect } from "react";
 import { Link } from "react-router";
 import ProjectBar from '../../../components/projectBar.jsx';
-import { loadCadFile } from '../aufmas/cadLoader.project.js';
+import { loadCadFile } from '../aufmas/import/cadLoader.js';
 import { processContent } from './listProcess.project.js';
 import { importCadData } from '../edit/importCAD.js';
 import { createPartsListPDF } from './createPDF.project.js';

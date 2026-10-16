@@ -3,7 +3,7 @@ import {
     clearAufmasWorkspaceCache,
     getAufmasWorkspaceCache,
     setAufmasWorkspaceCache
-} from "../../src/pages/projects/aufmas/aufmasWorkspaceCache.project.js";
+} from "../../src/pages/projects/aufmas/state/workspaceCache.js";
 
 describe("Aufmaß workspace cache", () => {
     beforeEach(() => clearAufmasWorkspaceCache());

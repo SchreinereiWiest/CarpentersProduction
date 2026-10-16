@@ -32,7 +32,7 @@ import {
     resolveCabinetFunctionExpressions,
     resolveCabinetMeasurementExpressions
 } from "./measurementExpressions.js";
-import { getAufmasWorkspaceCache } from "../aufmas/aufmasWorkspaceCache.project.js";
+import { getAufmasWorkspaceCache } from "../aufmas/state/workspaceCache.js";
 export default function CabinetEditor() {
 
     // conmstant Section alle Editor daten

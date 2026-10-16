@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyDxfTransform, createDxfTransform } from "../../src/pages/projects/aufmas/aufmasAlignment.project.js";
+import { applyDxfTransform, createDxfTransform } from "../../src/pages/projects/aufmas/domain/alignment.js";
 
 describe("DXF/PDF alignment", () => {
     it("maps both DXF calibration points exactly onto their PDF partners", () => {

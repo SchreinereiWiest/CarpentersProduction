@@ -6,7 +6,7 @@ import { getCachedGlobalFile, markCachedFileStale, setCachedGlobalFile } from '.
 import { getGlobalFile, refreshCachedGlobalFiles } from '../../src/services/globalMemoryCache.js';
 import { uploadProjectFile } from '../../src/services/projectMemoryCache.js';
 import { getCachedProjectFile, setCachedProjectFile } from '../../src/services/projectIndexDb.js';
-import { loadCadFile } from '../../src/pages/projects/aufmas/cadLoader.project.js';
+import { loadCadFile } from '../../src/pages/projects/aufmas/import/cadLoader.js';
 
 vi.mock('axios', () => ({
   default: {
