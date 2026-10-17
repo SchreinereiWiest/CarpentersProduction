@@ -181,6 +181,53 @@ export function summarizeCabinets(cabinets) {
   };
 }
 
+/**
+ * Summiert manuell geschätzte Stunden je Korpus und Kostenstelle. Die Eingaben
+ * gelten pro Stück; Korpusmengen werden automatisch berücksichtigt. Alte
+ * numerische Korpuswerte werden der ersten Kostenstelle zugeordnet.
+ */
+export function calculateCabinetHourEstimate(summary, values = {}, costCenters = []) {
+  const centers = (Array.isArray(costCenters) && costCenters.length
+    ? costCenters
+    : [{ id: "general", name: "Gesamt" }]
+  ).map(center => ({ id: String(center.id), name: String(center.name || "Kostenstelle") }));
+  const centerTotals = Object.fromEntries(centers.map(center => [center.id, 0]));
+  const rows = (summary?.rows || []).map(row => {
+    const saved = values?.[row.id];
+    const legacyHours = typeof saved === "number" || typeof saved === "string"
+      ? nonNegativeNumber(saved)
+      : null;
+    const estimates = centers.map((center, index) => {
+      const hoursPerPiece = legacyHours !== null
+        ? index === 0 ? legacyHours : 0
+        : nonNegativeNumber(saved?.[center.id]);
+      const hours = hoursPerPiece * nonNegativeNumber(row.quantity);
+      centerTotals[center.id] += hours;
+      return {
+        id: center.id,
+        name: center.name,
+        hoursPerPiece,
+        hours: roundMoney(hours)
+      };
+    });
+    return {
+      ...row,
+      estimates,
+      hours: roundMoney(estimates.reduce((sum, estimate) => sum + estimate.hours, 0))
+    };
+  });
+  const totalsByCenter = centers.map(center => ({
+    ...center,
+    hours: roundMoney(centerTotals[center.id])
+  }));
+
+  return {
+    rows,
+    totalsByCenter,
+    totalHours: roundMoney(totalsByCenter.reduce((sum, center) => sum + center.hours, 0))
+  };
+}
+
 function countNested(items) {
   if (!Array.isArray(items)) return 0;
   return items.reduce((sum, item) => sum + 1 + countNested(item?.children), 0);

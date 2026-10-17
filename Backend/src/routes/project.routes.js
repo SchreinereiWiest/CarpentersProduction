@@ -7,6 +7,7 @@ import { authorizeCustomer, authorizeCustomerBody, authorizeProject, authorizeTi
 import { getTime, manualTime, startTime, stopTime } from "../controllers/time.controller.js";
 import { exportProject, importProject } from "../controllers/projectArchive.controller.js";
 import { getCalculationContext } from "../controllers/calculation.controller.js";
+import { releaseCalculationSnapshot } from "../controllers/calculationSnapshot.controller.js";
 import multer from "multer";
 import os from "os";
 import crypto from "crypto";
@@ -40,6 +41,8 @@ router.get("/offline", getOfflineProjects);
 router.get("/get/:id", authorizeProject(), getProject);
 
 router.get("/calculation-context/:id", authorizeProject(), getCalculationContext);
+
+router.post("/calculation-snapshots/:id/release", authorizeProject(), releaseCalculationSnapshot);
 
 router.get("/export/:id", authorizeProject(), exportProject);
 

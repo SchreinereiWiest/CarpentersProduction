@@ -1,4 +1,45 @@
 import { nonNegativeNumber, roundMoney, summarizeCabinets } from "./calculation.mjs";
+import { summarizePartList } from "./snapshots.mjs";
+
+export const DEFAULT_ESTIMATION_SETTINGS = Object.freeze({
+  schemaVersion: 1,
+  candidatePoolSize: 50,
+  maximumMatches: 5,
+  minimumSimilarity: 0,
+  weights: Object.freeze({
+    text: 20,
+    projectType: 10,
+    cabinetCount: 20,
+    complexity: 20,
+    volume: 10,
+    partCount: 10,
+    materials: 10
+  })
+});
+
+const boundedInteger = (value, fallback, minimum, maximum) => {
+  const number = Number(value);
+  return Number.isFinite(number)
+    ? Math.min(maximum, Math.max(minimum, Math.round(number)))
+    : fallback;
+};
+
+export function normalizeEstimationSettings(settings = {}) {
+  const weights = Object.fromEntries(Object.entries(DEFAULT_ESTIMATION_SETTINGS.weights).map(([key, fallback]) => [
+    key,
+    boundedInteger(settings?.weights?.[key], fallback, 0, 100)
+  ]));
+  if (Object.values(weights).every(value => value === 0)) {
+    Object.assign(weights, DEFAULT_ESTIMATION_SETTINGS.weights);
+  }
+  return {
+    schemaVersion: 1,
+    candidatePoolSize: boundedInteger(settings.candidatePoolSize, 50, 5, 500),
+    maximumMatches: boundedInteger(settings.maximumMatches, 5, 1, 20),
+    minimumSimilarity: boundedInteger(settings.minimumSimilarity, 0, 0, 100),
+    weights
+  };
+}
 
 const tokenize = value => new Set(
   String(value || "")
@@ -20,6 +61,36 @@ const proximity = (left, right) => {
   const maximum = Math.max(nonNegativeNumber(left), nonNegativeNumber(right), 1);
   return Math.max(0, 1 - Math.abs(nonNegativeNumber(left) - nonNegativeNumber(right)) / maximum);
 };
+
+export function scoreProjectSimilarity({ project = {}, cabinetSummary = {}, listSummary = null } = {}, candidate = {}, settings = {}) {
+  const normalized = normalizeEstimationSettings(settings);
+  const weights = normalized.weights;
+  const textScore = jaccard(
+    `${project.title || ""} ${project.description || ""}`,
+    `${candidate.title || candidate.projectTitle || ""} ${candidate.description || ""}`
+  );
+  const typeScore = project.projectType && candidate.projectType
+    ? Number(project.projectType === candidate.projectType)
+    : 0;
+  const summary = candidate.cabinetSummary || {};
+  const components = [
+    [textScore, weights.text],
+    [typeScore, weights.projectType],
+    [proximity(cabinetSummary.cabinetCount, summary.cabinetCount), weights.cabinetCount],
+    [proximity(cabinetSummary.complexity, summary.complexity), weights.complexity],
+    [proximity(cabinetSummary.volume, summary.volume), weights.volume]
+  ];
+  if (listSummary && candidate.listSummary) {
+    const leftMaterials = (listSummary.materialIds || []).join(" ");
+    const rightMaterials = (candidate.listSummary.materialIds || []).join(" ");
+    components.push(
+      [proximity(listSummary.partCount, candidate.listSummary.partCount), weights.partCount],
+      [leftMaterials || rightMaterials ? jaccard(leftMaterials, rightMaterials) : 1, weights.materials]
+    );
+  }
+  const weightTotal = Math.max(1, components.reduce((sum, [, weight]) => sum + weight, 0));
+  return Math.round(components.reduce((sum, [score, weight]) => sum + score * weight, 0) / weightTotal * 100);
+}
 
 function hoursFromCandidate(candidate, costCenters) {
   if (Array.isArray(candidate?.hoursByCenter) && candidate.hoursByCenter.length) {
@@ -47,41 +118,33 @@ function hoursFromCandidate(candidate, costCenters) {
 }
 
 /**
- * Ermittelt aehnliche Projekte und erzeugt aus deren Iststunden eine gewichtete
- * Schaetzung. Die Funktion ist die deterministische Uebergangsloesung, bis
- * Projektbaum-Snapshots ueber Ollama-Embeddings gesucht und von einem lokalen
- * generativen Ollama-Modell erklaert werden.
+ * Ermittelt innerhalb freigegebener Nachkalkulations-Snapshots ähnliche
+ * Projekte und erzeugt aus deren Iststunden eine gewichtete Schätzung. Diese
+ * deterministische Bewertung bleibt der Fallback für die spätere Embedding-
+ * und Erklärpipeline.
  */
-export function estimateProjectHours({ project = {}, cabinets = [], candidates = [], costCenters = [] } = {}) {
+export function estimateProjectHours({ project = {}, cabinets = [], partList = [], candidates = [], costCenters = [], settings = {} } = {}) {
+  const normalizedSettings = normalizeEstimationSettings(settings);
   const current = summarizeCabinets(cabinets);
-  const currentText = `${project.title || ""} ${project.description || ""}`;
+  const currentList = summarizePartList(partList);
   const matches = (Array.isArray(candidates) ? candidates : [])
     .map(candidate => {
-      const summary = candidate.cabinetSummary?.rows
+      const summary = candidate.cabinetSummary && typeof candidate.cabinetSummary === "object"
         ? candidate.cabinetSummary
         : summarizeCabinets(candidate.cabinets);
-      const textScore = jaccard(currentText, `${candidate.title || ""} ${candidate.description || ""}`);
-      const typeScore = project.projectType && candidate.projectType
-        ? Number(project.projectType === candidate.projectType)
-        : 0;
-      const cabinetScore = proximity(current.cabinetCount, summary.cabinetCount);
-      const complexityScore = proximity(current.complexity, summary.complexity);
-      const volumeScore = proximity(current.volume, summary.volume);
-      const score = Math.round((
-        textScore * 0.3
-        + typeScore * 0.15
-        + cabinetScore * 0.2
-        + complexityScore * 0.2
-        + volumeScore * 0.15
-      ) * 100);
+      const score = scoreProjectSimilarity(
+        { project, cabinetSummary: current, listSummary: currentList },
+        { ...candidate, cabinetSummary: summary },
+        normalizedSettings
+      );
       const hoursByCenter = hoursFromCandidate(candidate, costCenters);
       const centerHours = hoursByCenter.reduce((sum, row) => sum + row.hours, 0);
       const totalHours = nonNegativeNumber(candidate.totalHours || centerHours);
       return { ...candidate, cabinetSummary: summary, hoursByCenter, totalHours, score };
     })
-    .filter(candidate => candidate.totalHours > 0)
+    .filter(candidate => candidate.totalHours > 0 && candidate.score >= normalizedSettings.minimumSimilarity)
     .sort((a, b) => b.score - a.score || b.totalHours - a.totalHours)
-    .slice(0, 5);
+    .slice(0, normalizedSettings.maximumMatches);
 
   if (!matches.length) {
     return {
@@ -89,7 +152,7 @@ export function estimateProjectHours({ project = {}, cabinets = [], candidates =
       totalHours: 0,
       hoursByCenter: costCenters.map(center => ({ id: String(center.id), name: center.name, hours: 0 })),
       confidence: "none",
-      explanation: "Es liegen noch keine abgeschlossenen Vergleichsprojekte mit erfassten Stunden vor."
+      explanation: "Es liegen noch keine freigegebenen Nachkalkulationen als Vergleichsbasis vor."
     };
   }
 

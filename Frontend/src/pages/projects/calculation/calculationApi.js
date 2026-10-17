@@ -80,6 +80,7 @@ export async function loadCalculationWorkspace(projectId) {
   return {
     project: projectResponse.data.project,
     cabinets: Array.isArray(cabinets) ? cabinets : [],
+    partList: Array.isArray(partList) ? partList : [],
     procurement,
     calculation,
     context: contextResponse.data
@@ -95,3 +96,8 @@ export const saveCalculation = (projectId, payload) => uploadProjectFile({
     path: `/api/projects/generated/${projectId}/calculation`
   }
 });
+
+export const releaseCalculationSnapshot = async projectId => {
+  const response = await axios.post(`/api/projects/calculation-snapshots/${projectId}/release`);
+  return response.data.snapshot;
+};

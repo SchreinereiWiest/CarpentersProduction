@@ -6,6 +6,10 @@ const tabs = [
         label: "Unternehmen"
     },
     {
+        id: "estimation",
+        label: "Stundenschätzung"
+    },
+    {
         id: "programSettings",
         label: "Programmeinstellungen"
     },

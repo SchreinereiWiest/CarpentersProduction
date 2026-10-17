@@ -26,6 +26,9 @@ import ShopSettingsPanel
 import ProgramSettingsPanel
     from "./panels/programSettingsPanel.jsx";
 
+import EstimationSettingsPanel
+    from "./panels/estimationSettingsPanel.jsx";
+
 
 export default function CompanySettings() {
 
@@ -76,6 +79,11 @@ export default function CompanySettings() {
             case "company":
                 return (
                     <CompanySettingsPanel />
+                );
+
+            case "estimation":
+                return (
+                    <EstimationSettingsPanel />
                 );
 
             case "programSettings":

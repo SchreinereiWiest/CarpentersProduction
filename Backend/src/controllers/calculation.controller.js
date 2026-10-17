@@ -1,8 +1,11 @@
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import { summarizeCabinets } from "../../../Engine/calculation/calculation.mjs";
 import { combineManagementHourlyRates } from "../../../Engine/calculation/managementRates.mjs";
 import prisma from "../config/prisma.js";
 import { s3Download } from "../config/s3.js";
+import {
+  findApprovedSnapshotCandidates,
+  loadEstimationSettings
+} from "../services/calculationSnapshots.service.js";
 import { loadSnapshot, presentSnapshot } from "../services/management/snapshots.js";
 
 const currentBerlinYear = () => Number(new Intl.DateTimeFormat("en-CA", {
@@ -31,28 +34,6 @@ async function readJsonFile(file) {
     return null;
   }
 }
-
-const actualHoursByActivity = entries => {
-  const values = {};
-  for (const entry of entries || []) {
-    const activity = entry.customWorkType
-      ? `custom:${entry.customWorkType}`
-      : entry.workType;
-    if (!activity) continue;
-    values[activity] = Math.round(((values[activity] || 0) + Number(entry.duration || 0) / 60) * 100) / 100;
-  }
-  return values;
-};
-
-const snapshotDate = value => {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat("de-DE", {
-    dateStyle: "medium",
-    timeZone: "Europe/Berlin"
-  }).format(date);
-};
 
 function managementRates(snapshot) {
   const config = snapshot.operationalConfig || snapshot.config;
@@ -116,47 +97,32 @@ const unavailableManagement = year => ({
  */
 export async function getCalculationContext(req, res) {
   const year = Number(req.query.year) || currentBerlinYear();
-  const privileged = ["admin", "manager"].includes(req.user?.role);
   const mayUseManagement = req.license?.features?.includes("management");
-  const [currentTimeEntries, projects, management] = await Promise.all([
+  const [currentTimeEntries, project, management, estimationSettings] = await Promise.all([
     prisma.timeEntry.findMany({
       where: { projectId: req.params.id, duration: { gt: 0 } },
       select: { workType: true, customWorkType: true, duration: true }
     }),
-    prisma.project.findMany({
-      where: {
-        id: { not: req.params.id },
-        deletedAt: null,
-        ...(privileged ? {} : { status: "active" })
-      },
+    prisma.project.findFirst({
+      where: { id: req.params.id, deletedAt: null },
       select: {
         id: true,
         title: true,
         description: true,
         projectType: true,
-        status: true,
-        completionDate: true,
-        updatedAt: true,
-        timeEntries: {
-          where: { duration: { gt: 0 } },
-          select: { workType: true, customWorkType: true, duration: true }
-        },
         files: {
           where: {
             deletedAt: null,
-            fileName: { in: ["cabinet.json", "calculation.json"] }
+            fileName: { in: ["cabinet.json", "list.json"] }
           },
           select: {
             fileName: true,
-            updatedAt: true,
             storageObject: {
               select: { bucketName: true, objectKey: true }
             }
           }
         }
-      },
-      orderBy: { updatedAt: "desc" },
-      take: 40
+      }
     }),
     mayUseManagement
       ? loadSnapshot(year)
@@ -165,71 +131,30 @@ export async function getCalculationContext(req, res) {
           console.warn("Managementsaetze konnten nicht geladen werden", error.message);
           return unavailableManagement(year);
         })
-      : Promise.resolve(unavailableManagement(year))
+      : Promise.resolve(unavailableManagement(year)),
+    loadEstimationSettings()
   ]);
-
-  const historicalProjects = (await Promise.all(projects.map(async project => {
-    const cabinetFile = project.files.find(file => file.fileName === "cabinet.json");
-    const calculationFile = project.files.find(file => file.fileName === "calculation.json");
-    const [cabinets, calculation] = await Promise.all([
-      readJsonFile(cabinetFile),
-      readJsonFile(calculationFile)
-    ]);
-    const hoursByActivity = actualHoursByActivity(project.timeEntries);
-    const trackedHours = Object.values(hoursByActivity).reduce((sum, hours) => sum + hours, 0);
-    const savedCenterHours = Array.isArray(calculation?.post?.costCenters)
-      ? calculation.post.costCenters
-      : [];
-    const savedHours = savedCenterHours.reduce((sum, row) => {
-      const hours = Number(row?.hours);
-      return sum + (Number.isFinite(hours) && hours > 0 ? hours : 0);
-    }, 0);
-    const totalHours = trackedHours || savedHours;
-    const candidates = [];
-    if (totalHours) {
-      candidates.push({
-        id: project.id,
-        title: project.title,
-        description: project.description,
-        projectType: project.projectType,
-        status: project.status,
-        completionDate: project.completionDate,
-        updatedAt: project.updatedAt,
-        cabinetSummary: summarizeCabinets(cabinets),
-        hoursByActivity,
-        hoursByCenter: savedCenterHours,
-        totalHours: Math.round(totalHours * 100) / 100,
-        source: trackedHours ? "time-tracking" : "post-calculation"
-      });
-    }
-
-    const snapshots = Array.isArray(calculation?.snapshots) ? calculation.snapshots : [];
-    for (const snapshot of snapshots.slice(-3)) {
-      const snapshotHours = Number(snapshot?.totalHours) || 0;
-      if (!snapshotHours || !snapshot?.cabinetSummary) continue;
-      const date = snapshotDate(snapshot.createdAt);
-      candidates.push({
-        id: `${project.id}:snapshot:${snapshot.id || snapshot.createdAt}`,
-        title: `${project.title}${date ? ` · Stand ${date}` : ""}`,
-        description: snapshot.description || project.description,
-        projectType: snapshot.projectType || project.projectType,
-        status: project.status,
-        completionDate: project.completionDate,
-        updatedAt: snapshot.createdAt || project.updatedAt,
-        cabinetSummary: snapshot.cabinetSummary,
-        hoursByActivity: {},
-        hoursByCenter: snapshot.hoursByCenter || [],
-        totalHours: Math.round(snapshotHours * 100) / 100,
-        source: "project-snapshot"
-      });
-    }
-    return candidates;
-  }))).flat().filter(Boolean);
+  const cabinetFile = project?.files?.find(file => file.fileName === "cabinet.json");
+  const listFile = project?.files?.find(file => file.fileName === "list.json");
+  const [cabinets, partList] = await Promise.all([
+    readJsonFile(cabinetFile),
+    readJsonFile(listFile)
+  ]);
+  const historicalProjects = project
+    ? await findApprovedSnapshotCandidates({
+      project,
+      cabinets: Array.isArray(cabinets) ? cabinets : [],
+      partList: Array.isArray(partList) ? partList : [],
+      excludeProjectId: req.params.id,
+      settings: estimationSettings
+    })
+    : [];
 
   res.json({
     year,
     management,
     currentTimeEntries,
-    historicalProjects
+    historicalProjects,
+    estimationSettings
   });
 }

@@ -2,16 +2,21 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router";
 import {
   aggregateTimeEntries,
+  calculateCabinetHourEstimate,
   calculateFull,
   calculateQuick,
   nonNegativeNumber,
   purchasingMaterialCost,
   summarizeCabinets
 } from "@Engine/calculation/calculation.mjs";
-import { estimateProjectHours } from "@Engine/calculation/estimation.mjs";
+import { estimateProjectHours, normalizeEstimationSettings } from "@Engine/calculation/estimation.mjs";
 import SideBar from "../../../components/sideBar.jsx";
 import ProjectBar from "../../../components/projectBar.jsx";
-import { loadCalculationWorkspace, saveCalculation } from "./calculationApi.js";
+import {
+  loadCalculationWorkspace,
+  releaseCalculationSnapshot,
+  saveCalculation
+} from "./calculationApi.js";
 
 const money = new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" });
 const decimal = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 2 });
@@ -50,18 +55,26 @@ const mergeCostCenters = (available, saved = [], actual = []) => available.map(c
   };
 });
 
-function NumberInput({ label, value, onChange, suffix, min = 0, max, step = "0.01", hint, readOnly = false }) {
+const selectZeroValue = event => {
+  const input = event.currentTarget;
+  if (!input.readOnly && input.value !== "" && Number(input.value) === 0) input.select();
+};
+
+function NumberInput({ label, ariaLabel, value, onChange, suffix, min = 0, max, step = "0.01", hint, readOnly = false }) {
   return (
     <label className="block">
       <span className="mb-1.5 block text-sm font-medium text-gray-300">{label}</span>
       <span className="relative block">
         <input
           type="number"
+          aria-label={ariaLabel}
           min={min}
           max={max}
           step={step}
           value={value}
           readOnly={readOnly}
+          onFocus={selectZeroValue}
+          onClick={selectZeroValue}
           onChange={event => onChange(event.target.value === "" ? "" : Number(event.target.value))}
           className="w-full rounded-lg border border-gray-600 bg-gray-950 px-3 py-2.5 pr-12 text-right text-white outline-none transition read-only:cursor-default read-only:text-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
         />
@@ -171,28 +184,34 @@ function MarkupFields({ values, onChange }) {
   );
 }
 
-function CabinetHours({ summary, values, onChange, onApply }) {
-  const total = summary.rows.reduce((sum, row) => (
-    sum + nonNegativeNumber(values[row.id]) * row.quantity
-  ), 0);
+function CabinetHours({ summary, values, costCenters, onChange, onApplyQuick, onApplyFull }) {
+  const estimate = useMemo(
+    () => calculateCabinetHourEstimate(summary, values, costCenters),
+    [summary, values, costCenters]
+  );
   return (
     <Card
       title="Interaktiver Stundenüberschlag"
-      description="Arbeitszeit je Korpusart schätzen; die Stückzahl wird automatisch berücksichtigt."
+      description="Arbeitszeit je Korpus und Kostenstelle schätzen; die Stückzahl wird automatisch berücksichtigt."
       actions={(
-        <button type="button" onClick={() => onApply(total)} className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold hover:bg-blue-500">
-          {decimal.format(total)} h übernehmen
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => onApplyQuick(estimate.totalHours)} className="rounded-lg border border-blue-500 px-3 py-2 text-sm font-semibold text-blue-200 hover:bg-blue-950">
+            {decimal.format(estimate.totalHours)} h in Schnellkalkulation
+          </button>
+          <button type="button" disabled={!costCenters.length} onClick={() => onApplyFull(estimate.totalsByCenter)} className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40">
+            Aufgeschlüsselt in Vollkalkulation
+          </button>
+        </div>
       )}
     >
-      {summary.rows.length === 0 ? (
+      {estimate.rows.length === 0 ? (
         <p className="rounded-lg border border-dashed border-gray-600 p-5 text-center text-sm text-gray-400">
           In cabinet.json sind noch keine Korpusse vorhanden.
         </p>
       ) : (
         <div className="space-y-3">
-          {summary.rows.map(row => (
-            <div key={row.id} className="grid gap-3 rounded-xl border border-gray-700 bg-gray-900/60 p-3 sm:grid-cols-[minmax(0,1fr)_7rem] sm:items-center">
+          {estimate.rows.map(row => (
+            <div key={row.id} className="rounded-xl border border-gray-700 bg-gray-900/60 p-4">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="truncate font-medium text-white">{row.name}</span>
@@ -202,12 +221,36 @@ function CabinetHours({ summary, values, onChange, onApply }) {
                   {decimal.format(row.width)} × {decimal.format(row.height)} × {decimal.format(row.depth)} mm · {row.sections} Bereiche · {row.fronts} Fronten
                 </p>
               </div>
-              <NumberInput label="h / Stück" suffix="h" value={values[row.id] ?? 0} onChange={value => onChange(row.id, value)} />
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {row.estimates.map(center => (
+                  <NumberInput
+                    key={center.id}
+                    label={center.name}
+                    ariaLabel={`${center.name} · ${row.name} · h / Stück`}
+                    suffix="h/Stk."
+                    step="0.25"
+                    value={center.hoursPerPiece}
+                    onChange={value => onChange(row.id, center.id, value)}
+                    hint={`${decimal.format(center.hours)} h für ${row.quantity} Stück`}
+                  />
+                ))}
+              </div>
+              <div className="mt-3 text-right text-sm font-semibold text-gray-300">
+                Korpus gesamt: {decimal.format(row.hours)} h
+              </div>
             </div>
           ))}
-          <div className="flex items-center justify-between rounded-lg bg-gray-950 px-4 py-3 font-semibold">
-            <span>Überschlag gesamt</span>
-            <span className="text-blue-300">{decimal.format(total)} h</span>
+          <div className="grid gap-3 rounded-xl bg-gray-950 p-4 sm:grid-cols-2 xl:grid-cols-3">
+            {estimate.totalsByCenter.map(center => (
+              <div key={center.id}>
+                <div className="text-xs text-gray-500">{center.name}</div>
+                <div className="mt-1 font-semibold text-gray-200">{decimal.format(center.hours)} h</div>
+              </div>
+            ))}
+            <div>
+              <div className="text-xs text-blue-400">Überschlag gesamt</div>
+              <div className="mt-1 text-lg font-bold text-blue-300">{decimal.format(estimate.totalHours)} h</div>
+            </div>
           </div>
         </div>
       )}
@@ -246,10 +289,10 @@ function CostCenterEditor({ rows, onChange, tracked = false }) {
                 </div>
               </td>
               <td data-label="Stunden" className="px-4 py-3">
-                <input aria-label={`Stunden ${row.name}`} type="number" min="0" step="0.25" value={row.hours} onChange={event => onChange(row.id, "hours", event.target.value)} className="w-28 rounded-lg border border-gray-600 bg-gray-950 px-3 py-2 text-right outline-none focus:border-blue-500" />
+                <input aria-label={`Stunden ${row.name}`} type="number" min="0" step="0.25" value={row.hours} onFocus={selectZeroValue} onClick={selectZeroValue} onChange={event => onChange(row.id, "hours", event.target.value)} className="w-28 rounded-lg border border-gray-600 bg-gray-950 px-3 py-2 text-right outline-none focus:border-blue-500" />
               </td>
               <td data-label="Stundensatz" className="px-4 py-3">
-                <input aria-label={`Stundensatz ${row.name}`} type="number" min="0" step="0.01" value={row.hourlyRate} onChange={event => onChange(row.id, "hourlyRate", event.target.value)} className="w-32 rounded-lg border border-gray-600 bg-gray-950 px-3 py-2 text-right outline-none focus:border-blue-500" />
+                <input aria-label={`Stundensatz ${row.name}`} type="number" min="0" step="0.01" value={row.hourlyRate} onFocus={selectZeroValue} onClick={selectZeroValue} onChange={event => onChange(row.id, "hourlyRate", event.target.value)} className="w-32 rounded-lg border border-gray-600 bg-gray-950 px-3 py-2 text-right outline-none focus:border-blue-500" />
               </td>
               <td data-label="Kosten" className="px-4 py-3 text-right font-semibold text-gray-200">{money.format(nonNegativeNumber(row.hours) * nonNegativeNumber(row.hourlyRate))}</td>
             </tr>
@@ -260,33 +303,25 @@ function CostCenterEditor({ rows, onChange, tracked = false }) {
   );
 }
 
-function QuickCalculation({ materialCost, quick, setQuick, cabinetSummary, cabinetHours, setCabinetHours, hourlyRateHint }) {
+function QuickCalculation({ materialCost, quick, setQuick, hourlyRateHint }) {
   const result = useMemo(() => calculateQuick({ materialCost, ...quick }), [materialCost, quick]);
   const change = (field, value) => setQuick(current => ({ ...current, [field]: value }));
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(420px,0.8fr)]">
-      <div className="space-y-6">
-        <Card title="Schnellkalkulation" description="Material aus dem Projekteinkauf plus Zeitaufwand mit einem editierbaren Vollstundensatz.">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <NumberInput label="Material aus Einkauf" suffix="€" value={materialCost} onChange={() => {}} hint="Alle Positionen aus procurement.json, unabhängig von Freigabe und Kaufstatus" readOnly />
-            <NumberInput label="Materialzuschlag" suffix="%" value={quick.materialSurchargePercent} onChange={value => change("materialSurchargePercent", value)} />
-            <NumberInput label="Arbeitsstunden" suffix="h" step="0.25" value={quick.hours} onChange={value => change("hours", value)} />
-            <NumberInput label="Vollstundensatz" suffix="€/h" value={quick.hourlyRate} onChange={value => change("hourlyRate", value)} hint={hourlyRateHint} />
-          </div>
-          <div className="mt-5 border-t border-gray-700 pt-5">
-            <MarkupFields values={quick} onChange={change} />
-          </div>
-        </Card>
-        <Card title="Preisaufbau" description="Skonto und Rabatt werden klassisch rückwärts auf den jeweils höheren Preis hochgerechnet.">
-          <CalculationRows result={result} />
-        </Card>
-      </div>
-      <CabinetHours
-        summary={cabinetSummary}
-        values={cabinetHours}
-        onChange={(id, value) => setCabinetHours(current => ({ ...current, [id]: value }))}
-        onApply={hours => change("hours", Math.round(hours * 100) / 100)}
-      />
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(380px,0.75fr)]">
+      <Card title="Schnellkalkulation" description="Material aus dem Projekteinkauf plus Zeitaufwand mit einem editierbaren Vollstundensatz.">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <NumberInput label="Material aus Einkauf" suffix="€" value={materialCost} onChange={() => {}} hint="Alle Positionen aus procurement.json, unabhängig von Freigabe und Kaufstatus" readOnly />
+          <NumberInput label="Materialzuschlag" suffix="%" value={quick.materialSurchargePercent} onChange={value => change("materialSurchargePercent", value)} />
+          <NumberInput label="Arbeitsstunden" suffix="h" step="0.25" value={quick.hours} onChange={value => change("hours", value)} />
+          <NumberInput label="Vollstundensatz" suffix="€/h" value={quick.hourlyRate} onChange={value => change("hourlyRate", value)} hint={hourlyRateHint} />
+        </div>
+        <div className="mt-5 border-t border-gray-700 pt-5">
+          <MarkupFields values={quick} onChange={change} />
+        </div>
+      </Card>
+      <Card title="Preisaufbau" description="Skonto und Rabatt werden klassisch rückwärts auf den jeweils höheren Preis hochgerechnet.">
+        <CalculationRows result={result} />
+      </Card>
     </div>
   );
 }
@@ -404,10 +439,10 @@ function EstimationView({ project, cabinetSummary, materialCost, estimation, onA
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(340px,0.8fr)]">
-        <Card title="Ähnliche frühere Projekte" description="Aktuell regelbasiert gefiltert; künftig über Embeddings vollständiger Projektbaum-Snapshots gesucht.">
+        <Card title="Ähnliche freigegebene Projekte" description="Nur freigegebene Nachkalkulations-Snapshots werden als Vergleichsbasis verwendet.">
           {estimation.matches.length === 0 ? (
             <div className="rounded-lg border border-dashed border-gray-600 p-8 text-center text-sm text-gray-400">
-              Noch keine früheren Projekte mit verwertbaren Iststunden gefunden.
+              Noch keine passende freigegebene Nachkalkulation gefunden.
             </div>
           ) : (
             <div className="space-y-3">
@@ -423,7 +458,7 @@ function EstimationView({ project, cabinetSummary, materialCost, estimation, onA
                   <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-gray-400">
                     <span>{decimal.format(match.totalHours)} Iststunden</span>
                     <span>{match.cabinetSummary.cabinetCount} Korpusse</span>
-                    <span>{match.source === "time-tracking" ? "Zeiterfassung" : match.source === "project-snapshot" ? "Projekt-Snapshot" : "Nachkalkulation"}</span>
+                    <span>Freigegebene Nachkalkulation</span>
                   </div>
                 </article>
               ))}
@@ -447,12 +482,14 @@ export default function CalculationView() {
   const { projectId } = useParams();
   const [section, setSection] = useState("pre");
   const [preMode, setPreMode] = useState("quick");
+  const [estimationMode, setEstimationMode] = useState("estimate");
   const [project, setProject] = useState(null);
   const [cabinets, setCabinets] = useState([]);
+  const [partList, setPartList] = useState([]);
   const [materialCost, setMaterialCost] = useState(0);
   const [management, setManagement] = useState({ available: false, approved: false, costCenters: [], easyRates: [] });
   const [historicalProjects, setHistoricalProjects] = useState([]);
-  const [snapshotHistory, setSnapshotHistory] = useState([]);
+  const [estimationSettings, setEstimationSettings] = useState(() => normalizeEstimationSettings());
   const [quick, setQuick] = useState(emptyQuick);
   const [full, setFull] = useState(emptyFull);
   const [post, setPost] = useState(emptyFull);
@@ -460,6 +497,7 @@ export default function CalculationView() {
   const [unmappedHours, setUnmappedHours] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [releasing, setReleasing] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -484,12 +522,14 @@ export default function CalculationView() {
               : 0);
         setProject(workspace.project);
         setCabinets(workspace.cabinets);
+        setPartList(workspace.partList || []);
         setMaterialCost(purchasingMaterialCost(workspace.procurement));
         setManagement(rates);
         setHistoricalProjects(workspace.context?.historicalProjects || []);
-        setSnapshotHistory(Array.isArray(saved.snapshots) ? saved.snapshots : []);
+        setEstimationSettings(normalizeEstimationSettings(workspace.context?.estimationSettings));
         setSection(saved.section || "pre");
         setPreMode(saved.preMode || "quick");
+        setEstimationMode(saved.estimationMode || "estimate");
         setQuick({ ...emptyQuick, ...saved.quick, hourlyRate: saved.quick?.hourlyRate ?? Math.round(defaultQuickRate * 100) / 100 });
         setFull({
           ...emptyFull,
@@ -518,12 +558,27 @@ export default function CalculationView() {
   const estimation = useMemo(() => estimateProjectHours({
     project: project || {},
     cabinets,
+    partList,
     candidates: historicalProjects,
-    costCenters: full.costCenters
-  }), [project, cabinets, historicalProjects, full.costCenters]);
+    costCenters: full.costCenters,
+    settings: estimationSettings
+  }), [project, cabinets, partList, historicalProjects, full.costCenters, estimationSettings]);
   const quickResult = useMemo(() => calculateQuick({ materialCost, ...quick }), [materialCost, quick]);
   const fullResult = useMemo(() => calculateFull({ materialCost, ...full }), [materialCost, full]);
   const postResult = useMemo(() => calculateFull({ materialCost, ...post }), [materialCost, post]);
+
+  const createCalculationDocument = updatedAt => ({
+    version: 2,
+    updatedAt,
+    section,
+    preMode,
+    estimationMode,
+    quick,
+    full,
+    post,
+    cabinetHours,
+    results: { quick: quickResult, full: fullResult, post: postResult }
+  });
 
   const save = async () => {
     setSaving(true);
@@ -531,44 +586,33 @@ export default function CalculationView() {
     setError("");
     try {
       const updatedAt = new Date().toISOString();
-      const results = { quick: quickResult, full: fullResult, post: postResult };
-      const projectSnapshot = {
-        id: updatedAt,
-        createdAt: updatedAt,
-        title: project?.title || "",
-        description: project?.description || "",
-        projectType: project?.projectType || null,
-        cabinetSummary,
-        materialCost,
-        hoursByCenter: post.costCenters.map(center => ({
-          id: center.id,
-          name: center.name,
-          hours: nonNegativeNumber(center.hours)
-        })),
-        totalHours: post.costCenters.reduce((sum, center) => sum + nonNegativeNumber(center.hours), 0),
-        results
-      };
-      const snapshots = [...snapshotHistory, projectSnapshot].slice(-25);
-      await saveCalculation(projectId, {
-        version: 1,
-        updatedAt,
-        section,
-        preMode,
-        quick,
-        full,
-        post,
-        cabinetHours,
-        projectSnapshot,
-        snapshots,
-        results
-      });
-      setSnapshotHistory(snapshots);
+      await saveCalculation(projectId, createCalculationDocument(updatedAt));
       setMessage("Kalkulation wurde gespeichert.");
     } catch (saveError) {
       console.error("Kalkulation konnte nicht gespeichert werden", saveError);
       setError("Speichern fehlgeschlagen. Bitte erneut versuchen.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const releasePostCalculation = async () => {
+    setReleasing(true);
+    setMessage("");
+    setError("");
+    try {
+      await saveCalculation(projectId, createCalculationDocument(new Date().toISOString()));
+      const snapshot = await releaseCalculationSnapshot(projectId);
+      const releasedAt = new Intl.DateTimeFormat("de-DE", {
+        dateStyle: "medium",
+        timeStyle: "short"
+      }).format(new Date(snapshot.releasedAt));
+      setMessage(`Nachkalkulation wurde freigegeben · ${releasedAt}.`);
+    } catch (releaseError) {
+      console.error("Nachkalkulation konnte nicht freigegeben werden", releaseError);
+      setError(releaseError?.response?.data?.message || "Freigabe der Nachkalkulation fehlgeschlagen.");
+    } finally {
+      setReleasing(false);
     }
   };
 
@@ -628,6 +672,24 @@ export default function CalculationView() {
                   tabs={[{ id: "quick", label: "Schnellkalkulation" }, { id: "full", label: "Vollkalkulation" }]}
                 />
               )}
+              {section === "estimate" && (
+                <SegmentedTabs
+                  value={estimationMode}
+                  onChange={setEstimationMode}
+                  ariaLabel="Art der Stundenschätzung"
+                  tabs={[{ id: "estimate", label: "Schätzung" }, { id: "assistant", label: "Assistent" }]}
+                />
+              )}
+              {section === "post" && (
+                <button
+                  type="button"
+                  onClick={releasePostCalculation}
+                  disabled={saving || releasing}
+                  className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {releasing ? "Wird freigegeben …" : "Nachkalkulation freigeben"}
+                </button>
+              )}
             </div>
 
             {!management.approved && !loading && (
@@ -647,9 +709,6 @@ export default function CalculationView() {
                     materialCost={materialCost}
                     quick={quick}
                     setQuick={setQuick}
-                    cabinetSummary={cabinetSummary}
-                    cabinetHours={cabinetHours}
-                    setCabinetHours={setCabinetHours}
                     hourlyRateHint={management.rateSource === "staff-allocation"
                       ? `Gewichteter Mittelwert aus ${management.staffCount} Mitarbeiter${management.staffCount === 1 ? "" : "n"}; jederzeit editierbar`
                       : "Aus Management vorbelegt, jederzeit editierbar"}
@@ -681,7 +740,44 @@ export default function CalculationView() {
                     />
                   </>
                 )}
-                {section === "estimate" && (
+                {section === "estimate" && estimationMode === "estimate" && (
+                  <CabinetHours
+                    summary={cabinetSummary}
+                    values={cabinetHours}
+                    costCenters={full.costCenters}
+                    onChange={(cabinetId, centerId, value) => setCabinetHours(current => {
+                      const savedCabinet = current[cabinetId];
+                      const normalizedCabinet = savedCabinet && typeof savedCabinet === "object"
+                        ? savedCabinet
+                        : savedCabinet !== undefined && full.costCenters[0]
+                          ? { [full.costCenters[0].id]: savedCabinet }
+                          : {};
+                      return {
+                        ...current,
+                        [cabinetId]: { ...normalizedCabinet, [centerId]: value }
+                      };
+                    })}
+                    onApplyQuick={hours => {
+                      setQuick(current => ({ ...current, hours: Math.round(hours * 100) / 100 }));
+                      setPreMode("quick");
+                      setSection("pre");
+                      setMessage("Manuelle Stundenschätzung wurde in die Schnellkalkulation übernommen.");
+                    }}
+                    onApplyFull={totals => {
+                      setFull(current => ({
+                        ...current,
+                        costCenters: current.costCenters.map(center => ({
+                          ...center,
+                          hours: totals.find(total => total.id === center.id)?.hours || 0
+                        }))
+                      }));
+                      setPreMode("full");
+                      setSection("pre");
+                      setMessage("Manuelle Stundenschätzung wurde nach Kostenstellen in die Vollkalkulation übernommen.");
+                    }}
+                  />
+                )}
+                {section === "estimate" && estimationMode === "assistant" && (
                   <EstimationView
                     project={project}
                     cabinetSummary={cabinetSummary}

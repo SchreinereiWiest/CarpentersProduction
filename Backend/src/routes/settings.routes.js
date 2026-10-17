@@ -2,6 +2,7 @@
 import express from "express";
 import { authenticate, authenticateAdmin } from "../middleware/auth.middleware.js";
 import { createSettingsData, getSettingsData } from "../controllers/settings.controller.js";
+import { getCalculationSnapshots } from "../controllers/calculationSnapshot.controller.js";
 
 
 const router = express.Router();
@@ -11,6 +12,8 @@ router.get("/company", authenticate, (req, res) => {
     req.params.name = "company";
     return getSettingsData(req, res);
 });
+
+router.get("/calculation-snapshots", authenticateAdmin, getCalculationSnapshots);
 
 router.get("/:name", authenticateAdmin, getSettingsData);
 

@@ -1,5 +1,6 @@
 import { downloadFile } from "./apiTemplates.js";
 import { getGlobalFile } from "./globalMemoryCache.js";
+import { normalizeEstimationSettings } from "@Engine/calculation/estimation.mjs";
 
 export const CUSTOM_WORK_TYPE_ID = "__custom__";
 
@@ -30,7 +31,16 @@ export const DEFAULT_COMPANY_SETTINGS = {
         { id: "assembly", label: "Zusammenbau" },
         { id: "finishing", label: "Finalisierung" },
         { id: "installation", label: "Montage" }
-    ]
+    ],
+    estimation: {
+        ...normalizeEstimationSettings(),
+        ollama: {
+            enabled: false,
+            baseUrl: "http://ollama:11434",
+            embeddingModel: "nomic-embed-text",
+            explanationModel: ""
+        }
+    }
 };
 
 export function timeToMinutes(time) {
@@ -56,9 +66,14 @@ export function normalizeCompanySettings(data) {
     const workTypes = Array.isArray(data?.workTypes) && data.workTypes.length > 0
         ? data.workTypes
         : DEFAULT_COMPANY_SETTINGS.workTypes;
+    const estimation = normalizeEstimationSettings(data?.estimation);
+    const ollama = {
+        ...DEFAULT_COMPANY_SETTINGS.estimation.ollama,
+        ...(data?.estimation?.ollama ?? {})
+    };
 
     return {
-        schemaVersion: 1,
+        schemaVersion: 2,
         workingHours,
         breaks: breaks.map((entry, index) => ({
             id: entry.id || `break-${index + 1}`,
@@ -69,7 +84,16 @@ export function normalizeCompanySettings(data) {
         workTypes: workTypes.map(entry => ({
             id: String(entry.id),
             label: String(entry.label)
-        }))
+        })),
+        estimation: {
+            ...estimation,
+            ollama: {
+                enabled: Boolean(ollama.enabled),
+                baseUrl: String(ollama.baseUrl || "").trim(),
+                embeddingModel: String(ollama.embeddingModel || "").trim(),
+                explanationModel: String(ollama.explanationModel || "").trim()
+            }
+        }
     };
 }
 
