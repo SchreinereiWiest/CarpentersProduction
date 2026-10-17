@@ -5,6 +5,7 @@ import {
     listProjectFiles,
     setCachedProjectFile
 } from "./project-indexed-db.js";
+import { touchCachedFile } from "./indexed-db.js";
 import { downloadFile, readDownloadMetadata, uploadJSONFile } from "../api/file-api.js";
 import { OfflineResourceUnavailableError } from "../offline/offline-errors.js";
 import { createUuid } from "../utils/uuid.js";
@@ -110,7 +111,8 @@ const revalidateProjectFile = async ({
         syncStatus: "synced",
         sourcePath: loadFromServer.path,
         lastAccessedAt: Date.now(),
-        lastValidatedAt: Date.now()
+        lastValidatedAt: Date.now(),
+        retentionProtected: cached.retentionProtected
     });
     window.dispatchEvent(new CustomEvent("s3-cache-updated", {
         detail: { scope: "project", projectId, file, version }
@@ -140,8 +142,10 @@ const queueProjectRevalidation = options => {
 
 export const getProjectFile = async ({ projectId, file, loadFromServer }) => {
     const key = cacheKey(projectId, file);
-    const cached = memoryCache.get(key) ?? await getCachedProjectFile({ projectId, file });
+    const memoryEntry = memoryCache.get(key);
+    const cached = memoryEntry ?? await getCachedProjectFile({ projectId, file });
     if (cached) remember(cached);
+    if (memoryEntry) void touchCachedFile(memoryEntry.key);
 
     if (cached && ["pending", "conflict", "error"].includes(cached.syncStatus)) {
         return cached.data;
@@ -293,7 +297,8 @@ export const uploadProjectFile = async ({ projectId, file, data, uploadFunction 
         // Nur automatische Wiederholungen desselben Eintrags verwenden ihn
         // erneut, damit eine verlorene Serverantwort sicher replaybar bleibt.
         idempotencyKey: newMutationId(),
-        sourcePath: current?.sourcePath ?? `/api/projects/generated/${projectId}/${file.replace(/\.json$/i, "")}`
+        sourcePath: current?.sourcePath ?? `/api/projects/generated/${projectId}/${file.replace(/\.json$/i, "")}`,
+        retentionProtected: current?.retentionProtected
     });
 
     if (isOffline()) {

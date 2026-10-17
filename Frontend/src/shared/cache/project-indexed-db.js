@@ -8,21 +8,28 @@ const requestResult = request => new Promise((resolve, reject) => {
     request.onerror = () => reject(request.error);
 });
 
-export const getCachedProjectFile = async ({ projectId, file }) => {
+const getAndTouch = async key => {
     const db = await openDb();
-    const request = db.transaction(STORE_NAME, "readonly")
-        .objectStore(STORE_NAME)
-        .get(getProjectCacheKey(projectId, file));
-    return (await requestResult(request)) ?? null;
+    return new Promise((resolve, reject) => {
+        const store = db.transaction(STORE_NAME, "readwrite").objectStore(STORE_NAME);
+        const request = store.get(key);
+        request.onsuccess = () => {
+            const entry = request.result;
+            if (!entry) return resolve(null);
+            const touched = { ...entry, lastAccessedAt: Date.now() };
+            const update = store.put(touched);
+            update.onsuccess = () => resolve(touched);
+            update.onerror = () => reject(update.error);
+        };
+        request.onerror = () => reject(request.error);
+    });
 };
 
-export const getCachedProjectFileByKey = async key => {
-    const db = await openDb();
-    const request = db.transaction(STORE_NAME, "readonly")
-        .objectStore(STORE_NAME)
-        .get(key);
-    return (await requestResult(request)) ?? null;
-};
+export const getCachedProjectFile = ({ projectId, file }) => getAndTouch(
+    getProjectCacheKey(projectId, file)
+);
+
+export const getCachedProjectFileByKey = key => getAndTouch(key);
 
 export const getCachedProjectAsset = async fileId => getCachedProjectFileByKey(
     getProjectAssetCacheKey(fileId)
@@ -42,7 +49,8 @@ export const setCachedProjectAsset = async ({
     blob,
     serverVersion = null,
     lastAccessedAt = Date.now(),
-    lastValidatedAt = Date.now()
+    lastValidatedAt = Date.now(),
+    retentionProtected = false
 }) => {
     const db = await openDb();
     const entry = {
@@ -55,6 +63,7 @@ export const setCachedProjectAsset = async ({
         serverVersion,
         lastAccessedAt,
         lastValidatedAt,
+        retentionProtected,
         cachedAt: Date.now(),
         scope: "asset"
     };
@@ -82,7 +91,8 @@ export const setCachedProjectFile = async ({
     error = null,
     sourcePath = null,
     lastAccessedAt = Date.now(),
-    lastValidatedAt = Date.now()
+    lastValidatedAt = Date.now(),
+    retentionProtected = false
 }) => {
     const db = await openDb();
     const entry = {
@@ -104,6 +114,7 @@ export const setCachedProjectFile = async ({
         sourcePath,
         lastAccessedAt,
         lastValidatedAt,
+        retentionProtected,
         cachedAt: Date.now(),
         scope: "project"
     };

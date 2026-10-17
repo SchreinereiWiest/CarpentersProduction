@@ -38,7 +38,7 @@ const retireObjectUrl = fileId => {
     objectUrls.delete(fileId);
 };
 
-const downloadAsset = async (projectId, file, descriptor = null) => {
+const downloadAsset = async (projectId, file, descriptor = null, retentionProtected = false) => {
     const currentDescriptor = descriptor ?? await descriptorFor(file);
     const response = await fetch(currentDescriptor.url);
     if (response.ok === false) throw new Error(`Datei konnte nicht geladen werden (${response.status})`);
@@ -57,7 +57,8 @@ const downloadAsset = async (projectId, file, descriptor = null) => {
         blob,
         serverVersion: currentDescriptor.serverVersion,
         lastAccessedAt: Date.now(),
-        lastValidatedAt: Date.now()
+        lastValidatedAt: Date.now(),
+        retentionProtected
     });
 };
 
@@ -86,11 +87,17 @@ const revalidateAsset = async ({ cached, file, projectId, force = false, redownl
             blob: cached.blob,
             serverVersion: cached.serverVersion,
             lastAccessedAt: Date.now(),
-            lastValidatedAt: Date.now()
+            lastValidatedAt: Date.now(),
+            retentionProtected: cached.retentionProtected
         });
     }
 
-    const entry = await downloadAsset(projectId || cached.projectId, file, descriptor);
+    const entry = await downloadAsset(
+        projectId || cached.projectId,
+        file,
+        descriptor,
+        cached.retentionProtected
+    );
     retireObjectUrl(file.id);
     if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("s3-cache-updated", {
@@ -124,14 +131,25 @@ const queueAssetRevalidation = options => {
     return task;
 };
 
-export const cacheProjectAsset = async (projectId, file) => {
-    const cached = await getCachedProjectAsset(file.id);
+export const cacheProjectAsset = async (projectId, file, { retentionProtected = false } = {}) => {
+    let cached = await getCachedProjectAsset(file.id);
     if (cached?.blob) {
+        if (retentionProtected && !cached.retentionProtected) {
+            cached = await setCachedProjectAsset({
+                projectId: projectId || cached.projectId,
+                file: { ...fileFromEntry(cached), ...file },
+                blob: cached.blob,
+                serverVersion: cached.serverVersion,
+                lastAccessedAt: Date.now(),
+                lastValidatedAt: cached.lastValidatedAt,
+                retentionProtected: true
+            });
+        }
         if (!offline()) void queueAssetRevalidation({ cached, file, projectId, force: true });
         return cached;
     }
     if (offline()) throw new OfflineResourceUnavailableError(file.fileName || file.id);
-    return downloadAsset(projectId, file);
+    return downloadAsset(projectId, file, null, retentionProtected);
 };
 
 export const getProjectAssetBlob = async file => {

@@ -60,13 +60,15 @@ export const setOfflineModeEnabled = async enabled => {
         .put({ key: "offlineMode", value: Boolean(enabled), updatedAt: Date.now() }));
 };
 
-export const cacheApiResponse = async (url, data, params) => {
+export const cacheApiResponse = async (url, data, params, { retentionProtected = false } = {}) => {
     const db = await openDb();
     const entry = {
         key: createApiCacheKey(url, params),
         url,
         data,
-        cachedAt: Date.now()
+        cachedAt: Date.now(),
+        lastAccessedAt: Date.now(),
+        retentionProtected
     };
     await requestResult(db.transaction(API_STORE_NAME, "readwrite")
         .objectStore(API_STORE_NAME)
@@ -76,10 +78,19 @@ export const cacheApiResponse = async (url, data, params) => {
 
 export const getCachedApiResponse = async (url, params) => {
     const db = await openDb();
-    const entry = await requestResult(db.transaction(API_STORE_NAME, "readonly")
-        .objectStore(API_STORE_NAME)
-        .get(createApiCacheKey(url, params)));
-    return entry ?? null;
+    return new Promise((resolve, reject) => {
+        const store = db.transaction(API_STORE_NAME, "readwrite").objectStore(API_STORE_NAME);
+        const request = store.get(createApiCacheKey(url, params));
+        request.onsuccess = () => {
+            const entry = request.result;
+            if (!entry) return resolve(null);
+            const touched = { ...entry, lastAccessedAt: Date.now() };
+            const update = store.put(touched);
+            update.onsuccess = () => resolve(touched);
+            update.onerror = () => reject(update.error);
+        };
+        request.onerror = () => reject(request.error);
+    });
 };
 
 export const registerOfflineProject = async project => {
@@ -125,23 +136,26 @@ export const shouldCacheApiResponse = async url => {
 };
 
 const cacheBundleResponses = async bundle => {
-    await cacheApiResponse("/api/materials/get", { materials: bundle.materials });
-    await cacheApiResponse("/api/projects/getAll", { projects: bundle.projects });
+    const protectedOptions = { retentionProtected: true };
+    await cacheApiResponse("/api/materials/get", { materials: bundle.materials }, undefined, protectedOptions);
+    await cacheApiResponse("/api/projects/getAll", { projects: bundle.projects }, undefined, protectedOptions);
     await cacheApiResponse("/api/projects/getActive", {
         projects: bundle.projects.filter(project => project.status === "active")
-    });
+    }, undefined, protectedOptions);
 
     for (const project of bundle.projects) {
         await registerOfflineProject(project);
-        await cacheApiResponse(`/api/projects/get/${project.id}`, { project });
+        await cacheApiResponse(`/api/projects/get/${project.id}`, { project }, undefined, protectedOptions);
         if (project.customer) {
             await cacheApiResponse(`/api/customers/get/${project.customer.id}`, {
                 customer: project.customer
-            });
+            }, undefined, protectedOptions);
         }
         await cacheApiResponse(
             `/api/projects/time/${project.id}`,
-            project.timeEntries ?? []
+            project.timeEntries ?? [],
+            undefined,
+            protectedOptions
         );
     }
 };
@@ -171,7 +185,8 @@ export const downloadProjectData = async ({ mode, projectIds = [], onProgress })
                     data: content,
                     version: readDownloadMetadata(content).serverVersion ?? Date.now(),
                     fileId: readDownloadMetadata(content).fileId ?? null,
-                    sourcePath
+                    sourcePath,
+                    retentionProtected: true
                 });
             }
         } catch {
@@ -214,7 +229,8 @@ export const downloadProjectData = async ({ mode, projectIds = [], onProgress })
                 baseVersion: metadata.serverVersion ?? file.serverVersion,
                 baseData: content,
                 syncStatus: "synced",
-                sourcePath
+                sourcePath,
+                retentionProtected: true
             });
         } catch (error) {
             failures.push({ projectId: project.id, file: file.fileName, error: error.message });
@@ -229,7 +245,7 @@ export const downloadProjectData = async ({ mode, projectIds = [], onProgress })
             label: `${project.title} · ${file.fileName || file.originalName}`
         });
         try {
-            await cacheProjectAsset(project.id, file);
+            await cacheProjectAsset(project.id, file, { retentionProtected: true });
         } catch (error) {
             failures.push({ projectId: project.id, file: file.fileName, error: error.message });
         }

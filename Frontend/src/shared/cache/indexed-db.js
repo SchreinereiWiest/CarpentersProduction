@@ -33,10 +33,16 @@ const globalKey = file => `global:${file}`;
 export const getCachedGlobalFile = async ({ file }) => {
     const db = await openDb();
     return new Promise((resolve, reject) => {
-        const request = db.transaction(STORE_NAME, "readonly")
-            .objectStore(STORE_NAME)
-            .get(globalKey(file));
-        request.onsuccess = () => resolve(request.result ?? null);
+        const store = db.transaction(STORE_NAME, "readwrite").objectStore(STORE_NAME);
+        const request = store.get(globalKey(file));
+        request.onsuccess = () => {
+            const entry = request.result;
+            if (!entry) return resolve(null);
+            const touched = { ...entry, lastAccessedAt: Date.now() };
+            const update = store.put(touched);
+            update.onsuccess = () => resolve(touched);
+            update.onerror = () => reject(update.error);
+        };
         request.onerror = () => reject(request.error);
     });
 };
@@ -48,7 +54,8 @@ export const setCachedGlobalFile = async ({
     fileId = null,
     sourcePath = null,
     lastAccessedAt = Date.now(),
-    lastValidatedAt = Date.now()
+    lastValidatedAt = Date.now(),
+    retentionProtected = false
 }) => {
     const db = await openDb();
     const entry = {
@@ -60,6 +67,7 @@ export const setCachedGlobalFile = async ({
         sourcePath,
         lastAccessedAt,
         lastValidatedAt,
+        retentionProtected,
         cachedAt: Date.now(),
         scope: "global"
     };
@@ -69,6 +77,45 @@ export const setCachedGlobalFile = async ({
             .objectStore(STORE_NAME)
             .put(entry);
         request.onsuccess = () => resolve(entry);
+        request.onerror = () => reject(request.error);
+    });
+};
+
+export const touchCachedFile = async key => {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+        const store = db.transaction(STORE_NAME, "readwrite").objectStore(STORE_NAME);
+        const request = store.get(key);
+        request.onsuccess = () => {
+            const entry = request.result;
+            if (!entry) return resolve(null);
+            const touched = { ...entry, lastAccessedAt: Date.now() };
+            const update = store.put(touched);
+            update.onsuccess = () => resolve(touched);
+            update.onerror = () => reject(update.error);
+        };
+        request.onerror = () => reject(request.error);
+    });
+};
+
+export const getMetadata = async key => {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+        const request = db.transaction(META_STORE_NAME, "readonly")
+            .objectStore(META_STORE_NAME)
+            .get(key);
+        request.onsuccess = () => resolve(request.result?.value ?? null);
+        request.onerror = () => reject(request.error);
+    });
+};
+
+export const setMetadata = async (key, value) => {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+        const request = db.transaction(META_STORE_NAME, "readwrite")
+            .objectStore(META_STORE_NAME)
+            .put({ key, value, updatedAt: Date.now() });
+        request.onsuccess = () => resolve(value);
         request.onerror = () => reject(request.error);
     });
 };

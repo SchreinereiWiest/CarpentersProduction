@@ -3,6 +3,14 @@ import axios from "axios";
 import { getGlobalFile, uploadGlobalFile } from "../../../shared/cache/global-cache.js";
 import { downloadFile, uploadJSONFile } from "../../../shared/api/file-api.js";
 import {
+    DEFAULT_CACHE_RETENTION_DAYS,
+    MAX_CACHE_RETENTION_DAYS,
+    MIN_CACHE_RETENTION_DAYS,
+    normalizeCacheRetentionDays,
+    runCacheCleanup,
+    setCacheRetentionDays
+} from "../../../shared/cache/cache-retention.js";
+import {
     clearOfflineData,
     downloadProjectData,
     getOfflineStorageSummary,
@@ -11,10 +19,11 @@ import {
 } from "../../../shared/offline/offline-repository.js";
 
 const DEFAULT_CONFIG = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     offlineMode: false,
     preloadMode: "active",
-    selectedProjectIds: []
+    selectedProjectIds: [],
+    cacheRetentionDays: DEFAULT_CACHE_RETENTION_DAYS
 };
 
 const formatBytes = value => {
@@ -54,9 +63,13 @@ export default function CacheSettingsPanel() {
                 setConfig(previous => ({
                     ...previous,
                     ...settingsResult.value,
-                    schemaVersion: 2,
+                    schemaVersion: 3,
+                    cacheRetentionDays: normalizeCacheRetentionDays(
+                        settingsResult.value.cacheRetentionDays
+                    ),
                     offlineMode: isOfflineModeEnabled()
                 }));
+                void setCacheRetentionDays(settingsResult.value.cacheRetentionDays);
             }
             if (projectsResult.status === "fulfilled") {
                 setProjects(projectsResult.value.data?.projects ?? []);
@@ -86,19 +99,33 @@ export default function CacheSettingsPanel() {
         setSaving(true);
         setMessage(null);
         const data = {
-            schemaVersion: 2,
+            schemaVersion: 3,
             offlineMode: Boolean(config.offlineMode),
             preloadMode: config.preloadMode,
-            selectedProjectIds: config.selectedProjectIds
+            selectedProjectIds: config.selectedProjectIds,
+            cacheRetentionDays: normalizeCacheRetentionDays(config.cacheRetentionDays)
         };
         try {
             await setOfflineModeEnabled(data.offlineMode);
+            await setCacheRetentionDays(data.cacheRetentionDays);
             await uploadGlobalFile({
                 file: "settings-cache.json",
                 data,
                 uploadFunction: { upload: uploadJSONFile, path: "/api/settings/cache" }
             });
-            setMessage({ type: "success", text: "Offline-Einstellungen gespeichert." });
+            setConfig(previous => ({ ...previous, cacheRetentionDays: data.cacheRetentionDays }));
+            const cleanup = await runCacheCleanup({
+                force: true,
+                retentionDays: data.cacheRetentionDays
+            });
+            await refreshSummary();
+            const deleted = cleanup.filesDeleted + cleanup.apiEntriesDeleted;
+            setMessage({
+                type: "success",
+                text: deleted > 0
+                    ? `Offline-Einstellungen gespeichert. ${deleted} veraltete Cache-Einträge wurden gelöscht.`
+                    : "Offline-Einstellungen gespeichert."
+            });
         } catch (error) {
             console.error("Offline-Einstellungen konnten nicht gespeichert werden", error);
             setMessage({ type: "error", text: "Die Einstellungen konnten nicht auf dem Server gespeichert werden." });
@@ -186,6 +213,35 @@ export default function CacheSettingsPanel() {
                         <div className="rounded-lg bg-gray-900 p-3"><div className="text-xl font-semibold">{summary.apiEntries}</div><div className="text-xs text-gray-500">Lokale Datensätze</div></div>
                         <div className="rounded-lg bg-gray-900 p-3"><div className="text-xl font-semibold">{formatBytes(summary.usageBytes)}</div><div className="text-xs text-gray-500">von {formatBytes(summary.quotaBytes)} Browser-Speicher</div></div>
                     </div>
+                </section>
+
+                <section className="rounded-xl border border-gray-700 bg-gray-800 p-5">
+                    <h2 className="text-sm font-semibold text-gray-100">Automatische Cache-Bereinigung</h2>
+                    <p className="mt-1 max-w-2xl text-xs text-gray-400">
+                        Automatisch zwischengespeicherte Dateien und Datensätze werden entfernt, wenn sie länger nicht verwendet wurden.
+                    </p>
+                    <label className="mt-4 block max-w-xs text-sm text-gray-200">
+                        Ungenutzte Cache-Dateien löschen nach
+                        <div className="mt-2 flex items-center gap-3">
+                            <input
+                                type="number"
+                                min={MIN_CACHE_RETENTION_DAYS}
+                                max={MAX_CACHE_RETENTION_DAYS}
+                                step="1"
+                                value={config.cacheRetentionDays}
+                                onChange={event => updateConfig("cacheRetentionDays", event.target.value)}
+                                onBlur={() => updateConfig(
+                                    "cacheRetentionDays",
+                                    normalizeCacheRetentionDays(config.cacheRetentionDays)
+                                )}
+                                className="w-28 rounded border border-gray-600 bg-gray-900 px-3 py-2 text-gray-100"
+                            />
+                            <span className="text-gray-400">Tagen</span>
+                        </div>
+                    </label>
+                    <p className="mt-3 text-xs text-blue-300">
+                        Manuell heruntergeladene Offline-Projekte und die dabei heruntergeladenen Dateien werden nicht automatisch gelöscht. Ausstehende Änderungen und Konflikte bleiben ebenfalls erhalten.
+                    </p>
                 </section>
 
                 <section className="rounded-xl border border-gray-700 bg-gray-800 p-5">

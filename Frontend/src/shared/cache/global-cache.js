@@ -2,7 +2,8 @@ import {
     getCachedGlobalFile,
     invalidateGlobalFile,
     listCachedGlobalFiles,
-    setCachedGlobalFile
+    setCachedGlobalFile,
+    touchCachedFile
 } from "./indexed-db.js";
 import { downloadFile, readDownloadMetadata } from "../api/file-api.js";
 import { OfflineResourceUnavailableError } from "../offline/offline-errors.js";
@@ -37,7 +38,15 @@ const publishUpdate = detail => {
     }
 };
 
-const storeGlobalEntry = async ({ file, data, version, fileId = null, sourcePath, lastValidatedAt = Date.now() }) => {
+const storeGlobalEntry = async ({
+    file,
+    data,
+    version,
+    fileId = null,
+    sourcePath,
+    lastValidatedAt = Date.now(),
+    retentionProtected = false
+}) => {
     const entry = await setCachedGlobalFile({
         file,
         data,
@@ -45,7 +54,8 @@ const storeGlobalEntry = async ({ file, data, version, fileId = null, sourcePath
         fileId,
         sourcePath,
         lastAccessedAt: Date.now(),
-        lastValidatedAt
+        lastValidatedAt,
+        retentionProtected
     });
     memoryCache.set(keyFor(file), entry);
     return entry;
@@ -73,7 +83,8 @@ const revalidateGlobalFile = async ({ file, cached, loadFromServer, force = fals
             version: cached.version,
             fileId: cached.fileId ?? descriptor.fileId ?? null,
             sourcePath: loadFromServer.path,
-            lastValidatedAt: Date.now()
+            lastValidatedAt: Date.now(),
+            retentionProtected: cached.retentionProtected
         });
     }
 
@@ -87,7 +98,8 @@ const revalidateGlobalFile = async ({ file, cached, loadFromServer, force = fals
         data,
         version: metadata.serverVersion ?? descriptor.serverVersion ?? Date.now(),
         fileId: metadata.fileId ?? descriptor.fileId ?? cached.fileId ?? null,
-        sourcePath: loadFromServer.path
+        sourcePath: loadFromServer.path,
+        retentionProtected: cached.retentionProtected
     });
     publishUpdate({ scope: "global", file, version: entry.version });
     return entry;
@@ -115,9 +127,11 @@ const queueGlobalRevalidation = options => {
 
 export const getGlobalFile = async ({ file, loadFromServer }) => {
     const key = keyFor(file);
-    const cached = memoryCache.get(key) ?? await getCachedGlobalFile({ file });
+    const memoryEntry = memoryCache.get(key);
+    const cached = memoryEntry ?? await getCachedGlobalFile({ file });
     if (cached) {
         memoryCache.set(key, cached);
+        if (memoryEntry) void touchCachedFile(key);
         if (!isOffline()) void queueGlobalRevalidation({ file, cached, loadFromServer, force: true });
         return cached.data;
     }
@@ -194,7 +208,7 @@ export const refreshCachedGlobalFiles = async ({
     return result;
 };
 
-export const uploadGlobalFile = async ({ file, data, uploadFunction }) => {
+export const uploadGlobalFile = async ({ file, data, uploadFunction, retentionProtected = false }) => {
     const response = await uploadFunction.upload(uploadFunction.path, data);
     const version = response?.version ?? response?.fileEntry?.serverVersion ?? Date.now();
     await storeGlobalEntry({
@@ -202,7 +216,8 @@ export const uploadGlobalFile = async ({ file, data, uploadFunction }) => {
         data,
         version,
         fileId: response?.fileId ?? response?.fileEntry?.id ?? null,
-        sourcePath: uploadFunction.sourcePath ?? uploadFunction.path
+        sourcePath: uploadFunction.sourcePath ?? uploadFunction.path,
+        retentionProtected
     });
     return response;
 };
