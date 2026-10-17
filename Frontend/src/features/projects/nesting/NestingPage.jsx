@@ -21,6 +21,10 @@ import { createEmptyNestingPlate, nestStrips } from '@Engine/nesting/placement/n
 import { nestWithRemainingPlates } from '@Engine/nesting/placement/nestRemaining.js';
 import { sortPlates } from '@Engine/nesting/placement/sortPlates.js';
 import { placeStrip as placeStripOnNestingPlate } from '@Engine/nesting/placement/placeStrip.js';
+import {
+    rebuildStripsAtSavedPositions,
+    saveStripPositions
+} from '@Engine/nesting/placement/rebuildStripPositions.js';
 import NestingSettingsModal from "./nestingSettingsModal.jsx"
 import { TOUCH } from "three";
 
@@ -137,37 +141,6 @@ function HorizontalPanControls({ controlsRef }) {
         </mesh>
     );
 }
-
-function removeStripCuts(cuts = [], removed, matchGeometry = true) {
-    const removedId = String(removed?.id ?? "");
-    if (!removedId || !Array.isArray(cuts)) return cuts ?? [];
-
-    const stripX = Number(removed.x) || 0;
-    const stripY = Number(removed.y) || 0;
-    const stripRight = stripX + (Number(removed.placedWidth ?? removed.width) || 0);
-    const stripBottom = stripY + (Number(removed.placedHeight ?? removed.height) || 0);
-    const tolerance = 1;
-
-    return cuts.filter((cut) => {
-        const hasMatchingOwner = [cut.stripId, cut.placementId]
-            .some((ownerId) => ownerId != null && String(ownerId) === removedId);
-        if (hasMatchingOwner) return false;
-        if (!matchGeometry) return true;
-
-        // Gespeicherte Alt-Cuts oder vor der ID-Normalisierung erzeugte Cuts per Kante zuordnen.
-        const cutX = Number(cut.x) || 0;
-        const cutY = Number(cut.y) || 0;
-        const cutRight = cutX + (Number(cut.width) || 0);
-        const cutBottom = cutY + (Number(cut.height) || 0);
-        const overlapsStripX = cutX <= stripRight + tolerance && cutRight >= stripX - tolerance;
-        const overlapsStripY = cutY <= stripBottom + tolerance && cutBottom >= stripY - tolerance;
-        const touchesRightEdge = Math.abs(cutX - stripRight) <= tolerance || Math.abs(cutRight - stripRight) <= tolerance;
-        const touchesBottomEdge = Math.abs(cutY - stripBottom) <= tolerance || Math.abs(cutBottom - stripBottom) <= tolerance;
-
-        return !((touchesRightEdge && overlapsStripY) || (touchesBottomEdge && overlapsStripX));
-    });
-}
-
 
 function NestingView() {
     const navigate = useNavigate();
@@ -466,7 +439,40 @@ function NestingView() {
         const activeSettings = settings[activeSheetIndex] ?? activeSheet?.settings ?? defaultSettings;
         setActiveStrip(pooledStrip);
 
-        if (activeSettings.nestingMode === "2d" && rebuildOnRemove) {
+        if (!rebuildOnRemove) {
+            // Positionen sichern, Platte ohne den ausgesonderten Strip neu aufbauen
+            // und alle übrigen Strips an ihren bisherigen Koordinaten einsetzen.
+            setNestingResult((currentResult) =>
+                currentResult?.map((sheet, index) => {
+                    if (index !== activeSheetIndex) return sheet;
+
+                    const removed = sheet.strips.find(
+                        (candidate) => candidate.id === stripToRemove.id
+                    );
+                    if (!removed) return sheet;
+
+                    const savedPositions = saveStripPositions(
+                        sheet.nestingPlates,
+                        removed.id
+                    );
+                    const rebuilt = rebuildStripsAtSavedPositions(
+                        sheet.nestingPlates,
+                        savedPositions,
+                        activeSettings
+                    );
+
+                    return {
+                        ...sheet,
+                        strips: rebuilt.strips,
+                        nestingPlates: rebuilt.nestingPlates,
+                        emptyStrips: [...(sheet.emptyStrips ?? []), pooledStrip]
+                    };
+                })
+            );
+            return;
+        }
+
+        if (activeSettings.nestingMode === "2d") {
             // 2D packt die noch platzierten Teile ohne das entfernte Teil neu.
             setNestingResult((currentResult) =>
                 currentResult?.map((sheet, index) => {
@@ -560,131 +566,6 @@ function NestingView() {
                         strips: layout.strips,
                         nestingPlates,
                         emptyStrips: [...(sheet.emptyStrips ?? []), pooledStrip, ...unplacedPool]
-                    };
-                })
-            );
-            return;
-        }
-
-        if (activeSettings.nestingMode === "2d") {
-            // 2D erhält die Positionen der übrigen Teile und gibt nur den entfernten Footprint frei.
-            setNestingResult((currentResult) =>
-                currentResult?.map((sheet, index) => {
-                    if (index !== activeSheetIndex) return sheet;
-
-                    const removed = sheet.strips.find(
-                        (candidate) => candidate.id === stripToRemove.id
-                    );
-                    if (!removed) return sheet;
-
-                    const nestingPlates = (sheet.nestingPlates ?? []).map((plate) => {
-                        const isTargetPlate = String(plate.id) === String(removed.sheet);
-                        const hasOwnedCut = (plate.cuts ?? []).some((cut) => (
-                            [cut.stripId, cut.placementId]
-                                .some((ownerId) => ownerId != null && String(ownerId) === String(removed.id))
-                        ));
-                        if (!isTargetPlate) {
-                            return hasOwnedCut
-                                ? { ...plate, cuts: removeStripCuts(plate.cuts, removed, false) }
-                                : plate;
-                        }
-
-                        const restoredSpace = {
-                            sheet: plate.id,
-                            x: removed.x,
-                            y: removed.y,
-                            width: removed.placedWidth,
-                            height: removed.placedHeight
-                        };
-                        const alreadyFree = (plate.freeSpaces ?? []).some((space) => (
-                            space.x === restoredSpace.x &&
-                            space.y === restoredSpace.y &&
-                            space.width === restoredSpace.width &&
-                            space.height === restoredSpace.height
-                        ));
-
-                        return {
-                            ...plate,
-                            strips: (plate.strips ?? []).filter(
-                                (candidate) => candidate.id !== removed.id
-                            ),
-                            plates: (plate.plates ?? []).filter(
-                                (part) => part.placementId !== removed.id
-                            ),
-                            cuts: removeStripCuts(plate.cuts, removed),
-                            freeSpaces: alreadyFree
-                                ? plate.freeSpaces
-                                : [...(plate.freeSpaces ?? []), restoredSpace]
-                        };
-                    });
-
-                    return {
-                        ...sheet,
-                        strips: sheet.strips.filter(
-                            (candidate) => candidate.id !== removed.id
-                        ),
-                        cuts: removeStripCuts(sheet.cuts, removed),
-                        nestingPlates,
-                        emptyStrips: [...(sheet.emptyStrips ?? []), pooledStrip]
-                    };
-                })
-            );
-            return;
-        }
-
-        if (!rebuildOnRemove) {
-            // Ohne Rebuild bleiben die übrigen 1D-Strips an ihrer aktuellen Position.
-            setNestingResult((currentResult) =>
-                currentResult?.map((sheet, index) => {
-                    if (index !== activeSheetIndex) return sheet;
-
-                    const removed = sheet.strips.find(
-                        (candidate) => candidate.id === stripToRemove.id
-                    );
-                    if (!removed) return sheet;
-
-                    const nestingPlates = (sheet.nestingPlates ?? []).map((plate) => {
-                        const isTargetPlate = String(plate.id) === String(removed.sheet);
-                        const hasOwnedCut = (plate.cuts ?? []).some((cut) => (
-                            [cut.stripId, cut.placementId]
-                                .some((ownerId) => ownerId != null && String(ownerId) === String(removed.id))
-                        ));
-                        if (!isTargetPlate) {
-                            return hasOwnedCut
-                                ? { ...plate, cuts: removeStripCuts(plate.cuts, removed, false) }
-                                : plate;
-                        }
-
-                        const restoredSpace = {
-                            sheet: plate.id,
-                            x: removed.x,
-                            y: removed.y,
-                            width: removed.placedWidth,
-                            height: removed.placedHeight
-                        };
-                        const alreadyFree = (plate.freeSpaces ?? []).some((space) => (
-                            space.x === restoredSpace.x &&
-                            space.y === restoredSpace.y &&
-                            space.width === restoredSpace.width &&
-                            space.height === restoredSpace.height
-                        ));
-
-                        return {
-                            ...plate,
-                            strips: (plate.strips ?? []).filter((candidate) => candidate.id !== removed.id),
-                            cuts: removeStripCuts(plate.cuts, removed),
-                            freeSpaces: alreadyFree
-                                ? plate.freeSpaces
-                                : [...(plate.freeSpaces ?? []), restoredSpace]
-                        };
-                    });
-
-                    return {
-                        ...sheet,
-                        strips: sheet.strips.filter((candidate) => candidate.id !== removed.id),
-                        cuts: removeStripCuts(sheet.cuts, removed),
-                        nestingPlates,
-                        emptyStrips: [...(sheet.emptyStrips ?? []), pooledStrip]
                     };
                 })
             );
@@ -943,7 +824,7 @@ function NestingView() {
                     </div>
                 </div> )}
 
-                {activeStrip && ( <div className="absolute xl:top-56 xl:left-4 top-56 left-2 z-20">
+                {activeStrip && ( <div className="absolute xl:top-61 xl:left-4 top-56 left-2 z-20">
                     <div className="bg-gray-800/90 backdrop-blur border border-gray-700 rounded-lg xl:px-4 px-2 py-3 shadow-lg">
                         <div className="text-gray-400 mb-1"><span className="xl:text-sm text-xs">{isDirect2DNesting ? "Aktives Bauteil" : "Aktiver Strip"}</span> <span className="ml-8 font-semibold text-white xl:text-l text-sm">{activeStrip.id}</span></div>
                         <div className="font-semibold text-white xl:text-lg text-sm"> {activeStrip.placedWidth} x {activeStrip.placedHeight} </div>
