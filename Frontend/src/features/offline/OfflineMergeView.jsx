@@ -7,6 +7,10 @@ import {
 } from "../../shared/cache/project-cache.js";
 import { getCachedApiResponse } from "../../shared/offline/offline-repository.js";
 import { dismissOfflineNotice } from "../../shared/offline/offline-status.js";
+import {
+    MergeResultView,
+    SpecializedDocumentConflict
+} from "./OfflineMergeDataViews.jsx";
 
 const destinationFor = entry => {
     const routes = {
@@ -90,27 +94,45 @@ export default function OfflineMergeView() {
                         {initialMerge.automatic.length} Änderungen konnten automatisch übernommen werden. Wähle für jeden verbleibenden Konflikt eine Version.
                     </p>
                     <div className="mt-5 space-y-4">
-                        {initialMerge.conflicts.map(conflict => (
-                            <div key={conflict.path} className="rounded-lg border border-gray-700 bg-gray-950 p-4">
-                                <div className="mb-3 break-all text-sm font-medium text-gray-200">{conflict.path}</div>
-                                <div className="grid gap-3 md:grid-cols-2">
-                                    {[["local", "Lokale Version", conflict.local], ["server", "Serverversion", conflict.remote]].map(([value, label, content]) => (
-                                        <label key={value} className={`cursor-pointer rounded-lg border p-3 ${choices[conflict.path] === value ? "border-blue-500 bg-blue-950/30" : "border-gray-700 bg-gray-900"}`}>
-                                            <div className="flex items-center gap-2 text-sm font-medium">
-                                                <input
-                                                    type="radio"
-                                                    name={conflict.path}
-                                                    checked={choices[conflict.path] === value}
-                                                    onChange={() => setChoices(previous => ({ ...previous, [conflict.path]: value }))}
-                                                />
-                                                {label}
+                        {initialMerge.conflicts.map(conflict => {
+                            const choose = value => setChoices(previous => ({ ...previous, [conflict.path]: value }));
+                            const hasSpecializedView = conflict.path === "Dokument"
+                                && (entry.file === "list.json" || entry.file === "nesting.json");
+                            const specialized = (
+                                <SpecializedDocumentConflict
+                                    file={entry.file}
+                                    conflict={conflict}
+                                    choice={choices[conflict.path]}
+                                    onChoice={choose}
+                                />
+                            );
+
+                            return (
+                                <div key={conflict.path} className="rounded-lg border border-gray-700 bg-gray-950 p-4">
+                                    {conflict.path !== "Dokument" && <div className="mb-3 break-all text-sm font-medium text-gray-200">{conflict.path}</div>}
+                                    {hasSpecializedView
+                                        ? specialized
+                                        : (
+                                            <div className="grid gap-3 md:grid-cols-2">
+                                                {[["local", "Lokale Version", conflict.local], ["server", "Serverversion", conflict.remote]].map(([value, label, content]) => (
+                                                    <label key={value} className={`cursor-pointer rounded-lg border p-3 ${choices[conflict.path] === value ? "border-blue-500 bg-blue-950/30" : "border-gray-700 bg-gray-900"}`}>
+                                                        <div className="flex items-center gap-2 text-sm font-medium">
+                                                            <input
+                                                                type="radio"
+                                                                name={conflict.path}
+                                                                checked={choices[conflict.path] === value}
+                                                                onChange={() => choose(value)}
+                                                            />
+                                                            {label}
+                                                        </div>
+                                                        <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words text-xs text-gray-400">{formatMergeValue(content)}</pre>
+                                                    </label>
+                                                ))}
                                             </div>
-                                            <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words text-xs text-gray-400">{formatMergeValue(content)}</pre>
-                                        </label>
-                                    ))}
+                                        )}
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                         {!initialMerge.conflicts.length && (
                             <div className="rounded-lg border border-green-900 bg-green-950/20 p-4 text-sm text-green-300">
                                 Alle Änderungen konnten automatisch zusammengeführt werden.
@@ -121,10 +143,14 @@ export default function OfflineMergeView() {
 
                 <section className="rounded-xl border border-gray-800 bg-gray-900 p-5">
                     <h2 className="font-semibold">Vorschau des zusammengeführten Ergebnisses</h2>
-                    <pre className="mt-4 max-h-96 overflow-auto rounded-lg bg-gray-950 p-4 text-xs text-gray-300">{JSON.stringify(result.merged, null, 2)}</pre>
-                    <p className="mt-3 text-xs text-amber-300">
-                        Korpus- und Nesting-Geometrien müssen anschließend im jeweiligen Editor geprüft werden; der generische Merge führt noch keine grafische Geometrievalidierung aus.
-                    </p>
+                    <div className="mt-4">
+                        <MergeResultView file={entry.file} data={result.merged} />
+                    </div>
+                    {entry.file === "nesting.json" && (
+                        <p className="mt-3 text-xs text-amber-300">
+                            Prüfe das gewählte Ergebnis anschließend im Nesting-Editor; die Vorschau stellt die Belegung dar, validiert aber keine Geometrie oder Schnittfolge.
+                        </p>
+                    )}
                 </section>
 
                 {error && <div className="rounded-lg border border-red-800 bg-red-950/30 p-3 text-sm text-red-300">{error}</div>}
