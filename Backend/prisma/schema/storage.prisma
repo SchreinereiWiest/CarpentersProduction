@@ -1,0 +1,124 @@
+model StorageDeletionJob {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  bucketName String  @map("bucket_name")
+  objectKey  String  @map("object_key")
+  status     String  @default("pending")
+  attempts   Int     @default(0)
+  lastError  String? @map("last_error")
+
+  nextAttemptAt DateTime  @default(now()) @map("next_attempt_at")
+  completedAt   DateTime? @map("completed_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@unique([tenantId, bucketName, objectKey])
+  @@unique([tenantId, id])
+  @@index([status, nextAttemptAt])
+  @@map("storage_deletion_jobs")
+}
+
+model S3Object {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  provider   String
+  bucketName String @map("bucket_name")
+  objectKey  String @map("object_key")
+
+  region   String?
+  endpoint String?
+
+  accessUrl String? @map("access_url")
+  etag      String?
+
+  storageClass String? @map("storage_class")
+  isArchived   Boolean @default(false) @map("is_archived")
+
+  files          File[]
+  projectStorage ProjectStorage[]
+
+  uploadedAt DateTime @default(now()) @map("uploaded_at")
+
+  @@unique([tenantId, id])
+  @@map("s3_objects")
+}
+
+model File {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  customerId String? @map("customer_id") @db.Uuid
+  projectId  String? @map("project_id") @db.Uuid
+
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  project  Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  storageObjectId String   @map("storage_object_id") @db.Uuid
+  storageObject   S3Object @relation(fields: [storageObjectId], references: [id], onDelete: Cascade)
+
+  fileName     String  @map("file_name")
+  originalName String? @map("original_name")
+
+  mimeType String? @map("mime_type")
+  fileSize Int?    @map("file_size")
+
+  category String?
+
+  uploadedById String? @map("uploaded_by") @db.Uuid
+  uploadedBy   User?   @relation(fields: [uploadedById], references: [id])
+
+  uploadedAt DateTime  @default(now()) @map("uploaded_at")
+  deletedAt  DateTime? @map("deleted_at")
+
+  status String? @map("status")
+
+  // Monoton steigende, serverseitig vergebene Inhaltsversion. Sie wird fuer
+  // optimistische Offline-Synchronisierung verwendet und ist bewusst kein
+  // Zeitstempel.
+  serverVersion Int      @default(1) @map("server_version")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  shopArticles           ShopArticle[]           @relation("ShopArticleImage")
+  managementTransactions ManagementTransaction[]
+  syncMutations          SyncMutation[]
+
+  @@unique([tenantId, id])
+  @@map("files")
+}
+
+model SyncMutation {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  idempotencyKey String   @map("idempotency_key")
+  fileId         String?  @map("file_id") @db.Uuid
+  file           File?    @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  response       Json
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, idempotencyKey])
+  @@unique([tenantId, id])
+  @@index([fileId])
+  @@map("sync_mutations")
+}
+
+model ProjectStorage {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  projectId String  @map("project_id") @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  storageObjectId String   @map("storage_object_id") @db.Uuid
+  storageObject   S3Object @relation(fields: [storageObjectId], references: [id], onDelete: Cascade)
+
+  dataType      String? @map("data_type")
+  schemaVersion String? @map("schema_version")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, id])
+  @@map("project_storage")
+}
