@@ -30,6 +30,8 @@ import EstimationSettingsPanel
     from "./panels/estimationSettingsPanel.jsx";
 import AttachmentSearchSettingsPanel
     from "./panels/attachmentSearchSettingsPanel.jsx";
+import StorageSettingsPanel
+    from "./panels/storageSettingsPanel.jsx";
 
 
 export default function CompanySettings() {
@@ -96,6 +98,11 @@ export default function CompanySettings() {
             case "programSettings":
                 return (
                     <ProgramSettingsPanel />
+                );
+
+            case "storage":
+                return (
+                    <StorageSettingsPanel />
                 );
 
 

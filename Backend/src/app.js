@@ -15,6 +15,7 @@ import purchasingRoutes from "./modules/purchasing/shop.routes.js";
 import settingsRoutes from "./modules/settings/settings.routes.js";
 import timeRoutes from "./modules/time-tracking/time.routes.js";
 import userRoutes from "./modules/users/user.routes.js";
+import storageAdminRoutes from "./modules/storage-admin/storage-admin.routes.js";
 
 export function createApp() {
   const app = express();
@@ -50,6 +51,7 @@ export function createApp() {
   app.use("/api/shop", purchasingRoutes);
   app.use("/api/management", managementRoutes);
   app.use("/api/license", licenseRoutes);
+  app.use("/api/storage-admin", storageAdminRoutes);
 
   app.use((error, _req, res, _next) => {
     const status = Number(error?.statusCode) || 500;

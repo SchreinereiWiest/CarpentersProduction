@@ -1,665 +1,431 @@
-
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import axios from "axios";
 
-import SideBar from '../../../shared/components/sideBar.jsx';
-import ProjectBar from '../../../shared/components/projectBar.jsx';
+import SideBar from "../../../shared/components/sideBar.jsx";
+import ProjectBar from "../../../shared/components/projectBar.jsx";
 import CustomerSearch from "../legacy-editor/customerSearch.jsx";
 import DeleteConfirm from "./deleteConfirm.jsx";
 
-
 export default function ProjectSettings() {
+  const { projectId } = useParams();
 
-    const { projectId } = useParams();
+  const navigate = useNavigate();
 
-    const navigate = useNavigate();
+  const [projectName, setProjectName] = useState("");
 
-    const [projectName, setProjectName] =
-        useState("");
+  const [projectDescription, setProjectDescription] = useState("");
 
-    const [projectDescription, setProjectDescription] =
-        useState("");
+  const [projectState, setProjectState] = useState("active");
 
-    const [projectState, setProjectState] =
-        useState("active");
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
 
-    const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [projectFiles, setProjectFiles] = useState([]);
 
-    const [projectFiles, setProjectFiles] =
-        useState([]);
+  const [newFiles, setNewFiles] = useState([]);
 
-    const [newFiles, setNewFiles] =
-        useState([]);
+  const [loading, setLoading] = useState(true);
 
-    const [loading, setLoading] =
-        useState(true);
+  const [saving, setSaving] = useState(false);
 
-    const [saving, setSaving] =
-        useState(false);
+  const [deleting, setDeleting] = useState(false);
 
-    const [deleting, setDeleting] =
-        useState(false);
+  const [exporting, setExporting] = useState(false);
 
-    const [exporting, setExporting] =
-        useState(false);
+  const [exportError, setExportError] = useState("");
 
-    const [exportError, setExportError] =
-        useState("");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
+  // --------------------------------------------------
+  // Load project
+  // --------------------------------------------------
 
+  useEffect(() => {
+    console.log("Lade Projekt:", projectId);
 
-    // --------------------------------------------------
-    // Load project
-    // --------------------------------------------------
+    const fetchProject = async () => {
+      try {
+        const { data } = await axios.get(`/api/projects/get/${projectId}`);
 
-    useEffect(() => {
+        const project = data.project;
 
-        console.log("Lade Projekt:", projectId);
+        console.log("Projekt geladen:", project);
 
-        const fetchProject = async () => {
+        setProjectName(project.title ?? "");
 
-            try {
+        setProjectDescription(project.description ?? "");
 
-                const { data } = await axios.get(`/api/projects/get/${projectId}`);
+        setProjectState(project.status ?? "active");
 
-                const project = data.project;
+        setProjectFiles(project.files ?? []);
 
-                console.log("Projekt geladen:", project);
-
-
-                setProjectName(
-                    project.title ?? ""
-                );
-
-
-                setProjectDescription(
-                    project.description ?? ""
-                );
-
-
-                setProjectState(
-                    project.status ?? "active"
-                );
-
-
-                setProjectFiles(
-                    project.files ?? []
-                );
-
-                const customerdata = await axios.get(`/api/customers/get/${project.customerId}`);
-                setSelectedCustomer(customerdata.data.customer);
-            } catch (error) {
-
-                console.error(
-                    "Projekt konnte nicht geladen werden:",
-                    error
-                );
-
-            } finally {
-
-                setLoading(false);
-
-            }
-
-        };
-
-
-        if (projectId) {
-            fetchProject();
-        }
-
-    }, [projectId]);
-
-
-    // --------------------------------------------------
-    // Save project
-    // --------------------------------------------------
-    
-    const handleSubmit = async (e) => {
-
-        e.preventDefault();
-
-        if(selectedCustomer?.id && projectName) {
-
-            setSaving(true);
-
-            try {
-
-                /*
-                * Projektinformationen speichern
-                */
-                
-                await axios.put(
-                    `/api/projects/update/${projectId}`,
-                    {
-                        customerId: selectedCustomer?.id,
-                        title: projectName,
-                        description: projectDescription,
-                        status: projectState
-                    }
-                );
-            
-
-                /*
-                * Neue Dateien hochladen
-                */
-
-                if (newFiles.length > 0) {
-
-                    for (const file of newFiles) {
-                        let mimeType = file.type;
-
-                        if (mimeType == "" | !mimeType) {
-
-                            const extension = file.name.split(".").pop().toLowerCase();
-
-                            switch (extension) {
-
-                                case "glb":
-                                    mimeType = "model/gltf-binary";
-                                    break;
-
-                                case "gltf":
-                                    mimeType = "model/gltf+json";
-                                    break;
-                            }
-                        }
-
-                        const formData = new FormData();
-
-                        formData.append("file", file);
-                        formData.append("entityId", projectId);
-                        formData.append("customerId", selectedCustomer?.id);
-                        formData.append("entity", "project");
-                        formData.append("fileName", file.name);
-                        formData.append("mimeType", mimeType);
-                        formData.append("fileSize", file.size);
-
-                        const response = await axios.post(
-                            "/api/files/upload",
-                            formData
-                        );
-
-                        console.log("response", response.data.fileEntry.id);
-                        
-                    }
-                
-
-                }
-
-
-                /*
-                * Neue Dateien zurücksetzen
-                */
-                setNewFiles([]);
-
-
-                /*
-                * Projekt neu laden
-                */
-            const { data } = await axios.get(`/api/projects/get/${projectId}`);
-
-                    const project = data.project;
-
-                    console.log("Projekt geladen:", project);
-
-
-                setProjectFiles(
-                    project.files ?? []
-                );
-
-
-            } catch (error) {
-
-                console.error(
-                    "Projekt konnte nicht gespeichert werden:",
-                    error
-                );
-
-            } finally {
-
-                setSaving(false);
-
-            }
-        } else {
-
-            alert(
-                "Bitte wähle einen Kunden aus und gib einen Projektnamen ein."
-            );}
+        const customerdata = await axios.get(
+          `/api/customers/get/${project.customerId}`
+        );
+        setSelectedCustomer(customerdata.data.customer);
+      } catch (error) {
+        console.error("Projekt konnte nicht geladen werden:", error);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    // --------------------------------------------------
-    // Delete file
-    // --------------------------------------------------
+    if (projectId) {
+      fetchProject();
+    }
+  }, [projectId]);
 
-    const handleDeleteFile = async (
-        file
-    ) => {
+  // --------------------------------------------------
+  // Save project
+  // --------------------------------------------------
 
-        // const confirmed =
-        //     window.confirm(
-        //         `Datei "${file.name}" wirklich löschen?`
-        //     );
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
+    if (selectedCustomer?.id && projectName) {
+      setSaving(true);
 
-        // if (!confirmed) {
-        //     return;
-        // }
+      try {
+        /*
+         * Projektinformationen speichern
+         */
 
+        await axios.put(`/api/projects/update/${projectId}`, {
+          customerId: selectedCustomer?.id,
+          title: projectName,
+          description: projectDescription,
+          status: projectState
+        });
 
-        try {
+        /*
+         * Neue Dateien hochladen
+         */
 
-            await axios.delete(
-                `/api/files/delete/${file.id}`
-            );
+        if (newFiles.length > 0) {
+          for (const file of newFiles) {
+            let mimeType = file.type;
 
+            if ((mimeType == "") | !mimeType) {
+              const extension = file.name.split(".").pop().toLowerCase();
 
-            setProjectFiles(
-                currentFiles =>
-                    currentFiles.filter(
-                        currentFile =>
-                            currentFile.id !==
-                            file.id
-                    )
-            );
+              switch (extension) {
+                case "glb":
+                  mimeType = "model/gltf-binary";
+                  break;
 
-
-        } catch (error) {
-
-            console.error(
-                "Datei konnte nicht gelöscht werden:",
-                error
-            );
-
-        }
-
-    };
-
-    // --------------------------------------------------
-    // Delete project
-    // --------------------------------------------------
-
-    const handleDeleteProject =
-        async () => {
-
-
-            setDeleting(true);
-
-
-            try {
-
-                await axios.delete(
-                    `/api/projects/delete/${projectId}`
-                );
-
-
-                navigate(
-                    "/Projects"
-                );
-
-
-            } catch (error) {
-
-                console.error(
-                    "Projekt konnte nicht gelöscht werden:",
-                    error
-                );
-
-                setDeleting(false);
-
+                case "gltf":
+                  mimeType = "model/gltf+json";
+                  break;
+              }
             }
 
-        };
+            const formData = new FormData();
 
-    // --------------------------------------------------
-    // Export project
-    // --------------------------------------------------
+            formData.append("file", file);
+            formData.append("entityId", projectId);
+            formData.append("customerId", selectedCustomer?.id);
+            formData.append("entity", "project");
+            formData.append("fileName", file.name);
+            formData.append("mimeType", mimeType);
+            formData.append("fileSize", file.size);
 
-    const handleExportProject = async () => {
-        setExporting(true);
-        setExportError("");
+            const response = await axios.post("/api/files/upload", formData);
 
-        try {
-            const response = await axios.get(
-                `/api/projects/export/${projectId}`,
-                { responseType: "blob" }
-            );
-            const disposition = response.headers["content-disposition"] || "";
-            const fileName = disposition.match(/filename="([^"]+)"/)?.[1]
-                || `${projectName || "project"}.cproject`;
-            const url = URL.createObjectURL(response.data);
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = fileName;
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            URL.revokeObjectURL(url);
-        } catch (error) {
-            console.error("Projekt konnte nicht exportiert werden:", error);
-            setExportError("Der Projekt-Download konnte nicht erstellt werden.");
-        } finally {
-            setExporting(false);
+            console.log("response", response.data.fileEntry.id);
+          }
         }
-    };
 
+        /*
+         * Neue Dateien zurücksetzen
+         */
+        setNewFiles([]);
 
-    // --------------------------------------------------
-    // Loading
-    // --------------------------------------------------
+        /*
+         * Projekt neu laden
+         */
+        const { data } = await axios.get(`/api/projects/get/${projectId}`);
 
-    if (loading) {
+        const project = data.project;
 
-        return (
+        console.log("Projekt geladen:", project);
 
-            <div className="bg-gray-900 text-white h-screen flex">
+        setProjectFiles(project.files ?? []);
+      } catch (error) {
+        console.error("Projekt konnte nicht gespeichert werden:", error);
+      } finally {
+        setSaving(false);
+      }
+    } else {
+      alert("Bitte wähle einen Kunden aus und gib einen Projektnamen ein.");
+    }
+  };
 
-                <SideBar selected={2} />
+  // --------------------------------------------------
+  // Delete file
+  // --------------------------------------------------
 
-                <main className="flex-1 flex flex-col">
+  const handleDeleteFile = async (file) => {
+    // const confirmed =
+    //     window.confirm(
+    //         `Datei "${file.name}" wirklich löschen?`
+    //     );
 
-                    <div className="sticky top-0 z-20 bg-gray-900 border-b border-gray-700">
+    // if (!confirmed) {
+    //     return;
+    // }
 
-                        <ProjectBar selected={7} />
+    try {
+      await axios.delete(`/api/files/delete/${file.id}`);
 
-                    </div>
+      setProjectFiles((currentFiles) =>
+        currentFiles.filter((currentFile) => currentFile.id !== file.id)
+      );
+    } catch (error) {
+      console.error("Datei konnte nicht gelöscht werden:", error);
+    }
+  };
 
+  // --------------------------------------------------
+  // Delete project
+  // --------------------------------------------------
 
-                    <div className="flex-1 flex items-center justify-center">
+  const handleDeleteProject = async () => {
+    setDeleting(true);
 
-                        <div className="text-gray-400">
+    try {
+      await axios.delete(`/api/projects/delete/${projectId}`);
 
-                            Projekt wird geladen...
+      navigate("/Projects");
+    } catch (error) {
+      console.error("Projekt konnte nicht gelöscht werden:", error);
 
-                        </div>
+      setDeleting(false);
+    }
+  };
 
-                    </div>
+  // --------------------------------------------------
+  // Export project
+  // --------------------------------------------------
 
-                </main>
+  const handleExportProject = async () => {
+    setExporting(true);
+    setExportError("");
 
+    try {
+      const response = await axios.get(`/api/projects/export/${projectId}`, {
+        responseType: "blob"
+      });
+      const disposition = response.headers["content-disposition"] || "";
+      const fileName =
+        disposition.match(/filename="([^"]+)"/)?.[1] ||
+        `${projectName || "project"}.cproject`;
+      const url = URL.createObjectURL(response.data);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Projekt konnte nicht exportiert werden:", error);
+      setExportError("Der Projekt-Download konnte nicht erstellt werden.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // --------------------------------------------------
+  // Loading
+  // --------------------------------------------------
+
+  if (loading) {
+    return (
+      <div className="bg-gray-900 text-white h-screen flex">
+        <SideBar selected={2} />
+
+        <main className="flex-1 flex flex-col">
+          <div className="sticky top-0 z-20 bg-gray-900 border-b border-gray-700">
+            <ProjectBar selected={7} />
+          </div>
+
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-gray-400">Projekt wird geladen...</div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // --------------------------------------------------
+  // View
+  // --------------------------------------------------
+
+  return (
+    <div className="bg-gray-900 text-white h-screen flex overflow-hidden">
+      <SideBar selected={2} />
+
+      <main className="flex-1 flex flex-col overflow-hidden">
+        {/* Project navigation */}
+
+        <div className="sticky top-0 z-20 bg-gray-900 border-b border-gray-700">
+          <ProjectBar selected={8} />
+        </div>
+
+        {/* Scrollable content */}
+
+        <div className="flex-1 overflow-y-auto">
+          {showDeleteModal && (
+            <DeleteConfirm
+              setShowDeleteModal={setShowDeleteModal}
+              handleDeleteProject={handleDeleteProject}
+              deleting={deleting}
+            />
+          )}
+
+          <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-6 xl:px-8 xl:py-8">
+            {/* -------------------------------- */}
+            {/* Header */}
+            {/* -------------------------------- */}
+
+            <div className="xl:mb-8 mb-4">
+              <h1 className="text-2xl font-semibold">Projekteinstellungen</h1>
+
+              <p className="text-gray-400 mt-1">
+                Projektinformationen und Dateien verwalten
+              </p>
             </div>
 
-        );
+            {/* -------------------------------- */}
+            {/* Project status */}
+            {/* -------------------------------- */}
 
-    }
+            <section className="bg-gray-800 border border-gray-700 rounded-xl xl:p-6 p-4 xl:mb-6 mb-4">
+              <div className="mb-5">
+                <h2 className="text-lg font-semibold">Projektstatus</h2>
 
+                <p className="text-sm text-gray-400 mt-1">
+                  Lege fest, in welchem Zustand sich das Projekt befindet.
+                </p>
+              </div>
 
-    // --------------------------------------------------
-    // View
-    // --------------------------------------------------
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {/* Active */}
 
-    return (
-
-        <div className="bg-gray-900 text-white h-screen flex overflow-hidden">
-
-
-            <SideBar selected={2} />
-
-
-            <main className="flex-1 flex flex-col overflow-hidden">
-
-
-                {/* Project navigation */}
-
-                <div className="sticky top-0 z-20 bg-gray-900 border-b border-gray-700">
-
-                    <ProjectBar selected={8} />
-
-                </div>
-
-
-                {/* Scrollable content */}
-
-                <div className="flex-1 overflow-y-auto">
-
-                    {showDeleteModal && (
-                        <DeleteConfirm
-                            setShowDeleteModal={setShowDeleteModal}
-                            handleDeleteProject={handleDeleteProject}
-                            deleting={deleting}
-                        />
-                    )}
-
-
-                    <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-6 xl:px-8 xl:py-8">
-
-
-                        {/* -------------------------------- */}
-                        {/* Header */}
-                        {/* -------------------------------- */}
-
-                        <div className="xl:mb-8 mb-4">
-
-                            <h1 className="text-2xl font-semibold">
-
-                                Projekteinstellungen
-
-                            </h1>
-
-
-                            <p className="text-gray-400 mt-1">
-
-                                Projektinformationen und Dateien verwalten
-
-                            </p>
-
-                        </div>
-
-
-                        {/* -------------------------------- */}
-                        {/* Project status */}
-                        {/* -------------------------------- */}
-
-                        <section className="bg-gray-800 border border-gray-700 rounded-xl xl:p-6 p-4 xl:mb-6 mb-4">
-
-                            <div className="mb-5">
-
-                                <h2 className="text-lg font-semibold">
-
-                                    Projektstatus
-
-                                </h2>
-
-
-                                <p className="text-sm text-gray-400 mt-1">
-
-                                    Lege fest, in welchem Zustand sich das Projekt befindet.
-
-                                </p>
-
-                            </div>
-
-
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-
-
-                                {/* Active */}
-
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        setProjectState("active")
-                                    }
-                                    className={`
+                <button
+                  type="button"
+                  onClick={() => setProjectState("active")}
+                  className={`
                                         rounded-lg
                                         border
                                         p-4
                                         text-left
                                         transition
-                                        ${projectState === "active"
+                                        ${
+                                          projectState === "active"
                                             ? "border-green-500 bg-green-500/10"
                                             : "border-gray-700 bg-gray-900 hover:bg-gray-700"
                                         }
                                     `}
-                                >
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-3 h-3 rounded-full bg-green-500" />
 
-                                    <div className="flex items-center gap-3">
+                    <span className="font-medium">Aktiv</span>
+                  </div>
 
-                                        <div className="w-3 h-3 rounded-full bg-green-500" />
+                  <p className="text-xs text-gray-400 mt-2">
+                    Projekt befindet sich in Bearbeitung.
+                  </p>
+                </button>
 
-                                        <span className="font-medium">
+                {/* Inactive */}
 
-                                            Aktiv
-
-                                        </span>
-
-                                    </div>
-
-
-                                    <p className="text-xs text-gray-400 mt-2">
-
-                                        Projekt befindet sich in Bearbeitung.
-
-                                    </p>
-
-                                </button>
-
-
-                                {/* Inactive */}
-
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        setProjectState("inactive")
-                                    }
-                                    className={`
+                <button
+                  type="button"
+                  onClick={() => setProjectState("inactive")}
+                  className={`
                                         rounded-lg
                                         border
                                         p-4
                                         text-left
                                         transition
-                                        ${projectState === "inactive"
+                                        ${
+                                          projectState === "inactive"
                                             ? "border-yellow-500 bg-yellow-500/10"
                                             : "border-gray-700 bg-gray-900 hover:bg-gray-700"
                                         }
                                     `}
-                                >
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-3 h-3 rounded-full bg-yellow-500" />
 
-                                    <div className="flex items-center gap-3">
+                    <span className="font-medium">Inaktiv</span>
+                  </div>
 
-                                        <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                  <p className="text-xs text-gray-400 mt-2">
+                    Projekt ist momentan pausiert.
+                  </p>
+                </button>
 
-                                        <span className="font-medium">
+                {/* Archive */}
 
-                                            Inaktiv
-
-                                        </span>
-
-                                    </div>
-
-
-                                    <p className="text-xs text-gray-400 mt-2">
-
-                                        Projekt ist momentan pausiert.
-
-                                    </p>
-
-                                </button>
-
-
-                                {/* Archive */}
-
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        setProjectState("archive")
-                                    }
-                                    className={`
+                <button
+                  type="button"
+                  onClick={() => setProjectState("archive")}
+                  className={`
                                         rounded-lg
                                         border
                                         p-4
                                         text-left
                                         transition
-                                        ${projectState === "archive"
+                                        ${
+                                          projectState === "archive"
                                             ? "border-gray-400 bg-gray-700"
                                             : "border-gray-700 bg-gray-900 hover:bg-gray-700"
                                         }
                                     `}
-                                >
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-3 h-3 rounded-full bg-gray-500" />
 
-                                    <div className="flex items-center gap-3">
+                    <span className="font-medium">Archiv</span>
+                  </div>
 
-                                        <div className="w-3 h-3 rounded-full bg-gray-500" />
+                  <p className="text-xs text-gray-400 mt-2">
+                    Projekt wurde abgeschlossen.
+                  </p>
+                </button>
+              </div>
+            </section>
 
-                                        <span className="font-medium">
+            {/* -------------------------------- */}
+            {/* Edit project */}
+            {/* -------------------------------- */}
 
-                                            Archiv
+            <section className="bg-gray-800 border border-gray-700 rounded-xl xl:p-6 p-4 xl:mb-6 mb-4">
+              <div className="mb-6">
+                <h2 className="text-lg font-semibold">Projekt bearbeiten</h2>
 
-                                        </span>
+                <p className="text-sm text-gray-400 mt-1">
+                  Name, Beschreibung und Projektdateien bearbeiten.
+                </p>
+              </div>
 
-                                    </div>
+              <form onSubmit={handleSubmit} className="flex flex-col">
+                {/* Project name */}
 
+                <div className="mb-5 w-full max-w-xl">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Projektname
+                  </label>
 
-                                    <p className="text-xs text-gray-400 mt-2">
-
-                                        Projekt wurde abgeschlossen.
-
-                                    </p>
-
-                                </button>
-
-
-                            </div>
-
-                        </section>
-
-
-                        {/* -------------------------------- */}
-                        {/* Edit project */}
-                        {/* -------------------------------- */}
-
-                        <section className="bg-gray-800 border border-gray-700 rounded-xl xl:p-6 p-4 xl:mb-6 mb-4">
-
-
-                            <div className="mb-6">
-
-                                <h2 className="text-lg font-semibold">
-
-                                    Projekt bearbeiten
-
-                                </h2>
-
-
-                                <p className="text-sm text-gray-400 mt-1">
-
-                                    Name, Beschreibung und Projektdateien bearbeiten.
-
-                                </p>
-
-                            </div>
-
-
-                            <form
-                                onSubmit={
-                                    handleSubmit
-                                }
-                                className="flex flex-col"
-                            >
-
-
-                                {/* Project name */}
-
-                                <div className="mb-5 w-full max-w-xl">
-
-                                    <label className="block text-sm font-medium text-gray-300 mb-2">
-
-                                        Projektname
-
-                                    </label>
-
-
-                                    <input
-                                        type="text"
-                                        name="projectName"
-                                        value={projectName}
-                                        onChange={(e) =>
-                                            setProjectName(
-                                                e.target.value
-                                            )
-                                        }
-                                        className="
+                  <input
+                    type="text"
+                    name="projectName"
+                    value={projectName}
+                    onChange={(e) => setProjectName(e.target.value)}
+                    className="
                                             w-full
                                             rounded-md
                                             border
@@ -673,33 +439,26 @@ export default function ProjectSettings() {
                                             focus:ring-1
                                             focus:ring-blue-500
                                         "
-                                    />
+                  />
+                </div>
 
-                                </div>
+                <CustomerSearch
+                  selectedCustomer={selectedCustomer}
+                  setSelectedCustomer={setSelectedCustomer}
+                />
 
-                                <CustomerSearch selectedCustomer={selectedCustomer} setSelectedCustomer={setSelectedCustomer} />
+                {/* Description */}
 
+                <div className="mb-6 w-full max-w-3xl">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Projektbeschreibung
+                  </label>
 
-                                {/* Description */}
-
-                                <div className="mb-6 w-full max-w-3xl">
-
-                                    <label className="block text-sm font-medium text-gray-300 mb-2">
-
-                                        Projektbeschreibung
-
-                                    </label>
-
-
-                                    <textarea
-                                        name="projectDescription"
-                                        value={projectDescription}
-                                        onChange={(e) =>
-                                            setProjectDescription(
-                                                e.target.value
-                                            )
-                                        }
-                                        className="
+                  <textarea
+                    name="projectDescription"
+                    value={projectDescription}
+                    onChange={(e) => setProjectDescription(e.target.value)}
+                    className="
                                             w-full
                                             h-48
                                             rounded-md
@@ -715,40 +474,26 @@ export default function ProjectSettings() {
                                             focus:ring-blue-500
                                             resize-none
                                         "
-                                    />
+                  />
+                </div>
 
-                                </div>
+                {/* Existing files */}
 
+                <div className="mb-6 w-full max-w-3xl">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Projektdateien
+                  </label>
 
-                                {/* Existing files */}
-
-                                <div className="mb-6 w-full max-w-3xl">
-
-                                    <label className="block text-sm font-medium text-gray-300 mb-2">
-
-                                        Projektdateien
-
-                                    </label>
-
-
-                                    <div className="space-y-2">
-
-                                        {projectFiles.length === 0 ? (
-
-                                            <div className="border border-dashed border-gray-600 rounded-lg p-6 text-center text-gray-500">
-
-                                                Keine Dateien vorhanden.
-
-                                            </div>
-
-                                        ) : (
-
-                                            projectFiles.map(
-                                                file => (
-
-                                                    <div
-                                                        key={file.id}
-                                                        className="
+                  <div className="space-y-2">
+                    {projectFiles.length === 0 ? (
+                      <div className="border border-dashed border-gray-600 rounded-lg p-6 text-center text-gray-500">
+                        Keine Dateien vorhanden.
+                      </div>
+                    ) : (
+                      projectFiles.map((file) => (
+                        <div
+                          key={file.id}
+                          className="
                                                             flex
                                                             items-center
                                                             justify-between
@@ -759,70 +504,41 @@ export default function ProjectSettings() {
                                                             px-4
                                                             xl:py-3 py-2
                                                         "
-                                                    >
+                        >
+                          <div className="flex items-center xl:gap-3 gap-2 min-w-0">
+                            <div className="text-blue-400">📄</div>
 
-                                                        <div className="flex items-center xl:gap-3 gap-2 min-w-0">
+                            <span className="truncate">{file.fileName}</span>
+                          </div>
 
-                                                            <div className="text-blue-400">
-
-                                                                📄
-
-                                                            </div>
-
-
-                                                            <span className="truncate">
-
-                                                                {file.fileName}
-
-                                                            </span>
-
-                                                        </div>
-
-
-                                                        <button
-                                                            type="button"
-                                                            onClick={() =>
-                                                                handleDeleteFile(
-                                                                    file
-                                                                )
-                                                            }
-                                                            className="
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteFile(file)}
+                            className="
                                                                 ml-4
                                                                 text-sm
                                                                 text-red-400
                                                                 hover:text-red-300
                                                                 transition
                                                             "
-                                                        >
+                          >
+                            Löschen
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
 
-                                                            Löschen
+                {/* Upload */}
 
-                                                        </button>
+                <div className="mb-6 w-full max-w-3xl">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Dateien hinzufügen
+                  </label>
 
-                                                    </div>
-
-                                                )
-                                            )
-
-                                        )}
-
-                                    </div>
-
-                                </div>
-
-
-                                {/* Upload */}
-
-                                <div className="mb-6 w-full max-w-3xl">
-
-                                    <label className="block text-sm font-medium text-gray-300 mb-2">
-
-                                        Dateien hinzufügen
-
-                                    </label>
-
-
-                                    <div className="
+                  <div
+                    className="
                                         relative
                                         h-40
                                         rounded-lg
@@ -835,35 +551,22 @@ export default function ProjectSettings() {
                                         justify-center
                                         items-center
                                         transition
-                                    ">
+                                    "
+                  >
+                    <div className="flex flex-col items-center pointer-events-none">
+                      <div className="text-3xl text-blue-500 mb-2">↑</div>
 
-                                        <div className="flex flex-col items-center pointer-events-none">
+                      <span className="text-gray-300">
+                        Dateien hier ablegen
+                      </span>
 
-                                            <div className="text-3xl text-blue-500 mb-2">
+                      <span className="text-xs text-gray-500 mt-1">
+                        oder Dateien auswählen
+                      </span>
+                    </div>
 
-                                                ↑
-
-                                            </div>
-
-
-                                            <span className="text-gray-300">
-
-                                                Dateien hier ablegen
-
-                                            </span>
-
-
-                                            <span className="text-xs text-gray-500 mt-1">
-
-                                                oder Dateien auswählen
-
-                                            </span>
-
-                                        </div>
-
-
-                                        <input
-                                            className="
+                    <input
+                      className="
                                                 absolute
                                                 inset-0
                                                 w-full
@@ -871,45 +574,28 @@ export default function ProjectSettings() {
                                                 opacity-0
                                                 cursor-pointer
                                             "
-                                            type="file"
-                                            multiple
-                                            onChange={(e) => {
+                      type="file"
+                      multiple
+                      onChange={(e) => {
+                        setNewFiles(Array.from(e.target.files));
+                      }}
+                    />
+                  </div>
+                </div>
 
-                                                setNewFiles(
-                                                    Array.from(
-                                                        e.target.files
-                                                    )
-                                                );
+                {/* New files */}
 
-                                            }}
-                                        />
+                {newFiles.length > 0 && (
+                  <div className="mb-6 w-full max-w-3xl">
+                    <div className="text-sm text-gray-400 mb-2">
+                      Neue Dateien
+                    </div>
 
-                                    </div>
-
-                                </div>
-
-
-                                {/* New files */}
-
-                                {newFiles.length > 0 && (
-
-                                    <div className="mb-6 w-full max-w-3xl">
-
-                                        <div className="text-sm text-gray-400 mb-2">
-
-                                            Neue Dateien
-
-                                        </div>
-
-
-                                        <div className="space-y-2">
-
-                                            {newFiles.map(
-                                                (file, index) => (
-
-                                                    <div
-                                                        key={`${file.name}-${index}`}
-                                                        className="
+                    <div className="space-y-2">
+                      {newFiles.map((file, index) => (
+                        <div
+                          key={`${file.name}-${index}`}
+                          className="
                                                             flex
                                                             items-center
                                                             justify-between
@@ -918,57 +604,37 @@ export default function ProjectSettings() {
                                                             px-4
                                                             xl:py-3 py-2
                                                         "
-                                                    >
+                        >
+                          <span>{file.name}</span>
 
-                                                        <span>
-
-                                                            {file.name}
-
-                                                        </span>
-
-
-                                                        <button
-                                                            type="button"
-                                                            onClick={() =>
-                                                                setNewFiles(
-                                                                    files =>
-                                                                        files.filter(
-                                                                            (_, i) =>
-                                                                                i !== index
-                                                                        )
-                                                                )
-                                                            }
-                                                            className="
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setNewFiles((files) =>
+                                files.filter((_, i) => i !== index)
+                              )
+                            }
+                            className="
                                                                 text-sm
                                                                 text-red-400
                                                                 hover:text-red-300
                                                             "
-                                                        >
+                          >
+                            Entfernen
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-                                                            Entfernen
+                {/* Save */}
 
-                                                        </button>
-
-                                                    </div>
-
-                                                )
-                                            )}
-
-                                        </div>
-
-                                    </div>
-
-                                )}
-
-
-                                {/* Save */}
-
-                                <div className="flex justify-end">
-
-                                    <button
-                                        type="submit"
-                                        disabled={saving}
-                                        className="
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="
                                             rounded-lg
                                             bg-gray-700
                                             hover:bg-gray-600
@@ -979,82 +645,66 @@ export default function ProjectSettings() {
                                             px-8
                                             font-semibold
                                         "
-                                    >
+                  >
+                    {saving ? "Speichern..." : "Änderungen speichern"}
+                  </button>
+                </div>
+              </form>
+            </section>
 
-                                        {saving
-                                            ? "Speichern..."
-                                            : "Änderungen speichern"
-                                        }
+            {/* Project export */}
 
-                                    </button>
+            <section className="bg-gray-800 border border-gray-700 rounded-xl xl:p-6 p-4 xl:mb-6 mb-4">
+              <div className="flex items-center justify-between xl:gap-6 gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold">
+                    Projekt herunterladen
+                  </h2>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Lädt sämtliche Projektdaten und Dateien als importierbares
+                    Archiv herunter.
+                  </p>
+                  {exportError && (
+                    <p className="text-sm text-red-400 mt-2" role="alert">
+                      {exportError}
+                    </p>
+                  )}
+                </div>
 
-                                </div>
+                <button
+                  type="button"
+                  onClick={handleExportProject}
+                  disabled={exporting}
+                  className="shrink-0 rounded-lg border border-blue-700 bg-blue-900/30 hover:bg-blue-900/60 disabled:opacity-50 disabled:cursor-not-allowed xl:px-5 px-4 xl:py-3 py-2 text-blue-300 font-semibold transition"
+                >
+                  {exporting
+                    ? "Archiv wird erstellt..."
+                    : "Projekt herunterladen"}
+                </button>
+              </div>
+            </section>
 
+            {/* -------------------------------- */}
+            {/* Danger zone */}
+            {/* -------------------------------- */}
 
-                            </form>
+            <section className="border border-red-900/60 bg-red-950/20 rounded-xl xl:p-6 p-4 mb-10">
+              <div className="flex items-center justify-between xl:gap-6 gap-2">
+                <div>
+                  <h2 className="text-lg font-semibold text-red-400">
+                    Projekt löschen
+                  </h2>
 
-                        </section>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Das Projekt und die zugehörigen Daten werden gelöscht.
+                  </p>
+                </div>
 
-
-                        {/* Project export */}
-
-                        <section className="bg-gray-800 border border-gray-700 rounded-xl xl:p-6 p-4 xl:mb-6 mb-4">
-                            <div className="flex items-center justify-between xl:gap-6 gap-3">
-                                <div>
-                                    <h2 className="text-lg font-semibold">Projekt herunterladen</h2>
-                                    <p className="text-sm text-gray-400 mt-1">
-                                        Lädt sämtliche Projektdaten und Dateien als importierbares Archiv herunter.
-                                    </p>
-                                    {exportError && (
-                                        <p className="text-sm text-red-400 mt-2" role="alert">{exportError}</p>
-                                    )}
-                                </div>
-
-                                <button
-                                    type="button"
-                                    onClick={handleExportProject}
-                                    disabled={exporting}
-                                    className="shrink-0 rounded-lg border border-blue-700 bg-blue-900/30 hover:bg-blue-900/60 disabled:opacity-50 disabled:cursor-not-allowed xl:px-5 px-4 xl:py-3 py-2 text-blue-300 font-semibold transition"
-                                >
-                                    {exporting ? "Archiv wird erstellt..." : "Projekt herunterladen"}
-                                </button>
-                            </div>
-                        </section>
-
-
-                        {/* -------------------------------- */}
-                        {/* Danger zone */}
-                        {/* -------------------------------- */}
-
-                        <section className="border border-red-900/60 bg-red-950/20 rounded-xl xl:p-6 p-4 mb-10">
-
-
-                            <div className="flex items-center justify-between xl:gap-6 gap-2">
-
-
-                                <div>
-
-                                    <h2 className="text-lg font-semibold text-red-400">
-
-                                        Projekt löschen
-
-                                    </h2>
-
-
-                                    <p className="text-sm text-gray-400 mt-1">
-
-                                        Das Projekt und die zugehörigen Daten werden gelöscht.
-
-                                    </p>
-
-                                </div>
-
-
-                                <button
-                                    type="button"
-                                    onClick={() => setShowDeleteModal(true)}
-                                    disabled={deleting}
-                                    className="
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteModal(true)}
+                  disabled={deleting}
+                  className="
                                         shrink-0
                                         rounded-lg
                                         border
@@ -1068,29 +718,14 @@ export default function ProjectSettings() {
                                         font-semibold
                                         transition
                                     "
-                                >
-
-                                    {deleting
-                                        ? "Löschen..."
-                                        : "Projekt löschen"
-                                    }
-
-                                </button>
-
-
-                            </div>
-
-                        </section>
-
-
-                    </div>
-
-                </div>
-
-            </main>
-
+                >
+                  {deleting ? "Löschen..." : "Projekt löschen"}
+                </button>
+              </div>
+            </section>
+          </div>
         </div>
-
-    );
-
+      </main>
+    </div>
+  );
 }

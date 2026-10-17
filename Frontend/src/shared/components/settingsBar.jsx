@@ -22,6 +22,10 @@ const tabs = [
         label: "Cache"
     },
     {
+        id: "storage",
+        label: "Storage"
+    },
+    {
         id: "users",
         label: "Benutzer"
     },

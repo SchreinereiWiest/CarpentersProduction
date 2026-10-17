@@ -19,6 +19,7 @@ export const systemPrisma = new PrismaClient();
 const TENANT_DELEGATES = new Set([
     "auditLog",
     "storageDeletionJob",
+    "tenantBackup",
     "customer",
     "customerAddress",
     "project",

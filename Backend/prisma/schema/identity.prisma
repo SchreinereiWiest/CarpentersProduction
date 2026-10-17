@@ -106,6 +106,7 @@ model User {
   auditLogs                    AuditLog[]
   memberships                  TenantMembership[]
   releasedCalculationSnapshots CalculationSnapshot[] @relation("CalculationSnapshotReleasedBy")
+  tenantBackups                TenantBackup[]
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")

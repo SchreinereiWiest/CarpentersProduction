@@ -19,6 +19,34 @@ model StorageDeletionJob {
   @@map("storage_deletion_jobs")
 }
 
+model TenantBackup {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  name       String
+  backupType String @default("full") @map("backup_type")
+  status     String @default("creating")
+  objectKey  String? @map("object_key")
+  bucketName String? @map("bucket_name")
+  fileSize   BigInt? @map("file_size")
+  checksum   String?
+  fileCount  Int     @default(0) @map("file_count")
+  tableCount Int     @default(0) @map("table_count")
+  error      String?
+
+  createdById String? @map("created_by") @db.Uuid
+  createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt  DateTime  @default(now()) @map("created_at")
+  completedAt DateTime? @map("completed_at")
+  restoredAt DateTime? @map("restored_at")
+
+  @@unique([tenantId, id])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, backupType, createdAt])
+  @@map("tenant_backups")
+}
+
 model S3Object {
   id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   tenantId String @map("tenant_id") @db.Uuid
