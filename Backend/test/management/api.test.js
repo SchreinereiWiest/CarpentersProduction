@@ -45,6 +45,7 @@ if (!testUrl) {
       await t.test('Neuer Snapshot enthält ausschließlich aktive Jahresdaten und verwendete Referenzen', async () => {
         const snapshot = (await request()).body; assert.equal(snapshot.config.mode, 'full'); assert.deepEqual(snapshot.config.setup.assets, []);
         assert.equal('transactions' in snapshot, false); assert.equal('calculation' in snapshot, false); assert.equal('rules' in snapshot.config, false);
+        assert.ok(snapshot.references.employees.some(employee => employee.id === users[0].id));
         const references = (await request('/references')).body; assert.ok(references.employees.some(employee => employee.id === users[0].id)); assert.equal('projects' in references, false);
       });
       await t.test('Anlagen und Restschulden aus früheren Tabellen werden vor der ersten Einrichtung übernommen', async () => {

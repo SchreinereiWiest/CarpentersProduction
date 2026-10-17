@@ -7,9 +7,7 @@ import { downloadFile } from "../../../services/apiTemplates.js";
 import { getProjectFile } from "../../../services/projectMemoryCache.js";
 import {
     applyEdgeQuantityMode,
-    buildEdgeItems,
-    buildHardwareItems,
-    buildPlateItems,
+    buildGeneratedProcurementItems,
     createProcurementPayload,
     mergeGeneratedItems,
     normalizeCatalog,
@@ -27,6 +25,13 @@ const money = new Intl.NumberFormat("de-DE", {
     style: "currency",
     currency: "EUR"
 });
+
+const hasNetPrice = item => (
+    item?.netPrice !== null
+    && item?.netPrice !== ""
+    && item?.netPrice !== undefined
+    && Number.isFinite(Number(item.netPrice))
+);
 
 const safeProjectFile = async (projectId, name) => {
     try {
@@ -90,9 +95,10 @@ function PurchaseTable({ title, description, items, lockedReleasedKeys, onChange
                         <tbody className="divide-y divide-gray-700">
                             {items.map(item => {
                                 const price = Number(item.netPrice);
-                                const lineTotal = Number.isFinite(price) ? price * Number(item.quantity || 0) : null;
+                                const lineTotal = hasNetPrice(item) ? price * Number(item.quantity || 0) : null;
                                 const releaseLocked = lockedReleasedKeys.has(item.sourceKey);
                                 const readOnly = item.purchased || releaseLocked;
+                                const releaseAllowed = hasNetPrice(item);
 
                                 return (
                                     <tr key={item.sourceKey} className={item.purchased ? "bg-emerald-950/35 hover:bg-emerald-950/50" : releaseLocked ? "bg-amber-950/20 hover:bg-amber-950/30" : "hover:bg-gray-700/40"}>
@@ -178,11 +184,12 @@ function PurchaseTable({ title, description, items, lockedReleasedKeys, onChange
                                                         <input
                                                             type="checkbox"
                                                             checked={Boolean(item.released)}
+                                                            disabled={!releaseAllowed}
                                                             onChange={event => onChange(item.sourceKey, "released", event.target.checked)}
-                                                            className="size-4 accent-blue-600"
+                                                            className="size-4 accent-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
                                                         />
                                                         <span className={item.released ? "text-blue-300" : "text-gray-400"}>
-                                                            {item.released ? "Freigegeben" : "Freigeben"}
+                                                            {item.released ? "Freigegeben" : releaseAllowed ? "Freigeben" : "Preis fehlt"}
                                                         </span>
                                                     </label>
                                                 )}
@@ -233,11 +240,14 @@ export default function ProjectPurchasing() {
                 const storageMaterials = materialResponse.data?.materials || [];
                 const catalogArticles = normalizeCatalog(catalog).articles;
                 const suppliersById = new Map(normalizeShopSettings(shopSettings).suppliers.map(supplier => [supplier.id, supplier.name]));
-                const generated = [
-                    ...buildPlateItems(nesting, storageMaterials, shopSettings),
-                    ...buildEdgeItems(nesting, storageMaterials, shopSettings),
-                    ...buildHardwareItems(partList, shopSettings, catalogArticles, cabinetData)
-                ];
+                const generated = buildGeneratedProcurementItems({
+                    nesting,
+                    partList,
+                    cabinetData,
+                    storageMaterials,
+                    shopSettings,
+                    catalogArticles
+                });
 
                 const mergedItems = mergeGeneratedItems(generated, saved.items).map(item => ({
                     ...item,
@@ -269,8 +279,9 @@ export default function ProjectPurchasing() {
 
     const purchasableItems = items.filter(item => !item.purchased);
     const editableItems = purchasableItems.filter(item => !lockedReleasedKeys.has(item.sourceKey));
+    const releasableItems = editableItems.filter(hasNetPrice);
     const releasedItems = purchasableItems.filter(item => item.released);
-    const allReleased = purchasableItems.length > 0 && releasedItems.length === purchasableItems.length;
+    const allReleased = releasableItems.length > 0 && releasableItems.every(item => item.released);
     const releasedTotal = releasedItems.reduce((sum, item) => {
         const price = Number(item.netPrice);
         return sum + (Number.isFinite(price) ? price * Number(item.quantity || 0) : 0);
@@ -281,7 +292,9 @@ export default function ProjectPurchasing() {
         setItems(current => current.map(item => {
             if (item.sourceKey !== sourceKey) return item;
             if (item.purchased || lockedReleasedKeys.has(item.sourceKey)) return item;
-            if (field === "released") return { ...item, released: value };
+            if (field === "released") return value && !hasNetPrice(item)
+                ? item
+                : { ...item, released: value };
             if (field === "quantityMode") return applyEdgeQuantityMode(item, value);
             if (field === "netPrice") {
                 const netPrice = value === "" ? null : Number(value);
@@ -290,6 +303,7 @@ export default function ProjectPurchasing() {
                     return {
                         ...item,
                         netPrice,
+                        priceManuallyEdited: true,
                         pricePerMeter: netPrice === null
                             ? null
                             : item.quantityMode === "piece"
@@ -297,9 +311,13 @@ export default function ProjectPurchasing() {
                                 : netPrice
                     };
                 }
-                return { ...item, netPrice };
+                return { ...item, netPrice, priceManuallyEdited: true };
             }
-            if (field === "quantity") return { ...item, quantity: value };
+            if (field === "quantity") return {
+                ...item,
+                quantity: value,
+                quantityManuallyEdited: true
+            };
             return item;
         }));
     };
@@ -321,14 +339,14 @@ export default function ProjectPurchasing() {
                 netPrice: item.netPrice === null ? null : Math.max(0, Number(item.netPrice) || 0),
                 purchased: Boolean(item.purchased),
                 purchasedAt: item.purchasedAt || null,
-                released: Boolean(item.released) && !item.purchased
+                released: Boolean(item.released) && !item.purchased && hasNetPrice(item)
             }));
             await saveProjectProcurement(projectId, createProcurementPayload(normalizedItems));
             setItems(normalizedItems);
             setLockedReleasedKeys(new Set(
                 normalizedItems.filter(item => item.released && !item.purchased).map(item => item.sourceKey)
             ));
-            setMessage("Einkaufswagen und Freigaben wurden gespeichert.");
+            setMessage("Einkaufsstand und Freigaben wurden gespeichert.");
         } catch (saveError) {
             console.error("Einkaufswagen konnte nicht gespeichert werden", saveError);
             setError("Speichern fehlgeschlagen. Bitte erneut versuchen.");
@@ -353,7 +371,7 @@ export default function ProjectPurchasing() {
                                 <p className="text-sm font-medium uppercase tracking-widest text-blue-400">Projekt-Einkaufswagen</p>
                                 <h1 className="mt-1 text-2xl font-bold xl:text-3xl">{project?.title || "Projekt"}</h1>
                                 <p className="mt-2 max-w-2xl text-gray-400">
-                                    Benötigte Platten und Kanten aus dem Nesting sowie Hardware aus der Cabinet-Liste prüfen und für den Einkauf freigeben.
+                                    Automatisch ermittelte Platten-, Kanten- und Hardwarepreise fließen bereits vor der Freigabe in die Kalkulation ein. Manuelle Änderungen mit „Einkaufsstand speichern“ sichern; eine Freigabe schreibt Menge und Preis fest.
                                 </p>
                             </div>
 
@@ -362,12 +380,14 @@ export default function ProjectPurchasing() {
                                     <input
                                         type="checkbox"
                                         checked={allReleased}
-                                        disabled={editableItems.length === 0}
+                                        disabled={releasableItems.length === 0}
                                         onChange={event => {
                                             const released = event.target.checked;
                                             setMessage("");
                                             setItems(current => current.map(item => (
-                                                item.purchased || lockedReleasedKeys.has(item.sourceKey) ? item : { ...item, released }
+                                                item.purchased || lockedReleasedKeys.has(item.sourceKey) || !hasNetPrice(item)
+                                                    ? item
+                                                    : { ...item, released }
                                             )));
                                         }}
                                         className="size-5 accent-blue-600"
@@ -387,7 +407,7 @@ export default function ProjectPurchasing() {
                                     disabled={loading || saving}
                                     className="rounded-xl bg-blue-600 px-5 py-3 font-semibold hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
-                                    {saving ? "Speichert …" : "Freigaben speichern"}
+                                    {saving ? "Speichert …" : "Einkaufsstand speichern"}
                                 </button>
                             </div>
                         </div>

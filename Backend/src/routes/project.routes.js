@@ -6,6 +6,7 @@ import { authenticate, authorizeRoles, requireFeature } from "../middleware/auth
 import { authorizeCustomer, authorizeCustomerBody, authorizeProject, authorizeTimeEntry } from "../middleware/resourceAuthorization.middleware.js";
 import { getTime, manualTime, startTime, stopTime } from "../controllers/time.controller.js";
 import { exportProject, importProject } from "../controllers/projectArchive.controller.js";
+import { getCalculationContext } from "../controllers/calculation.controller.js";
 import multer from "multer";
 import os from "os";
 import crypto from "crypto";
@@ -37,6 +38,8 @@ router.get("/getActive", getAllProjects);
 router.get("/offline", getOfflineProjects);
 
 router.get("/get/:id", authorizeProject(), getProject);
+
+router.get("/calculation-context/:id", authorizeProject(), getCalculationContext);
 
 router.get("/export/:id", authorizeProject(), exportProject);
 

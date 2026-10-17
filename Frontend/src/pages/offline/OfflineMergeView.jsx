@@ -13,7 +13,8 @@ const destinationFor = entry => {
         "cabinet.json": "Cabinet",
         "nesting.json": "Nesting",
         "list.json": "List",
-        "procurement.json": "Purchasing"
+        "procurement.json": "Purchasing",
+        "calculation.json": "Calculation"
     };
     return routes[entry.file]
         ? `/Projects/${routes[entry.file]}/${entry.projectId}`

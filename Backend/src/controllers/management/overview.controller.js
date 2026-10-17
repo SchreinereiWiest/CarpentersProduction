@@ -2,13 +2,8 @@ import prisma, { systemPrisma } from '../../config/prisma.js';
 import { requestYear } from '../../services/management/http.js';
 import { loadSnapshot, presentSnapshot } from '../../services/management/snapshots.js';
 
-/** Liefert die Jahresdaten und Berechnungen für Einrichtung, Jahresbetrieb und Vorjahresvergleich. */
-export async function getManagementOverview(req, res) {
-  res.json(presentSnapshot(await loadSnapshot(requestYear(req))));
-}
-
-/** Liefert aktive Personalkonten und Betriebsdokumente, die die aktuellen Managementansichten verwenden. */
-export async function getManagementReferences(req, res) {
+/** Liest aktive Personalkonten und Betriebsdokumente für die Managementansichten. */
+async function loadManagementReferences(req) {
   const [files, memberships] = await Promise.all([
     prisma.file.findMany({
       where: { deletedAt: null, category: 'management-document' },
@@ -20,5 +15,19 @@ export async function getManagementReferences(req, res) {
       orderBy: { user: { firstName: 'asc' } }
     }),
   ]);
-  res.json({ files, employees: memberships.map(item => item.user) });
+  return { files, employees: memberships.map(item => item.user) };
+}
+
+/** Liefert Jahresdaten, Berechnungen und Referenzen in einer konsistenten Managementantwort. */
+export async function getManagementOverview(req, res) {
+  const [snapshot, references] = await Promise.all([
+    loadSnapshot(requestYear(req)),
+    loadManagementReferences(req)
+  ]);
+  res.json({ ...presentSnapshot(snapshot), references });
+}
+
+/** Behält den bisherigen Referenzendpunkt für ältere Clients bei. */
+export async function getManagementReferences(req, res) {
+  res.json(await loadManagementReferences(req));
 }

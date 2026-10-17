@@ -326,6 +326,10 @@ export const getGeneratedProjectData = async (req, res) => {
         fileName = "procurement.json";
         break;
 
+        case "calculation":
+        fileName = "calculation.json";
+        break;
+
         case "aufmas":
             fileName = "aufmas.json";
             break;
@@ -416,6 +420,10 @@ export async function createGeneratedProjectData(req,res){
 
         case "procurement":
             fileName = "procurement.json";
+            break;
+
+        case "calculation":
+            fileName = "calculation.json";
             break;
 
         case "aufmas":

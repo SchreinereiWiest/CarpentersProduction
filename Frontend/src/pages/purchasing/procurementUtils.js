@@ -314,6 +314,20 @@ export const buildHardwareItems = (partList = [], shopSettings = DEFAULT_SHOP_SE
     return [...grouped.values()];
 };
 
+/** Baut den aktuellen Procurement-Entwurf aus allen Projektquellen auf. */
+export const buildGeneratedProcurementItems = ({
+    nesting = [],
+    partList = [],
+    cabinetData = [],
+    storageMaterials = [],
+    shopSettings = DEFAULT_SHOP_SETTINGS,
+    catalogArticles = []
+} = {}) => [
+    ...buildPlateItems(nesting, storageMaterials, shopSettings),
+    ...buildEdgeItems(nesting, storageMaterials, shopSettings),
+    ...buildHardwareItems(partList, shopSettings, catalogArticles, cabinetData)
+];
+
 export const mergeGeneratedItems = (generatedItems, savedItems = []) => {
     const savedByKey = new Map(
         (Array.isArray(savedItems) ? savedItems : [])
@@ -323,12 +337,19 @@ export const mergeGeneratedItems = (generatedItems, savedItems = []) => {
     const generatedKeys = new Set(generatedItems.map(item => item.sourceKey));
     const mergedGenerated = generatedItems.map(item => {
         const saved = savedByKey.get(item.sourceKey);
+        const locked = Boolean(saved?.released || saved?.purchased);
         const merged = saved
             ? {
                 ...item,
-                netPrice: saved.netPrice ?? item.netPrice,
-                pricePerMeter: saved.pricePerMeter ?? item.pricePerMeter,
-                quantity: saved.purchased ? saved.quantity : item.quantity,
+                netPrice: locked || saved.priceManuallyEdited
+                    ? saved.netPrice
+                    : item.netPrice ?? saved.netPrice,
+                pricePerMeter: locked || saved.priceManuallyEdited
+                    ? saved.pricePerMeter
+                    : item.pricePerMeter ?? saved.pricePerMeter,
+                quantity: locked || saved.quantityManuallyEdited
+                    ? saved.quantity
+                    : item.quantity,
                 purchased: Boolean(saved.purchased),
                 purchasedAt: saved.purchasedAt ?? null,
                 released: Boolean(saved.released) && !saved.purchased
@@ -336,25 +357,37 @@ export const mergeGeneratedItems = (generatedItems, savedItems = []) => {
             : item;
 
         if (item.category === "Kanten" && saved?.quantityMode) {
-            if (saved.purchased) {
+            if (locked) {
                 return {
                     ...merged,
                     quantityMode: saved.quantityMode,
-                    unit: saved.unit ?? merged.unit
+                    quantity: saved.quantity,
+                    unit: saved.unit ?? merged.unit,
+                    netPrice: saved.netPrice,
+                    pricePerMeter: saved.pricePerMeter
                 };
             }
 
             const converted = applyEdgeQuantityMode(merged, saved.quantityMode);
             return {
                 ...converted,
-                netPrice: saved.netPrice ?? converted.netPrice
+                quantity: saved.quantityManuallyEdited
+                    ? saved.quantity
+                    : converted.quantity,
+                netPrice: saved.priceManuallyEdited
+                    ? saved.netPrice
+                    : converted.netPrice ?? saved.netPrice
             };
         }
 
         return merged;
     });
     const retainedSavedItems = (Array.isArray(savedItems) ? savedItems : [])
-        .filter(item => (item?.source === "shop" || item?.purchased) && !generatedKeys.has(item.sourceKey));
+        .filter(item => (
+            item?.source === "shop"
+            || item?.purchased
+            || item?.released
+        ) && !generatedKeys.has(item.sourceKey));
 
     return [...mergedGenerated, ...retainedSavedItems];
 };

@@ -42,17 +42,14 @@ export default function ManagementLayout({ sidebarSelected = UI_DEFAULTS.sidebar
   const dirty = Boolean(
     draft && state && JSON.stringify(draft) !== JSON.stringify(state.config)
   );
-  /** Lädt Jahres-Snapshot und Referenzen gemeinsam und erzeugt eine unabhängige Entwurfskopie. */
+  /** Lädt Jahres-Snapshot und Referenzen gemeinsam in einer Anfrage und erzeugt eine unabhängige Entwurfskopie. */
   const load = useCallback(
     async (signal) => {
-      const [data, refs] = await Promise.all([
-        axios.get("/api/management", { params: { year }, signal }),
-        axios.get("/api/management/references", { signal })
-      ]);
+      const data = await axios.get("/api/management", { params: { year }, signal });
       const next = { ...data.data, config: prepareSetupConfig(data.data) };
       setState(next);
       setDraft(structuredClone(next.config));
-      setReferences(refs.data);
+      setReferences(data.data.references || structuredClone(EMPTY_REFERENCES));
     },
     [year]
   );

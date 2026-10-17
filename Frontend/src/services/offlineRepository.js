@@ -16,7 +16,8 @@ const GENERATED_NAMES = new Map([
     ["cabinet.json", "cabinet"],
     ["list.json", "list"],
     ["nesting.json", "nesting"],
-    ["procurement.json", "procurement"]
+    ["procurement.json", "procurement"],
+    ["calculation.json", "calculation"]
 ]);
 
 const requestResult = request => new Promise((resolve, reject) => {

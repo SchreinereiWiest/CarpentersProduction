@@ -34,7 +34,10 @@ function snapshot() {
 beforeEach(() => {
   const getRandomValues = globalThis.crypto.getRandomValues.bind(globalThis.crypto); vi.stubGlobal('crypto', { getRandomValues });
   saved = { year: Number(today().slice(0, 4)), revision: 0, config: prepareSetupConfig({ config: defaultConfig(), revision: 0 }), transactions: [], assets: [], loans: [], timeEntries: [] };
-  mocks.get.mockImplementation(async url => ({ data: url.endsWith('/references') ? { projects: [], files: [], employees: [{ id: '00000000-0000-0000-0000-000000000001', firstName: 'Anna', lastName: 'Holz', login: 'anna' }] } : snapshot() }));
+  mocks.get.mockImplementation(async () => ({ data: {
+    ...snapshot(),
+    references: { projects: [], files: [], employees: [{ id: '00000000-0000-0000-0000-000000000001', firstName: 'Anna', lastName: 'Holz', login: 'anna' }] }
+  } }));
   mocks.request.mockImplementation(async ({ url, data }) => {
     if (url.endsWith('/settings')) { const history = saved.config.setup.approvals; saved.config = structuredClone(data.config); saved.config.setup.approvals = history; saved.revision++; }
     if (url.endsWith('/setup/approve')) { publish(); saved.revision++; }
@@ -56,6 +59,7 @@ describe('Management-Einrichtung und Jahresbetrieb', () => {
     expect(within(screen.getByRole('navigation', { name: 'Betrieb einrichten' })).getAllByRole('link')).toHaveLength(8);
     expect(screen.queryByText('Belege & Geschäftsvorfälle')).not.toBeInTheDocument(); expect(screen.getByTestId('sidebar')).toHaveTextContent('1');
     expect(screen.getByLabelText('Umfang der Einrichtung')).toHaveValue('full');
+    expect(mocks.get.mock.calls.some(([url]) => url.endsWith('/references'))).toBe(false);
   });
   it('behält ungespeicherte Eingaben beim Schrittwechsel und speichert vor Weiter', async () => {
     open('/Management'); fireEvent.change(await screen.findByLabelText('Betriebsname'), { target: { value: 'Schreinerei Holz' } });

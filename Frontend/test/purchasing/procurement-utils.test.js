@@ -181,17 +181,56 @@ describe("procurement data", () => {
         expect(items[0]).toMatchObject({ sku: "GRAY-M", description: "M · Grau · 500 mm" });
     });
 
-    it("keeps release and price while refreshing generated quantities", () => {
-        const generated = [{ sourceKey: "nesting:a", source: "nesting", quantity: 3, netPrice: null, released: false }];
+    it("freezes price and quantity after release", () => {
+        const generated = [{ sourceKey: "nesting:a", source: "nesting", quantity: 3, netPrice: 55, released: false }];
         const saved = [
             { sourceKey: "nesting:a", source: "nesting", quantity: 1, netPrice: 42, released: true },
             { sourceKey: "shop:x", source: "shop", quantity: 4, released: false }
         ];
 
         expect(mergeGeneratedItems(generated, saved)).toEqual([
-            { sourceKey: "nesting:a", source: "nesting", quantity: 3, netPrice: 42, purchased: false, purchasedAt: null, released: true },
+            { sourceKey: "nesting:a", source: "nesting", quantity: 1, netPrice: 42, pricePerMeter: undefined, purchased: false, purchasedAt: null, released: true },
             { sourceKey: "shop:x", source: "shop", quantity: 4, released: false }
         ]);
+    });
+
+    it("uses live prices before release and keeps explicit manual prices", () => {
+        const generated = [{ sourceKey: "nesting:a", source: "nesting", quantity: 3, netPrice: 55, released: false }];
+
+        expect(mergeGeneratedItems(generated, [{
+            sourceKey: "nesting:a", source: "nesting", quantity: 1, netPrice: 42, released: false
+        }])[0]).toMatchObject({ quantity: 3, netPrice: 55, released: false });
+
+        expect(mergeGeneratedItems(generated, [{
+            sourceKey: "nesting:a", source: "nesting", quantity: 1, netPrice: 42,
+            priceManuallyEdited: true, released: false
+        }])[0]).toMatchObject({ quantity: 3, netPrice: 42, released: false });
+    });
+
+    it("retains a released position when its generating source changes", () => {
+        const released = {
+            sourceKey: "nesting:old", source: "nesting", quantity: 1,
+            netPrice: 42, released: true, purchased: false
+        };
+
+        expect(mergeGeneratedItems([], [released])).toEqual([released]);
+    });
+
+    it("keeps a missing released price empty instead of taking a later catalog price", () => {
+        const generated = [{
+            sourceKey: "nesting:a", source: "nesting", quantity: 2,
+            netPrice: 55, released: false
+        }];
+        const released = [{
+            sourceKey: "nesting:a", source: "nesting", quantity: 1,
+            netPrice: null, released: true
+        }];
+
+        expect(mergeGeneratedItems(generated, released)[0]).toMatchObject({
+            quantity: 1,
+            netPrice: null,
+            released: true
+        });
     });
 
     it("adds a shop article once and increments its quantity", () => {

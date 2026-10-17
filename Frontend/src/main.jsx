@@ -39,6 +39,7 @@ import Personal from "./pages/personal/personal.personal.jsx";
 import Purchasing from "./pages/purchasing/purchasing.jsx";
 import ProjectPurchasing from "./pages/projects/purchasing/purchasing.project.jsx";
 import ProjectAttachments from "./pages/projects/attachments/attachments.project.jsx";
+import CalculationView from "./pages/projects/calculation/CalculationView.jsx";
 import ManagementLayout from './pages/management/layout/managementLayout.jsx';
 import ManagementOverview from './pages/management/operating/overview.management.jsx';
 import { ManagementDocuments } from './pages/management/documents/documents.management.jsx';
@@ -238,6 +239,12 @@ ReactDOM.createRoot(root).render(
 
             <Route path="/Projects/Attachments/:projectId" element={ <ProtectedRoute requiredRole="user">
             <ProjectAttachments/>
+            </ProtectedRoute>
+            }
+            />
+
+            <Route path="/Projects/Calculation/:projectId" element={ <ProtectedRoute requiredRole="user">
+            <CalculationView/>
             </ProtectedRoute>
             }
             />
