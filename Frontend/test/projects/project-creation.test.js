@@ -1,7 +1,10 @@
 import axios from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ProjectSave } from '../../src/features/projects/legacy-editor/uploadProject.js';
+import {
+  createProjectRecord,
+  ProjectSave,
+} from '../../src/features/projects/legacy-editor/uploadProject.js';
 import { getProjectFile } from '../../src/shared/cache/project-cache.js';
 import {
   legacyCorpus,
@@ -143,6 +146,25 @@ describe('Projektanlage im Frontend', () => {
       '/api/projects/generated/project-with-failed-list/cabinet',
       expect.anything(),
       expect.anything(),
+    );
+  });
+
+  it('legt ein leeres Projekt ohne Listen- oder Korpusdatei an', async () => {
+    const projectId = await createProjectRecord({
+      customerId: 'customer-1',
+      title: 'Neues Projekt',
+    });
+
+    expect(projectId).toBe('project-created');
+    expect(axios.post).toHaveBeenCalledTimes(1);
+    expect(axios.post).toHaveBeenCalledWith(
+      '/api/projects/new',
+      {
+        customerId: 'customer-1',
+        title: 'Neues Projekt',
+        description: '',
+      },
+      { withCredentials: true },
     );
   });
 });

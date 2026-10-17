@@ -33,6 +33,8 @@ import {
     resolveCabinetMeasurementExpressions
 } from "./measurementExpressions.js";
 import { getAufmasWorkspaceCache } from "../measurement/state/workspaceCache.js";
+import { createProjectRecord } from "../legacy-editor/uploadProject.js";
+import CustomerSearch from "../legacy-editor/customerSearch.jsx";
 export default function CabinetEditor() {
 
     // conmstant Section alle Editor daten
@@ -92,8 +94,19 @@ export default function CabinetEditor() {
     const [showAbsoluteSaveWarning, setShowAbsoluteSaveWarning] = useState(false);
     const longPressTimer = useRef(null);
     const suppressSaveClick = useRef(false);
+    const skipLongPressTimer = useRef(null);
+    const suppressSkipClick = useRef(false);
+    const [showEmptyProjectModal, setShowEmptyProjectModal] = useState(false);
+    const [emptyProjectCustomer, setEmptyProjectCustomer] = useState(null);
+    const [emptyProjectName, setEmptyProjectName] = useState("");
+    const [emptyProjectDescription, setEmptyProjectDescription] = useState("");
+    const [creatingEmptyProject, setCreatingEmptyProject] = useState(false);
+    const [skipError, setSkipError] = useState("");
 
-    useEffect(() => () => clearTimeout(longPressTimer.current), []);
+    useEffect(() => () => {
+        clearTimeout(longPressTimer.current);
+        clearTimeout(skipLongPressTimer.current);
+    }, []);
 
     const [defaultConfig, setDefaultConfig] = useState(DEFAULT_CNC);
 
@@ -468,6 +481,86 @@ export default function CabinetEditor() {
     }
 };
 
+    const handleSkip = () => {
+        if (mode !== "create" || creatingEmptyProject) return;
+
+        if (suppressSkipClick.current) {
+            suppressSkipClick.current = false;
+            return;
+        }
+
+        navigate("/projects/create/list", {
+            state: {
+                mode: "create",
+                userId
+            }
+        });
+    };
+
+    const openEmptyProjectModal = async () => {
+        setShowEmptyProjectModal(true);
+        setSkipError("");
+
+        if (!userId || emptyProjectCustomer) return;
+
+        try {
+            const { data } = await axios.get(`/api/customers/get/${userId}`);
+            setEmptyProjectCustomer(data.customer);
+        } catch (error) {
+            console.error("Kunde konnte nicht vorausgewählt werden:", error);
+        }
+    };
+
+    const createEmptyProjectAndOpenHome = async event => {
+        event.preventDefault();
+
+        if (mode !== "create" || creatingEmptyProject) return;
+
+        const trimmedProjectName = emptyProjectName.trim();
+
+        if (!emptyProjectCustomer?.id || !trimmedProjectName) {
+            setSkipError("Bitte wähle einen Kunden aus und gib einen Projektnamen ein.");
+            return;
+        }
+
+        setCreatingEmptyProject(true);
+        setSkipError("");
+
+        try {
+            const newProjectId = await createProjectRecord({
+                customerId: emptyProjectCustomer.id,
+                title: trimmedProjectName,
+                description: emptyProjectDescription.trim()
+            });
+
+            navigate(`/Projects/${newProjectId}`);
+        } catch (error) {
+            console.error("Leeres Projekt konnte nicht erstellt werden:", error);
+            setSkipError(
+                error?.response?.data?.message ??
+                "Das leere Projekt konnte nicht erstellt werden. Bitte erneut versuchen."
+            );
+        } finally {
+            setCreatingEmptyProject(false);
+        }
+    };
+
+    const startSkipLongPress = () => {
+        if (mode !== "create" || creatingEmptyProject) return;
+
+        clearTimeout(skipLongPressTimer.current);
+        suppressSkipClick.current = false;
+        skipLongPressTimer.current = setTimeout(() => {
+            suppressSkipClick.current = true;
+            openEmptyProjectModal();
+        }, 850);
+    };
+
+    const cancelSkipLongPress = () => {
+        clearTimeout(skipLongPressTimer.current);
+        skipLongPressTimer.current = null;
+    };
+
     //---------------------------------------------
     //initial settings, project laden, material laden, customer laden
     //---------------------------------------------
@@ -766,7 +859,7 @@ export default function CabinetEditor() {
                 grid
                 h-full
                 min-h-0
-                grid-cols-[260px_1fr_660px]
+                grid-cols-[260px_1fr_520px]
             ">
 
                 {/* LINKS */}
@@ -918,29 +1011,48 @@ export default function CabinetEditor() {
                             Maße
                         </button> */}
 
-                        <button
-                            type="button"
-                            onClick={
-                                mode === "create"
-                                    ? handleNext
-                                    : handleSaveButtonClick
-                            }
-                            onPointerDown={startSaveLongPress}
-                            onPointerUp={cancelSaveLongPress}
-                            onPointerLeave={cancelSaveLongPress}
-                            onPointerCancel={cancelSaveLongPress}
-                            onContextMenu={event => event.preventDefault()}
-                            title={mode === "edit" ? "Gedrückt halten, um manuelle Listeneinträge vollständig zu überschreiben" : undefined}
-                            disabled={saving}
-                            className="shrink-0 whitespace-nowrap rounded border border-blue-700 bg-blue-600 px-4 py-2 text-sm text-white shadow hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            {mode === "create"
-                                ? "Weiter"
-                                : saving
-                                    ? "Speichern..."
-                                    : "Speichern"
-                            }
-                        </button>
+                        <div className="flex shrink-0 items-center gap-2">
+                            {mode === "create" && (
+                                <button
+                                    type="button"
+                                    onClick={handleSkip}
+                                    onPointerDown={startSkipLongPress}
+                                    onPointerUp={cancelSkipLongPress}
+                                    onPointerLeave={cancelSkipLongPress}
+                                    onPointerCancel={cancelSkipLongPress}
+                                    onContextMenu={event => event.preventDefault()}
+                                    title="Ohne Vorbelegung zur Liste. Gedrückt halten, um ein leeres Projekt anzulegen."
+                                    disabled={creatingEmptyProject || showEmptyProjectModal}
+                                    className="shrink-0 touch-none whitespace-nowrap rounded border border-gray-600 bg-gray-800 px-4 py-2 text-sm text-gray-200 shadow hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    Überspringen
+                                </button>
+                            )}
+
+                            <button
+                                type="button"
+                                onClick={
+                                    mode === "create"
+                                        ? handleNext
+                                        : handleSaveButtonClick
+                                }
+                                onPointerDown={startSaveLongPress}
+                                onPointerUp={cancelSaveLongPress}
+                                onPointerLeave={cancelSaveLongPress}
+                                onPointerCancel={cancelSaveLongPress}
+                                onContextMenu={event => event.preventDefault()}
+                                title={mode === "edit" ? "Gedrückt halten, um manuelle Listeneinträge vollständig zu überschreiben" : undefined}
+                                disabled={saving || creatingEmptyProject}
+                                className="shrink-0 whitespace-nowrap rounded border border-blue-700 bg-blue-600 px-4 py-2 text-sm text-white shadow hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {mode === "create"
+                                    ? "Weiter"
+                                    : saving
+                                        ? "Speichern..."
+                                        : "Speichern"
+                                }
+                            </button>
+                        </div>
 
                     </div>
 
@@ -1103,6 +1215,87 @@ export default function CabinetEditor() {
                         </button>
                     </div>
                 </div>
+            </div>
+        )}
+
+        {showEmptyProjectModal && (
+            <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4">
+                <form
+                    onSubmit={createEmptyProjectAndOpenHome}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="empty-project-title"
+                    className="w-full max-w-lg rounded-xl border border-gray-700 bg-gray-800 p-6 shadow-2xl"
+                >
+                    <h2 id="empty-project-title" className="text-xl font-semibold text-white">
+                        Leeres Projekt erstellen
+                    </h2>
+                    <p className="mt-2 text-sm text-gray-400">
+                        Das Projekt wird ohne Korpus- und Listeneinträge angelegt.
+                    </p>
+
+                    <div className="mt-5">
+                        <label className="mb-2 block text-sm text-gray-300">
+                            Kunde <span aria-hidden="true" className="text-red-400">*</span>
+                        </label>
+                        <CustomerSearch
+                            selectedCustomer={emptyProjectCustomer}
+                            setSelectedCustomer={setEmptyProjectCustomer}
+                        />
+                    </div>
+
+                    <label className="mt-4 block">
+                        <span className="mb-2 block text-sm text-gray-300">
+                            Projektname <span aria-hidden="true" className="text-red-400">*</span>
+                        </span>
+                        <input
+                            type="text"
+                            required
+                            value={emptyProjectName}
+                            onChange={event => setEmptyProjectName(event.target.value)}
+                            placeholder="Projektname"
+                            className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        />
+                    </label>
+
+                    <label className="mt-4 block">
+                        <span className="mb-2 block text-sm text-gray-300">Beschreibung</span>
+                        <textarea
+                            value={emptyProjectDescription}
+                            onChange={event => setEmptyProjectDescription(event.target.value)}
+                            placeholder="Projektbeschreibung"
+                            rows={4}
+                            className="w-full resize-y rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-white outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                        />
+                    </label>
+
+                    {skipError && (
+                        <div role="alert" className="mt-4 rounded-lg border border-red-700 bg-red-950/60 p-3 text-sm text-red-200">
+                            {skipError}
+                        </div>
+                    )}
+
+                    <div className="mt-6 flex justify-end gap-3">
+                        <button
+                            type="button"
+                            disabled={creatingEmptyProject}
+                            onClick={() => {
+                                setShowEmptyProjectModal(false);
+                                setSkipError("");
+                            }}
+                            className="rounded-lg border border-gray-600 px-4 py-2 text-gray-200 hover:bg-gray-700 disabled:opacity-50"
+                        >
+                            Abbrechen
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={creatingEmptyProject || !emptyProjectCustomer?.id || !emptyProjectName.trim()}
+                            className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            {creatingEmptyProject ? "Projekt wird erstellt ..." : "Projekt erstellen"}
+                        </button>
+                    </div>
+                </form>
             </div>
         )}
 

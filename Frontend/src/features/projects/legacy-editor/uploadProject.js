@@ -2,12 +2,30 @@ import axios from 'axios';
 import {uploadProjectFile} from "../../../shared/cache/project-cache.js";
 import {uploadJSONFile} from "../../../shared/api/file-api.js";
 
+export const DEFAULT_PROJECT_CUSTOMER_ID = "1a87d110-bb96-4af3-9bc5-c0753e1fdadc";
+
+export async function createProjectRecord({
+    customerId,
+    title = "Neues Projekt",
+    description = ""
+}) {
+    const project = await axios.post("/api/projects/new", {
+        customerId: customerId || DEFAULT_PROJECT_CUSTOMER_ID,
+        title,
+        description
+    }, {
+        withCredentials: true
+    });
+
+    return project.data.id;
+}
+
 
 export async function ProjectSave(corpuses, materials, selectedCustomer, files, projectDescription, projectName, mode, id, incomingCabinets) {
 
     if (selectedCustomer == null) {
         console.warn("No customer selected");
-        selectedCustomer = {id: "1a87d110-bb96-4af3-9bc5-c0753e1fdadc"}
+        selectedCustomer = {id: DEFAULT_PROJECT_CUSTOMER_ID}
     }
     console.log(corpuses);
 
@@ -172,16 +190,11 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
 
     let projectId = id;
     if (mode != "edit") {
-        const project = await axios.post("/api/projects/new", {
+        projectId = await createProjectRecord({
             customerId: selectedCustomer.id,
             title: projectName,
             description: projectDescription
-        },
-            {
-                withCredentials: true
-            });
-
-        projectId = project.data.id
+        });
 
         for (const file of files) {
             let mimeType = file.type;
@@ -206,7 +219,7 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
             const formData = new FormData();
 
             formData.append("file", file);
-            formData.append("entityId", project.data.id);
+            formData.append("entityId", projectId);
             formData.append("customerId", selectedCustomer.id);
             formData.append("entity", "project");
             formData.append("fileName", file.name);

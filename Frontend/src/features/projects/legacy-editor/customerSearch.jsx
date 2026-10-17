@@ -104,6 +104,8 @@ export default function CustomerSearch({
 
                     <button
 
+                        type="button"
+
                         onClick={() => {
 
                             setSelectedCustomer(null);
@@ -194,6 +196,8 @@ export default function CustomerSearch({
                                 results.map(customer => (
 
                                     <button
+
+                                        type="button"
 
                                         key={customer.id}
 
