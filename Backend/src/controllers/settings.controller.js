@@ -11,6 +11,7 @@ import {
     getSignedUrl
 } from "@aws-sdk/s3-request-presigner";
 import { publishFileChange } from "../services/fileChangeEvents.service.js";
+import { validateAttachmentSearchSettings } from "../services/attachmentSearch.service.js";
 
 export const getSettingsData = async (req, res) => {
 
@@ -142,6 +143,10 @@ export async function createSettingsData(req,res){
         return res.status(400).json({
             message: "Invalid settings name"
         });
+    }
+
+    if (name === "company" && req.body?.attachmentSearch) {
+        req.body.attachmentSearch = validateAttachmentSearchSettings(req.body.attachmentSearch);
     }
 
     const prefix = `tenants/${getTenantId()}/settings`;

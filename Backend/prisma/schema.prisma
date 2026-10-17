@@ -30,12 +30,32 @@ model Tenant {
   syncMutations        SyncMutation[]
   shopConfiguration    ShopConfiguration?
   calculationSnapshots CalculationSnapshot[]
+  secrets              TenantSecret[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([name])
   @@map("tenants")
+}
+
+model TenantSecret {
+  id         String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String @map("tenant_id") @db.Uuid
+  name       String
+  ciphertext String
+  iv         String
+  authTag    String @map("auth_tag")
+  keyVersion Int    @default(1) @map("key_version")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, name])
+  @@unique([tenantId, id])
+  @@map("tenant_secrets")
 }
 
 model TenantMembership {

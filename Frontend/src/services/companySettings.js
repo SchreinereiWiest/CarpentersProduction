@@ -5,7 +5,7 @@ import { normalizeEstimationSettings } from "@Engine/calculation/estimation.mjs"
 export const CUSTOM_WORK_TYPE_ID = "__custom__";
 
 export const DEFAULT_COMPANY_SETTINGS = {
-    schemaVersion: 1,
+    schemaVersion: 4,
     workingHours: {
         start: "07:00",
         end: "16:45"
@@ -40,6 +40,15 @@ export const DEFAULT_COMPANY_SETTINGS = {
             embeddingModel: "nomic-embed-text",
             explanationModel: ""
         }
+    },
+    attachmentSearch: {
+        enabled: false,
+        openWebUiEndpoint: "http://host.docker.internal:3000",
+        model: "carpenters-qwen3627b",
+        manufacturerWebsites: [],
+        allowOpenWebFallback: true,
+        searchPrompt: "Bewerte die gefundenen Herstellerunterlagen zur Artikelnummer. Behalte nur technisch und fertigungsrelevante Dokumente oder Bilder.",
+        filterPrompt: "Extrahiere insbesondere Maße, Montagehinweise, Bohrbilder, Materialangaben, Belastbarkeit und Varianten. Erfinde keine Angaben."
     }
 };
 
@@ -71,9 +80,16 @@ export function normalizeCompanySettings(data) {
         ...DEFAULT_COMPANY_SETTINGS.estimation.ollama,
         ...(data?.estimation?.ollama ?? {})
     };
+    const attachmentSearch = {
+        ...DEFAULT_COMPANY_SETTINGS.attachmentSearch,
+        ...(data?.attachmentSearch ?? {})
+    };
+    const manufacturerWebsites = Array.isArray(attachmentSearch.manufacturerWebsites)
+        ? attachmentSearch.manufacturerWebsites
+        : [];
 
     return {
-        schemaVersion: 2,
+        schemaVersion: 4,
         workingHours,
         breaks: breaks.map((entry, index) => ({
             id: entry.id || `break-${index + 1}`,
@@ -93,6 +109,22 @@ export function normalizeCompanySettings(data) {
                 embeddingModel: String(ollama.embeddingModel || "").trim(),
                 explanationModel: String(ollama.explanationModel || "").trim()
             }
+        },
+        attachmentSearch: {
+            enabled: Boolean(attachmentSearch.enabled),
+            openWebUiEndpoint: String(attachmentSearch.openWebUiEndpoint || "").trim().replace(/\/+$/, ""),
+            model: String(attachmentSearch.model || "").trim(),
+            manufacturerWebsites: manufacturerWebsites.map((website, index) => ({
+                id: String(website?.id || `manufacturer-${index + 1}`),
+                name: String(website?.name || "").trim(),
+                baseUrl: String(website?.baseUrl || "").trim().replace(/\/+$/, ""),
+                searchUrlTemplate: String(website?.searchUrlTemplate || "").trim(),
+                downloadsApproved: Boolean(website?.downloadsApproved),
+                licenseNote: String(website?.licenseNote || "").trim()
+            })).filter(website => website.baseUrl),
+            allowOpenWebFallback: attachmentSearch.allowOpenWebFallback !== false,
+            searchPrompt: String(attachmentSearch.searchPrompt || DEFAULT_COMPANY_SETTINGS.attachmentSearch.searchPrompt).trim(),
+            filterPrompt: String(attachmentSearch.filterPrompt || DEFAULT_COMPANY_SETTINGS.attachmentSearch.filterPrompt).trim()
         }
     };
 }

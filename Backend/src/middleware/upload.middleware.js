@@ -147,24 +147,41 @@ export async function createUpload(req, res) {
          * --------------------------------------------------
          */
 
-        const fileEntry = await prisma.file.create({
-             data: {
-                projectId: entity === "project" ? entityId : null,
-                customerId: entity === "project"
-                    ? req.authorizedProject.customerId
-                    : entity === "customer"
-                        ? entityId
-                        : null,
-                storageObjectId: storageObject.id,
-                uploadedById: req.user.id,
-                fileName,
-                mimeType: mimeType || file.mimetype,
-                fileSize: parsedFileSize,
-                // uploadCategory is set by a dedicated, role-protected route.
-                // Never trust a category sent directly by the client.
-                category: entity === "shop" ? "shop" : req.uploadCategory ?? null,
-                status: "completed",
-            },
+        const fileEntry = await prisma.$transaction(async transaction => {
+            const createdFile = await transaction.file.create({
+                data: {
+                    projectId: entity === "project" ? entityId : null,
+                    customerId: entity === "project"
+                        ? req.authorizedProject.customerId
+                        : entity === "customer"
+                            ? entityId
+                            : null,
+                    storageObjectId: storageObject.id,
+                    uploadedById: req.user.id,
+                    fileName,
+                    mimeType: mimeType || file.mimetype,
+                    fileSize: parsedFileSize,
+                    // uploadCategory is set by a dedicated, role-protected route.
+                    // Never trust a category sent directly by the client.
+                    category: entity === "shop" ? "shop" : req.uploadCategory ?? null,
+                    status: "completed",
+                },
+            });
+
+            if (req.uploadAuditMetadata) {
+                await transaction.auditLog.create({
+                    data: {
+                        actorUserId: req.user.id,
+                        action: "attachment.search.import",
+                        entityType: "File",
+                        entityId: createdFile.id,
+                        metadata: req.uploadAuditMetadata,
+                        ipAddress: req.ip || null,
+                        userAgent: req.get("user-agent") || null
+                    }
+                });
+            }
+            return createdFile;
         });
 
         publishFileChange({

@@ -40,6 +40,12 @@ function UploadModal({ existingFiles, onClose, onUploaded, onDeleted }) {
     const [files, setFiles] = useState([]);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
+    const [articleNumber, setArticleNumber] = useState("");
+    const [searching, setSearching] = useState(false);
+    const [searchResults, setSearchResults] = useState([]);
+    const [selectedResults, setSelectedResults] = useState(new Set());
+    const [usedOpenWeb, setUsedOpenWeb] = useState(false);
+    const [searched, setSearched] = useState(false);
 
     const selectFiles = event => {
         const selected = Array.from(event.target.files || []);
@@ -86,6 +92,60 @@ function UploadModal({ existingFiles, onClose, onUploaded, onDeleted }) {
         }
     };
 
+    const search = async () => {
+        const query = articleNumber.trim();
+        if (!query || searching || busy) return;
+        setSearching(true);
+        setError("");
+        setSearchResults([]);
+        setSelectedResults(new Set());
+        setSearched(false);
+        try {
+            const { data } = await axios.post("/api/files/attachment-search", { projectId, articleNumber: query });
+            setSearchResults(data.results || []);
+            setUsedOpenWeb(Boolean(data.usedOpenWeb));
+            setSearched(true);
+        } catch (searchError) {
+            setError(searchError.response?.data?.message || "Die Artikelsuche ist fehlgeschlagen.");
+        } finally {
+            setSearching(false);
+        }
+    };
+
+    const toggleResult = resultId => {
+        setSelectedResults(previous => {
+            const next = new Set(previous);
+            if (next.has(resultId)) next.delete(resultId);
+            else next.add(resultId);
+            return next;
+        });
+    };
+
+    const importSelected = async () => {
+        if (!selectedResults.size || busy) return;
+        setBusy(true);
+        setError("");
+        const imported = [];
+        try {
+            for (const resultId of selectedResults) {
+                await axios.post("/api/files/attachment-search/import", { projectId, resultId });
+                imported.push(resultId);
+            }
+            setSearchResults(previous => previous.filter(result => !imported.includes(result.id)));
+            setSelectedResults(new Set());
+            await onUploaded();
+        } catch (importError) {
+            if (imported.length) {
+                setSearchResults(previous => previous.filter(result => !imported.includes(result.id)));
+                setSelectedResults(previous => new Set([...previous].filter(id => !imported.includes(id))));
+                await onUploaded();
+            }
+            setError(importError.response?.data?.message || "Eine ausgewählte Datei konnte nicht hinzugefügt werden.");
+        } finally {
+            setBusy(false);
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4" role="presentation" onMouseDown={event => event.target === event.currentTarget && onClose()}>
             <section role="dialog" aria-modal="true" aria-labelledby="attachment-modal-title" className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-gray-700 bg-gray-900 shadow-2xl">
@@ -96,20 +156,79 @@ function UploadModal({ existingFiles, onClose, onUploaded, onDeleted }) {
                     </div>
                     <button type="button" onClick={onClose} className="rounded-lg p-2 text-gray-400 hover:bg-gray-800 hover:text-white" aria-label="Dialog schließen">✕</button>
                 </div>
+                {error && <p className="mx-6 mt-5 rounded-lg border border-red-900 bg-red-950/50 p-3 text-sm text-red-300" role="alert">{error}</p>}
 
                 <form onSubmit={upload} className="space-y-4 p-6">
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-400">Manueller Dateiupload</h3>
                     <label className="flex cursor-pointer flex-col items-center rounded-xl border-2 border-dashed border-gray-600 bg-gray-800/50 px-6 py-8 text-center hover:border-blue-500">
                         <span className="font-medium">Dateien auswählen</span>
                         <span className="mt-1 text-sm text-gray-400">Mehrere Pläne können gemeinsam hochgeladen werden.</span>
                         <input type="file" accept="image/jpeg,application/pdf" multiple onChange={selectFiles} className="sr-only" />
                     </label>
                     {files.length > 0 && <p className="text-sm text-gray-300">{files.length} Datei{files.length === 1 ? "" : "en"} ausgewählt</p>}
-                    {error && <p className="rounded-lg border border-red-900 bg-red-950/50 p-3 text-sm text-red-300" role="alert">{error}</p>}
                     <div className="flex justify-end gap-3">
                         <button type="button" onClick={onClose} disabled={busy} className="rounded-lg border border-gray-600 px-4 py-2 text-sm hover:bg-gray-800 disabled:opacity-50">Abbrechen</button>
                         <button type="submit" disabled={!files.length || busy} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50">{busy ? "Wird hochgeladen …" : "Hochladen"}</button>
                     </div>
                 </form>
+
+                <div className="border-t border-gray-700 px-6 py-5">
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-400">AttachementSearch</h3>
+                    <p className="mt-1 text-sm text-gray-500">Artikelnummer auf freigegebenen Herstellerseiten und bei Bedarf im Open Web suchen.</p>
+                    <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                        <label className="min-w-0 flex-1">
+                            <span className="sr-only">Artikelnummer</span>
+                            <input
+                                type="text"
+                                value={articleNumber}
+                                maxLength={120}
+                                placeholder="Artikelnummer eingeben"
+                                onChange={event => setArticleNumber(event.target.value)}
+                                onKeyDown={event => {
+                                    if (event.key === "Enter") {
+                                        event.preventDefault();
+                                        search();
+                                    }
+                                }}
+                                className="w-full rounded-lg border border-gray-600 bg-gray-950 px-3 py-2.5 text-white outline-none focus:border-blue-500"
+                            />
+                        </label>
+                        <button type="button" disabled={!articleNumber.trim() || searching || busy} onClick={search} className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50">
+                            {searching ? "Sucht und prüft …" : "Suchen"}
+                        </button>
+                    </div>
+
+                    {searching && <p className="mt-4 rounded-lg bg-gray-800 p-3 text-sm text-gray-300">Herstellerquellen werden geprüft und die Treffer über Open WebUI ausgewertet. Das kann einen Moment dauern.</p>}
+                    {!searching && searched && searchResults.length === 0 && <p className="mt-4 text-sm text-gray-500">{usedOpenWeb ? "Auch im Open Web wurden keine fertigungsrelevanten Dateien gefunden." : "Auf den Herstellerseiten wurden keine fertigungsrelevanten Dateien gefunden."}</p>}
+                    {searchResults.length > 0 && (
+                        <div className="mt-4 space-y-3">
+                            {usedOpenWeb && <p className="rounded-lg border border-amber-900/60 bg-amber-950/30 p-3 text-xs text-amber-200">Keine Herstellerdatei gefunden – diese Ergebnisse stammen aus dem Open Web. Ohne eindeutige Lizenzfreigabe können sie nicht ausgewählt werden.</p>}
+                            {searchResults.map(result => (
+                                <article key={result.id} className={`rounded-xl border p-4 ${result.downloadAllowed ? "border-gray-700 bg-gray-800" : "border-gray-800 bg-gray-900/60"}`}>
+                                    <div className="flex items-start gap-3">
+                                        <input type="checkbox" aria-label={`${result.fileName} auswählen`} checked={selectedResults.has(result.id)} disabled={!result.downloadAllowed || busy} onChange={() => toggleResult(result.id)} className="mt-1 h-4 w-4 shrink-0" />
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex flex-wrap items-start justify-between gap-2">
+                                                <div><h4 className="font-medium text-gray-100">{result.title}</h4><p className="mt-0.5 break-all text-xs text-gray-500">{result.fileName}</p></div>
+                                                <span className="rounded-full bg-blue-950 px-2.5 py-1 text-xs text-blue-200">{result.relevance}% relevant</span>
+                                            </div>
+                                            {result.summary && <p className="mt-3 text-sm text-gray-300">{result.summary}</p>}
+                                            {result.productionData?.length > 0 && <div className="mt-3"><p className="text-xs font-medium text-gray-300">AI-Auswertung – Angaben vor Fertigung prüfen</p><ul className="mt-1 list-disc space-y-1 pl-5 text-xs text-gray-400">{result.productionData.map((entry, index) => <li key={`${result.id}-${index}`}>{entry}</li>)}</ul></div>}
+                                            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                                                <a href={result.sourceUrl} target="_blank" rel="noreferrer" className="text-blue-400 hover:text-blue-300">Quelle: {result.sourceName}</a>
+                                                <span className={result.securityStatus === "passed" ? "text-green-400" : "text-red-400"}>Sicherheit: {result.securityStatus === "passed" ? "Vorprüfung bestanden" : "gesperrt"}</span>
+                                                <span className={result.license.status === "approved" ? "text-green-400" : "text-amber-400"}>Lizenz: {result.license.status === "approved" ? "freigegeben" : "unklar"}</span>
+                                            </div>
+                                            <p className="mt-1 text-xs text-gray-500">{result.license.evidence}</p>
+                                            {!result.downloadAllowed && <p className="mt-2 text-xs font-medium text-amber-300">Nicht auswählbar: Herkunft, Dateisicherheit oder Downloadrecht ist nicht ausreichend bestätigt.</p>}
+                                        </div>
+                                    </div>
+                                </article>
+                            ))}
+                            <div className="flex justify-end"><button type="button" disabled={!selectedResults.size || busy} onClick={importSelected} className="rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50">{busy ? "Wird geprüft und hinzugefügt …" : `${selectedResults.size} Datei${selectedResults.size === 1 ? "" : "en"} hinzufügen`}</button></div>
+                        </div>
+                    )}
+                </div>
 
                 {existingFiles.length > 0 && (
                     <div className="border-t border-gray-700 px-6 py-5">

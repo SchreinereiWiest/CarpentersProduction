@@ -10,6 +10,10 @@ const tabs = [
         label: "Stundenschätzung"
     },
     {
+        id: "ai",
+        label: "AI"
+    },
+    {
         id: "programSettings",
         label: "Programmeinstellungen"
     },

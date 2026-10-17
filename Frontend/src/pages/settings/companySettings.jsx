@@ -28,6 +28,8 @@ import ProgramSettingsPanel
 
 import EstimationSettingsPanel
     from "./panels/estimationSettingsPanel.jsx";
+import AttachmentSearchSettingsPanel
+    from "./panels/attachmentSearchSettingsPanel.jsx";
 
 
 export default function CompanySettings() {
@@ -84,6 +86,11 @@ export default function CompanySettings() {
             case "estimation":
                 return (
                     <EstimationSettingsPanel />
+                );
+
+            case "ai":
+                return (
+                    <AttachmentSearchSettingsPanel />
                 );
 
             case "programSettings":

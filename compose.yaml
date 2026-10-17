@@ -68,6 +68,11 @@ services:
     environment:
       - NODE_ENV=development
 
+    # Ermöglicht dem Backend-Container den Zugriff auf eine auf demselben
+    # Linux-Host laufende Open-WebUI-Instanz (z. B. Port 3000).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
     labels:
       - "traefik.enable=true"
 

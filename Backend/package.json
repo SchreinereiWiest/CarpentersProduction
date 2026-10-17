@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "tsx watch src/server.js",
-    "test:security": "node --test test/auth.middleware.test.js",
+    "test:security": "node --test test/auth.middleware.test.js test/attachment-search.test.js",
     "test:management": "node --test test/management/foundations.test.js test/management/setup.test.js",
     "test:management:api": "node --test test/management/api.test.js"
   },

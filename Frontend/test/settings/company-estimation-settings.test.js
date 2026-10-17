@@ -4,8 +4,8 @@ import {
   normalizeCompanySettings
 } from "../../src/services/companySettings.js";
 
-describe("company estimation settings", () => {
-  it("adds defaults to legacy settings and normalizes search and Ollama values", () => {
+describe("company AI and estimation settings", () => {
+  it("adds defaults to legacy settings and normalizes search and AI values", () => {
     expect(normalizeCompanySettings({
       workingHours: { start: "08:00", end: "17:00" },
       estimation: {
@@ -20,7 +20,7 @@ describe("company estimation settings", () => {
         }
       }
     })).toMatchObject({
-      schemaVersion: 2,
+      schemaVersion: 4,
       estimation: {
         candidatePoolSize: 500,
         maximumMatches: 1,
@@ -31,6 +31,13 @@ describe("company estimation settings", () => {
           baseUrl: "http://localhost:11434",
           embeddingModel: "custom-embed"
         }
+      },
+      attachmentSearch: {
+        enabled: false,
+        openWebUiEndpoint: "http://host.docker.internal:3000",
+        model: "carpenters-qwen3627b",
+        manufacturerWebsites: [],
+        allowOpenWebFallback: true
       }
     });
     expect(DEFAULT_COMPANY_SETTINGS.estimation.maximumMatches).toBe(5);

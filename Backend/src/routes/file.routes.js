@@ -4,8 +4,9 @@ import prisma from "../config/prisma.js";
 import {createUpload, createDownloadUrl, deleteFile} from "../middleware/upload.middleware.js";
 import {uploadcomplete} from "../controllers/file.controller.js";
 import { authenticate, authorizeRoles } from "../middleware/auth.middleware.js";
-import { authorizeFile, authorizeUploadTarget } from "../middleware/resourceAuthorization.middleware.js";
+import { authorizeFile, authorizeProjectBody, authorizeUploadTarget } from "../middleware/resourceAuthorization.middleware.js";
 import { subscribeToFileChanges } from "../services/fileChangeEvents.service.js";
+import { attachmentSearch, importAttachmentSearchResult } from "../controllers/attachmentSearch.controller.js";
 
 import multer from "multer";
 
@@ -57,6 +58,22 @@ router.post(
     },
     authorizeUploadTarget,
     createUpload
+);
+
+router.post(
+    "/attachment-search",
+    authenticate,
+    authorizeRoles("admin", "manager"),
+    authorizeProjectBody("projectId"),
+    attachmentSearch
+);
+
+router.post(
+    "/attachment-search/import",
+    authenticate,
+    authorizeRoles("admin", "manager"),
+    authorizeProjectBody("projectId"),
+    importAttachmentSearchResult
 );
 
 router.post(
