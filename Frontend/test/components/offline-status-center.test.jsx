@@ -1,11 +1,11 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useParams } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import OfflineStatusCenter from "../../src/components/offline/OfflineStatusCenter.jsx";
-import { setCachedProjectFile } from "../../src/services/projectIndexDb.js";
-import { redownloadCachedS3Files } from "../../src/services/s3CacheRefresh.js";
+import OfflineStatusCenter from "../../src/shared/components/offline/OfflineStatusCenter.jsx";
+import { setCachedProjectFile } from "../../src/shared/cache/project-indexed-db.js";
+import { redownloadCachedS3Files } from "../../src/shared/cache/cache-refresh.js";
 
-vi.mock("../../src/services/s3CacheRefresh.js", async importOriginal => {
+vi.mock("../../src/shared/cache/cache-refresh.js", async importOriginal => {
     const original = await importOriginal();
     return {
         ...original,

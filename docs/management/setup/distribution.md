@@ -34,6 +34,6 @@ Abschreibung, Wartung und andere ausdrücklich bei einer Anlage erfasste Aufwend
 
 ## Beziehungen im Code
 
-`setup/steps/distribution.management.jsx` bearbeitet Bezugsgrößen und Zuordnungen. `calculation/distribution.mjs` verteilt Centbeträge; `calculation/accounting.mjs` erzeugt Zeilen, Umlagen und Raten. `config/approval.mjs` verhindert eine Freigabe bei offenen Verteilungslücken.
+`setup/steps/distribution.jsx` bearbeitet Bezugsgrößen und Zuordnungen. `calculation/distribution.mjs` verteilt Centbeträge; `calculation/accounting.mjs` erzeugt Zeilen, Umlagen und Raten. `config/approval.mjs` verhindert eine Freigabe bei offenen Verteilungslücken.
 
 Weiter: [Maschinenkostenrechnung](machines.md).

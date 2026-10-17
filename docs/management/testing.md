@@ -7,7 +7,7 @@ Die Aufteilung verändert Importpfade und entfernt eine nicht mehr verwendete Bu
 ```bash
 cd Frontend
 pnpm test
-pnpm exec eslint src/pages/management
+pnpm exec eslint src/features/management
 pnpm build
 ```
 

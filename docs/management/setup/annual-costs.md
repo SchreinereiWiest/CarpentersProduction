@@ -29,6 +29,6 @@ Die Gesamtkostenanzeige enthält auch Anlagenabschreibung und den gewählten Zin
 
 ## Beziehungen im Code
 
-`setup/steps/annualCosts.management.jsx` verwendet `ANNUAL_COST_CATALOG` und `newAnnualCost`. Gemeinsame Startwerte liegen in `Engine/management/defaults/forms.defaults.mjs`. Verteilung und Stundensätze folgen in `calculation/accounting.mjs`; Ist-Felder werden in der Jahresansicht erfasst.
+`setup/steps/annualCosts.jsx` verwendet `ANNUAL_COST_CATALOG` und `newAnnualCost`. Gemeinsame Startwerte liegen in `Engine/src/management/defaults/forms.defaults.mjs`. Verteilung und Stundensätze folgen in `calculation/accounting.mjs`; Ist-Felder werden in der Jahresansicht erfasst.
 
 Weiter: [Mitarbeiter und Arbeitsstunden](hours.md).

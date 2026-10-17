@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
-import { systemPrisma } from "../config/prisma.js";
-import { runWithTenant } from "../context/tenantContext.js";
-import { assertActiveLicense, LicenseError } from "../services/license/index.js";
+import { systemPrisma } from "../infrastructure/database/prisma.js";
+import { runWithTenant } from "../infrastructure/database/tenant-context.js";
+import { assertActiveLicense, LicenseError } from "../modules/licensing/services/index.js";
 
 /**
  * Gemeinsame Sitzungsprüfung für alle geschützten Endpunkte.

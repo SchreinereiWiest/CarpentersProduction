@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
 import "dotenv/config";
 
-import { systemPrisma as prisma } from "../config/prisma.js";
+import { systemPrisma as prisma } from "../infrastructure/database/prisma.js";
 
 const createUser = async () => {
 

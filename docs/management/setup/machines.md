@@ -31,6 +31,6 @@ Dieser Satz enthält ausschließlich die dargestellten Maschinenkosten. Die Kost
 
 ## Beziehungen im Code
 
-`setup/steps/machines.management.jsx` zeigt die einzelne Maschine und bearbeitet ihre Eingaben. `calculation/assets.mjs` liefert Abschreibung/Kapital; `calculation/accounting.mjs` wählt Zinsen, Laufzeit und Maschinenrate und übernimmt Kosten einmalig in den BAB. Fahrzeug- und Gebäudeanlagen bleiben Bestandteil der Gesamtvermögens- und Kostenrechnung, erhalten hier jedoch keine Maschinenlaufzeitmaske.
+`setup/steps/machines.jsx` zeigt die einzelne Maschine und bearbeitet ihre Eingaben. `calculation/assets.mjs` liefert Abschreibung/Kapital; `calculation/accounting.mjs` wählt Zinsen, Laufzeit und Maschinenrate und übernimmt Kosten einmalig in den BAB. Fahrzeug- und Gebäudeanlagen bleiben Bestandteil der Gesamtvermögens- und Kostenrechnung, erhalten hier jedoch keine Maschinenlaufzeitmaske.
 
 Weiter: [BAB und Vollkostenkalkulation](bab.md).

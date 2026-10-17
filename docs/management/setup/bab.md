@@ -32,6 +32,6 @@ Bezeichnungen werden CSV-sicher maskiert; mögliche Tabellenformeln in Texteinga
 
 ## Beziehungen im Code
 
-`setup/steps/bab.management.jsx` verwendet die gemeinsame `components/babTable.jsx`. Dieselbe Tabelle stellt die Ist-Rechnung im Jahresbetrieb dar. `utils/csvExport.js` bereitet die Planzeilen vor, `utils/fileDownload.js` führt den Browserdownload aus. Berechnet wird ausschließlich in `Engine/management/calculation/accounting.mjs`.
+`setup/steps/bab.jsx` verwendet die gemeinsame `components/babTable.jsx`. Dieselbe Tabelle stellt die Ist-Rechnung im Jahresbetrieb dar. `utils/csvExport.js` bereitet die Planzeilen vor, `utils/fileDownload.js` führt den Browserdownload aus. Berechnet wird ausschließlich in `Engine/src/management/calculation/accounting.mjs`.
 
 Weiter: [Prüfung und Freigabe](review.md).

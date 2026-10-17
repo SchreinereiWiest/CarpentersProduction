@@ -7,12 +7,12 @@ import {
     getSignedUrl
 } from "@aws-sdk/s3-request-presigner";
 
-import prisma from "../config/prisma.js";
+import prisma from "../infrastructure/database/prisma.js";
 
-import { s3Upload, s3Download } from "../config/s3.js"
-import { enqueueStorageDeletions, processStorageDeletions } from "../services/storageDeletion.service.js";
-import { getTenantId } from "../context/tenantContext.js";
-import { publishFileChange } from "../services/fileChangeEvents.service.js";
+import { s3Upload, s3Download } from "../infrastructure/storage/s3.js"
+import { enqueueStorageDeletions, processStorageDeletions } from "../infrastructure/storage/storage-deletion.service.js";
+import { getTenantId } from "../infrastructure/database/tenant-context.js";
+import { publishFileChange } from "../modules/files/file-change-events.service.js";
 
 export async function createUpload(req, res) {
 

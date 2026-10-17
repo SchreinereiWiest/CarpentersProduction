@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { defaultConfig } from '../../../Engine/management/defaults/config.defaults.mjs';
-import { aggregateWorkingHours, productiveHours } from '../../../Engine/management/calculation/hours.mjs';
-import { assetCalculation } from '../../../Engine/management/calculation/assets.mjs';
-import { calculateSetup } from '../../../Engine/management/calculation/accounting.mjs';
-import { prepareSetupConfig } from '../../../Engine/management/config/normalize.mjs';
-import { setupChecks } from '../../../Engine/management/config/approval.mjs';
-import { importManagementCsv, importNumber } from '../../../Engine/management/imports/csv.mjs';
-import { validateConfig } from '../../src/services/management/validation/configuration.js';
+import { defaultConfig } from '../../../Engine/src/management/defaults/config.defaults.mjs';
+import { aggregateWorkingHours, productiveHours } from '../../../Engine/src/management/calculation/hours.mjs';
+import { assetCalculation } from '../../../Engine/src/management/calculation/assets.mjs';
+import { calculateSetup } from '../../../Engine/src/management/calculation/accounting.mjs';
+import { prepareSetupConfig } from '../../../Engine/src/management/config/normalize.mjs';
+import { setupChecks } from '../../../Engine/src/management/config/approval.mjs';
+import { importManagementCsv, importNumber } from '../../../Engine/src/management/imports/csv.mjs';
+import { validateConfig } from '../../src/modules/management/services/validation/configuration.js';
 
 const center = (id, values = {}) => ({ id, name: id, kind: 'production', hours: 1000, area: 100, employees: 1, directBase: 0, redistributionKey: 'hours', activityIds: [id], consumption: 1, usage: 1, ...values });
 const config = () => { const c = prepareSetupConfig({ config: defaultConfig() }); c.mode = 'full'; c.setup.companyName = 'Testschreinerei'; c.costCenters = [center('workshop')]; return c; };

@@ -7,11 +7,11 @@ const authState = vi.hoisted(() => ({
   loading: false,
 }));
 
-vi.mock('../../src/routes/AuthContext.jsx', () => ({
+vi.mock('../../src/app/providers/AuthContext.js', () => ({
   useAuth: () => authState,
 }));
 
-import ProtectedRoute from '../../src/routes/ProtectedRoute.jsx';
+import ProtectedRoute from '../../src/app/routing/ProtectedRoute.jsx';
 
 function renderProtectedPage({ path, requiredRole, label }) {
   return render(

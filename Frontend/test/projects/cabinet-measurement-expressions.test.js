@@ -4,7 +4,7 @@ import {
     extractMeasurementVariables,
     resolveCabinetFunctionExpressions,
     resolveCabinetMeasurementExpressions
-} from "../../src/pages/projects/cabinetConfigurator/measurementExpressions.js";
+} from "../../src/features/projects/cabinet/measurementExpressions.js";
 
 const variables = [
     { name: "RH", value: 2300, unit: "mm" },

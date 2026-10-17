@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { day, fiscalRange } from '../../../Engine/management/utils/dates.mjs';
-import { distribute } from '../../../Engine/management/calculation/distribution.mjs';
-import { defaultConfig } from '../../../Engine/management/defaults/config.defaults.mjs';
-import { createAssetDefaults, createAnnualCostDefaults, createCenterDefaults } from '../../../Engine/management/defaults/forms.defaults.mjs';
-import { validateConfig } from '../../src/services/management/validation/configuration.js';
-import { dateValue, yearValue, versionValue } from '../../src/services/management/validation/values.js';
-import { readLegacyInventory } from '../../src/services/management/legacyInventory.js';
+import { day, fiscalRange } from '../../../Engine/src/management/utils/dates.mjs';
+import { distribute } from '../../../Engine/src/management/calculation/distribution.mjs';
+import { defaultConfig } from '../../../Engine/src/management/defaults/config.defaults.mjs';
+import { createAssetDefaults, createAnnualCostDefaults, createCenterDefaults } from '../../../Engine/src/management/defaults/forms.defaults.mjs';
+import { validateConfig } from '../../src/modules/management/services/validation/configuration.js';
+import { dateValue, yearValue, versionValue } from '../../src/modules/management/services/validation/values.js';
+import { readLegacyInventory } from '../../src/modules/management/services/legacyInventory.js';
 
 /** Prüft, dass unterschiedliche Geschäftsjahre keine Listen oder Gewichte gemeinsam verändern. */
 function independentDefaults() {

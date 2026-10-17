@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createUuid } from "../../src/services/uuid.js";
+import { createUuid } from "../../src/shared/utils/uuid.js";
 
 describe("HTTP-kompatible UUIDs", () => {
     afterEach(() => vi.unstubAllGlobals());

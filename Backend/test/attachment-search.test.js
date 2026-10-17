@@ -5,8 +5,8 @@ import {
     explicitLicense,
     normalizeAttachmentSearchSettings,
     validateAttachmentSearchSettings
-} from "../src/services/attachmentSearch.service.js";
-import { decryptTenantSecret, encryptTenantSecret } from "../src/services/tenantSecrets.service.js";
+} from "../src/modules/attachment-search/attachment-search.service.js";
+import { decryptTenantSecret, encryptTenantSecret } from "../src/modules/attachment-search/tenant-secrets.service.js";
 
 test("AI-Secrets werden mandantengebunden verschlüsselt und Manipulation wird erkannt", () => {
     const key = Buffer.alloc(32, 7);

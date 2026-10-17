@@ -4,7 +4,7 @@ Der Managementbereich trennt Darstellung, gemeinsame Fachrechnung und Datenbankz
 
 ## Frontend
 
-Alle Featuredateien liegen unter `Frontend/src/pages/management/`:
+Alle Featuredateien liegen unter `Frontend/src/features/management/`:
 
 ```text
 management/
@@ -21,23 +21,23 @@ management/
 │   ├── ui.jsx                   Buttons, Felder, Karten, Dialoge und Tabellen
 │   └── babTable.jsx             Gemeinsame Plan-/Ist-BAB-Darstellung
 ├── setup/
-│   ├── setup.management.jsx     Schrittwahl, Entwurf und Speichern & Weiter
+│   ├── setup.jsx     Schrittwahl, Entwurf und Speichern & Weiter
 │   ├── import.panel.jsx         CSV-Vorschau und ausdrückliche Übernahme
 │   └── steps/
-│       ├── business.management.jsx
-│       ├── assets.management.jsx
-│       ├── annualCosts.management.jsx
-│       ├── hours.management.jsx
-│       ├── distribution.management.jsx
-│       ├── machines.management.jsx
-│       ├── bab.management.jsx
-│       └── review.management.jsx
+│       ├── business.jsx
+│       ├── assets.jsx
+│       ├── annualCosts.jsx
+│       ├── hours.jsx
+│       ├── distribution.jsx
+│       ├── machines.jsx
+│       ├── bab.jsx
+│       └── review.jsx
 ├── operating/
-│   ├── overview.management.jsx
-│   ├── hours.management.jsx
-│   └── operatingCosts.management.jsx
+│   ├── overview.jsx
+│   ├── hours.jsx
+│   └── operatingCosts.jsx
 ├── documents/
-│   ├── documents.management.jsx
+│   ├── documents.jsx
 │   └── documentInbox.jsx
 └── utils/
     ├── uuid.js                  Native UUID / HTTP-kompatibler Fallback
@@ -55,7 +55,7 @@ Die alten Routen `/Management/CostAccounting`, `/Calculation`, `/Assets` und `/S
 ## Gemeinsame Fachmodule
 
 ```text
-Engine/management/
+Engine/src/management/
 ├── defaults/
 │   ├── config.defaults.mjs      Jahresmodell und Einrichtung
 │   ├── forms.defaults.mjs       Positionsstrukturen und unabhängige Fabriken

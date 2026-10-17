@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { purchasingMaterialCost } from "../../../Engine/calculation/calculation.mjs";
+import { purchasingMaterialCost } from "@Engine/calculation/calculation.mjs";
 
 const mocks = vi.hoisted(() => ({
   axiosGet: vi.fn(),
@@ -10,20 +10,20 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("axios", () => ({ default: { get: mocks.axiosGet } }));
-vi.mock("../../src/services/apiTemplates.js", () => ({
+vi.mock("../../src/shared/api/file-api.js", () => ({
   downloadFile: vi.fn(),
   uploadJSONFile: vi.fn()
 }));
-vi.mock("../../src/services/projectMemoryCache.js", () => ({
+vi.mock("../../src/shared/cache/project-cache.js", () => ({
   getProjectFile: mocks.getProjectFile,
   uploadProjectFile: vi.fn()
 }));
-vi.mock("../../src/pages/purchasing/procurementApi.js", () => ({
+vi.mock("../../src/features/purchasing/procurementApi.js", () => ({
   loadShopSettings: mocks.loadShopSettings,
   loadProcurementCatalog: mocks.loadProcurementCatalog
 }));
 
-import { loadCalculationWorkspace } from "../../src/pages/projects/calculation/calculationApi.js";
+import { loadCalculationWorkspace } from "../../src/features/projects/calculation/calculationApi.js";
 
 const nesting = [{
   MID: "W1000",

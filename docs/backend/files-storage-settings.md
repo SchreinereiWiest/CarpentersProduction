@@ -2,7 +2,7 @@
 
 ## S3-/Garage-Clients
 
-`src/config/s3.js` exportiert zwei `S3Client`-Instanzen:
+`src/infrastructure/storage/s3.js` exportiert zwei `S3Client`-Instanzen:
 
 - `s3Upload`: interner `S3_ENDPOINT` für Schreiben und Löschen,
 - `s3Download`: öffentlicher `S3_PUBLIC_ENDPOINT` für signierte Browser-URLs.

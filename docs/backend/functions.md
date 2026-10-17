@@ -17,7 +17,7 @@ Alle übrigen Routendateien verbinden lediglich HTTP-Methode, Pfad, Middleware u
 
 ## Authentifizierungs-Controller
 
-Datei: `src/controllers/auth.controller.js`
+Datei: `src/modules/auth/auth.controller.js`
 
 | Funktion | Eingabe | Ergebnis und Seiteneffekte |
 |---|---|---|
@@ -27,7 +27,7 @@ Datei: `src/controllers/auth.controller.js`
 
 ## Kunden-Controller
 
-Datei: `src/controllers/customer.controller.js`
+Datei: `src/modules/customers/customer.controller.js`
 
 | Funktion | Eingabe | Ergebnis und Seiteneffekte |
 |---|---|---|
@@ -39,7 +39,7 @@ Datei: `src/controllers/customer.controller.js`
 
 ## Projekt-Controller
 
-Datei: `src/controllers/project.controller.js`
+Datei: `src/modules/projects/project.controller.js`
 
 | Funktion | Eingabe | Ergebnis und Seiteneffekte |
 |---|---|---|
@@ -55,7 +55,7 @@ Datei: `src/controllers/project.controller.js`
 
 ## Projektarchiv-Controller
 
-Datei: `src/controllers/projectArchive.controller.js`
+Datei: `src/modules/projects/project-archive.controller.js`
 
 | Funktion | Sichtbarkeit | Aufgabe |
 |---|---|---|
@@ -76,7 +76,7 @@ Datei: `src/controllers/projectArchive.controller.js`
 
 ## Zeit-Controller
 
-Datei: `src/controllers/time.controller.js`
+Datei: `src/modules/time-tracking/time.controller.js`
 
 | Funktion | Eingabe | Ergebnis und Seiteneffekte |
 |---|---|---|
@@ -94,7 +94,7 @@ Datei: `src/controllers/time.controller.js`
 
 ## Benutzer-Controller
 
-Datei: `src/controllers/user.controller.js`
+Datei: `src/modules/users/user.controller.js`
 
 | Funktion | Eingabe | Ergebnis und Seiteneffekte |
 |---|---|---|
@@ -116,7 +116,7 @@ Datei: `src/controllers/user.controller.js`
 
 ## Einstellungs-Controller
 
-Datei: `src/controllers/settings.controller.js`
+Datei: `src/modules/settings/settings.controller.js`
 
 | Funktion | Eingabe | Ergebnis und Seiteneffekte |
 |---|---|---|
@@ -125,7 +125,7 @@ Datei: `src/controllers/settings.controller.js`
 
 ## Material-Controller
 
-Datei: `src/controllers/storage.controller.js`
+Datei: `src/modules/inventory/storage.controller.js`
 
 | Funktion | Eingabe | Ergebnis und Seiteneffekte |
 |---|---|---|
@@ -191,8 +191,8 @@ Beide Skripte führen die Funktion sofort aus, protokollieren Fehler und trennen
 
 Die folgenden Dateien deklarieren derzeit keine Funktionen oder Exporte:
 
-- `src/services/auth.service.js`
-- `src/services/project.service.js`
-- `src/services/storage.service.js`
-- `src/services/user.service.js`
-- `src/utils/logger.js`
+- `src/modules/auth/auth.service.js`
+- `src/modules/projects/project.service.js`
+- `src/infrastructure/storage/storage.service.js`
+- `src/modules/users/user.service.js`
+- `src/infrastructure/logging/logger.js`

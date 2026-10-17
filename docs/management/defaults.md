@@ -12,7 +12,7 @@ Vorgaben beschreiben überprüfbare Ausgangswerte. Sie sind von tatsächlichen B
 | `validation.defaults.mjs` | Zulässige Kategorien/Modi, Feldnamen, ID-/Datumsformate und Grenzen | Backendvalidierung, Snapshot und Import |
 | `import.defaults.mjs` | CSV-Kopfzeile, Bereichs-/Bilanzzuordnung und Größenlimits | Importvorschau und Vorlagen-Download |
 
-Diese Dateien liegen unter `Engine/management/defaults/`. Fachlich identische Vorgaben werden im Browser und im Backend aus derselben Quelle gelesen.
+Diese Dateien liegen unter `Engine/src/management/defaults/`. Fachlich identische Vorgaben werden im Browser und im Backend aus derselben Quelle gelesen.
 
 ## Wichtige Startwerte
 
@@ -35,13 +35,13 @@ Die Browserfunktion `newStaff` berechnet Werktage aus dem konkreten Geschäftsja
 
 ## Frontendvorgaben
 
-`Frontend/src/pages/management/defaults/forms.defaults.js` verbindet die gemeinsamen Fabriken mit Browser-UUIDs, Jahresbeginn, Personalnamen und Firmeneinstellungen. Die Formularseiten enthalten keine zweite Kopie der Anlage- oder Personaldatenstruktur.
+`Frontend/src/features/management/defaults/forms.defaults.js` verbindet die gemeinsamen Fabriken mit Browser-UUIDs, Jahresbeginn, Personalnamen und Firmeneinstellungen. Die Formularseiten enthalten keine zweite Kopie der Anlage- oder Personaldatenstruktur.
 
 `navigation.defaults.js` hält SVG-Pfade, die Einrichtung-/Jahresbereiche und den angezeigten Jahresbereich der Auswahlliste. `ui.defaults.js` enthält Eingabefeldgestaltung, optionale UI-Eigenschaften, Zahlenformatierung und die Beleguploadgrenzen. Die bestehenden Firmenzeiten und Tätigkeiten stammen weiterhin aus dem unabhängigen Company-Settings-Modul.
 
 ## Backendvorgaben
 
-`Backend/src/services/management/defaults/persistence.defaults.js` enthält die Projektion der benötigten Zeitfelder und die Transaktionsoptionen. Read-Snapshots verwenden `RepeatableRead`, Änderungen mit Auditnachweis `Serializable`.
+`Backend/src/modules/management/services/defaults/persistence.defaults.js` enthält die Projektion der benötigten Zeitfelder und die Transaktionsoptionen. Read-Snapshots verwenden `RepeatableRead`, Änderungen mit Auditnachweis `Serializable`.
 
 Die aktive API unterstützt Geschäftsjahre 2000–2200, maximal 200 Konfigurationseinträge je Struktur, maximal 500 Positionen je Einrichtungsliste und maximal 100 Freigaben pro Geschäftsjahr. Ein CSV-Import ist auf 2 MB und 1.500 Datenzeilen begrenzt; Belege auf 50 MB und PDF/JPG.
 

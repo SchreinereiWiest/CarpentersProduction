@@ -27,4 +27,4 @@ Neue Berichte werden beim erneuten Laden des Managementbereichs oder mit **Aktua
 
 ## Beziehungen im Code
 
-`operating/hours.management.jsx` stellt die Tabellen dar. `calculation/hours.mjs` erzeugt die Summen. `snapshots.js` kombiniert freigegebene Tätigkeitszuordnung und neue Berichte für die laufende Analyse.
+`operating/hours.jsx` stellt die Tabellen dar. `calculation/hours.mjs` erzeugt die Summen. `snapshots.js` kombiniert freigegebene Tätigkeitszuordnung und neue Berichte für die laufende Analyse.

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createUuid } from '../../src/pages/management/utils/uuid.js';
+import { createUuid } from '../../src/features/management/utils/uuid.js';
 
 describe('Management-UUIDs', () => {
   it('verwendet die native Browserfunktion, wenn sie verfügbar ist', () => {

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_COMPANY_SETTINGS,
   normalizeCompanySettings
-} from "../../src/services/companySettings.js";
+} from "../../src/shared/settings/company-settings.js";
 
 describe("company AI and estimation settings", () => {
   it("adds defaults to legacy settings and normalizes search and AI values", () => {

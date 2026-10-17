@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectPdfSnapPoints } from "../../src/pages/projects/aufmas/import/pdfSnap.js";
+import { detectPdfSnapPoints } from "../../src/features/projects/measurement/import/pdfSnap.js";
 
 const syntheticPlan = () => {
     const width = 100;

@@ -1,11 +1,11 @@
 import axios from "axios";
 import { beforeAll, describe, expect, it } from "vitest";
-import { installNetworkClient } from "../../src/services/networkClient.js";
+import { installNetworkClient } from "../../src/shared/api/http-client.js";
 import {
     getOfflineStatusSnapshot,
     setNetworkOnline
-} from "../../src/services/offlineStatus.js";
-import { shouldCacheApiResponse } from "../../src/services/offlineRepository.js";
+} from "../../src/shared/offline/offline-status.js";
+import { shouldCacheApiResponse } from "../../src/shared/offline/offline-repository.js";
 
 let responseInterceptor;
 

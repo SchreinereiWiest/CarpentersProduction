@@ -25,4 +25,4 @@ Vermögen, Verbindlichkeiten und rechnerisches Eigenkapital stammen aus der frei
 
 ## Beziehungen im Code
 
-`operating/overview.management.jsx` liest `operatingPlan`, `operatingActual` und `operationalConfig` aus dem Layout-Kontext. Das Backend baut diese getrennten Daten in `snapshots.js` auf. Freigegebene Planwerte und aktuelle Ist-Felder werden deshalb nicht miteinander vermischt.
+`operating/overview.jsx` liest `operatingPlan`, `operatingActual` und `operationalConfig` aus dem Layout-Kontext. Das Backend baut diese getrennten Daten in `snapshots.js` auf. Freigegebene Planwerte und aktuelle Ist-Felder werden deshalb nicht miteinander vermischt.

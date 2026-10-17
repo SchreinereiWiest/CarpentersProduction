@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createThreeWayMerge } from "../../src/services/threeWayMerge.js";
+import { createThreeWayMerge } from "../../src/shared/offline/three-way-merge.js";
 
 describe("Drei-Wege-Merge", () => {
     it("übernimmt einseitige Änderungen automatisch und meldet echte Konflikte", () => {

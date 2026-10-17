@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import CalculationView from "../../src/pages/projects/calculation/CalculationView.jsx";
+import CalculationView from "../../src/features/projects/calculation/CalculationPage.jsx";
 
 const api = vi.hoisted(() => ({
   loadCalculationWorkspace: vi.fn(),
@@ -9,9 +9,9 @@ const api = vi.hoisted(() => ({
   saveCalculation: vi.fn()
 }));
 
-vi.mock("../../src/pages/projects/calculation/calculationApi.js", () => api);
-vi.mock("../../src/components/sideBar.jsx", () => ({ default: () => null }));
-vi.mock("../../src/components/projectBar.jsx", () => ({ default: () => null }));
+vi.mock("../../src/features/projects/calculation/calculationApi.js", () => api);
+vi.mock("../../src/shared/components/sideBar.jsx", () => ({ default: () => null }));
+vi.mock("../../src/shared/components/projectBar.jsx", () => ({ default: () => null }));
 
 describe("CalculationView", () => {
   beforeEach(() => {

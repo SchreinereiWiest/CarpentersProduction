@@ -1,12 +1,12 @@
 import axios from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { downloadFile, uploadJSONFile } from '../../src/services/apiTemplates.js';
-import { getCachedGlobalFile, markCachedFileStale, setCachedGlobalFile } from '../../src/services/globalIndexDb.js';
-import { getGlobalFile, refreshCachedGlobalFiles } from '../../src/services/globalMemoryCache.js';
-import { uploadProjectFile } from '../../src/services/projectMemoryCache.js';
-import { getCachedProjectFile, setCachedProjectFile } from '../../src/services/projectIndexDb.js';
-import { loadCadFile } from '../../src/pages/projects/aufmas/import/cadLoader.js';
+import { downloadFile, uploadJSONFile } from '../../src/shared/api/file-api.js';
+import { getCachedGlobalFile, markCachedFileStale, setCachedGlobalFile } from '../../src/shared/cache/indexed-db.js';
+import { getGlobalFile, refreshCachedGlobalFiles } from '../../src/shared/cache/global-cache.js';
+import { uploadProjectFile } from '../../src/shared/cache/project-cache.js';
+import { getCachedProjectFile, setCachedProjectFile } from '../../src/shared/cache/project-indexed-db.js';
+import { loadCadFile } from '../../src/features/projects/measurement/import/cadLoader.js';
 
 vi.mock('axios', () => ({
   default: {
@@ -123,7 +123,7 @@ describe('Dateispeicherung und -abruf', () => {
     expect(upload).toHaveBeenCalledOnce();
 
     vi.resetModules();
-    const { getProjectFile } = await import('../../src/services/projectMemoryCache.js');
+    const { getProjectFile } = await import('../../src/shared/cache/project-cache.js');
     const serverDownload = vi.fn();
 
     await expect(getProjectFile({

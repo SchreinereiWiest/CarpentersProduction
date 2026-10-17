@@ -1,6 +1,6 @@
 # Systemarchitektur und Datenflüsse
 
-CarpentersProduction ist als klassische Webanwendung mit getrenntem Frontend, JSON-API, relationaler Datenbank und Objektspeicher aufgebaut.
+CarpentersProduction ist in drei klar getrennte Bereiche gegliedert: Das `Frontend` stellt die Anwendung dar, das `Backend` übernimmt HTTP, Rechte und Persistenz, und die `Engine` enthält gemeinsam nutzbare Fachlogik ohne React-, Express- oder Datenbankabhängigkeit.
 
 ```text
 Browser / React
@@ -9,36 +9,68 @@ Browser / React
       v
    Traefik
       |
-      +---- /api/* ----> Express :5000 ----> Prisma ----> PostgreSQL
+      +---- /api/* ----> Backend / Express ----> Prisma ----> PostgreSQL
       |                       |
-      |                       +---- AWS SDK / S3 ----> Garage
+      |                       +---- S3 SDK ----> Garage
+      |                       |
+      |                       +---- Engine-Verträge und Fachlogik
       |
-      +---- /* --------> React / Vite
+      +---- /* --------> Frontend / Vite
+                              |
+                              +---- Engine-Fachlogik
 ```
 
-## Backend-Schichten
+## Dateistruktur
 
-| Schicht | Verzeichnis | Aufgabe |
-|---|---|---|
-| Einstieg | `Backend/src/server.js` | Express-App, Middleware, Routen-Mounts und Port 5000 |
-| Routing | `Backend/src/routes/` | HTTP-Methode, Pfad, Auth-Middleware und Handler |
-| Controller | `Backend/src/controllers/` | Validierung, Geschäftsabläufe, Prisma- und S3-Zugriffe |
-| Middleware | `Backend/src/middleware/` | Session-, CSRF-, Rollen- und Ressourcenprüfung sowie Dateiabläufe |
-| Konfiguration | `Backend/src/config/` | Prisma- und S3-Clients |
-| Utilities | `Backend/src/utils/` | Passwort-Hashing und JWT-Hilfen |
-| Datenmodell | `Backend/prisma/schema.prisma` | PostgreSQL-Modelle, Beziehungen und Enums |
+```text
+CarpentersProduction/
+├── Frontend/
+│   └── src/
+│       ├── app/                 Start, Router, Provider und Route Guards
+│       ├── features/            Fachmodule mit Seiten und lokaler UI-Logik
+│       │   ├── customers/
+│       │   ├── inventory/
+│       │   ├── management/
+│       │   └── projects/        Aufmaß, Korpus, CNC, Nesting usw.
+│       └── shared/              API, Cache, Offline, Hooks und UI-Bausteine
+├── Backend/
+│   └── src/
+│       ├── app.js               Express-Konfiguration
+│       ├── server.js            Prozessstart und Hintergrundjobs
+│       ├── modules/             Routen, Controller und Services je Fachbereich
+│       ├── infrastructure/      Prisma, S3, Speicher und Logging
+│       ├── middleware/          Fachübergreifende HTTP-Middleware
+│       └── shared/              Kleine technische Hilfen, z. B. JWT
+└── Engine/
+    ├── src/
+    │   ├── cabinet/             Korpus- und Teilelistenlogik
+    │   ├── calculation/         Kalkulation und Schätzung
+    │   ├── cnc/                 CNC-Aufbereitung
+    │   ├── management/          Betriebswirtschaftliche Fachlogik
+    │   ├── nesting/             Plattenoptimierung
+    │   ├── procurement/         Beschaffungsregeln
+    │   ├── contracts/           Gemeinsame Datenverträge
+    │   └── shared/              Laufzeitneutrale Hilfen
+    └── browser/                 Bewusst browserspezifische Adapter
+```
 
-`Backend/src/services/storageDeletion.service.js` verarbeitet dauerhafte Garage-Löschjobs. Weitere Geschäftslogik liegt derzeit überwiegend in Controllern und Middleware.
+Die Abhängigkeitsrichtung ist eindeutig: `Frontend → Engine` und `Backend → Engine`. Die Engine importiert nichts aus Frontend oder Backend. Frontend und Backend importieren sich ebenfalls nicht gegenseitig, sondern kommunizieren ausschließlich über die API.
 
-## Frontend-Schichten
+## Backend-Aufteilung
 
-| Schicht | Verzeichnis | Aufgabe |
-|---|---|---|
-| Einstieg und Router | `Frontend/src/main.jsx` | Context-Provider und Seitenrouten |
-| Route Guards | `Frontend/src/routes/` | Sessionzustand und sichtbare Rollenführung |
-| Seiten/Komponenten | `Frontend/src/pages/`, `components/` | UI, Formulare und fachliche Editoren |
-| Services | `Frontend/src/services/` | API-Helfer, Settings, Memory- und IndexedDB-Cache |
-| Engines | `Frontend/src/pages/projects/**/engine`, `algorythm/` | Geometrie, Nesting, Teilelisten und CNC-Compiler |
+`Backend/src/app.js` baut die Express-Anwendung auf und ist unabhängig vom Prozessstart testbar. `Backend/src/server.js` lädt die Umgebung, initialisiert den Entwicklungstenant, öffnet den Port und startet den Löschworker.
+
+Innerhalb von `modules/` liegt ein Fachbereich zusammen. Beispielsweise enthält `modules/attachment-search/` Controller, Service und Tenant-Secrets; `modules/projects/` enthält Projektrouten, Projektcontroller, Archiv und Service. Technische Zugriffe auf Prisma und S3 liegen dagegen unter `infrastructure/`.
+
+## Frontend-Aufteilung
+
+`Frontend/src/main.jsx` rendert nur noch die Anwendung und installiert globale Clients. Provider und Routing liegen unter `app/`. Jede fachliche Oberfläche liegt in `features/`; wiederverwendbare Technik liegt in `shared/`.
+
+Projektmodule sind nach ihrer Aufgabe benannt: `measurement`, `cabinet`, `part-list`, `nesting`, `cutting`, `cnc`, `calculation`, `purchasing`, `attachments`, `settings` und `time-tracking`. Reine Algorithmen wurden aus diesen UI-Modulen in die Engine verschoben.
+
+## Gemeinsame Projektdaten
+
+Die Definitionen in `Engine/src/contracts/project/` ordnen logische Dokumentnamen wie `cabinet`, `aufmas` und `nesting` ihren JSON-Dateien zu und prüfen eingehende Daten. Das Backend verwendet denselben Vertrag für die generische Projektdatei-API. Binärdateien liegen in Garage; PostgreSQL speichert Metadaten in `File` und den Speicherverweis in `S3Object`.
 
 ## Typischer authentifizierter Request
 
@@ -46,12 +78,8 @@ Browser / React
 2. Origin- und CSRF-Middleware prüfen den Request.
 3. Die Auth-Middleware validiert JWT, Benutzerstatus und `authVersion` gegen PostgreSQL.
 4. Rollen- und Ressourcenpolicy prüfen den konkreten Zugriff.
-5. Der Controller greift über Prisma oder das S3-SDK auf Daten zu.
+5. Das zuständige Fachmodul greift über Prisma oder den Storage-Service auf Daten zu.
 6. Die Antwort wird als JSON, signierte Download-URL oder Stream zurückgegeben.
-
-## Dateiablauf
-
-Binärdateien liegen in Garage; PostgreSQL speichert Metadaten in `File` und den technischen Speicherverweis in `S3Object`. Downloads erfolgen über eine für 900 Sekunden signierte URL. Generierte JSON-Daten verwenden feste Objektpfade, während normale Uploads eine UUID im Objektnamen erhalten.
 
 ## Projektarchiv
 

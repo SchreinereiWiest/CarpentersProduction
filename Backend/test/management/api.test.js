@@ -11,9 +11,9 @@ if (!testUrl) {
   process.env.DATABASE_URL = testUrl;
   process.env.JWT_ACCESS_SECRET = 'management-api-tests-local-only';
   const [{ default: express }, { default: cookieParser }, { default: jwt }, { default: prisma }, { default: router }, { defaultConfig }, { prepareSetupConfig }] = await Promise.all([
-    import('express'), import('cookie-parser'), import('jsonwebtoken'), import('../../src/config/prisma.js'),
-    import('../../src/routes/management/management.routes.js'),
-    import('../../../Engine/management/defaults/config.defaults.mjs'), import('../../../Engine/management/config/normalize.mjs'),
+    import('express'), import('cookie-parser'), import('jsonwebtoken'), import('../../src/infrastructure/database/prisma.js'),
+    import('../../src/modules/management/management.routes.js'),
+    import('../../../Engine/src/management/defaults/config.defaults.mjs'), import('../../../Engine/src/management/config/normalize.mjs'),
   ]);
   test('Aktive Management-API: Einrichtung, Freigabe, Jahresbetrieb und bereinigte Endpunkte', async t => {
     await prisma.$transaction([

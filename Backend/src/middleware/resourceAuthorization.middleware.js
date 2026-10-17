@@ -1,4 +1,4 @@
-import prisma from "../config/prisma.js";
+import prisma from "../infrastructure/database/prisma.js";
 
 const isPrivileged = user => ["admin", "manager"].includes(user?.role);
 

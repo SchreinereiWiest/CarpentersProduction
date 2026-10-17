@@ -1,8 +1,8 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
-import CacheRefreshBoundary from "../../src/components/offline/CacheRefreshBoundary.jsx";
-import { MANUAL_CACHE_REFRESH_COMPLETE_EVENT } from "../../src/services/cacheEvents.js";
+import CacheRefreshBoundary from "../../src/shared/components/offline/CacheRefreshBoundary.jsx";
+import { MANUAL_CACHE_REFRESH_COMPLETE_EVENT } from "../../src/shared/cache/cache-events.js";
 
 function StatefulPage() {
     const [value, setValue] = useState(0);

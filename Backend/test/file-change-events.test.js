@@ -5,7 +5,7 @@ import {
     getFileChangeClientCount,
     publishFileChange,
     subscribeToFileChanges
-} from "../src/services/fileChangeEvents.service.js";
+} from "../src/modules/files/file-change-events.service.js";
 
 const createStream = tenantId => {
     const request = new EventEmitter();

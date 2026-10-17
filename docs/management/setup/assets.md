@@ -48,6 +48,6 @@ Eine zusätzliche manuelle Zinsposition blockiert die Vollkostenfreigabe. Bei Ma
 
 ## Beziehungen im Code
 
-`setup/steps/assets.management.jsx` verwendet unabhängige Anlage- und Restschuldfabriken. `calculation/assets.mjs` berechnet Abschreibung und Kapital; `calculation/accounting.mjs` übernimmt die Kosten einmalig in den BAB. Die einmalige Übernahme früherer Datenbankbestände erfolgt ausschließlich im Backend über `legacyInventory.js`.
+`setup/steps/assets.jsx` verwendet unabhängige Anlage- und Restschuldfabriken. `calculation/assets.mjs` berechnet Abschreibung und Kapital; `calculation/accounting.mjs` übernimmt die Kosten einmalig in den BAB. Die einmalige Übernahme früherer Datenbankbestände erfolgt ausschließlich im Backend über `legacyInventory.js`.
 
 Weiter: [Jährliche Betriebskosten](annual-costs.md).

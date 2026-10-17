@@ -6,13 +6,13 @@ import {
   calculateQuick,
   purchasingMaterialCost,
   summarizeCabinets
-} from "../../../Engine/calculation/calculation.mjs";
-import { estimateProjectHours } from "../../../Engine/calculation/estimation.mjs";
+} from "@Engine/calculation/calculation.mjs";
+import { estimateProjectHours } from "@Engine/calculation/estimation.mjs";
 import {
   buildCalculationSnapshot,
   summarizePartList
-} from "../../../Engine/calculation/snapshots.mjs";
-import { combineManagementHourlyRates } from "../../../Engine/calculation/managementRates.mjs";
+} from "@Engine/calculation/snapshots.mjs";
+import { combineManagementHourlyRates } from "@Engine/calculation/managementRates.mjs";
 
 describe("project calculation engine", () => {
   it("calculates discounts with the classical backwards calculation", () => {

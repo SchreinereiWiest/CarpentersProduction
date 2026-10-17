@@ -38,6 +38,6 @@ Abgeschlossene `TimeEntry`-Datensätze mit positivem Minutenwert werden ausgewer
 
 ## Beziehungen im Code
 
-`setup/steps/hours.management.jsx` verwendet die Firmenkonfiguration und die Defaultfabrik `newStaff`. `calculation/hours.mjs` berechnet Planstunden sowie Mitarbeiter-, Tätigkeits- und Monatssummen. Eine Freigabe fixiert die gewählte Kalkulationsbasis; die [Jahresanalyse](../operating/hours.md) berücksichtigt nach Aktualisierung neue Berichte.
+`setup/steps/hours.jsx` verwendet die Firmenkonfiguration und die Defaultfabrik `newStaff`. `calculation/hours.mjs` berechnet Planstunden sowie Mitarbeiter-, Tätigkeits- und Monatssummen. Eine Freigabe fixiert die gewählte Kalkulationsbasis; die [Jahresanalyse](../operating/hours.md) berücksichtigt nach Aktualisierung neue Berichte.
 
 Weiter: [Kostenstellenverteilung](distribution.md).

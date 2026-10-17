@@ -7,7 +7,7 @@ import {
     buildPlateItems,
     mergeGeneratedItems,
     normalizeCatalog
-} from "../../src/pages/purchasing/procurementUtils.js";
+} from "@Engine/procurement/procurement.js";
 
 describe("procurement data", () => {
     it("keeps old catalogs compatible and accepts article groups", () => {

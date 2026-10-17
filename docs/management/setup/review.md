@@ -28,6 +28,6 @@ Frühere Versionen bleiben in der Historie. **Freigegebene Version ansehen** zei
 
 ## Beziehungen im Code
 
-`setup/steps/review.management.jsx` zeigt Prüfungen und Simulation. `config/approval.mjs` enthält die gemeinsamen Freigaberegeln. `configuration.controller.js` wiederholt Prüfung und Berechnung, sichert den Snapshot in `ManagementPeriod.config.setup.approvals` und erhöht die Revision atomar mit dem Auditnachweis.
+`setup/steps/review.jsx` zeigt Prüfungen und Simulation. `config/approval.mjs` enthält die gemeinsamen Freigaberegeln. `configuration.controller.js` wiederholt Prüfung und Berechnung, sichert den Snapshot in `ManagementPeriod.config.setup.approvals` und erhöht die Revision atomar mit dem Auditnachweis.
 
 Weiter: [Betriebsübersicht](../operating/overview.md).

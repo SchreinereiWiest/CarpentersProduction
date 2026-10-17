@@ -9,15 +9,15 @@ import { prepareSetupConfig } from '@Engine/management/config/normalize.mjs';
 
 const mocks = vi.hoisted(() => ({ request: vi.fn(), get: vi.fn() }));
 vi.mock('axios', () => ({ default: Object.assign(mocks.request, { get: mocks.get }) }));
-vi.mock('../../src/components/sideBar.jsx', () => ({ default: ({ selected }) => <div data-testid="sidebar">{selected}</div> }));
-vi.mock('../../src/services/companySettings.js', async importOriginal => {
+vi.mock('../../src/shared/components/sideBar.jsx', () => ({ default: ({ selected }) => <div data-testid="sidebar">{selected}</div> }));
+vi.mock('../../src/shared/settings/company-settings.js', async importOriginal => {
   const original = await importOriginal(); return { ...original, loadCompanySettings: vi.fn(async () => original.DEFAULT_COMPANY_SETTINGS) };
 });
-import ManagementLayout from '../../src/pages/management/layout/managementLayout.jsx';
-import ManagementOverview from '../../src/pages/management/operating/overview.management.jsx';
-import ManagementSetup from '../../src/pages/management/setup/setup.management.jsx';
-import ManagementHours from '../../src/pages/management/operating/hours.management.jsx';
-import ManagementOperatingCosts from '../../src/pages/management/operating/operatingCosts.management.jsx';
+import ManagementLayout from '../../src/features/management/layout/managementLayout.jsx';
+import ManagementOverview from '../../src/features/management/operating/overview.jsx';
+import ManagementSetup from '../../src/features/management/setup/setup.jsx';
+import ManagementHours from '../../src/features/management/operating/hours.jsx';
+import ManagementOperatingCosts from '../../src/features/management/operating/operatingCosts.jsx';
 
 let saved;
 function publish() {

@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ProjectSave } from '../../src/pages/projects/edit/uploadProject.js';
-import { getProjectFile } from '../../src/services/projectMemoryCache.js';
+import { ProjectSave } from '../../src/features/projects/legacy-editor/uploadProject.js';
+import { getProjectFile } from '../../src/shared/cache/project-cache.js';
 import {
   legacyCorpus,
   materials,

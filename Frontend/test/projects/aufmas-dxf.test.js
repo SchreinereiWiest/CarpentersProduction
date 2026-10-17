@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normaliseDxf, parseDxf } from "../../src/pages/projects/aufmas/import/dxf.js";
+import { normaliseDxf, parseDxf } from "../../src/features/projects/measurement/import/dxf.js";
 
 const dxf = `0
 SECTION

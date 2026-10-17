@@ -24,4 +24,4 @@ Kostenstellen werden zunächst nach stabiler ID abgeglichen; übereinstimmende B
 
 ## Beziehungen im Code
 
-`operating/operatingCosts.management.jsx` schreibt ausschließlich Ist-Felder mit der aktuellen Jahresrevision. `snapshots.js` liest Ist-Felder aus dem aktuellen Entwurf und verwendet für Berechnungsregeln die freigegebenen Eingaben. `components/babTable.jsx` zeigt den resultierenden Ist-BAB. Eine neue Plansatzfreigabe ist für eine bloße Ist-Summenänderung nicht erforderlich.
+`operating/operatingCosts.jsx` schreibt ausschließlich Ist-Felder mit der aktuellen Jahresrevision. `snapshots.js` liest Ist-Felder aus dem aktuellen Entwurf und verwendet für Berechnungsregeln die freigegebenen Eingaben. `components/babTable.jsx` zeigt den resultierenden Ist-BAB. Eine neue Plansatzfreigabe ist für eine bloße Ist-Summenänderung nicht erforderlich.

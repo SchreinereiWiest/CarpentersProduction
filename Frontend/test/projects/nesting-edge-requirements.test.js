@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateEdgeRequirements } from "../../src/pages/projects/nesting/edgeRequirements.js";
+import { calculateEdgeRequirements } from "@Engine/nesting/edge-requirements.js";
 
 describe("Kantenbedarf im Nesting", () => {
     it("summiert ein Plattenmaterial unabhaengig von seiner Staerke", () => {

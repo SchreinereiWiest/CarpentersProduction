@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clampCanvasPan, getPlacedObjectSnapPoints, panForPinchAnchor, rectangleFromPoints } from "../../src/pages/projects/aufmas/domain/geometry.js";
+import { clampCanvasPan, getPlacedObjectSnapPoints, panForPinchAnchor, rectangleFromPoints } from "../../src/features/projects/measurement/domain/geometry.js";
 
 describe("Aufmaß object geometry", () => {
     it("creates a normalised cabinet selection rectangle from opposite corners", () => {

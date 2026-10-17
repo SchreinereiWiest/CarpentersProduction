@@ -3,12 +3,12 @@ import {
     createCabinetSvg,
     getCabinetFunctionLines,
     getCabinetInformation
-} from "@Engine/projectPDF/cabinetSvgRenderer.js";
+} from "@EngineBrowser/project-pdf/cabinetSvgRenderer.js";
 import {
     createNestingOverviewSvg,
     getNestingPlateEntries
-} from "@Engine/projectPDF/nestingSvgRenderer.js";
-import { getImagePageLayout } from "@Engine/projectPDF/createProjectPDF.js";
+} from "@EngineBrowser/project-pdf/nestingSvgRenderer.js";
+import { getImagePageLayout } from "@EngineBrowser/project-pdf/createProjectPDF.js";
 
 const cabinet = {
     name: "Unterschrank",

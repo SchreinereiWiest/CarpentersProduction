@@ -2,11 +2,22 @@
   "name": "@carpenters/engine",
   "private": true,
   "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
   "exports": {
-    ".": "./index.js",
-    "./cabinetConfigurator": "./cabinetConfigurator/index.js",
-    "./cnc": "./cnc/index.js",
-    "./management": "./management/index.mjs",
-    "./utils/*": "./utils/*"
+    ".": "./src/index.js",
+    "./cabinet": "./src/cabinet/index.js",
+    "./cabinet/*": "./src/cabinet/*",
+    "./cnc": "./src/cnc/index.js",
+    "./cnc/*": "./src/cnc/*",
+    "./calculation/*": "./src/calculation/*",
+    "./management": "./src/management/index.mjs",
+    "./management/*": "./src/management/*",
+    "./nesting/*": "./src/nesting/*",
+    "./procurement": "./src/procurement/procurement.js",
+    "./contracts/*": "./src/contracts/*",
+    "./shared/*": "./src/shared/*",
+    "./browser/*": "./browser/*"
   }
 }

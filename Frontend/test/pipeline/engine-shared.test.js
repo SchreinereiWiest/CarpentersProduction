@@ -2,15 +2,15 @@ import { describe, expect, it } from 'vitest';
 import {
     cloneCabinetWithFreshIds,
     createAvailableSection
-} from '@Engine/cabinetConfigurator/cabinet.js';
-import { getMiddleWallCenter } from '@Engine/cabinetConfigurator/geometry/middleWall.js';
-import { resizeCabinetContents } from '@Engine/cabinetConfigurator/geometry/resizeCabinetContents.js';
+} from '@Engine/cabinet/cabinet.js';
+import { getMiddleWallCenter } from '@Engine/cabinet/geometry/middleWall.js';
+import { resizeCabinetContents } from '@Engine/cabinet/geometry/resizeCabinetContents.js';
 import {
     findTreeNode,
     findTreeParent,
     flattenTree,
     updateTree
-} from '@Engine/utils/tree.js';
+} from '@Engine/shared/tree.js';
 
 describe('shared Engine helpers', () => {
     it('creates the usable cabinet section without UI dependencies', () => {
