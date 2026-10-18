@@ -5,7 +5,7 @@ import { normalizeEstimationSettings } from "@Engine/calculation/estimation.mjs"
 export const CUSTOM_WORK_TYPE_ID = "__custom__";
 
 export const DEFAULT_COMPANY_SETTINGS = {
-    schemaVersion: 4,
+    schemaVersion: 5,
     workingHours: {
         start: "07:00",
         end: "16:45"
@@ -32,6 +32,10 @@ export const DEFAULT_COMPANY_SETTINGS = {
         { id: "finishing", label: "Finalisierung" },
         { id: "installation", label: "Montage" }
     ],
+    userInterface: {
+        showTips: true,
+        lineLockThresholdCm: 5
+    },
     estimation: {
         ...normalizeEstimationSettings(),
         ollama: {
@@ -75,6 +79,10 @@ export function normalizeCompanySettings(data) {
     const workTypes = Array.isArray(data?.workTypes) && data.workTypes.length > 0
         ? data.workTypes
         : DEFAULT_COMPANY_SETTINGS.workTypes;
+    const userInterface = {
+        ...DEFAULT_COMPANY_SETTINGS.userInterface,
+        ...(data?.userInterface ?? {})
+    };
     const estimation = normalizeEstimationSettings(data?.estimation);
     const ollama = {
         ...DEFAULT_COMPANY_SETTINGS.estimation.ollama,
@@ -89,7 +97,7 @@ export function normalizeCompanySettings(data) {
         : [];
 
     return {
-        schemaVersion: 4,
+        schemaVersion: 5,
         workingHours,
         breaks: breaks.map((entry, index) => ({
             id: entry.id || `break-${index + 1}`,
@@ -101,6 +109,12 @@ export function normalizeCompanySettings(data) {
             id: String(entry.id),
             label: String(entry.label)
         })),
+        userInterface: {
+            showTips: userInterface.showTips !== false,
+            lineLockThresholdCm: normalizeLineLockThresholdCm(
+                userInterface.lineLockThresholdCm
+            )
+        },
         estimation: {
             ...estimation,
             ollama: {
@@ -127,6 +141,15 @@ export function normalizeCompanySettings(data) {
             filterPrompt: String(attachmentSearch.filterPrompt || DEFAULT_COMPANY_SETTINGS.attachmentSearch.filterPrompt).trim()
         }
     };
+}
+
+export function normalizeLineLockThresholdCm(value) {
+    const parsed = Number.parseFloat(String(value ?? "").replace(",", "."));
+    if (!Number.isFinite(parsed)) {
+        return DEFAULT_COMPANY_SETTINGS.userInterface.lineLockThresholdCm;
+    }
+
+    return Math.max(0, parsed);
 }
 
 export function createWorkBlocks(settings) {

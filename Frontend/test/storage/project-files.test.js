@@ -4,9 +4,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { downloadFile, uploadJSONFile } from '../../src/shared/api/file-api.js';
 import { getCachedGlobalFile, markCachedFileStale, setCachedGlobalFile } from '../../src/shared/cache/indexed-db.js';
 import { getGlobalFile, refreshCachedGlobalFiles } from '../../src/shared/cache/global-cache.js';
-import { uploadProjectFile } from '../../src/shared/cache/project-cache.js';
+import { getProjectFile, uploadProjectFile } from '../../src/shared/cache/project-cache.js';
 import { getCachedProjectFile, setCachedProjectFile } from '../../src/shared/cache/project-indexed-db.js';
 import { loadCadFile } from '../../src/features/projects/measurement/import/cadLoader.js';
+import { CALCULATION_SOURCES } from '@Engine/contracts/project/calculation-source.js';
 
 vi.mock('axios', () => ({
   default: {
@@ -53,6 +54,28 @@ describe('Dateispeicherung und -abruf', () => {
     await expect(downloadFile('/api/projects/generated/missing/list'))
       .resolves.toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('liefert für ein fehlendes Nesting die Client-Kennung an den Erzeugungsablauf', async () => {
+    const download = vi.fn();
+    download.getDescriptor = vi.fn().mockResolvedValue({
+      exists: false,
+      calculationSource: CALCULATION_SOURCES.CLIENT,
+    });
+
+    await expect(getProjectFile({
+      projectId: 'project-without-nesting',
+      file: 'nesting.json',
+      includeCalculationSource: true,
+      loadFromServer: {
+        path: '/api/projects/generated/project-without-nesting/nesting',
+        download,
+      },
+    })).resolves.toEqual({
+      data: null,
+      calculationSource: CALCULATION_SOURCES.CLIENT,
+    });
+    expect(download).not.toHaveBeenCalled();
   });
 
   it('sendet JSON mit Session-Cookie und Content-Type an das Backend', async () => {
@@ -215,6 +238,70 @@ describe('Dateispeicherung und -abruf', () => {
     expect(stale).toMatchObject({ lastValidatedAt: 0, announcedServerVersion: 4 });
     expect(pending.syncStatus).toBe('pending');
     expect(pending.lastValidatedAt).not.toBe(0);
+  });
+
+  it('übernimmt beim ersten Nesting-Vorschlag eindeutig die bereits vorhandene Serverberechnung', async () => {
+    const localNesting = [{ MID: 'LOCAL', nestingPlates: [] }];
+    const serverNesting = [{ MID: 'SERVER', nestingPlates: [] }];
+    const upload = vi.fn().mockRejectedValue(Object.assign(new Error('conflict'), {
+      response: {
+        status: 412,
+        data: {
+          error: 'VERSION_CONFLICT',
+          fileId: 'server-nesting-file',
+          currentVersion: 1,
+          calculationSource: CALCULATION_SOURCES.SERVER,
+        },
+      },
+    }));
+    axios.get.mockResolvedValue({
+      data: {
+        exists: true,
+        downloadUrl: 'https://storage.test/server-nesting.json',
+        fileId: 'server-nesting-file',
+        serverVersion: 1,
+        calculationSource: CALCULATION_SOURCES.SERVER,
+      },
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue(serverNesting),
+    }));
+
+    const result = await uploadProjectFile({
+      projectId: 'project-initial-nesting-race',
+      file: 'nesting.json',
+      data: localNesting,
+      calculationSource: CALCULATION_SOURCES.CLIENT,
+      uploadFunction: { upload },
+    });
+
+    expect(upload).toHaveBeenCalledWith(
+      '/api/projects/generated/project-initial-nesting-race/nesting',
+      localNesting,
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'If-Match': '"0"',
+          'X-Calculation-Source': CALCULATION_SOURCES.CLIENT,
+        }),
+      }),
+    );
+    expect(result).toMatchObject({
+      status: 'synced',
+      calculationSource: CALCULATION_SOURCES.SERVER,
+      data: serverNesting,
+      version: 1,
+    });
+    await expect(getCachedProjectFile({
+      projectId: 'project-initial-nesting-race',
+      file: 'nesting.json',
+    })).resolves.toMatchObject({
+      data: serverNesting,
+      serverVersion: 1,
+      baseVersion: 1,
+      syncStatus: 'synced',
+      calculationSource: CALCULATION_SOURCES.SERVER,
+    });
   });
 
   it('lädt eine bereits gecachte Datei auf Anforderung auch bei gleicher Version neu', async () => {

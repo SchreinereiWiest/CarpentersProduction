@@ -49,6 +49,49 @@ export const panForPinchAnchor = ({
 const validPoint = (point) =>
   Number.isFinite(point?.x) && Number.isFinite(point?.y);
 
+export const lineLockThresholdForCanvas = ({
+  thresholdCm,
+  dxfScale,
+  transformScale = 1
+}) => {
+  const threshold = Math.max(0, Number(thresholdCm) || 0);
+  if (!Number.isFinite(dxfScale) || dxfScale <= 0) return threshold;
+
+  // Aufmaß- und CNC-DXF-Dateien verwenden Millimeter. Zentimeter werden vor
+  // der DXF-Normalisierung und einer optionalen PDF-Ausrichtung umgerechnet.
+  return threshold * 10 * dxfScale * Math.abs(Number(transformScale) || 1);
+};
+
+export const lockLinePoint = (start, point, threshold) => {
+  if (!validPoint(start) || !validPoint(point)) return point;
+
+  const maximumDeviation = Number(threshold);
+  if (!Number.isFinite(maximumDeviation) || maximumDeviation <= 0) return point;
+
+  const horizontalDeviation = Math.abs(point.y - start.y);
+  const verticalDeviation = Math.abs(point.x - start.x);
+  const canLockHorizontal = horizontalDeviation <= maximumDeviation;
+  const canLockVertical = verticalDeviation <= maximumDeviation;
+
+  if (!canLockHorizontal && !canLockVertical) return point;
+
+  if (canLockHorizontal && horizontalDeviation <= verticalDeviation) {
+    return {
+      ...point,
+      y: start.y,
+      snapped: false,
+      lineLocked: "horizontal"
+    };
+  }
+
+  return {
+    ...point,
+    x: start.x,
+    snapped: false,
+    lineLocked: "vertical"
+  };
+};
+
 export const getPlacedObjectSnapPoints = (objects) =>
   objects.flatMap((object) => {
     if (object.kind === "point") {

@@ -23,7 +23,8 @@ export const downloadFileFromDescriptor = async descriptor => {
             value: {
                 fileId: descriptor.fileId ?? null,
                 serverVersion: descriptor.serverVersion ?? null,
-                updatedAt: descriptor.updatedAt ?? null
+                updatedAt: descriptor.updatedAt ?? null,
+                calculationSource: descriptor.calculationSource ?? null
             }
         });
     }

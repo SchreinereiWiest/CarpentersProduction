@@ -5,7 +5,8 @@ const kindLabel = (kind) =>
     measurement: "Messung",
     angle: "Winkel",
     point: "Installation",
-    cabinet: "Korpusverknüpfung"
+    cabinet: "Korpusverknüpfung",
+    guide: "Hilfslinie"
   })[kind] ?? "Objekt";
 
 export default function MeasurementGraphic({
@@ -119,6 +120,38 @@ export default function MeasurementGraphic({
   }
 
   if (!end) return null;
+
+  if (object.kind === "guide") {
+    const guideColor = selected ? "#6eb4f1" : "#7f96a5";
+    return (
+      <g
+        {...objectPointerData}
+        onPointerDown={selectObject}
+        pointerEvents={interactive ? "visibleStroke" : "none"}
+        className={interactive ? "cursor-pointer" : undefined}
+      >
+        <line
+          x1={start.x}
+          y1={start.y}
+          x2={end.x}
+          y2={end.y}
+          stroke="transparent"
+          strokeWidth="14"
+        />
+        <line
+          x1={start.x}
+          y1={start.y}
+          x2={end.x}
+          y2={end.y}
+          stroke={guideColor}
+          strokeWidth={selected ? 3 : 2}
+          strokeDasharray="10 7"
+          vectorEffect="non-scaling-stroke"
+        />
+      </g>
+    );
+  }
+
   const middle = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
   if (object.kind === "angle" && third) {
     return (

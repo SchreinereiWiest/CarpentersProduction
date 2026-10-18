@@ -18,6 +18,11 @@ import { OfflineResourceUnavailableError } from "../offline/offline-errors.js";
 let installed = false;
 
 const isNetworkFailure = error => !error.response || error.code === "ERR_NETWORK";
+const isCanceledRequest = error => (
+    axios.isCancel(error)
+    || error.code === "ERR_CANCELED"
+    || error.config?.signal?.aborted === true
+);
 const isOfflineCacheResponse = response => (
     response.request?.fromOfflineCache
     || response.headers?.["x-offline-cache"] === "true"
@@ -74,6 +79,14 @@ export const installNetworkClient = () => {
     }, async error => {
         const config = error.config ?? {};
         if (config.__offlineTracked) endNetworkRequest();
+
+        // Ein bewusst per AbortController abgebrochener Request ist kein
+        // Verbindungsfehler. Das passiert z. B. beim Strict-Mode-Remount der
+        // Managementansichten und darf weder den Offline-Status ändern noch
+        // eine Warnung über fehlenden Offline-Inhalt erzeugen.
+        if (isCanceledRequest(error)) {
+            return Promise.reject(error);
+        }
 
         if (!isNetworkFailure(error)) {
             // Auch 401/403/500 beweisen, dass der Server erreichbar ist.

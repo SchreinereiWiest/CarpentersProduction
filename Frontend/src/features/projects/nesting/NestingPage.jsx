@@ -33,6 +33,7 @@ import { OrbitControls } from '@react-three/drei'
 import {getProjectFile, uploadProjectFile} from "../../../shared/cache/project-cache.js";
 import {downloadFile, uploadJSONFile} from "../../../shared/api/file-api.js";
 import { calculateEdgeRequirements } from "@Engine/nesting/edge-requirements.js";
+import { CALCULATION_SOURCES } from "@Engine/contracts/project/calculation-source.js";
 
 const edgeLengthFormatter = new Intl.NumberFormat("de-DE", {
     minimumFractionDigits: 2,
@@ -146,7 +147,6 @@ function NestingView() {
     const navigate = useNavigate();
     const { projectId } = useParams();
 
-    const [project, setProject] = useState(null);
     const [customer, setCustomer] = useState(null);
 
     const [cadfiles, setcadfiles] = useState([]);
@@ -269,9 +269,13 @@ function NestingView() {
                     file: "nesting.json",
         
                     data: generatedData,
-                    
+                    calculationSource: CALCULATION_SOURCES.CLIENT,
                     uploadFunction: {upload: uploadJSONFile, path:`/api/projects/generated/${projectId}/nesting`}
                 });
+
+                const authoritativeData = response?.data ?? generatedData;
+                setNestingResult(authoritativeData);
+                return authoritativeData;
 
             }
 
@@ -297,8 +301,6 @@ function NestingView() {
     useEffect(() => {
         const fetchProject = async () => {
             const { data } = await axios.get(`/api/projects/get/${projectId}`);
-            const projectData = data.project;
-            setProject(data.project);
 
             const customerdata = await axios.get(`/api/customers/get/${data.project.customerId}`);
             setCustomer(customerdata.data.customer);
@@ -323,12 +325,14 @@ function NestingView() {
 
                 const materials = await loadStorageMaterials();
 
-                const data =
+                const { data, calculationSource } =
                     await getProjectFile({
 
                         projectId,
 
                         file: "nesting.json",
+
+                        includeCalculationSource: true,
 
                         loadFromServer: {download: downloadFile, path:`/api/projects/generated/${projectId}/nesting`}
 
@@ -376,8 +380,11 @@ function NestingView() {
 
                 }
 
-                //datei existiert nicht -> neu erstellen un hochladen
-                await UploadData(materials);
+                // Die Serverkennung entscheidet, wer das initiale Nesting erzeugt.
+                // Ohne Kennung bleibt das Verhalten zu älteren Backends kompatibel.
+                if (calculationSource !== CALCULATION_SOURCES.SERVER) {
+                    await UploadData(materials);
+                }
 
 
             } catch (error) {
@@ -407,7 +414,7 @@ function NestingView() {
 
         
 
-    }, [projectId, project]);
+    }, [projectId]);
 
 
     const [activeSheetIndex, setActiveSheetIndex] = useState(0);

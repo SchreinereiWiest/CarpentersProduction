@@ -29,11 +29,18 @@ const TOOLS = [
     description: "Auswahlrechteck aufziehen",
     icon: "cabinet",
     shortcut: "K"
+  },
+  {
+    id: "guide",
+    label: "Hilfslinie",
+    description: "Referenzlinie aus zwei Punkten",
+    icon: "guide",
+    shortcut: "H"
   }
 ];
 
 const LAYERS = [
-  { id: "plan", label: "PDF-Plan", swatch: "bg-[#c9b27b]" },
+  { id: "plan", label: "Plan / Bild", swatch: "bg-[#c9b27b]" },
   { id: "dxf", label: "DXF-Raster", swatch: "bg-[#7ca0b8]" },
   { id: "objects", label: "Aufmaßobjekte", swatch: "bg-[#d99b52]" },
   { id: "snapPoints", label: "Fangpunkte", swatch: "bg-[#63aee0]" },
@@ -46,18 +53,9 @@ export function ToolPanel({
   display,
   onDisplayChange,
   activeView,
-  objectCount,
-  saveStatus
+  objectCount
 }) {
   const drawingDisabled = ["three", "images"].includes(activeView.type);
-  const syncCopy =
-    saveStatus === "saving"
-      ? { label: "Änderungen werden gespeichert", color: "bg-[#dba45d]" }
-      : saveStatus === "local"
-        ? { label: "Offline lokal gespeichert", color: "bg-[#dba45d]" }
-        : saveStatus === "error"
-          ? { label: "Synchronisierung prüfen", color: "bg-[#dc6f67]" }
-          : { label: "Lokal & Server synchronisiert", color: "bg-[#5fb090]" };
   return (
     <aside className="flex min-h-0 flex-col border-r border-[#2a3741] bg-[#172029]">
       <div className="border-b border-[#2a3741] px-4 pb-3 pt-4">
@@ -69,75 +67,66 @@ export function ToolPanel({
           {objectCount === 1 ? "" : "e"}
         </p>
       </div>
-      <div className="space-y-1.5 p-3">
-        {TOOLS.map((tool) => (
-          <button
-            key={tool.id}
-            type="button"
-            disabled={drawingDisabled}
-            onClick={() =>
-              onToolChange(activeTool === tool.id ? null : tool.id)
-            }
-            className={`group flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition disabled:cursor-not-allowed disabled:opacity-35 ${activeTool === tool.id ? "border-[#5c8eb4] bg-[#233b4c] text-white shadow-[inset_3px_0_0_#6eb4e6]" : "border-transparent text-[#b3c0ca] hover:border-[#344653] hover:bg-[#1d2a34]"}`}
-          >
-            <span
-              className={`flex size-8 shrink-0 items-center justify-center rounded-md ${activeTool === tool.id ? "bg-[#31536b] text-[#8dcef7]" : "bg-[#202d37] text-[#8294a2] group-hover:text-[#b8c8d3]"}`}
-            >
-              <AufmasIcon name={tool.icon} className="size-4.5" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-xs font-semibold">
-                {tool.label}
-              </span>
-              <span className="mt-0.5 block truncate text-[10px] text-[#6f808d]">
-                {tool.description}
-              </span>
-            </span>
-            <kbd className="rounded border border-[#3a4853] bg-[#121a20] px-1.5 py-0.5 text-[9px] text-[#6f808d]">
-              {tool.shortcut}
-            </kbd>
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-1 border-t border-[#2a3741] px-4 pb-2 pt-4">
-        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#718391]">
-          <AufmasIcon name="layers" className="size-3.5" /> Anzeige
-        </div>
-      </div>
-      <div className="space-y-0.5 px-3 pb-3">
-        {LAYERS.map((layer) => (
-          <label
-            key={layer.id}
-            className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-xs text-[#aebbc5] hover:bg-[#1d2a34]"
-          >
-            <input
-              type="checkbox"
-              checked={display[layer.id]}
-              onChange={(event) =>
-                onDisplayChange({
-                  ...display,
-                  [layer.id]: event.target.checked
-                })
+      <div className="aufmas-view-scroll flex min-h-0 flex-1 flex-col overflow-y-auto">
+        <div className="aufmas-view-scroll h-[250px] shrink-0 space-y-1.5 overflow-y-auto p-3">
+          {TOOLS.map((tool) => (
+            <button
+              key={tool.id}
+              type="button"
+              disabled={drawingDisabled}
+              onClick={() =>
+                onToolChange(activeTool === tool.id ? null : tool.id)
               }
-              className="size-3.5 rounded border-[#52616c] bg-[#101820] accent-[#5b9dcc]"
-            />
-            <span className={`size-1.5 rounded-full ${layer.swatch}`} />
-            <span>{layer.label}</span>
-          </label>
-        ))}
-      </div>
+              className={`group flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition disabled:cursor-not-allowed disabled:opacity-35 ${activeTool === tool.id ? "border-[#5c8eb4] bg-[#233b4c] text-white shadow-[inset_3px_0_0_#6eb4e6]" : "border-transparent text-[#b3c0ca] hover:border-[#344653] hover:bg-[#1d2a34]"}`}
+            >
+              <span
+                className={`flex size-8 shrink-0 items-center justify-center rounded-md ${activeTool === tool.id ? "bg-[#31536b] text-[#8dcef7]" : "bg-[#202d37] text-[#8294a2] group-hover:text-[#b8c8d3]"}`}
+              >
+                <AufmasIcon name={tool.icon} className="size-4.5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-xs font-semibold">
+                  {tool.label}
+                </span>
+                <span className="mt-0.5 block truncate text-[10px] text-[#6f808d]">
+                  {tool.description}
+                </span>
+              </span>
+              <kbd className="rounded border border-[#3a4853] bg-[#121a20] px-1.5 py-0.5 text-[9px] text-[#6f808d]">
+                {tool.shortcut}
+              </kbd>
+            </button>
+          ))}
+        </div>
 
-      <div className="mt-auto border-t border-[#2a3741] p-3">
-        <div className="rounded-lg border border-[#2f3e49] bg-[#111920] px-3 py-2.5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#617381]">
-            Status
-          </p>
-          <div className="mt-2 flex items-center gap-2 text-xs text-[#9dafbb]">
-            <span className={`size-1.5 rounded-full ${syncCopy.color}`} />{" "}
-            {syncCopy.label}
+        <div className="mt-1 shrink-0 border-t border-[#2a3741] px-4 pb-2 pt-4">
+          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#718391]">
+            <AufmasIcon name="layers" className="size-3.5" /> Anzeige
           </div>
         </div>
+        <div className="shrink-0 space-y-0.5 px-3 pb-3">
+          {LAYERS.map((layer) => (
+            <label
+              key={layer.id}
+              className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-xs text-[#aebbc5] hover:bg-[#1d2a34]"
+            >
+              <input
+                type="checkbox"
+                checked={display[layer.id]}
+                onChange={(event) =>
+                  onDisplayChange({
+                    ...display,
+                    [layer.id]: event.target.checked
+                  })
+                }
+                className="size-3.5 rounded border-[#52616c] bg-[#101820] accent-[#5b9dcc]"
+              />
+              <span className={`size-1.5 rounded-full ${layer.swatch}`} />
+              <span>{layer.label}</span>
+            </label>
+          ))}
+        </div>
+
       </div>
     </aside>
   );
@@ -241,6 +230,14 @@ function ReadOnlyField({ label, children, className = "" }) {
 }
 
 function ReadOnlyObjectDetails({ selected, selectedCabinet, onOpenCabinet }) {
+  if (selected.kind === "guide") {
+    return (
+      <div className="p-4 text-xs leading-relaxed text-[#718491]">
+        Diese Hilfslinie dient ausschließlich als zeichnerische Referenz.
+      </div>
+    );
+  }
+
   const status = selected.status === "measured" ? "Gemessen" : "Ausstehend";
   return (
     <div className="space-y-3 p-4">
@@ -376,6 +373,14 @@ export function PropertiesPanel({
             />
           ) : (
             <div className="space-y-3 p-4">
+              {selected.kind === "guide" ? (
+                <p className="text-xs leading-relaxed text-[#718491]">
+                  Hilfslinien besitzen keine Werkzeugdaten. Sie können die
+                  Linie in der Zeichnung auswählen und über den Papierkorb
+                  löschen.
+                </p>
+              ) : (
+                <>
               {selected.kind !== "cabinet" && (
                 <label className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-[#748591]">
                   Typ
@@ -576,6 +581,8 @@ export function PropertiesPanel({
                   placeholder="Besonderheiten vor Ort …"
                 />
               </label>
+                </>
+              )}
             </div>
           )
         ) : (
@@ -651,7 +658,16 @@ export function PropertiesPanel({
   );
 }
 
-const ViewPreview = ({ view }) => {
+const ViewPreview = ({ view, imageUrl }) => {
+  if (imageUrl) {
+    return (
+      <img
+        src={imageUrl}
+        alt=""
+        className="h-full w-full object-cover opacity-80"
+      />
+    );
+  }
   if (view.type === "three")
     return <AufmasIcon name="cube" className="size-7" />;
   if (view.type === "images")
@@ -661,7 +677,13 @@ const ViewPreview = ({ view }) => {
   return <AufmasIcon name="side" className="size-7" />;
 };
 
-export function ViewStrip({ views, activeViewId, onViewChange, objects }) {
+export function ViewStrip({
+  views,
+  activeViewId,
+  onViewChange,
+  objects,
+  photos = []
+}) {
   return (
     <div className="min-w-0 border-r border-[#2a3741] bg-[#141d25] px-4 py-3">
       <div className="mb-2 flex items-center justify-between">
@@ -674,6 +696,9 @@ export function ViewStrip({ views, activeViewId, onViewChange, objects }) {
       </div>
       <div className="flex gap-2.5 overflow-x-auto pb-1 aufmas-view-scroll">
         {views.map((view, index) => {
+          const imageUrl = view.imageFileId
+            ? photos.find((photo) => photo.id === view.imageFileId)?.url
+            : null;
           const viewObjects = objects.filter(
             (object) => object.viewId === view.id
           );
@@ -690,7 +715,7 @@ export function ViewStrip({ views, activeViewId, onViewChange, objects }) {
               <div
                 className={`flex h-16 items-center justify-center border-b ${activeViewId === view.id ? "border-[#42627a] bg-[#1b2b36] text-[#82bfe7]" : "border-[#2b3943] bg-[#111920] text-[#586f80] group-hover:text-[#87a3b6]"}`}
               >
-                <ViewPreview view={view} />
+                <ViewPreview view={view} imageUrl={imageUrl} />
                 {view.planFileId && (
                   <span className="absolute right-2 top-2 rounded bg-[#b69055]/20 px-1.5 py-0.5 text-[8px] font-semibold text-[#d7b374]">
                     PDF
@@ -699,6 +724,11 @@ export function ViewStrip({ views, activeViewId, onViewChange, objects }) {
                 {view.dxfFileId && (
                   <span className="absolute left-2 top-2 rounded bg-[#5b8aab]/20 px-1.5 py-0.5 text-[8px] font-semibold text-[#83b8d9]">
                     DXF
+                  </span>
+                )}
+                {view.imageFileId && (
+                  <span className="absolute right-2 top-2 rounded bg-[#725a8d]/30 px-1.5 py-0.5 text-[8px] font-semibold text-[#d2b6ec]">
+                    BILD
                   </span>
                 )}
               </div>

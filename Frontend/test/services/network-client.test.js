@@ -55,6 +55,26 @@ describe("verlässlicher Offline-Netzwerkstatus", () => {
         expect(getOfflineStatusSnapshot().online).toBe(false);
     });
 
+    it("wertet einen bewusst abgebrochenen GET-Request nicht als Offlinefehler", async () => {
+        const url = "/api/management";
+        const controller = new AbortController();
+        controller.abort();
+        const error = {
+            code: "ERR_CANCELED",
+            config: { method: "get", url, signal: controller.signal }
+        };
+        setNetworkOnline(true);
+
+        await expect(responseInterceptor.rejected(error)).rejects.toBe(error);
+
+        expect(getOfflineStatusSnapshot().online).toBe(true);
+        expect(getOfflineStatusSnapshot().notices).not.toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ id: `offline-missing:${url}` })
+            ])
+        );
+    });
+
     it("zeigt fehlenden Offline-Inhalt als flüchtige Warnung", async () => {
         const url = "/api/test/not-cached";
         await expect(responseInterceptor.rejected({

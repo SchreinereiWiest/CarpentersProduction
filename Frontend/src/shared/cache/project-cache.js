@@ -14,6 +14,10 @@ import {
     pushOfflineNotice,
     setSyncing
 } from "../offline/offline-status.js";
+import {
+    CALCULATION_SOURCES,
+    CALCULATION_SOURCE_HEADER
+} from "@Engine/contracts/project/calculation-source.js";
 
 const memoryCache = new Map();
 const activeRevalidations = new Map();
@@ -87,6 +91,7 @@ const revalidateProjectFile = async ({
         return storeEntry({
             ...cached,
             fileId: cached.fileId ?? descriptor.fileId ?? null,
+            calculationSource: descriptor.calculationSource ?? cached.calculationSource ?? null,
             sourcePath: loadFromServer.path,
             lastAccessedAt: Date.now(),
             lastValidatedAt: Date.now()
@@ -109,6 +114,7 @@ const revalidateProjectFile = async ({
         baseData: data,
         localRevision: 0,
         syncStatus: "synced",
+        calculationSource: metadata.calculationSource ?? descriptor.calculationSource ?? null,
         sourcePath: loadFromServer.path,
         lastAccessedAt: Date.now(),
         lastValidatedAt: Date.now(),
@@ -140,7 +146,15 @@ const queueProjectRevalidation = options => {
     return task;
 };
 
-export const getProjectFile = async ({ projectId, file, loadFromServer }) => {
+export const getProjectFile = async ({
+    projectId,
+    file,
+    loadFromServer,
+    includeCalculationSource = false
+}) => {
+    const result = (data, calculationSource = null) => includeCalculationSource
+        ? { data, calculationSource }
+        : data;
     const key = cacheKey(projectId, file);
     const memoryEntry = memoryCache.get(key);
     const cached = memoryEntry ?? await getCachedProjectFile({ projectId, file });
@@ -148,15 +162,15 @@ export const getProjectFile = async ({ projectId, file, loadFromServer }) => {
     if (memoryEntry) void touchCachedFile(memoryEntry.key);
 
     if (cached && ["pending", "conflict", "error"].includes(cached.syncStatus)) {
-        return cached.data;
+        return result(cached.data, cached.calculationSource);
     }
     if (isOffline()) {
-        if (cached) return cached.data;
+        if (cached) return result(cached.data, cached.calculationSource);
         return missingOfflineFile(projectId, file);
     }
     if (cached) {
         void queueProjectRevalidation({ projectId, file, cached, loadFromServer, force: true });
-        return cached.data;
+        return result(cached.data, cached.calculationSource);
     }
 
     try {
@@ -164,13 +178,15 @@ export const getProjectFile = async ({ projectId, file, loadFromServer }) => {
         let descriptor = null;
         if (descriptorLoader) {
             descriptor = await descriptorLoader(loadFromServer.path, { offlineManagedResource: true });
-            if (descriptor.exists === false) return null;
+            if (descriptor.exists === false) {
+                return result(null, descriptor.calculationSource);
+            }
         }
 
         const data = descriptor && loadFromServer.download.fromDescriptor
             ? await loadFromServer.download.fromDescriptor(descriptor)
             : await loadFromServer.download(loadFromServer.path);
-        if (data == null) return null;
+        if (data == null) return result(null, descriptor?.calculationSource);
         const metadata = readDownloadMetadata(data);
         const entry = await storeEntry({
             projectId,
@@ -182,14 +198,15 @@ export const getProjectFile = async ({ projectId, file, loadFromServer }) => {
             baseData: data,
             localRevision: 0,
             syncStatus: "synced",
+            calculationSource: metadata.calculationSource ?? descriptor?.calculationSource ?? null,
             sourcePath: loadFromServer.path,
             lastAccessedAt: Date.now(),
             lastValidatedAt: Date.now()
         });
-        return entry.data;
+        return result(entry.data, entry.calculationSource);
     } catch (error) {
         if (cached && (error.code === "ERR_NETWORK" || error.code === "OFFLINE_RESOURCE_UNAVAILABLE" || !error.response)) {
-            return cached.data;
+            return result(cached.data, cached.calculationSource);
         }
         if (!cached && (error.code === "ERR_NETWORK" || error.code === "OFFLINE_RESOURCE_UNAVAILABLE" || !error.response)) {
             return missingOfflineFile(projectId, file);
@@ -227,12 +244,56 @@ const markConflict = async (entry, error) => {
     return conflict;
 };
 
+// Bei der allerersten automatischen Nesting-Berechnung ist eine inzwischen
+// vorhandene Serverdatei kein fachlicher Bearbeitungskonflikt. Die Kennung
+// entscheidet in diesem Fall eindeutig zugunsten des Servers.
+const adoptServerCalculation = async (entry, error) => {
+    let remoteData = null;
+    try {
+        remoteData = await downloadFile(generatedPath(entry));
+    } catch (downloadError) {
+        console.error("Server-Nesting konnte nicht übernommen werden", downloadError);
+    }
+    if (remoteData == null) return null;
+
+    const remoteMetadata = readDownloadMetadata(remoteData);
+    const version = remoteMetadata.serverVersion
+        ?? error.response?.data?.currentVersion
+        ?? null;
+    await storeEntry({
+        ...entry,
+        data: remoteData,
+        fileId: remoteMetadata.fileId ?? error.response?.data?.fileId ?? entry.fileId ?? null,
+        serverVersion: version,
+        baseVersion: version,
+        baseData: remoteData,
+        localRevision: 0,
+        syncStatus: "synced",
+        updatedLocallyAt: null,
+        idempotencyKey: null,
+        remoteData: null,
+        remoteVersion: null,
+        error: null,
+        calculationSource: CALCULATION_SOURCES.SERVER
+    });
+    dismissOfflineNotice(`conflict:${entry.key}`);
+    return {
+        status: "synced",
+        calculationSource: CALCULATION_SOURCES.SERVER,
+        data: remoteData,
+        version
+    };
+};
+
 const sendEntry = async (entry, upload = uploadJSONFile) => {
     try {
         const response = await upload(generatedPath(entry), entry.data, {
             headers: {
                 "If-Match": `"${entry.baseVersion ?? 0}"`,
-                "Idempotency-Key": entry.idempotencyKey
+                "Idempotency-Key": entry.idempotencyKey,
+                ...(entry.calculationSource
+                    ? { [CALCULATION_SOURCE_HEADER]: entry.calculationSource }
+                    : {})
             }
         });
         const version = response.version ?? response.fileEntry?.serverVersion ?? entry.serverVersion;
@@ -251,9 +312,20 @@ const sendEntry = async (entry, upload = uploadJSONFile) => {
             error: null
         });
         dismissOfflineNotice(`sync-error:${entry.key}`);
-        return response;
+        return {
+            ...response,
+            data: entry.data,
+            calculationSource: entry.calculationSource
+        };
     } catch (error) {
         if (error.response?.status === 412 || error.response?.data?.error === "VERSION_CONFLICT") {
+            const serverOwnsInitialCalculation = entry.calculationSource === CALCULATION_SOURCES.CLIENT
+                && (entry.baseVersion ?? 0) === 0
+                && error.response?.data?.calculationSource === CALCULATION_SOURCES.SERVER;
+            if (serverOwnsInitialCalculation) {
+                const adopted = await adoptServerCalculation(entry, error);
+                if (adopted) return adopted;
+            }
             await markConflict(entry, error);
             return { status: "conflict" };
         }
@@ -281,7 +353,13 @@ const sendEntry = async (entry, upload = uploadJSONFile) => {
     }
 };
 
-export const uploadProjectFile = async ({ projectId, file, data, uploadFunction }) => {
+export const uploadProjectFile = async ({
+    projectId,
+    file,
+    data,
+    uploadFunction,
+    calculationSource = null
+}) => {
     const current = await getCachedProjectFile({ projectId, file });
     const entry = await storeEntry({
         projectId,
@@ -297,6 +375,7 @@ export const uploadProjectFile = async ({ projectId, file, data, uploadFunction 
         // Nur automatische Wiederholungen desselben Eintrags verwenden ihn
         // erneut, damit eine verlorene Serverantwort sicher replaybar bleibt.
         idempotencyKey: newMutationId(),
+        calculationSource,
         sourcePath: current?.sourcePath ?? `/api/projects/generated/${projectId}/${file.replace(/\.json$/i, "")}`,
         retentionProtected: current?.retentionProtected
     });

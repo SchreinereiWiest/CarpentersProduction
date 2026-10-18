@@ -24,6 +24,12 @@ const paths = {
       <path d="M12 3v18M9 12h.01m6 0h.01" />
     </>
   ),
+  guide: (
+    <>
+      <path d="M4 18 20 6" />
+      <path d="M3 14v5h5M16 5h5v5" />
+    </>
+  ),
   layers: (
     <>
       <path d="m12 2 9 5-9 5-9-5 9-5Z" />

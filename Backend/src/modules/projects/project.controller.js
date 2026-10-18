@@ -14,6 +14,12 @@ import {
     assertProjectDocument,
     projectDocumentDefinition
 } from "../../../../Engine/src/contracts/project/project-documents.js";
+import {
+    CALCULATION_SOURCES,
+    CALCULATION_SOURCE_HEADER,
+    getProjectDocumentCalculationSource,
+    isCalculationSource
+} from "../../../../Engine/src/contracts/project/calculation-source.js";
 
 export const newProject = async (req, res) => {
 
@@ -352,12 +358,14 @@ export const getGeneratedProjectData = async (req, res) => {
                 fileId: file.id,
                 serverVersion: file.serverVersion,
                 updatedAt: file.updatedAt,
+                calculationSource: getProjectDocumentCalculationSource(name, true)
             });
         }
 
         // Datei existiert noch nicht
         return res.json({
-            exists: false
+            exists: false,
+            calculationSource: getProjectDocumentCalculationSource(name, false)
         });
 
     } catch (error) {
@@ -386,6 +394,14 @@ export async function createGeneratedProjectData(req,res){
         });
     }
     const { fileName } = definition;
+    const requestedCalculationSource = req.get(CALCULATION_SOURCE_HEADER);
+
+    if (requestedCalculationSource != null && !isCalculationSource(requestedCalculationSource)) {
+        return res.status(400).json({
+            error: "INVALID_CALCULATION_SOURCE",
+            message: `${CALCULATION_SOURCE_HEADER} must be \"server\" or \"client\"`
+        });
+    }
 
 
     const prefix = `tenants/${getTenantId()}/projects/${id}`;
@@ -394,6 +410,10 @@ export async function createGeneratedProjectData(req,res){
     const expectedVersion = ifMatch == null
         ? null
         : Number(String(ifMatch).replace(/^W\//, "").replaceAll('"', ""));
+    const conflictCalculationSource = requestedCalculationSource === CALCULATION_SOURCES.CLIENT
+        && expectedVersion === 0
+        ? CALCULATION_SOURCES.SERVER
+        : null;
 
     if (ifMatch != null && !Number.isInteger(expectedVersion)) {
         return res.status(400).json({
@@ -558,7 +578,8 @@ export async function createGeneratedProjectData(req,res){
                     error: "VERSION_CONFLICT",
                     fileId: error.fileId ?? null,
                     expectedVersion: expectedVersion ?? 0,
-                    currentVersion: error.currentVersion ?? 1
+                    currentVersion: error.currentVersion ?? 1,
+                    calculationSource: conflictCalculationSource
                 });
             }
             throw error;
@@ -579,7 +600,8 @@ export async function createGeneratedProjectData(req,res){
             error: "VERSION_CONFLICT",
             fileId: existingFile.id,
             expectedVersion: versionToMatch,
-            currentVersion: existingFile.serverVersion
+            currentVersion: existingFile.serverVersion,
+            calculationSource: conflictCalculationSource
         });
     }
 
@@ -685,7 +707,8 @@ export async function createGeneratedProjectData(req,res){
                 error: "VERSION_CONFLICT",
                 fileId: existingFile.id,
                 expectedVersion: versionToMatch,
-                currentVersion: current?.serverVersion ?? existingFile.serverVersion
+                currentVersion: current?.serverVersion ?? existingFile.serverVersion,
+                calculationSource: conflictCalculationSource
             });
         }
 

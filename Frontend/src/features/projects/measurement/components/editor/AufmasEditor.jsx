@@ -10,6 +10,8 @@ import { derivePdfSnapPoints } from "../../import/pdfSnap.js";
 import {
   clampCanvasPan,
   getPlacedObjectSnapPoints,
+  lockLinePoint,
+  lineLockThresholdForCanvas,
   panForPinchAnchor,
   rectangleFromPoints
 } from "../../domain/geometry.js";
@@ -36,7 +38,9 @@ export default function AufmasEditor({
   onImportDxf,
   onUpdateView,
   importing,
-  readOnly = false
+  readOnly = false,
+  showTips = true,
+  lineLockThresholdCm = 5
 }) {
   const svgRef = useRef(null);
   const panDragRef = useRef(null);
@@ -60,6 +64,11 @@ export default function AufmasEditor({
   const dxfTransform = hasDxf
     ? (view.dxfTransform ?? IDENTITY_DXF_TRANSFORM)
     : IDENTITY_DXF_TRANSFORM;
+  const lineLockCanvasThreshold = lineLockThresholdForCanvas({
+    thresholdCm: lineLockThresholdCm,
+    dxfScale: hasDxf ? dxf.bounds?.scale : null,
+    transformScale: dxfTransform.scale
+  });
   const fallbackSnapPoints =
     !hasDxf && !hasPlan ? uniqueSegmentPoints(FALLBACK_SEGMENTS) : [];
   const dxfSnapPoints = useMemo(
@@ -240,6 +249,18 @@ export default function AufmasEditor({
       : { x, y, snapped: false };
   };
 
+  const toolPoint = (event) => {
+    const point = canvasPoint(event);
+    if (
+      !["measurement", "angle", "guide"].includes(activeTool) ||
+      draft.length === 0
+    ) {
+      return point;
+    }
+
+    return lockLinePoint(draft[0], point, lineLockCanvasThreshold);
+  };
+
   const createObject = (points) => {
     const base = {
       id: createEditorObjectId(),
@@ -262,6 +283,15 @@ export default function AufmasEditor({
         label: "Winkel",
         value: degrees.toFixed(1),
         unit: "°"
+      });
+    } else if (activeTool === "guide") {
+      onCreate({
+        id: base.id,
+        viewId: base.viewId,
+        kind: "guide",
+        points: base.points,
+        type: "Hilfslinie",
+        label: "Hilfslinie"
       });
     } else if (activeTool === "point") {
       onCreate({
@@ -368,11 +398,11 @@ export default function AufmasEditor({
       return;
     }
     if (!activeTool) return;
-    const nextPoint = canvasPoint(event);
+    const nextPoint = toolPoint(event);
     const required =
       activeTool === "angle"
         ? 3
-        : ["measurement", "cabinet"].includes(activeTool)
+        : ["measurement", "cabinet", "guide"].includes(activeTool)
           ? 2
           : 1;
     const nextDraft = [...draft, nextPoint];
@@ -561,7 +591,7 @@ export default function AufmasEditor({
       }
       return;
     }
-    const nextPoint = canvasPoint(event);
+    const nextPoint = toolPoint(event);
     setPointer(nextPoint);
     setHoverSnap(nextPoint.snapped ? nextPoint : null);
   };
@@ -1074,8 +1104,8 @@ export default function AufmasEditor({
             );
           })}
         </svg>
-        {calibration && (
-          <div className="pointer-events-none absolute bottom-6 left-1/2 min-w-72 -translate-x-1/2 rounded-xl border border-[#55768d] bg-[#162631]/95 px-4 py-3 text-center text-xs text-[#d8e8f2] shadow-xl">
+        {showTips && calibration && (
+          <div className="pointer-events-none absolute left-1/2 top-6 min-w-72 -translate-x-1/2 rounded-xl border border-[#55768d] bg-[#162631]/95 px-4 py-3 text-center text-xs text-[#d8e8f2] shadow-xl">
             <p className="font-semibold">{calibrationPrompt}</p>
             <p className="mt-1 text-[10px] text-[#86a0b1]">
               {calibrationDxfStep
@@ -1090,13 +1120,13 @@ export default function AufmasEditor({
             )}
           </div>
         )}
-        {panMode && zoom > 1 && (
-          <div className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full border border-[#456579] bg-[#162631]/95 px-4 py-2 text-xs text-[#c9dce8] shadow-xl">
+        {showTips && panMode && zoom > 1 && (
+          <div className="pointer-events-none absolute left-1/2 top-6 -translate-x-1/2 rounded-full border border-[#456579] bg-[#162631]/95 px-4 py-2 text-xs text-[#c9dce8] shadow-xl">
             Ansicht ziehen · Verschiebung ist auf den Zeichenbereich begrenzt
           </div>
         )}
-        {activeTool && !calibration && !panMode && (
-          <div className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full border border-[#3f5363] bg-[#16212a]/95 px-4 py-2 text-xs text-[#c2d0da] shadow-xl">
+        {showTips && activeTool && !calibration && !panMode && (
+          <div className="pointer-events-none absolute left-1/2 top-6 -translate-x-1/2 rounded-full border border-[#3f5363] bg-[#16212a]/95 px-4 py-2 text-xs text-[#c2d0da] shadow-xl">
             {activeTool === "measurement" &&
               (draft.length ? "Zweiten Punkt wählen" : "Ersten Punkt wählen")}
             {activeTool === "angle" &&
@@ -1106,6 +1136,8 @@ export default function AufmasEditor({
                 "Zweiten Schenkel wählen"
               ][draft.length]}
             {activeTool === "point" && "Position der Installation wählen"}
+            {activeTool === "guide" &&
+              (draft.length ? "Zweiten Punkt wählen" : "Ersten Punkt wählen")}
             {activeTool === "cabinet" &&
               (draft.length
                 ? "Gegenüberliegende Ecke wählen"

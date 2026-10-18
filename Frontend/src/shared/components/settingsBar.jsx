@@ -18,6 +18,10 @@ const tabs = [
         label: "Programmeinstellungen"
     },
     {
+        id: "userInterface",
+        label: "Benutzeroberfläche"
+    },
+    {
         id: "cache",
         label: "Cache"
     },

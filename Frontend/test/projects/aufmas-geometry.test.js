@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clampCanvasPan, getPlacedObjectSnapPoints, panForPinchAnchor, rectangleFromPoints } from "../../src/features/projects/measurement/domain/geometry.js";
+import { clampCanvasPan, getPlacedObjectSnapPoints, lockLinePoint, lineLockThresholdForCanvas, panForPinchAnchor, rectangleFromPoints } from "../../src/features/projects/measurement/domain/geometry.js";
 
 describe("Aufmaß object geometry", () => {
     it("creates a normalised cabinet selection rectangle from opposite corners", () => {
@@ -48,5 +48,36 @@ describe("Aufmaß object geometry", () => {
             canvasWidth: 1000,
             canvasHeight: 650
         })).toEqual({ x: -50, y: 0 });
+    });
+
+    it("locks line points horizontally within the configured deviation", () => {
+        expect(lockLinePoint(
+            { x: 100, y: 200 },
+            { x: 260, y: 204.9, snapped: true },
+            5
+        )).toMatchObject({ x: 260, y: 200, snapped: false, lineLocked: "horizontal" });
+    });
+
+    it("locks line points vertically and chooses the closer axis near the origin", () => {
+        expect(lockLinePoint(
+            { x: 100, y: 200 },
+            { x: 103, y: 204 },
+            5
+        )).toMatchObject({ x: 100, y: 204, lineLocked: "vertical" });
+    });
+
+    it("does not lock points outside or without a positive threshold", () => {
+        const point = { x: 108, y: 207 };
+        expect(lockLinePoint({ x: 100, y: 200 }, point, 5)).toBe(point);
+        expect(lockLinePoint({ x: 100, y: 200 }, point, 0)).toBe(point);
+    });
+
+    it("converts the centimetre threshold using the DXF and alignment scales", () => {
+        expect(lineLockThresholdForCanvas({
+            thresholdCm: 5,
+            dxfScale: 0.892,
+            transformScale: 1.5
+        })).toBeCloseTo(66.9);
+        expect(lineLockThresholdForCanvas({ thresholdCm: 5 })).toBe(5);
     });
 });

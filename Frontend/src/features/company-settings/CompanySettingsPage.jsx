@@ -26,6 +26,9 @@ import ShopSettingsPanel
 import ProgramSettingsPanel
     from "./panels/programSettingsPanel.jsx";
 
+import UserInterfaceSettingsPanel
+    from "./panels/userInterfaceSettingsPanel.jsx";
+
 import EstimationSettingsPanel
     from "./panels/estimationSettingsPanel.jsx";
 import AttachmentSearchSettingsPanel
@@ -98,6 +101,11 @@ export default function CompanySettings() {
             case "programSettings":
                 return (
                     <ProgramSettingsPanel />
+                );
+
+            case "userInterface":
+                return (
+                    <UserInterfaceSettingsPanel />
                 );
 
             case "storage":

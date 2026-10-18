@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router";
 import SideBar from "../../../shared/components/sideBar.jsx";
 import ProjectBar from "../../../shared/components/projectBar.jsx";
 import MobileWorkspaceGuard from "../../../shared/components/MobileWorkspaceGuard.jsx";
+import useCompanySettings from "../../../shared/hooks/useCompanySettings.js";
 import {
   getProjectAssetBlob,
   getProjectAssetUrl
@@ -32,6 +33,7 @@ import {
 } from "./config/defaults.js";
 import { parseDxf } from "./import/dxf.js";
 import { renderPdfPages } from "./import/pdf.js";
+import { isListedAufmasObject } from "./domain/objects.js";
 import {
   getAufmasWorkspaceCache,
   setAufmasWorkspaceCache
@@ -43,6 +45,7 @@ import AufmasThreeView from "./views/three/AufmasThreeView.jsx";
 export default function AufmasWorkspace() {
   const { projectId } = useParams();
   const navigate = useNavigate();
+  const { settings: companySettings } = useCompanySettings();
   const cachedWorkspace = useMemo(
     () => getAufmasWorkspaceCache(projectId),
     [projectId]
@@ -112,11 +115,24 @@ export default function AufmasWorkspace() {
     () => objects.filter((object) => object.viewId === activeView?.id),
     [activeView?.id, objects]
   );
+  const listedObjects = useMemo(
+    () => objects.filter(isListedAufmasObject),
+    [objects]
+  );
+  const activeListedObjects = useMemo(
+    () => activeObjects.filter(isListedAufmasObject),
+    [activeObjects]
+  );
   const selected =
     activeObjects.find((object) => object.id === selectedId) ?? null;
+  const activeImage = activeView?.imageFileId
+    ? photos.find((photo) => photo.id === activeView.imageFileId)
+    : null;
   const activePlanPage = activeView?.planFileId
     ? pdfPages[`${activeView.planFileId}:${activeView.pageNumber || 1}`]
-    : null;
+    : activeImage
+      ? { dataUrl: activeImage.url, imageFileId: activeImage.id }
+      : null;
   const activeDxf = dxfLayers[activeView?.id] ?? { shapes: [], snapPoints: [] };
 
   const showNotice = useCallback((message, type = "info") => {
@@ -270,17 +286,19 @@ export default function AufmasWorkspace() {
     let cancelled = false;
     const loadPhotos = async () => {
       const imageFiles = project.files.filter(
-        (file) =>
-          file.category !== "project-home-image" &&
-          file.mimeType?.startsWith("image/")
+        (file) => file.mimeType?.startsWith("image/")
       );
       const loaded = await Promise.all(
-        imageFiles.map(async (file) => ({
-          ...file,
-          url: await getProjectAssetUrl(file)
-        }))
+        imageFiles.map(async (file) => {
+          try {
+            return { ...file, url: await getProjectAssetUrl(file) };
+          } catch (error) {
+            console.warn(`${file.fileName} konnte nicht geladen werden`, error);
+            return null;
+          }
+        })
       );
-      if (!cancelled) setPhotos(loaded);
+      if (!cancelled) setPhotos(loaded.filter(Boolean));
     };
     loadPhotos().catch((error) =>
       console.warn("Projektbilder konnten nicht geladen werden", error)
@@ -391,9 +409,13 @@ export default function AufmasWorkspace() {
       }
       if (isCompleted) return;
       if (isTyping || ["three", "images"].includes(activeView?.type)) return;
-      const tool = { m: "measurement", w: "angle", p: "point", k: "cabinet" }[
-        event.key.toLowerCase()
-      ];
+      const tool = {
+        m: "measurement",
+        w: "angle",
+        p: "point",
+        k: "cabinet",
+        h: "guide"
+      }[event.key.toLowerCase()];
       if (tool) setActiveTool(tool);
       if ((event.key === "Delete" || event.key === "Backspace") && selectedId) {
         setObjects((current) =>
@@ -455,6 +477,7 @@ export default function AufmasWorkspace() {
                 nextDrawingViews[index].label
               ),
               planFileId: fileEntry.id,
+              imageFileId: null,
               pageNumber: page.pageNumber,
               pdfSnapPoints: [],
               pdfSnapStats: null
@@ -538,6 +561,40 @@ export default function AufmasWorkspace() {
     } finally {
       setUploadingPhoto(false);
     }
+  };
+
+  const createViewFromPhoto = (photo, name) => {
+    if (isCompleted || !photo?.id) return;
+    const label = String(name || "").trim();
+    if (!label) return;
+    const viewId = `image-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
+    const imageView = {
+      id: viewId,
+      label,
+      type: "elevation",
+      imageFileId: photo.id,
+      planFileId: null,
+      dxfFileId: null,
+      pageNumber: 1,
+      pdfSnapPoints: [],
+      pdfSnapStats: null
+    };
+
+    setViews((current) => {
+      const firstSpecialView = current.findIndex((view) =>
+        ["three", "images"].includes(view.type)
+      );
+      if (firstSpecialView < 0) return [...current, imageView];
+      return [
+        ...current.slice(0, firstSpecialView),
+        imageView,
+        ...current.slice(firstSpecialView)
+      ];
+    });
+    setActiveViewId(viewId);
+    setSelectedId(null);
+    setActiveTool("measurement");
+    showNotice(`„${label}“ wurde als neue Ansicht hinzugefügt.`);
   };
 
   const createObject = (object) => {
@@ -707,7 +764,7 @@ export default function AufmasWorkspace() {
           {isCompleted ? (
             <ObjectOverviewPanel
               activeView={activeView}
-              objects={activeObjects}
+              objects={activeListedObjects}
               selectedId={selectedId}
               onSelect={setSelectedId}
             />
@@ -718,8 +775,7 @@ export default function AufmasWorkspace() {
               display={display}
               onDisplayChange={setDisplay}
               activeView={activeView}
-              objectCount={activeObjects.length}
-              saveStatus={saveStatus}
+              objectCount={activeListedObjects.length}
             />
           )}
           <section className="min-h-0 min-w-0">
@@ -729,6 +785,7 @@ export default function AufmasWorkspace() {
               <ImagesView
                 photos={photos}
                 onUpload={uploadPhoto}
+                onCreateView={createViewFromPhoto}
                 uploading={uploadingPhoto}
                 readOnly={isCompleted}
               />
@@ -754,13 +811,17 @@ export default function AufmasWorkspace() {
                 }
                 importing={importing}
                 readOnly={isCompleted}
+                showTips={companySettings.userInterface?.showTips !== false}
+                lineLockThresholdCm={
+                  companySettings.userInterface?.lineLockThresholdCm ?? 5
+                }
               />
             )}
           </section>
           <div className="aufmas-right-sidebar grid min-h-0 border-l border-[#2a3741] bg-[#172029]">
             <PropertiesPanel
               selected={selected}
-              objects={activeObjects}
+              objects={activeListedObjects}
               cabinets={cabinets}
               onSelect={setSelectedId}
               onUpdate={(id, patch) =>
@@ -783,7 +844,7 @@ export default function AufmasWorkspace() {
             />
             <div className="min-h-0 border-t border-[#2a3741]">
               <ProgressPanel
-                objects={objects}
+                objects={listedObjects}
                 todos={todos}
                 onTodosChange={setTodos}
                 readOnly={isCompleted}
@@ -795,7 +856,8 @@ export default function AufmasWorkspace() {
               views={views}
               activeViewId={activeViewId}
               onViewChange={changeView}
-              objects={objects}
+              objects={listedObjects}
+              photos={photos}
             />
           </div>
         </div>
