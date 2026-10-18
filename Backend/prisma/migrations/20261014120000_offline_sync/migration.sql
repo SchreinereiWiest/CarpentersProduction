@@ -40,4 +40,9 @@ CREATE POLICY "tenant_isolation" ON "sync_mutations"
 USING ("tenant_id" = NULLIF(current_setting('app.tenant_id', true), '')::uuid)
 WITH CHECK ("tenant_id" = NULLIF(current_setting('app.tenant_id', true), '')::uuid);
 
-GRANT SELECT, INSERT, UPDATE, DELETE ON "sync_mutations" TO carpenters_tenant_app;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'carpenters_tenant_app') THEN
+    GRANT SELECT, INSERT, UPDATE, DELETE ON "sync_mutations" TO carpenters_tenant_app;
+  END IF;
+END $$;

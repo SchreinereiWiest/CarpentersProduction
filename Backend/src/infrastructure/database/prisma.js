@@ -95,11 +95,22 @@ function tenantArgs(method, input, tenantId) {
 }
 
 async function setRlsTenant(transaction, tenantId) {
-    // Der Compose-Datenbankbesitzer ist Superuser und würde selbst FORCE RLS
-    // umgehen. Die Migration legt daher eine feste NOLOGIN/NOBYPASSRLS-Rolle
-    // an. SET LOCAL begrenzt Rolle und tenantId exakt auf diese Transaktion;
-    // beim Zurückgeben der Verbindung an den Pool bleibt kein Kontext zurück.
-    await transaction.$executeRawUnsafe("SET LOCAL ROLE carpenters_tenant_app");
+    // Superuser und Rollen mit BYPASSRLS umgehen auch FORCE RLS. Für diese
+    // lokalen/selbst verwalteten Setups legt die Migration eine eingeschränkte
+    // Laufzeitrolle an. Normale Production-Rollen benötigen sie nicht und
+    // bleiben direkt den erzwungenen Policies unterworfen.
+    const [databaseRole] = await transaction.$queryRaw`
+        SELECT rolsuper OR rolbypassrls AS "bypassesRls"
+        FROM pg_roles
+        WHERE rolname = current_user
+    `;
+
+    if (databaseRole?.bypassesRls) {
+        // SET LOCAL begrenzt den Rollenwechsel exakt auf diese Transaktion.
+        // Fehlt die Rolle, schlägt der Zugriff bewusst geschlossen fehl.
+        await transaction.$executeRawUnsafe("SET LOCAL ROLE carpenters_tenant_app");
+    }
+
     await transaction.$executeRaw`
         SELECT set_config('app.tenant_id', ${tenantId}, true)
     `;

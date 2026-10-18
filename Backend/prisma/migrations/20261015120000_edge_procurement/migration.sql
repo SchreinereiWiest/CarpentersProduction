@@ -17,7 +17,12 @@ ALTER TABLE "shop_configurations"
   FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id")
   ON DELETE CASCADE ON UPDATE CASCADE;
 
-GRANT SELECT, INSERT, UPDATE, DELETE ON "shop_configurations" TO carpenters_tenant_app;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'carpenters_tenant_app') THEN
+    GRANT SELECT, INSERT, UPDATE, DELETE ON "shop_configurations" TO carpenters_tenant_app;
+  END IF;
+END $$;
 
 ALTER TABLE "shop_configurations" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "shop_configurations" FORCE ROW LEVEL SECURITY;
