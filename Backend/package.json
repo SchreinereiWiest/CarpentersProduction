@@ -6,12 +6,18 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "tsx watch src/server.js",
-    "test:security": "node --test test/auth.middleware.test.js"
+    "test": "node --test test/*.test.js test/management/*.test.js",
+    "test:security": "node --test test/auth.middleware.test.js test/attachment-search.test.js",
+    "test:management": "node --test test/management/foundations.test.js test/management/setup.test.js",
+    "test:management:api": "node --test test/management/api.test.js"
   },
   "type": "module",
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "prisma": {
+    "schema": "prisma/schema"
+  },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1131.0",
     "@aws-sdk/s3-request-presigner": "^3.1131.0",

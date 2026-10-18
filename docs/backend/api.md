@@ -46,6 +46,7 @@ Basis-URL im lokalen Backend: `http://localhost:5000/api`. Geschützte Endpunkte
 | Methode | Pfad | Schutz | Handler | Zweck |
 |---|---|---|---|---|
 | `POST` | `/files/upload` | Zielressourcenberechtigung | `createUpload` | Multipart-Datei nach Garage laden |
+| `POST` | `/files/project-import-asset` | Admin oder Manager und Projektberechtigung | `createUpload` | kategorisiertes Bild/PDF aus einem Projektimport laden |
 | `GET` | `/files/download/:id` | Dateiberechtigung | `createDownloadUrl` | 15 Minuten gültige Download-URL erzeugen |
 | `DELETE` | `/files/delete/:fileId` | Dateiberechtigung | `deleteFile` | Datei entfernen und Garage-Löschjob anlegen |
 
@@ -94,6 +95,24 @@ Gültige Namen sind `cabinet`, `cabinetPreset`, `nesting`, `cnc`, `cache` und `c
 | `GET` | `/settings/company` | angemeldet | Wrapper → `getSettingsData` | Firmeneinstellungen laden |
 | `GET` | `/settings/:name` | Admin | `getSettingsData` | Einstellungsdatei laden |
 | `POST` | `/settings/:name` | Admin | `createSettingsData` | Einstellungsdatei anlegen/überschreiben |
+
+## Management
+
+Alle Management-Endpunkte verlangen Admin- oder Managerrolle. Der Parameter `year` wählt das Startjahr des Geschäftsjahres; ohne Angabe wird das aktuelle Jahr verwendet.
+
+| Methode | Pfad | Zweck |
+|---|---|---|
+| `GET` | `/management?year=2026` | Snapshot mit Entwurf, Revision, abgeschlossenen Zeitberichten, `setupCalculation`, `operationalConfig`, fixiertem `operatingPlan`, laufendem `operatingActual` und `previous` laden |
+| `GET` | `/management/references` | aktive Personalkonten und Betriebsbelege laden |
+| `PUT` | `/management/settings` | `{config, revision}` validieren und für das Geschäftsjahr speichern |
+| `POST` | `/management/setup/approve` | gespeicherten Entwurf mit `{revision, note?}` prüfen und als unveränderliche Kalkulationsversion freigeben |
+| `POST` | `/files/management-document` | PDF/JPG bis 50 MB als Betriebsbeleg hochladen; Multipart-Felder `file`, `fileName` |
+
+Die neue Einrichtung speichert Anlagen, Restschulden, jährliche Kosten, Mitarbeiterplanung und Freigabesnapshots in `config.setup`. Die Freigabehistorie wird beim Speichern ausschließlich aus der bestehenden Serverkonfiguration übernommen; clientseitige Änderungen an ihr werden ignoriert. Eine Freigabe verlangt vollständige Zuordnungen und eine aktuelle Revision. Der Snapshot fixiert auch eine aus Zeitberichten berechnete Stundenbasis. Neue Berichte ändern anschließend die laufende Stundenanalyse, während Ist-Summen aus der aktuellen Konfiguration gelesen werden.
+
+Die früheren Vorfall-, Zahlungs-, Regel-, Anlage- und Darlehensbuchungs-APIs sowie die alte Antwort `calculation` wurden entfernt. Anlagen und Restschulden werden im Jahresentwurf gepflegt; bestehende Tabellen werden nicht gelöscht. Die einmalige Übernahme alter Bestände bleibt vor der ersten Einrichtung erhalten. [API und Speicherung](../management/api.md) beschreibt den aktiven Vertrag ausführlich.
+
+Konflikte bei Revisionen oder parallelen Änderungen liefern `409`. Ungültige Zuordnungen und überlappende Geschäftsjahre werden abgelehnt. Betriebsbelege sind ausschließlich für Manager/Admins zugänglich. Weitere Details stehen unter [Management und Betriebskalkulation](../frontend/management.md).
 
 ## Allgemeine Antwortkonventionen
 

@@ -1,6 +1,31 @@
 # Backend
 
-Das Backend ist eine Express-5-Anwendung mit ECMAScript-Modulen. Es läuft fest auf Port `5000`, verwendet Prisma für PostgreSQL und zwei S3-Clients für interne Uploads sowie öffentliche signierte Downloads.
+Das Backend ist eine Express-5-Anwendung mit ECMAScript-Modulen. Es verwendet Prisma für PostgreSQL und S3-kompatible Clients für Uploads sowie signierte Downloads.
+
+## Quellstruktur
+
+```text
+Backend/src/
+├── app.js                    Express-App, globale Middleware und Routen-Mounts
+├── server.js                 Umgebungsstart, Tenant-Bootstrap und Worker
+├── modules/                  Fachmodule mit Route, Controller und Service
+│   ├── auth/
+│   ├── attachment-search/
+│   ├── customers/
+│   ├── files/
+│   ├── management/
+│   ├── projects/
+│   └── ...
+├── infrastructure/
+│   ├── database/             Prisma und Tenant-Kontext
+│   ├── storage/              S3, Storage-Service und Löschworker
+│   └── logging/
+├── middleware/               CSRF, Auth, Upload und Ressourcenrechte
+├── shared/security/          JWT- und Passwortfunktionen
+└── scripts/                  administrative Kommandozeilen-Skripte
+```
+
+Routen, Controller und Services eines Fachbereichs liegen bewusst nebeneinander. Technische Infrastruktur bleibt davon getrennt und kann von mehreren Modulen genutzt werden.
 
 ## Einstiegspunkte
 
@@ -9,18 +34,19 @@ Das Backend ist eine Express-5-Anwendung mit ECMAScript-Modulen. Es läuft fest 
 | Lokale Einrichtung und Variablen | [Installation & Konfiguration](installation.md) |
 | Alle HTTP-Routen | [API-Referenz](api.md) |
 | Login, Cookies und Rollen | [Authentifizierung](authentication.md) |
-| Controller nach Fachbereich | [Kunden](customers.md), [Projekte](projects.md), [Zeiten](time-tracking.md), [Benutzer](users.md) |
+| Fachbereiche | [Kunden](customers.md), [Projekte](projects.md), [Zeiten](time-tracking.md), [Benutzer](users.md) |
 | S3, Materialien und Einstellungen | [Dateien, Material & Einstellungen](files-storage-settings.md) |
-| Jede benannte Backend-Funktion | [Funktionsreferenz](functions.md) |
-| Erkannte Schwachstellen | [Sicherheit & bekannte Risiken](security.md) |
+| Benannte Backend-Funktionen | [Funktionsreferenz](functions.md) |
+| Sicherheitsregeln | [Sicherheit & bekannte Risiken](security.md) |
 
 ## Globale Express-Konfiguration
 
-- CORS ist mit Credentials aktiviert und auf zwei konfigurierte Origins begrenzt.
-- Jeder Request wird mit Methode und URL auf `stdout` protokolliert.
+- CORS verwendet Credentials und die konfigurierten erlaubten Origins.
 - JSON- und URL-encoded-Bodies sind auf 20 MB begrenzt.
 - Cookies werden mit `cookie-parser` eingelesen.
-- Es gibt derzeit weder eine zentrale 404- noch eine zentrale Fehler-Middleware.
+- Origin- und CSRF-Prüfung laufen vor den Fachrouten.
+- Eine zentrale Fehler-Middleware übersetzt Fehler in ein einheitliches JSON-Format.
+- `app.js` öffnet keinen Port und kann dadurch unabhängig vom Serverprozess getestet werden.
 
 ## Route-Prefixe
 
@@ -28,13 +54,12 @@ Das Backend ist eine Express-5-Anwendung mit ECMAScript-Modulen. Es läuft fest 
 |---|---|
 | `/api/auth` | Login und aktuelle Identität |
 | `/api/customers` | Kunden |
-| `/api/projects` | Projekte, Projektdateien und Projektzeiten |
-| `/api/files` | Binärdateien |
+| `/api/projects` | Projekte, Projektdokumente und Projektzeiten |
+| `/api/files` | Binärdateien und Suche |
 | `/api/materials` | Materiallager |
 | `/api/time` | Tages- und Wochenzeiterfassung |
 | `/api/user` | Benutzerverwaltung |
 | `/api/settings` | JSON-Einstellungen |
-
-## Nicht implementierte Schichten
-
-`src/services/auth.service.js`, `project.service.js`, `storage.service.js` und `user.service.js` sowie `src/utils/logger.js` sind leer. Sie besitzen aktuell keine Laufzeitfunktion.
+| `/api/shop` | Einkauf und Lieferantenartikel |
+| `/api/management` | Betriebsrechnung und Managementdaten |
+| `/api/license` | Lizenzstatus |

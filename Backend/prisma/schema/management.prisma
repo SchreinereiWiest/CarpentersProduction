@@ -1,0 +1,102 @@
+model ManagementPeriod {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  year      Int
+  config    Json
+  revision  Int      @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, year])
+  @@unique([tenantId, id])
+  @@map("management_periods")
+}
+
+model ManagementTransaction {
+  id           String              @id @default(uuid()) @db.Uuid
+  tenantId     String              @map("tenant_id") @db.Uuid
+  kind         String
+  basis        String              @default("actual")
+  source       String              @default("manual")
+  sourceKey    String?             @map("source_key")
+  title        String
+  counterparty String?
+  date         DateTime            @db.Date
+  dueDate      DateTime?           @map("due_date") @db.Date
+  amount       Decimal             @db.Decimal(14, 2)
+  vatRate      Decimal             @default(0) @map("vat_rate") @db.Decimal(5, 2)
+  costTypeId   String?             @map("cost_type_id")
+  centerId     String?             @map("center_id")
+  note         String?
+  projectId    String?             @map("project_id") @db.Uuid
+  project      Project?            @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  fileId       String?             @map("file_id") @db.Uuid
+  file         File?               @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  payments     ManagementPayment[]
+  version      Int                 @default(0)
+  createdAt    DateTime            @default(now()) @map("created_at")
+  updatedAt    DateTime            @updatedAt @map("updated_at")
+
+  @@unique([tenantId, sourceKey])
+  @@unique([tenantId, id])
+  @@index([date, basis])
+  @@index([fileId])
+  @@index([projectId])
+  @@map("management_transactions")
+}
+
+model ManagementPayment {
+  id            String                @id @default(uuid()) @db.Uuid
+  tenantId      String                @map("tenant_id") @db.Uuid
+  transactionId String                @map("transaction_id") @db.Uuid
+  transaction   ManagementTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  date          DateTime              @db.Date
+  amount        Decimal               @db.Decimal(14, 2)
+  note          String?
+
+  @@unique([tenantId, id])
+  @@index([transactionId])
+  @@map("management_payments")
+}
+
+model ManagementAsset {
+  id              String   @id @default(uuid()) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  name            String
+  acquiredAt      DateTime @map("acquired_at") @db.Date
+  purchaseCost    Decimal  @map("purchase_cost") @db.Decimal(14, 2)
+  residualValue   Decimal  @default(0) @map("residual_value") @db.Decimal(14, 2)
+  usefulLifeYears Decimal  @map("useful_life_years") @db.Decimal(6, 2)
+  centerId        String?  @map("center_id")
+  note            String?
+  version         Int      @default(0)
+
+  @@unique([tenantId, id])
+  @@map("management_assets")
+}
+
+model ManagementLoan {
+  id           String                @id @default(uuid()) @db.Uuid
+  tenantId     String                @map("tenant_id") @db.Uuid
+  name         String
+  startDate    DateTime              @map("start_date") @db.Date
+  principal    Decimal               @db.Decimal(14, 2)
+  interestRate Decimal               @default(0) @map("interest_rate") @db.Decimal(5, 2)
+  note         String?
+  repayments   ManagementRepayment[]
+
+  @@unique([tenantId, id])
+  @@map("management_loans")
+}
+
+model ManagementRepayment {
+  id       String         @id @default(uuid()) @db.Uuid
+  tenantId String         @map("tenant_id") @db.Uuid
+  loanId   String         @map("loan_id") @db.Uuid
+  loan     ManagementLoan @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  date     DateTime       @db.Date
+  amount   Decimal        @db.Decimal(14, 2)
+
+  @@unique([tenantId, id])
+  @@index([loanId])
+  @@map("management_repayments")
+}

@@ -1,0 +1,32 @@
+model TimeEntry {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  projectId String  @map("project_id") @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  userId String? @map("user_id") @db.Uuid
+  user   User?   @relation(fields: [userId], references: [id])
+
+  // Die zulässigen Werte werden über settings-company.json gepflegt.
+  // String statt Enum: neue Tätigkeiten benötigen keine DB-Migration mehr.
+  workType String @map("work_type")
+
+  customWorkType String? @map("custom_work_type")
+
+  startedAt DateTime? @map("started_at")
+  endedAt   DateTime? @map("ended_at")
+
+  duration Int @default(0) // Minuten
+
+  note String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, id])
+  @@map("time_entries")
+}
+
+// Freigegebene Nachkalkulationen bilden den tenantgebundenen Suchindex für
+// Projektähnlichkeit und Stundenprognosen. Große Projektdaten bleiben in S3;
+// objectReferences enthält ausschließlich ihre versionierten Objekt-Keys.

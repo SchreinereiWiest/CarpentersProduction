@@ -1,7 +1,7 @@
 import bcrypt from "bcrypt";
 import "dotenv/config";
 
-import prisma from "../config/prisma.js";
+import { systemPrisma as prisma } from "../infrastructure/database/prisma.js";
 
 const createUser = async () => {
 
@@ -19,6 +19,11 @@ const createUser = async () => {
         password,
         12
     );
+
+    const tenant = await prisma.tenant.findFirst({
+        where: { slug: process.env.BOOTSTRAP_TENANT_SLUG || "development" }
+    });
+    if (!tenant) throw new Error("Bootstrap-Mandant nicht gefunden. Migration zuerst ausführen.");
 
     const user = await prisma.user.create({
 
@@ -44,7 +49,11 @@ const createUser = async () => {
         }
     });
 
-    console.log(user);
+    await prisma.tenantMembership.create({
+        data: { tenantId: tenant.id, userId: user.id, role: "admin" }
+    });
+
+    console.log({ ...user, tenant: tenant.slug });
 
 };
 

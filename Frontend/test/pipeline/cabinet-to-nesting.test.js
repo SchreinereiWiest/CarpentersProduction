@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { buildPartList } from '../../src/pages/projects/cabinetConfigurator/engine/partList/buildPartList.js';
-import { flattenPartList } from '../../src/pages/projects/cnc/cncEngine/falttenPartList.js';
-import { groupCncParts } from '../../src/pages/projects/cnc/cncEngine/groupCncParts.js';
-import { calculateNesting } from '../../src/pages/projects/nesting/algorythm/nestingAlgorythm.js';
+import { buildPartList } from '@Engine/cabinet/partList/buildPartList.js';
+import { flattenPartList } from '@Engine/cnc/flattenPartList.js';
+import { groupCncParts } from '@Engine/cnc/groupCncParts.js';
+import { calculateNesting } from '@Engine/nesting/nestingAlgorythm.js';
 import {
   cabinet,
   materials,

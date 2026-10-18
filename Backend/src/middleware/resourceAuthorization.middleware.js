@@ -1,4 +1,4 @@
-import prisma from "../config/prisma.js";
+import prisma from "../infrastructure/database/prisma.js";
 
 const isPrivileged = user => ["admin", "manager"].includes(user?.role);
 
@@ -49,8 +49,11 @@ export const authorizeCustomerBody = (field = "customerId") => async (req, res, 
     return authorizeCustomer("authorizationCustomerId")(req, res, next);
 };
 
-export const canAccessFile = (user, file) => {
+export const canAccessFile = (user, file, { allowSharedShop = false } = {}) => {
     if (isPrivileged(user)) return true;
+    if (file.category === 'management-document') return false;
+
+    if (allowSharedShop && file.category === "shop") return true;
 
     if (file.project) {
         return file.project.status === "active" && !file.project.deletedAt;
@@ -60,7 +63,7 @@ export const canAccessFile = (user, file) => {
         || file.customer?.createdById === user.id;
 };
 
-export const authorizeFile = (parameter = "id") => async (req, res, next) => {
+export const authorizeFile = (parameter = "id", options = {}) => async (req, res, next) => {
     const file = await prisma.file.findFirst({
         where: {
             id: req.params[parameter],
@@ -68,6 +71,7 @@ export const authorizeFile = (parameter = "id") => async (req, res, next) => {
         },
         select: {
             id: true,
+            category: true,
             uploadedById: true,
             project: { select: { status: true, deletedAt: true } },
             customer: { select: { createdById: true } }
@@ -76,7 +80,7 @@ export const authorizeFile = (parameter = "id") => async (req, res, next) => {
 
     if (!file) return missing(res, "File");
 
-    if (!canAccessFile(req.user, file)) return deny(res);
+    if (!canAccessFile(req.user, file, options)) return deny(res);
     req.authorizedFile = file;
     next();
 };

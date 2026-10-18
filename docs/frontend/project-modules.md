@@ -21,7 +21,7 @@ Die UI ist in Sidebar, Eigenschaftspanels und SVG-Viewport getrennt. View-Layer 
 
 ## CAD
 
-`cadParser.project.js` wandelt importierte CAD-JSON-Werte in die interne Parent-/Board-Struktur um. `cadLoader.project.js` lädt Dateimetadaten und signierte Inhalte. `cad.project.jsx` rendert GLB-Modelle oder Board-Geometrien und hält die aktuelle Auswahl für das Editorpanel.
+`cadParser.js` wandelt importierte CAD-JSON-Werte in die interne Parent-/Board-Struktur um. `cadLoader.js` lädt Dateimetadaten und signierte Inhalte. `cad.jsx` rendert GLB-Modelle oder Board-Geometrien und hält die aktuelle Auswahl für das Editorpanel.
 
 ## Nesting
 

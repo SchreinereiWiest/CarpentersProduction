@@ -1,0 +1,4 @@
+export const DEFAULT_LIGHT_DIRECTION = 37;
+export const DEFAULT_LIGHT_STRENGTH = 2.6;
+export const ENVIRONMENT_INTENSITY = 0.28;
+export const TONE_MAPPING_EXPOSURE = 0.78;

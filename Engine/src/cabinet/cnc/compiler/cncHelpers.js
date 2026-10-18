@@ -1,0 +1,373 @@
+import { DEFAULT_CNC } from "../cncDefaults.js";
+import { createId } from "../../../shared/id.js";
+import { flattenTree } from "../../../shared/tree.js";
+
+export const getOperationSignature = (operation) => {
+    const geometry = { ...(operation ?? {}) };
+    delete geometry.id;
+    delete geometry.source;
+    delete geometry.reference;
+
+    return JSON.stringify(geometry);
+};
+
+
+export const addOperation = (part, operation) => {
+
+    if (!part) {
+        return null;
+    }
+
+    ensureCnc(part);
+
+    const signature =
+        getOperationSignature(operation);
+
+    const existing =
+        part.CNC.operations.find(
+            existingOperation =>
+                getOperationSignature(existingOperation) === signature
+        );
+
+    if (existing) {
+        return existing;
+    }
+
+    const {
+        id,
+        ...operationWithoutId
+    } = operation;
+
+    const entry = {
+        id: id ?? createId(),
+        ...operationWithoutId
+    };
+
+    part.CNC.operations.push(entry);
+
+    return entry;
+};
+
+
+export { createId };
+
+
+export const createEmptyCnc = () => ({
+    version: 1,
+
+    coordinateSystem: {
+        unit: "mm",
+        origin: "top-left"
+    },
+
+    operations: []
+});
+
+
+export const ensureCnc = (part) => {
+
+    // console.log(part);
+
+    if (!part.CNC) {
+        part.CNC = createEmptyCnc();
+    }
+
+    if (!Array.isArray(part.CNC.operations)) {
+        part.CNC.operations = [];
+    }
+
+    return part;
+};
+
+
+export const flattenSections = flattenTree;
+
+
+/* =========================================================
+ * Allgemeine Helfer
+ * ========================================================= */
+
+
+
+export const getCncConfig = (cabinet, defaultConfig) => {
+
+    const custom = defaultConfig?.cncDefault ?? defaultConfig ?? {};
+
+    return {
+
+        spax: {
+            ...DEFAULT_CNC.spax,
+            ...custom.spax,
+
+            screw: {
+                ...DEFAULT_CNC.spax.screw,
+                ...(custom.spax?.screw ?? {})
+            },
+
+            connector: {
+                ...DEFAULT_CNC.spax.connector,
+                ...(custom.spax?.connector ?? {})
+            },
+
+            horizontal: {
+                ...DEFAULT_CNC.spax.horizontal,
+                ...(custom.spax?.horizontal ?? {})
+            }
+        },
+
+        shelf: {
+            ...DEFAULT_CNC.shelf,
+            ...(custom.shelf ?? {})
+        },
+
+        legrabox: {
+            ...DEFAULT_CNC.legrabox,
+            ...(custom.legrabox ?? {}),
+            heights: {
+                ...DEFAULT_CNC.legrabox.heights,
+                ...(custom.legrabox?.heights ?? {})
+            },
+            backHeights: {
+                ...DEFAULT_CNC.legrabox.backHeights,
+                ...(custom.legrabox?.backHeights ?? {})
+            },
+            materials: {
+                ...DEFAULT_CNC.legrabox.materials,
+                ...(custom.legrabox?.materials ?? {})
+            }
+        },
+
+        backPanel: {
+
+            ...DEFAULT_CNC.backPanel,
+            ...(custom.backPanel ?? {}),
+
+            groove: {
+                ...DEFAULT_CNC.backPanel.groove,
+                ...(custom.backPanel?.groove ?? {})
+            },
+
+            rabbet: {
+                ...DEFAULT_CNC.backPanel.rabbet,
+                ...(custom.backPanel?.rabbet ?? {})
+            },
+
+            insertedRabbet: {
+                ...DEFAULT_CNC.backPanel.insertedRabbet,
+                ...(custom.backPanel?.insertedRabbet ?? {})
+            }
+
+        }
+
+    };
+
+};
+
+
+export const getSource = (part) => {
+
+    return (
+        part?.Source ??
+        part?.source ??
+        {}
+    );
+
+};
+
+
+export const getRole = (part) => {
+
+    const source =
+        getSource(part);
+
+    return (
+        source.role ??
+        part?.role ??
+        ""
+    );
+
+};
+
+
+export const getPartType = (part) => {
+
+    return (
+        part?.Plattentyp ??
+        part?.type ??
+        ""
+    );
+
+};
+
+
+export const getPartPosition = (part) => {
+
+    return (
+        part?.position ??
+        part?.Position ??
+        {}
+    );
+
+};
+
+
+export const getSectionFunctions = (section) => {
+
+    return Array.isArray(
+        section?.functionConfig
+    )
+        ? section.functionConfig
+        : [];
+
+};
+
+
+export const isNear = (
+    a,
+    b,
+    tolerance = 0.5
+) => {
+
+    return (
+        Math.abs(
+            Number(a) -
+            Number(b)
+        ) <= tolerance
+    );
+
+};
+
+
+export const getConnectorHoleCount = (
+    total,
+    threshold = 300
+) => {
+
+    const numericTotal =
+        Number(total);
+
+    const numericThreshold =
+        Number(threshold);
+
+    if (
+        !Number.isFinite(numericTotal) ||
+        !Number.isFinite(numericThreshold)
+    ) {
+        return 4;
+    }
+
+    return numericTotal < numericThreshold
+        ? 3
+        : 4;
+};
+/* =========================================================
+ * Partklassifikation
+ * ========================================================= */
+
+export const isSidePart = (part) => {
+
+    const role =
+        String(
+            getRole(part)
+        ).toLowerCase();
+
+    const type =
+        String(
+            getPartType(part)
+        ).toLowerCase();
+
+    const name =
+        String(
+            part?.Objektname ?? ""
+        ).toLowerCase();
+
+    return (
+        role === "side" ||
+        role === "seiten" ||
+        type === "seite" ||
+        name === "seiten"
+    );
+
+};
+
+
+export const isTopPart = (part) => {
+
+    const role =
+        String(
+            getRole(part)
+        ).toLowerCase();
+
+    const type =
+        String(
+            getPartType(part)
+        ).toLowerCase();
+
+    const name =
+        String(
+            part?.Objektname ?? ""
+        ).toLowerCase();
+
+    return (
+        role === "top" ||
+        type === "deckel" ||
+        name === "deckel"
+    );
+
+};
+
+
+export const isBottomPart = (part) => {
+
+    const role =
+        String(
+            getRole(part)
+        ).toLowerCase();
+
+    const source = getSource(part);
+
+    if (String(source.type).toLowerCase() === "legrabox") {
+        return false;
+    }
+
+    const type =
+        String(
+            getPartType(part)
+        ).toLowerCase();
+
+    const name =
+        String(
+            part?.Objektname ?? ""
+        ).toLowerCase();
+
+    return (
+        role === "bottom" ||
+        type === "boden" ||
+        name === "boden"
+    );
+
+};
+
+
+export const isMiddleWallPart = (part) => {
+
+    const source =
+        getSource(part);
+
+    const role =
+        String(
+            source.role ??
+            ""
+        ).toLowerCase();
+
+    const type =
+        String(
+            getPartType(part)
+        ).toLowerCase();
+
+    return (
+        role === "middlewall" ||
+        type === "mittelwand"
+    );
+
+};

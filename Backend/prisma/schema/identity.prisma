@@ -1,0 +1,138 @@
+enum UserRole {
+  admin
+  manager
+  user
+}
+
+model Tenant {
+  id     String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name   String
+  slug   String @unique
+  status String @default("active")
+
+  memberships          TenantMembership[]
+  license              TenantLicense?
+  syncMutations        SyncMutation[]
+  shopConfiguration    ShopConfiguration?
+  calculationSnapshots CalculationSnapshot[]
+  secrets              TenantSecret[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([name])
+  @@map("tenants")
+}
+
+model TenantSecret {
+  id         String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String @map("tenant_id") @db.Uuid
+  name       String
+  ciphertext String
+  iv         String
+  authTag    String @map("auth_tag")
+  keyVersion Int    @default(1) @map("key_version")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, name])
+  @@unique([tenantId, id])
+  @@map("tenant_secrets")
+}
+
+model TenantMembership {
+  id       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String   @map("tenant_id") @db.Uuid
+  userId   String   @map("user_id") @db.Uuid
+  role     UserRole @default(user)
+  isActive Boolean  @default(true) @map("is_active")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, userId])
+  @@index([userId])
+  @@map("tenant_memberships")
+}
+
+model TenantLicense {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String    @unique @map("tenant_id") @db.Uuid
+  licenseId      String    @unique @map("license_id")
+  companyName    String    @map("company_name")
+  plan           String
+  features       String[]  @default([])
+  maxUsers       Int?      @map("max_users")
+  validUntil     DateTime? @map("valid_until")
+  status         String    @default("active")
+  licenseKeyHash String?   @map("license_key_hash")
+  certificate    String?
+  lastCheckedAt  DateTime? @map("last_checked_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("tenant_licenses")
+}
+
+model User {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  firstName String? @map("first_name")
+  lastName  String? @map("last_name")
+  email     String  @unique
+
+  login        String   @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole @default(user)
+  isActive     Boolean  @default(true) @map("is_active")
+  authVersion  Int      @default(0) @map("auth_version")
+
+  customersCreated Customer[] @relation("CustomerCreatedBy")
+  projectsCreated  Project[]  @relation("ProjectCreatedBy")
+
+  communications               Communication[]
+  appointments                 Appointment[]
+  files                        File[]
+  timeTable                    TimeEntry[]
+  auditLogs                    AuditLog[]
+  memberships                  TenantMembership[]
+  releasedCalculationSnapshots CalculationSnapshot[] @relation("CalculationSnapshotReleasedBy")
+  tenantBackups                TenantBackup[]
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("users")
+}
+
+model AuditLog {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  actorUserId String? @map("actor_user_id") @db.Uuid
+  actorUser   User?   @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  action     String
+  entityType String  @map("entity_type")
+  entityId   String? @map("entity_id")
+  metadata   Json?
+  ipAddress  String? @map("ip_address")
+  userAgent  String? @map("user_agent")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, id])
+  @@index([actorUserId])
+  @@index([action, entityType])
+  @@map("audit_logs")
+}

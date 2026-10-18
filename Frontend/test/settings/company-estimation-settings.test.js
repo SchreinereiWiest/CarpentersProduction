@@ -1,0 +1,64 @@
+import { describe, expect, it } from "vitest";
+import {
+  DEFAULT_COMPANY_SETTINGS,
+  normalizeCompanySettings
+} from "../../src/shared/settings/company-settings.js";
+
+describe("company settings", () => {
+  it("adds defaults to legacy settings and normalizes search and AI values", () => {
+    expect(normalizeCompanySettings({
+      workingHours: { start: "08:00", end: "17:00" },
+      estimation: {
+        candidatePoolSize: 999,
+        maximumMatches: 0,
+        minimumSimilarity: 45,
+        weights: { text: 40 },
+        ollama: {
+          enabled: true,
+          baseUrl: " http://localhost:11434 ",
+          embeddingModel: " custom-embed "
+        }
+      }
+    })).toMatchObject({
+      schemaVersion: 5,
+      userInterface: {
+        showTips: true,
+        lineLockThresholdCm: 5
+      },
+      estimation: {
+        candidatePoolSize: 500,
+        maximumMatches: 1,
+        minimumSimilarity: 45,
+        weights: { text: 40, cabinetCount: 20, materials: 10 },
+        ollama: {
+          enabled: true,
+          baseUrl: "http://localhost:11434",
+          embeddingModel: "custom-embed"
+        }
+      },
+      attachmentSearch: {
+        enabled: false,
+        openWebUiEndpoint: "http://host.docker.internal:3000",
+        model: "carpenters-qwen3627b",
+        manufacturerWebsites: [],
+        allowOpenWebFallback: true
+      }
+    });
+    expect(DEFAULT_COMPANY_SETTINGS.estimation.maximumMatches).toBe(5);
+  });
+
+  it("preserves a disabled tips setting", () => {
+    expect(normalizeCompanySettings({
+      userInterface: { showTips: false, lineLockThresholdCm: "7,5" }
+    }).userInterface).toEqual({
+      showTips: false,
+      lineLockThresholdCm: 7.5
+    });
+  });
+
+  it("prevents a negative line-lock threshold", () => {
+    expect(normalizeCompanySettings({
+      userInterface: { lineLockThresholdCm: -2 }
+    }).userInterface.lineLockThresholdCm).toBe(0);
+  });
+});

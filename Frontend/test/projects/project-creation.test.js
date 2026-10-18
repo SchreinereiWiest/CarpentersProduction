@@ -1,8 +1,11 @@
 import axios from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ProjectSave } from '../../src/pages/projects/edit/uploadProject.js';
-import { getProjectFile } from '../../src/services/projectMemoryCache.js';
+import {
+  createProjectRecord,
+  ProjectSave,
+} from '../../src/features/projects/legacy-editor/uploadProject.js';
+import { getProjectFile } from '../../src/shared/cache/project-cache.js';
 import {
   legacyCorpus,
   materials,
@@ -105,5 +108,63 @@ describe('Projektanlage im Frontend', () => {
       Anzahl: 2,
       MID: 'BOARD-19',
     });
+  });
+
+  it('meldet einen fehlgeschlagenen Listen-Upload an den Aufrufer zurück', async () => {
+    axios.post.mockImplementation(async (path) => {
+      if (path === '/api/projects/new') {
+        return { data: { id: 'project-with-failed-list' } };
+      }
+
+      if (path === '/api/projects/generated/project-with-failed-list/list') {
+        const error = new Error('Backend error');
+        error.response = {
+          status: 500,
+          data: { message: 'Internal server error' },
+        };
+        throw error;
+      }
+
+      throw new Error(`Unerwarteter POST: ${path}`);
+    });
+
+    await expect(ProjectSave(
+      [legacyCorpus],
+      materials,
+      { id: 'customer-1' },
+      [],
+      'Fehlertest',
+      'Projekt mit Uploadfehler',
+      'create',
+      null,
+      [{ id: 'cabinet-1' }],
+    )).rejects.toMatchObject({
+      projectId: 'project-with-failed-list',
+    });
+
+    expect(axios.post).not.toHaveBeenCalledWith(
+      '/api/projects/generated/project-with-failed-list/cabinet',
+      expect.anything(),
+      expect.anything(),
+    );
+  });
+
+  it('legt ein leeres Projekt ohne Listen- oder Korpusdatei an', async () => {
+    const projectId = await createProjectRecord({
+      customerId: 'customer-1',
+      title: 'Neues Projekt',
+    });
+
+    expect(projectId).toBe('project-created');
+    expect(axios.post).toHaveBeenCalledTimes(1);
+    expect(axios.post).toHaveBeenCalledWith(
+      '/api/projects/new',
+      {
+        customerId: 'customer-1',
+        title: 'Neues Projekt',
+        description: '',
+      },
+      { withCredentials: true },
+    );
   });
 });

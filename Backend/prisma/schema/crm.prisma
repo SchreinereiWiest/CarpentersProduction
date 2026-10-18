@@ -1,0 +1,180 @@
+enum CustomerStatus {
+  lead
+  active
+  inactive
+}
+
+model Customer {
+  id             String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String  @map("tenant_id") @db.Uuid
+  customerNumber String? @map("customer_number")
+
+  firstName   String? @map("first_name")
+  lastName    String? @map("last_name")
+  companyName String? @map("company_name")
+
+  email         String?
+  phoneMobile   String? @map("phone_mobile")
+  phoneLandline String? @map("phone_landline")
+
+  preferredContact String? @map("preferred_contact")
+
+  newsletterOptIn   Boolean   @default(false) @map("newsletter_opt_in")
+  newsletterOptInAt DateTime? @map("newsletter_opt_in_at")
+
+  customerStatus CustomerStatus @default(lead) @map("customer_status")
+  customerRating Int            @default(0) @map("customer_rating") @db.SmallInt
+
+  source String?
+  notes  String?
+
+  createdById String? @map("created_by") @db.Uuid
+  createdBy   User?   @relation("CustomerCreatedBy", fields: [createdById], references: [id])
+
+  projects       Project[]
+  addresses      CustomerAddress[]
+  communications Communication[]
+  appointments   Appointment[]
+  files          File[]
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, customerNumber])
+  @@map("customers")
+}
+
+model CustomerAddress {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  customerId String   @map("customer_id") @db.Uuid
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  street      String?
+  houseNumber String? @map("house_number")
+  postalCode  String? @map("postal_code")
+  city        String?
+  country     String?
+
+  floor             String?
+  elevatorAvailable Boolean @default(false) @map("elevator_available")
+  parkingInfo       String? @map("parking_info")
+
+  appointments Appointment[]
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@unique([tenantId, id])
+  @@map("customer_addresses")
+}
+
+model Project {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  customerId String   @map("customer_id") @db.Uuid
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  projectNumber String? @map("project_number")
+
+  title       String
+  description String?
+
+  projectType String? @map("project_type")
+  status      String  @default("active")
+  priority    String  @default("normal")
+
+  estimatedValue Float? @map("estimated_value")
+  finalValue     Float? @map("final_value")
+
+  startDate        DateTime? @map("start_date")
+  installationDate DateTime? @map("installation_date")
+  completionDate   DateTime? @map("completion_date")
+
+  specialRequirements String? @map("special_requirements")
+  customerNotes       String? @map("customer_notes")
+  internalNotes       String? @map("internal_notes")
+
+  createdById String? @map("created_by") @db.Uuid
+  createdBy   User?   @relation("ProjectCreatedBy", fields: [createdById], references: [id])
+
+  communications         Communication[]
+  appointments           Appointment[]
+  files                  File[]
+  storage                ProjectStorage[]
+  timeEntries            TimeEntry[]
+  managementTransactions ManagementTransaction[]
+  calculationSnapshots   CalculationSnapshot[]
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, projectNumber])
+  @@map("projects")
+}
+
+model Communication {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  customerId String  @map("customer_id") @db.Uuid
+  projectId  String? @map("project_id") @db.Uuid
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  project  Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  type    String
+  subject String?
+  content String
+
+  followUpDate DateTime? @map("follow_up_date")
+
+  createdById String? @map("created_by") @db.Uuid
+  createdBy   User?   @relation(fields: [createdById], references: [id])
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@unique([tenantId, id])
+  @@map("communications")
+}
+
+model Appointment {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  customerId String  @map("customer_id") @db.Uuid
+  projectId  String? @map("project_id") @db.Uuid
+  addressId  String? @map("address_id") @db.Uuid
+
+  customer Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  project  Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  address  CustomerAddress? @relation(fields: [addressId], references: [id], onDelete: SetNull)
+
+  appointmentType String? @map("appointment_type")
+  title           String?
+  description     String?
+
+  startAt DateTime @map("start_at")
+  endAt   DateTime @map("end_at")
+
+  status String @default("planned")
+
+  createdById String? @map("created_by") @db.Uuid
+  createdBy   User?   @relation(fields: [createdById], references: [id])
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@unique([tenantId, id])
+  @@map("appointments")
+}

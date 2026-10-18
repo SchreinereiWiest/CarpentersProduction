@@ -61,8 +61,30 @@ nav:
       - State, API & Cache: frontend/state-data.md
       - Seiten & Komponenten: frontend/pages-components.md
       - Projektmodule: frontend/project-modules.md
+      - Management & Betriebskalkulation: frontend/management.md
       - Funktionsreferenz: frontend/functions.md
       - Risiken & Qualitätsregeln: frontend/quality.md
+  - Management:
+      - Überblick: management/index.md
+      - Betrieb einrichten:
+          - 01 Betrieb & Geschäftsjahr: management/setup/business.md
+          - 02 Vermögen & Finanzierung: management/setup/assets.md
+          - 03 Jährliche Betriebskosten: management/setup/annual-costs.md
+          - 04 Mitarbeiter & Arbeitsstunden: management/setup/hours.md
+          - 05 Kostenstellenverteilung: management/setup/distribution.md
+          - 06 Maschinenkostenrechnung: management/setup/machines.md
+          - 07 BAB & Vollkostenkalkulation: management/setup/bab.md
+          - 08 Prüfung & Freigabe: management/setup/review.md
+      - Jahresbetrieb:
+          - Betriebsübersicht: management/operating/overview.md
+          - Stunden & Produktivität: management/operating/hours.md
+          - Kostenstellen & Vorjahresvergleich: management/operating/costs.md
+      - Dokumente & CSV-Import: management/documents-import.md
+      - Architektur & Dateien: management/architecture.md
+      - Vorgaben & Defaultfabriken: management/defaults.md
+      - API & Speicherung: management/api.md
+      - Funktionsreferenz: management/functions.md
+      - Tests & Entwicklung: management/testing.md
   - Backend:
       - Überblick: backend/index.md
       - Installation & Konfiguration: backend/installation.md

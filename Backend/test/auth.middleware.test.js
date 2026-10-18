@@ -101,6 +101,13 @@ test("Dateizugriff folgt dem Status des zugehörigen Projekts", () => {
     }), false);
 });
 
+test('Betriebsbelege sind ausschließlich für Manager und Admins zugänglich', () => {
+    const file = { category: 'management-document', uploadedById: 'user-id', project: { status: 'active', deletedAt: null } };
+    assert.equal(canAccessFile({ id: 'user-id', role: 'user' }, file), false);
+    assert.equal(canAccessFile({ role: 'manager' }, file), true);
+    assert.equal(canAccessFile({ role: 'admin' }, file), true);
+});
+
 test("CSRF-Prüfung akzeptiert übereinstimmendes Cookie und Header", () => {
     const token = "a".repeat(64);
     const req = {

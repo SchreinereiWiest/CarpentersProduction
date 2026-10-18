@@ -16,6 +16,7 @@ RUN pnpm install
 RUN pnpm add -D @rolldown/binding-linux-x64-gnu@1.2.8
 RUN pnpm approve-builds core-js
 
+COPY --from=engine . /Engine
 COPY . .
 
 RUN pnpm approve-builds core-js

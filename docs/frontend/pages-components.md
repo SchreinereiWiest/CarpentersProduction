@@ -18,11 +18,11 @@
 
 | Seite | Verantwortung |
 |---|---|
-| `contacts.admin.jsx` | paginierte Kundenliste laden und zu Detail/Neuanlage navigieren |
-| `newcontact.admin.jsx` | Kunden- und Adressdaten erfassen und anlegen |
-| `showcontact.admin.jsx` | Kunde und zugehörige Projekte parallel laden; Projektarchiv importieren |
-| `editcontact.admin.jsx` | Kunden-/Adressdaten laden, bearbeiten und speichern |
-| `newproject.admin.jsx` | älterer Ablauf für Projektanlage und Datei-Upload |
+| `contacts.jsx` | paginierte Kundenliste laden und zu Detail/Neuanlage navigieren |
+| `newcontact.jsx` | Kunden- und Adressdaten erfassen und anlegen |
+| `showcontact.jsx` | Kunde und zugehörige Projekte parallel laden; `.cproject` oder `.cpimport` importieren |
+| `editcontact.jsx` | Kunden-/Adressdaten laden, bearbeiten und speichern |
+| `newproject.jsx` | älterer Ablauf für Projektanlage und Datei-Upload |
 
 Alle Kundenrouten sind im Frontend Admin-seitig geschützt. Die moderne Projektanlage für einen Kunden verwendet `/Kontakte/NewProject/:userId` und öffnet den `CabinetEditor` im Create-Modus.
 
@@ -30,16 +30,34 @@ Alle Kundenrouten sind im Frontend Admin-seitig geschützt. Die moderne Projekta
 
 | Seite | Aufgabe |
 |---|---|
-| `overview.project.jsx` | sichtbare Projekte laden, darstellen und `.cproject` importieren |
-| `home.project.jsx` | Projektdetails, Kunde, Dateien und Bildgalerie anzeigen |
-| `settings.project.jsx` | Stammdaten ändern, Dateien hochladen/löschen, Archiv exportieren und Projekt löschen |
-| `cad.project.jsx` | CAD-/GLB-Dateien laden und in Three.js darstellen |
-| `list.project.jsx` | generierte Teileliste laden, aufbereiten und als PDF ausgeben |
-| `nesting.project.jsx` | Teile/Materialien laden, automatisches oder manuelles Nesting durchführen und speichern |
-| `cut.project.jsx` | verschachtelte Platten als Zuschnittstapel abarbeiten |
+| `overview.jsx` | sichtbare Projekte laden, darstellen und `.cproject` oder `.cpimport` importieren |
+| `home.jsx` | Projektdetails, Kunde, Dateien und Bildgalerie anzeigen |
+| `settings.jsx` | Stammdaten ändern, Dateien hochladen/löschen, Archiv exportieren und Projekt löschen |
+| `cad.jsx` | CAD-/GLB-Dateien laden und in Three.js darstellen |
+| `list.jsx` | generierte Teileliste laden, aufbereiten und als PDF ausgeben |
+| `nesting.jsx` | Teile/Materialien laden, automatisches oder manuelles Nesting durchführen und speichern |
+| `cut.jsx` | verschachtelte Platten als Zuschnittstapel abarbeiten |
 | `cncEditor.jsx` | CNC-Teile gruppieren, Flächen/Operationen auswählen und grafisch bearbeiten |
-| `timeTracking.project.jsx` | Projektzeiten, Start/Stopp und manuelle Dauerbuchungen |
+| `timeTracking.jsx` | Projektzeiten, Start/Stopp und manuelle Dauerbuchungen |
 | `cabinetEditor.jsx` | Korpusse, Sektionen, Fronten, Materialien, Presets, Teilelisten und CNC-Daten bearbeiten |
+
+Der gemeinsame Importdialog erkennt Palette-CAD-Pakete an `.cpimport`, prüft
+deren Manifest, repariert das Palette-CAD-Schlusskomma in `model.json` und
+erzeugt `list.json`, `cabinet.json` und `aufmas.json`. PDF-Seiten werden im
+Browser gerendert und vor dem Import der Projekt-Startseite, einer
+Aufmaß-Frontansicht oder keinem Ziel zugeordnet. Manifestierte PNGs werden als
+Aufmaß-Bilder getrennt von den Startseitenbildern gespeichert. Der Dialog zeigt
+alle verwendeten `MID`-/Kantenreferenzen und übersetzt sie auf ausgewählte
+Materialien der internen Datenbank. Nicht-KO-Bauteile ohne gesetzte `BPID`
+werden beim Einlesen verworfen; KO-Datensätze bleiben davon ausgenommen. Aus
+den CAD-Positionen der Frontbauteile entstehen Cabinet-Fronten samt inneren und
+äußeren Fugen sowie linearer Aufteilung. Seiten, Böden und Deckel bestimmen die
+reine Korpushöhe, den Bodenabstand und die durchgehende Bauteilrichtung. Lage
+und Außenmaße der Rückwand erzeugen automatisch die Ausführung Stumpf, Falz,
+Nut geschlossen oder Nut offen. Das Palette-CAD-KO-Tiefenmaß wird immer um die
+Frontstärke, bei einer stumpfen Rückwand zusätzlich um deren Stärke korrigiert.
+Die Teilelisten-Gruppierung des Standardkorpus wird in importierte Cabinets
+übernommen, sodass etwa Fronten beim Speichern als eigene Gruppe entstehen.
 
 ## Mitarbeiterkalender
 
@@ -47,7 +65,7 @@ Alle Kundenrouten sind im Frontend Admin-seitig geschützt. Die moderne Projekta
 
 ## Lager
 
-`home.storage.jsx` lädt Materialien und öffnet `MaterialModal` für neue Datensätze. `updateQuantity` schreibt Bestandsänderungen und aktualisiert den lokalen Array-State funktional.
+`home.jsx` lädt Materialien und öffnet `MaterialModal` für neue Datensätze. `updateQuantity` schreibt Bestandsänderungen und aktualisiert den lokalen Array-State funktional.
 
 ## Einstellungen
 
@@ -67,4 +85,3 @@ Alle Kundenrouten sind im Frontend Admin-seitig geschützt. Die moderne Projekta
 - Projektseiten ergänzen `ProjectBar` und lesen `projectId` aus `useParams`.
 - Lade-, Fehler-, Dialog- und Auswahlzustände werden überwiegend lokal gehalten.
 - Editor-Komponenten erhalten Fachzustand und Setter über Props; ein externer State-Store wird nicht verwendet.
-

@@ -2,7 +2,7 @@
 
 ## S3-/Garage-Clients
 
-`src/config/s3.js` exportiert zwei `S3Client`-Instanzen:
+`src/infrastructure/storage/s3.js` exportiert zwei `S3Client`-Instanzen:
 
 - `s3Upload`: interner `S3_ENDPOINT` für Schreiben und Löschen,
 - `s3Download`: öffentlicher `S3_PUBLIC_ENDPOINT` für signierte Browser-URLs.
@@ -23,6 +23,12 @@ Beide verwenden Region `garage`, path-style Requests, dieselben Zugangsdaten und
 | `fileSize` | Legacy-Feld; gespeichert wird die tatsächliche Multer-Dateigröße |
 
 `createUpload` prüft das Ziel über die zentrale Projekt-/Kundenpolicy, wählt `projects/{entityId}` oder `customers/{entityId}` als Prefix und ergänzt `{UUID}-{fileName}`. Danach legt es ein `S3Object` an, lädt den Buffer nach Garage und erzeugt einen korrekt zugeordneten `File`-Datensatz samt `uploadedById` und Status `completed`.
+
+`POST /api/files/project-import-asset` ist Admins und Managern vorbehalten.
+Der Endpunkt akzeptiert PNG, JPEG, WebP oder PDF bis 50 MB und bildet das
+erlaubte Feld `target` serverseitig auf `project-home-image`,
+`measurement-image` oder `measurement-plan` ab. Freie Kategorien aus dem
+Client werden nicht übernommen.
 
 Erfolg liefert `success`, `objectKey` und `fileEntry`.
 
