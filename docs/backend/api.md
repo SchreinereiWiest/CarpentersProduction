@@ -46,6 +46,7 @@ Basis-URL im lokalen Backend: `http://localhost:5000/api`. Geschützte Endpunkte
 | Methode | Pfad | Schutz | Handler | Zweck |
 |---|---|---|---|---|
 | `POST` | `/files/upload` | Zielressourcenberechtigung | `createUpload` | Multipart-Datei nach Garage laden |
+| `POST` | `/files/project-import-asset` | Admin oder Manager und Projektberechtigung | `createUpload` | kategorisiertes Bild/PDF aus einem Projektimport laden |
 | `GET` | `/files/download/:id` | Dateiberechtigung | `createDownloadUrl` | 15 Minuten gültige Download-URL erzeugen |
 | `DELETE` | `/files/delete/:fileId` | Dateiberechtigung | `deleteFile` | Datei entfernen und Garage-Löschjob anlegen |
 

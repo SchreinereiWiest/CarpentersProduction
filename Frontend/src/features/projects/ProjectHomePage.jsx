@@ -70,8 +70,9 @@ fetchProject();
       ]);
 
       const imageFiles = (project.files ?? []).filter(file => (
-        file.category !== "production-attachment" &&
-        file.mimeType?.startsWith("image/")
+            file.category !== "production-attachment" &&
+            file.category !== "measurement-image" &&
+            file.mimeType?.startsWith("image/")
       ));
       const images = (await Promise.all(imageFiles.map(async file => {
         try {
@@ -168,7 +169,10 @@ fetchProject();
 
                         {/* Bilder */}
                         <div className="rounded-lg mt-4 md:mt-4 md:flex-1 overflow-hidden">
-                            <ImageGallery files={(project?.files ?? []).filter(file => file.category !== "production-attachment")} />
+                            <ImageGallery files={(project?.files ?? []).filter(file => (
+                                file.category !== "production-attachment" &&
+                                file.category !== "measurement-image"
+                            ))} />
                         </div>
 
                     </div>

@@ -269,8 +269,10 @@ export default function AufmasWorkspace() {
     if (!project?.files) return;
     let cancelled = false;
     const loadPhotos = async () => {
-      const imageFiles = project.files.filter((file) =>
-        file.mimeType?.startsWith("image/")
+      const imageFiles = project.files.filter(
+        (file) =>
+          file.category !== "project-home-image" &&
+          file.mimeType?.startsWith("image/")
       );
       const loaded = await Promise.all(
         imageFiles.map(async (file) => ({

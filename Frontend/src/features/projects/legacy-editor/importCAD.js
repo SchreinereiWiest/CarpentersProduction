@@ -26,7 +26,19 @@ function detectPreset(plate) {
 
 }
 
-export function importCadData(cadData, materials) {
+function isManualGroup(item) {
+    return Array.isArray(item?.Children) && (
+        item.PID === "MANUAL000" ||
+        item.Plattentyp === "MANUAL" ||
+        (item.manual === true && item.tag === "manual")
+    );
+}
+
+function hasDimension(value) {
+    return value !== undefined && value !== null && value !== "";
+}
+
+export function importCadData(cadData, materials = []) {
 
 
     const getMaterialId = (materialNumber) => {
@@ -38,7 +50,18 @@ export function importCadData(cadData, materials) {
         return material?.id ?? "";
     };
 
-    return cadData.map((item) => ({
+    return cadData.map((item) => {
+
+        const manualGroup = isManualGroup(item);
+        const type = manualGroup ? "KO" : item.Plattentyp;
+        const groupOnly = type === "KO" && (
+            manualGroup ||
+            !hasDimension(item.L) &&
+            !hasDimension(item.B) &&
+            !hasDimension(item.T)
+        );
+
+        return {
 
         id: item.PID ?? Date.now() + Math.random(),
 
@@ -60,7 +83,9 @@ export function importCadData(cadData, materials) {
 
         preset: "def",
 
-        type: item.Plattentyp,
+        type,
+
+        ...(groupOnly ? { groupOnly: true } : {}),
 
         Children: (item.Children ?? []).map((child) => ({
 
@@ -100,6 +125,7 @@ export function importCadData(cadData, materials) {
 
         }))
 
-    }));
+        };
+    });
 
 }

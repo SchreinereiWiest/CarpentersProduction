@@ -86,6 +86,14 @@ export default function CabinetEditor() {
     const [frontSplitSpec, setFrontSplitSpec] = useState("1:1");
     const [frontSplitDirection, setFrontSplitDirection] = useState("vertical");
 
+    const loadFrontLayoutControls = (cabinet) => {
+        const layout = cabinet?.frontLayout;
+        setFrontSplitSpec(layout?.spec ?? "1:1");
+        setFrontSplitDirection(
+            layout?.direction === "horizontal" ? "horizontal" : "vertical"
+        );
+    };
+
     const [sectionSplitSpec, setSectionSplitSpec] = useState("1:1");
     const [sectionSplitDirection, setSectionSplitDirection] = useState("vertical");
 
@@ -133,6 +141,7 @@ export default function CabinetEditor() {
     );
 
     selectCabinet(newCabinet.id);
+    loadFrontLayoutControls(newCabinet);
     };
 
     const duplicateCabinet = (cabinetId) => {
@@ -150,6 +159,7 @@ export default function CabinetEditor() {
 
         setCabinets(prev => [...prev, duplicate]);
         setActiveCabinetId(duplicate.id);
+        loadFrontLayoutControls(duplicate);
         setSectionCount(duplicate.sections?.length ?? 1);
         setSelectedElement(null);
     };
@@ -230,6 +240,7 @@ export default function CabinetEditor() {
 
         setCabinets(previous => [...previous, cabinet]);
         setActiveCabinetId(cabinet.id);
+        loadFrontLayoutControls(cabinet);
         setSectionCount(cabinet.sections?.length ?? 1);
         setSelectedElement(null);
         setShowPresetInsertModal(false);
@@ -300,6 +311,7 @@ export default function CabinetEditor() {
 
         const cabinet = cabinets.find(cabinet => cabinet.id === id);
 
+        loadFrontLayoutControls(cabinet);
         setSectionCount(cabinet?.sections?.length ?? 1);
 
         setSelectedElement(null);
@@ -326,6 +338,7 @@ export default function CabinetEditor() {
         const newActiveCabinet = remainingCabinets[newIndex];
 
         setActiveCabinetId(newActiveCabinet.id);
+        loadFrontLayoutControls(newActiveCabinet);
         setSelectedElement(null);
         setSectionCount(newActiveCabinet.sections?.length ?? 1);
     };
@@ -371,6 +384,7 @@ export default function CabinetEditor() {
             ...defaultCabinet
         }]);
             setActiveCabinetId(newID);
+            loadFrontLayoutControls(defaultCabinet);
     }
 
     const handleSave = async (overwriteManual = false) => {
@@ -667,10 +681,38 @@ export default function CabinetEditor() {
                 // Datei existiert bereits
                 if (Array.isArray(data) && data.length) {
 
-                    setCabinets(data);
+                    const inheritedPartListSettings = {
+                        ...DEFAULT_CABINET.partListSettings,
+                        ...(defaultCabinet.partListSettings ?? {}),
+                        separate: {
+                            ...DEFAULT_CABINET.partListSettings.separate,
+                            ...(defaultCabinet.partListSettings?.separate ?? {})
+                        }
+                    };
+                    const loadedCabinets = data.map(cabinet =>
+                        cabinet.source === "palette-cad" &&
+                        !cabinet.partListSettingsSource
+                            ? {
+                                ...cabinet,
+                                partListSettings: inheritedPartListSettings,
+                                partListSettingsSource: "company"
+                            }
+                            : cabinet
+                    );
+
+                    setCabinets(loadedCabinets);
                     const requestedCabinetId = new URLSearchParams(location.search).get("cabinet");
-                    const requestedCabinet = data.find(cabinet => String(cabinet.id) === requestedCabinetId);
-                    setActiveCabinetId(requestedCabinet?.id ?? data[0].id);
+                    const requestedCabinet = loadedCabinets.find(
+                        cabinet => String(cabinet.id) === requestedCabinetId
+                    );
+                    const selectedCabinet = requestedCabinet ?? loadedCabinets[0];
+                    setActiveCabinetId(selectedCabinet.id);
+                    setFrontSplitSpec(selectedCabinet.frontLayout?.spec ?? "1:1");
+                    setFrontSplitDirection(
+                        selectedCabinet.frontLayout?.direction === "horizontal"
+                            ? "horizontal"
+                            : "vertical"
+                    );
 
                     return;
 

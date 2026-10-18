@@ -33,6 +33,27 @@ const projectAttachmentUpload = multer({
     }
 });
 
+const projectImportAssetUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 50 * 1024 * 1024, files: 1 },
+    fileFilter: (_req, file, callback) => {
+        const allowedTypes = new Set([
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+            "application/pdf"
+        ]);
+        const allowed = allowedTypes.has(file.mimetype);
+        callback(allowed ? null : new Error("Unsupported project import asset type"), allowed);
+    }
+});
+
+const PROJECT_IMPORT_CATEGORIES = Object.freeze({
+    home: "project-home-image",
+    "measurement-image": "measurement-image",
+    "measurement-plan": "measurement-plan"
+});
+
 const router = express.Router();
 
 router.get("/events", authenticate, subscribeToFileChanges);
@@ -45,6 +66,24 @@ router.post(
 );
 
 router.post("/upload", authenticate, upload.single("file"), authorizeUploadTarget, createUpload);
+
+router.post(
+    "/project-import-asset",
+    authenticate,
+    authorizeRoles("admin", "manager"),
+    projectImportAssetUpload.single("file"),
+    (req, res, next) => {
+        const category = PROJECT_IMPORT_CATEGORIES[req.body.target];
+        if (!category) {
+            return res.status(400).json({ message: "Invalid project import target" });
+        }
+        req.body.entity = "project";
+        req.uploadCategory = category;
+        next();
+    },
+    authorizeUploadTarget,
+    createUpload
+);
 
 router.post(
     "/project-attachment",
