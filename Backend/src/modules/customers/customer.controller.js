@@ -18,6 +18,10 @@ export const newcustomer = async (req, res) => {
 
             data: {
 
+                // Die Mandantenzuordnung kommt ausschließlich aus der
+                // authentifizierten Sitzung, niemals aus dem Request-Body.
+                tenantId: req.tenant.id,
+
                 firstName: req.body.firstName,
                 lastName: req.body.lastName,
                 companyName: req.body.companyName,
@@ -33,6 +37,9 @@ export const newcustomer = async (req, res) => {
 
                 addresses: {
                     create: {
+                        // Verschachtelte Prisma-Creates durchlaufen den
+                        // Tenant-Proxy nicht als eigene Operation.
+                        tenantId: req.tenant.id,
                         street: req.body.street,
                         houseNumber: req.body.houseNumber,
                         postalCode: req.body.postalCode,

@@ -1,0 +1,184 @@
+﻿<?xml version="1.0" encoding="utf8" standalone="yes"?>
+<Kalkbom Version="2">
+	<General>
+		<Origin value="Holztechnik 3.0" />
+		<Type value="WOOD" />
+		<SubType value="" />
+		<WriteProtected value="false" />
+		<SuppressObject value="true" />
+		<SuppressGroup value="false" />
+		<SuppressMarked value="true" />
+		<SuppressSubgroups value="true" />
+		<TraverseObjects value="true" />
+		<CountAll value="false" />
+		<CountAttributeAnd value="false" />
+		<CountAttributes value="Board.DoCount" />
+		<UseGroupFormat value="false" />
+		<StopExamineChilds value="false" />
+		<SortCriteria value="Board.TypeName" />
+		<SortDir value="0" />
+		<SortMode value="0" />
+		<HeaderFmt value="[" />
+		<HeaderVal value="" />
+		<DataFmt value="{&quot;PID&quot;:&quot;%s&quot;, &quot;Objektname&quot;:&quot;%s&quot;, &quot;Anzahl&quot;:&quot;%s&quot;, &quot;Plattentyp&quot;:&quot;%s&quot;, &quot;L&quot;:&quot;%s&quot;, &quot;B&quot;:&quot;%s&quot;, &quot;T&quot;:&quot;%s&quot;, &quot;Kante&quot;:&quot;%s&quot;, &quot;Maserung&quot;:&quot;%s&quot;, &quot;Notiz&quot;:&quot;%s&quot;, &quot;X&quot;:&quot;%s&quot;, &quot;Y&quot;:&quot;%s&quot;, &quot;Z&quot;:&quot;%s&quot;, &quot;RX&quot;:&quot;%s&quot;, &quot;RY&quot;:&quot;%s&quot;, &quot;RZ&quot;:&quot;%s&quot;, &quot;OX&quot;:&quot;%s&quot;, &quot;OY&quot;:&quot;%s&quot;, &quot;OZ&quot;:&quot;%s&quot;, &quot;BPID&quot;:&quot;%s&quot;, &quot;MID&quot;:&quot;%s&quot;, &quot;EBID&quot;:&quot;%s&quot;, &quot;ETID&quot;:&quot;%s&quot;, &quot;ERID&quot;:&quot;%s&quot;, &quot;ELID&quot; :&quot;%s&quot;}," />
+		<DataVal value="VAR_PID,#LF##LF#VAR_OBJEKTNAME,#LF#VAR_ANZAHL,#LF#VAR_PLATTENTYP,#LF##LF#VAR_FMLÄNGE,#LF#VAR_FMBREITE,#LF#VAR_FMSTÄRKE,#LF##LF#VAR_KANTENBILD,#LF##LF#VAR_MASERUNG_QUER,#LF##LF#VAR_WERKSTATT_TEXT,#LF##LF#VAR_POS_X,#LF#VAR_POS_Y,#LF#VAR_POS_Z,#LF##LF#VAR_ROT_X,#LF#VAR_ROT_Y,#LF#VAR_ROT_Z,#LF##LF#VAR_OFFSET_X,#LF#VAR_OFFSET_Y,#LF#VAR_OFFSET_Z,#LF##LF#Board.ShowPID,#LF#VAR_PLATTENMATERIAL,#LF#Board.EdgeBottomMaterialLabel,#LF#Board.EdgeTopMaterialLabel,#LF#Board.EdgeRightMaterialLabel,#LF#Board.EdgeLeftMaterialLabel," />
+		<GroupFmt value="&quot;%s&quot;\t&quot;&quot;\t&quot;&quot;\t&quot;&quot;\t&quot;%s&quot;\t&quot;%s&quot;\t&quot;%s&quot;\n" />
+		<GroupVal value="OBJEKTNAME,#LF#VAR_FMLÄNGE,#LF#VAR_FMBREITE,#LF#VAR_FMSTÄRKE  " />
+		<FooterFmt value="]" />
+		<FooterVal value="" />
+		<Variables value="VAR_OBJEKTNAME := OBJEKTNAME,#LF#VAR_ANZAHL  := FORMATNUMBER (ANZAHL, 0, &quot;.&quot;), #LF#VAR_PLATTENTYP := IIF( ISEMPTY( Board.ObjectType ),  Board.TypeName , Board.ObjectType ),#LF##LF#VAR_NO_KANTE_RECHTS  := OR( Board.EdgeTypeRight = &quot;0&quot; , Board.EdgeRightEF ),#LF#VAR_NO_KANTE_OBEN  := OR( Board.EdgeTypeTop = &quot;0&quot;, Board.EdgeTopEF),#LF#VAR_NO_KANTE_LINKS  := OR( Board.EdgeTypeLeft = &quot;0&quot;, Board.EdgeLeftEF),#LF#VAR_NO_KANTE_UNTEN  := OR( Board.EdgeTypeBottom = &quot;0&quot;, Board.EdgeBottomEF),#LF##LF#VAR_FMLÄNGE    := FORMATNUMBER#LF#  ( #LF#   MAKEMM#LF#   ( #LF#    IIF #LF#    ( #LF#     EXISTS( &quot;Board.SizeX&quot; ), #LF#     IIF(Board.IsCross, Board.SizeY,Board.SizeX), #LF#     GROESSE_X #LF#    )#LF#   ), #LF#   1, #LF#   &quot;,&quot; #LF#  ),#LF##LF#VAR_FMBREITE := FORMATNUMBER#LF#  ( #LF#   MAKEMM#LF#   ( #LF#    IIF #LF#    ( #LF#     EXISTS( &quot;Board.SizeY&quot; ), #LF#     IIF(Board.IsCross, Board.SizeX,Board.SizeY), #LF#     GROESSE_Y #LF#    )#LF#   ), #LF#   1, #LF#   &quot;,&quot; #LF#  ),#LF##LF#VAR_FMSTÄRKE := FORMATNUMBER#LF#  ( #LF#   MAKEMM#LF#   ( #LF#    IIF #LF#    ( #LF#     EXISTS( &quot;Board.Thickness&quot; ), #LF#     Board.Thickness, #LF#     GROESSE_Z #LF#    )#LF#   ), #LF#   1, #LF#   &quot;,&quot; #LF#  ),#LF##LF#VAR_ZMLÄNGE := FORMATNUMBER#LF#  ( #LF#   MAKEMM#LF#   (  #LF#    #LF#    IIF(Board.IsCross, Board.SizeY,Board.SizeX) - #LF#    IIF#LF#     ( #LF#     VAR_NO_KANTE_OBEN, #LF#     0.0, #LF#     Board.EdgeTopMaterialThickness #LF#    ) - #LF#    IIF#LF#    ( #LF#     VAR_NO_KANTE_UNTEN, #LF#     0.0, #LF#     Board.EdgeBottomMaterialThickness #LF#    )#LF#   ),#LF#   1,#LF#   &quot;,&quot;#LF#  ),#LF#VAR_ZMBREITE  :=FORMATNUMBER#LF#  ( #LF#   MAKEMM#LF#   (  #LF#    IIF(Board.IsCross, Board.SizeX,Board.SizeY) -#LF#    IIF#LF#    ( #LF#     VAR_NO_KANTE_RECHTS, #LF#     0, #LF#     Board.EdgeRightMaterialThickness #LF#    ) -#LF#    IIF#LF#    ( #LF#     VAR_NO_KANTE_LINKS, #LF#     0, #LF#     Board.EdgeLeftMaterialThickness #LF#    )#LF#   ),#LF#   1,#LF#   &quot;,&quot;#LF#  ),#LF##LF#VAR_KANTENBILD := IIF#LF#     ( #LF#      Board.IsCross,#LF#      IIF#LF#      ( Board.EdgeTypeBottom = &quot;0&quot;, #LF#       &quot;:&quot;,#LF#       IIF( Board.EdgeTypeBottom = &quot;1&quot;, &quot;1&quot;, &quot;0&quot;) &amp;#LF#       IIF( Board.EdgeTypeLeft = &quot;0&quot;,  &quot;0&quot;,  TRANSLATE( Board.CornerTypeLeft, &quot;0,1,2&quot;, &quot;2,1,0&quot; )) &amp;#LF#       IIF( Board.EdgeTypeRight = &quot;0&quot;,  &quot;0&quot;,  TRANSLATE( Board.CornerTypeBottom, &quot;0,1,2&quot;, &quot;2,0,1&quot; )) &amp;#LF#       &quot;:&quot;#LF#      ) &amp;#LF#      IIF#LF#      ( Board.EdgeTypeTop = &quot;0&quot;, #LF#       &quot;:&quot;,#LF#       IIF( Board.EdgeTypeTop   = &quot;1&quot;, &quot;1&quot;, &quot;0&quot;) &amp;#LF#       IIF( Board.EdgeTypeRight = &quot;0&quot;, &quot;0&quot;, TRANSLATE( Board.CornerTypeRight, &quot;0,1,2&quot;, &quot;2,1,0&quot; )) &amp;#LF#       IIF( Board.EdgeTypeLeft  = &quot;0&quot;, &quot;0&quot;, TRANSLATE( Board.CornerTypeTop, &quot;0,1,2&quot;, &quot;2,0,1&quot; )) &amp;#LF#       &quot;:&quot;#LF#      ) &amp;#LF#      IIF#LF#      ( Board.EdgeTypeLeft = &quot;0&quot;, #LF#       &quot;:&quot;,#LF#       IIF( Board.EdgeTypeLeft   = &quot;1&quot;, &quot;1&quot;,&quot;0&quot;) &amp;#LF#       IIF( Board.EdgeTypeTop    = &quot;0&quot;, &quot;0&quot;, TRANSLATE( Board.CornerTypeTop, &quot;0,1,2&quot;, &quot;2,1,0&quot; )) &amp;#LF#       IIF( Board.EdgeTypeBottom = &quot;0&quot;, &quot;0&quot;, TRANSLATE( Board.CornerTypeLeft, &quot;0,1,2&quot;, &quot;2,0,1&quot; )) &amp;#LF#       &quot;:&quot;#LF#      ) &amp;#LF#      IIF#LF#      ( Board.EdgeTypeRight = &quot;0&quot;, #LF#       &quot;:&quot;,#LF#       IIF( Board.EdgeTypeRight  = &quot;1&quot;, &quot;1&quot;, &quot;0&quot;) &amp;#LF#       IIF( Board.EdgeTypeBottom = &quot;0&quot;, &quot;0&quot;, TRANSLATE( Board.CornerTypeBottom, &quot;0,1,2&quot;, &quot;2,1,0&quot; )) &amp;#LF#       IIF( Board.EdgeTypeTop    = &quot;0&quot;, &quot;0&quot;, TRANSLATE( Board.CornerTypeRight, &quot;0,1,2&quot;, &quot;2,0,1&quot; ))#LF#      ),#LF##LF#      IIF#LF#      ( Board.EdgeTypeRight = &quot;0&quot;, #LF#       &quot;:&quot;,#LF#       IIF( Board.EdgeTypeRight  = &quot;1&quot;, &quot;1&quot;, &quot;0&quot;) &amp;#LF#       IIF( Board.EdgeTypeBottom = &quot;0&quot;, &quot;0&quot;, TRANSLATE( Board.CornerTypeBottom, &quot;0,1,2&quot;, &quot;2,1,0&quot; )) &amp;#LF#       IIF( Board.EdgeTypeTop    = &quot;0&quot;, &quot;0&quot;, TRANSLATE( Board.CornerTypeRight, &quot;0,1,2&quot;, &quot;2,0,1&quot; )) &amp;#LF#       &quot;:&quot;#LF#      ) &amp;#LF#      IIF#LF#      ( Board.EdgeTypeLeft = &quot;0&quot;, #LF#       &quot;:&quot;,#LF#       IIF( Board.EdgeTypeLeft   = &quot;1&quot;, &quot;1&quot;, &quot;0&quot;) &amp;#LF#       IIF( Board.EdgeTypeTop    = &quot;0&quot;, &quot;0&quot;, TRANSLATE( Board.CornerTypeTop, &quot;0,1,2&quot;, &quot;2,1,0&quot; )) &amp;#LF#       IIF( Board.EdgeTypeBottom = &quot;0&quot;, &quot;0&quot;, TRANSLATE( Board.CornerTypeLeft, &quot;0,1,2&quot;, &quot;2,0,1&quot; )) &amp;#LF#       &quot;:&quot;#LF#      ) &amp;#LF#      IIF#LF#      ( Board.EdgeTypeBottom = &quot;0&quot;, #LF#       &quot;:&quot;,#LF#       IIF( Board.EdgeTypeBottom = &quot;1&quot;, &quot;1&quot;, &quot;0&quot;) &amp;#LF#       IIF( Board.EdgeTypeLeft   = &quot;0&quot;, &quot;0&quot;, TRANSLATE( Board.CornerTypeLeft, &quot;0,1,2&quot;, &quot;2,1,0&quot; )) &amp;#LF#       IIF( Board.EdgeTypeRight  = &quot;0&quot;, &quot;0&quot;, TRANSLATE( Board.CornerTypeBottom, &quot;0,1,2&quot;, &quot;2,0,1&quot; )) &amp;#LF#       &quot;:&quot;#LF#      ) &amp;#LF#      IIF#LF#      ( Board.EdgeTypeTop = &quot;0&quot;, #LF#       &quot;&quot;,#LF#       IIF( Board.EdgeTypeTop   = &quot;1&quot;, &quot;1&quot;, &quot;0&quot;) &amp;#LF#       IIF( Board.EdgeTypeRight = &quot;0&quot;, &quot;0&quot;, TRANSLATE( Board.CornerTypeRight, &quot;0,1,2&quot;, &quot;2,1,0&quot; )) &amp;#LF#       IIF( Board.EdgeTypeLeft  = &quot;0&quot;, &quot;0&quot;, TRANSLATE( Board.CornerTypeTop, &quot;0,1,2&quot;, &quot;2,0,1&quot; ))#LF#      )#LF#     ),#LF##LF##LF#VAR_PLATTENMATERIAL  := Board.BoardMaterialMaterialLabel, #LF#VAR_PLATTENMATERIAL_DICKE := FormatNumber( MakeMM( Board.BoardMaterialMaterialThickness ), 1, &quot;,&quot; ),#LF##LF##LF#VAR_BELAG_VORNE := IIF#LF#   ( #LF#    Board.SwapInsideOutside,#LF#    Board.MatInsideMaterialLabel,#LF#    Board.MatOutsideMaterialLabel#LF#   ),#LF#VAR_BELAG_HINTEN := IIF#LF#   ( #LF#    Board.SwapInsideOutside,#LF#    Board.MatOutsideMaterialLabel,#LF#    Board.MatInsideMaterialLabel#LF#   ),#LF#VAR_SCHICHT_VORNE := IIF#LF#   ( #LF#    Board.SwapInsideOutside,#LF#    Board.MatInsideExt,#LF#    Board.MatOutsideExt #LF#   ),#LF#VAR_SCHICHT_HINTEN := IIF#LF#   ( #LF#    Board.SwapInsideOutside,#LF#    Board.MatOutsideExt,#LF#    Board.MatInsideExt#LF#   ),#LF##LF#VAR_DICKE_VORNE := IIF#LF#   ( #LF#    Board.SwapInsideOutside,#LF#    FormatNumber( MakeMM( Board.MatInsideMaterialThickness ), 1, &quot;,&quot;),#LF#    FormatNumber( MakeMM( Board.MatOutsideMaterialThickness ), 1, &quot;,&quot;)#LF#   ),#LF#VAR_DICKE_HINTEN := IIF#LF#   ( #LF#    Board.SwapInsideOutside,#LF#    FormatNumber( MakeMM( Board.MatOutsideMaterialThickness, ), 1, &quot;,&quot;),#LF#    FormatNumber( MakeMM( Board.MatInsideMaterialThickness ), 1, &quot;,&quot;)#LF#   ),#LF##LF##LF#VAR_ISTPLATTE  := IIF#LF#   ( #LF#    EQUAL( MATCH, &quot;+&quot; ),#LF#    IIF#LF#    (#LF#     EXISTS( &quot;Board.TypeName&quot; ), #LF#     &quot;PLATTE&quot;,  #LF#     &quot;VERBINDER&quot; ,#LF#    ),#LF#    &quot;&quot;#LF#   ),#LF##LF##LF#VAR_KANTE_MAT_RECHTS  := IIF( VAR_NO_KANTE_RECHTS, &quot;&quot;, Board.EdgeRightMaterialLabel),#LF#VAR_KANTE_TYP_RECHTS  := IIF( VAR_NO_KANTE_RECHTS, &quot;&quot;, TRANSLATE( Board.EdgeTypeRight, &quot;1,2&quot;, &quot;Anleimer,Umleimer&quot; )),#LF#VAR_KANTE_ECKE_RECHTS := IIF( VAR_NO_KANTE_RECHTS, &quot;&quot;, IIF( EQUAL( Board.EdgeTypeTop, &quot;0&quot; ), &quot;kurz&quot;, TRANSLATE( Board.CornerTypeRight, &quot;0,1,2&quot;, &quot;gehrung,kurz,lang&quot; ))),#LF#VAR_KANTE_DICKE_RECHTS  := IIF( VAR_NO_KANTE_RECHTS, &quot;&quot;, FORMATNUMBER( MAKEMM( Board.EdgeRightMaterialThickness ), 1, &quot;,&quot;)), #LF##LF#VAR_KANTE_MAT_OBEN  := IIF( VAR_NO_KANTE_OBEN, &quot;&quot;, Board.EdgeTopMaterialLabel),#LF#VAR_KANTE_TYP_OBEN  := IIF( VAR_NO_KANTE_OBEN, &quot;&quot;, TRANSLATE( Board.EdgeTypeTop, &quot;1,2&quot;, &quot;Anleimer,Umleimer&quot; )),#LF#VAR_KANTE_ECKE_OBEN  := IIF( VAR_NO_KANTE_OBEN, &quot;&quot;, IIF( EQUAL( Board.EdgeTypeLeft, &quot;0&quot; ), &quot;kurz&quot;, TRANSLATE( Board.CornerTypeTop, &quot;0,1,2&quot;, &quot;gehrung,kurz,lang&quot; ))),#LF#VAR_KANTE_DICKE_OBEN   := IIF( VAR_NO_KANTE_OBEN, &quot;&quot;, FORMATNUMBER( MAKEMM( Board.EdgeTopMaterialThickness ), 1, &quot;,&quot;)), #LF##LF#VAR_KANTE_MAT_LINKS  := IIF( VAR_NO_KANTE_LINKS, &quot;&quot;, Board.EdgeLeftMaterialLabel),#LF#VAR_KANTE_TYP_LINKS  := IIF( VAR_NO_KANTE_LINKS, &quot;&quot;, TRANSLATE( Board.EdgeTypeLeft, &quot;1,2&quot;, &quot;Anleimer,Umleimer&quot; )),#LF#VAR_KANTE_ECKE_LINKS  := IIF( VAR_NO_KANTE_LINKS, &quot;&quot;, IIF( EQUAL( Board.EdgeTypeBottom, &quot;0&quot; ), &quot;kurz&quot;, TRANSLATE( Board.CornerTypeLeft, &quot;0,1,2&quot;, &quot;gehrung,kurz,lang&quot; ))),#LF#VAR_KANTE_DICKE_LINKS   := IIF( VAR_NO_KANTE_LINKS, &quot;&quot;, FORMATNUMBER( MAKEMM( Board.EdgeLeftMaterialThickness ), 1, &quot;,&quot;)),#LF##LF#VAR_KANTE_MAT_UNTEN  := IIF( VAR_NO_KANTE_UNTEN, &quot;&quot;, Board.EdgeBottomMaterialLabel),#LF#VAR_KANTE_TYP_UNTEN  := IIF( VAR_NO_KANTE_UNTEN, &quot;&quot;, TRANSLATE( Board.EdgeTypeBottom, &quot;1,2&quot;, &quot;Anleimer,Umleimer&quot; )),#LF#VAR_KANTE_ECKE_UNTEN  := IIF( VAR_NO_KANTE_UNTEN, &quot;&quot;, IIF( EQUAL( Board.EdgeTypeRight, &quot;0&quot; ), &quot;kurz&quot;, TRANSLATE( Board.CornerTypeBottom, &quot;0,1,2&quot;, &quot;gehrung,kurz,lang&quot; ))),#LF#VAR_KANTE_DICKE_UNTEN  := IIF( VAR_NO_KANTE_UNTEN, &quot;&quot;, FORMATNUMBER( MAKEMM( Board.EdgeBottomMaterialThickness ), 1, &quot;,&quot;) ),#LF##LF#VAR_HERSTELLER  := IIF( VAR_ISTPLATTE = &quot;VERBINDER&quot;,  HERSTELLER, &quot;&quot; ),#LF#VAR_ARTIKELNUMMER  := IIF( VAR_ISTPLATTE = &quot;VERBINDER&quot;,   ARTIKELNUMMER , &quot;&quot; ),#LF#VAR_BEZEICHNUNG  := IIF( VAR_ISTPLATTE = &quot;VERBINDER&quot;,    BEZEICHNUNG, &quot;&quot; ),#LF##LF#VAR_MASERUNG_QUER  := IIF( Board.IsCross, &quot;Ja&quot;, &quot;&quot; ),#LF#VAR_PLATTE_GESPIEGELT  := IIF( Board.SROT_XwapInsideOutside, &quot;Ja&quot;, &quot;&quot; ),#LF#VAR_WERKSTATT_TEXT  := Board.Text,#LF#VAR_PID    := IIF(EXISTS(Board.PID), Board.PID, &quot;&quot;),#LF##LF#VAR_POS_X := POS_X,#LF#VAR_POS_Y := POS_Y,#LF#VAR_POS_Z := POS_Z,#LF##LF#VAR_ROT_X := ROT_X,#LF#VAR_ROT_Y := ROT_Y,#LF#VAR_ROT_Z := ROT_Z,#LF##LF#VAR_OFFSET_X := OFFSET_X,#LF#VAR_OFFSET_Y := OFFSET_Y,#LF#VAR_OFFSET_Z := OFFSET_Z" />
+		<SpecialFileName value="C:\PaletteCAD\Projects\Planung.json" />
+		<FileMode value="2" />
+		<LLMode value="1" />
+		<AccMode value="0" />
+		<AccCatalog value="false" />
+		<AccFile value="true" />
+		<AccName value="true" />
+		<AccArtNr value="false" />
+		<AccManufacturer value="false" />
+		<AccDecl value="true" />
+		<AccSize value="true" />
+		<AccFirstMat value="true" />
+		<AccSizeDev value="false" />
+		<AccAttributes value="OBJEKTNAME,#LF#Board.TypeName, #LF#VAR_FMLÄNGE,#LF#VAR_FMBREITE,#LF#VAR_FMSTÄRKE,#LF#VAR_ZMLÄNGE,#LF#VAR_ZMBREITE,#LF#IIF( Board.IsCross, &quot;Ja&quot;, &quot;&quot; ),#LF#Board.BoardMaterialMaterialLabel, #LF#Board.MatInsideMaterialLabel,#LF#Board.MatOutsideMaterialLabel,#LF#IIF( EQUAL( Board.EdgeTypeRight, &quot;0&quot; ), &quot;&quot;, Board.EdgeRightMaterialLabel),#LF#IIF( EQUAL( Board.EdgeTypeRight, &quot;0&quot; ), &quot;&quot;, TRANSLATE( Board.EdgeTypeRight, &quot;1,2&quot;, &quot;Anleimer,Umleimer&quot; )),#LF#IIF( EQUAL( Board.EdgeTypeRight, &quot;0&quot; ), &quot;&quot;, IIF( EQUAL( Board.EdgeTypeTop, &quot;0&quot; ), &quot;kurz&quot;, TRANSLATE( Board.CornerTypeRight, &quot;0,1,2&quot;, &quot;gehrung,kurz,lang&quot; ))),#LF##LF#IIF( EQUAL( Board.EdgeTypeTop, &quot;0&quot; ), &quot;&quot;, Board.EdgeTopMaterialLabel),#LF#IIF( EQUAL( Board.EdgeTypeTop, &quot;0&quot; ), &quot;&quot;, TRANSLATE( Board.EdgeTypeTop, &quot;1,2&quot;, &quot;Anleimer,Umleimer&quot; )),#LF#IIF( EQUAL( Board.EdgeTypeTop, &quot;0&quot; ), &quot;&quot;, IIF( EQUAL( Board.EdgeTypeLeft, &quot;0&quot; ), &quot;kurz&quot;, TRANSLATE( Board.CornerTypeTop, &quot;0,1,2&quot;, &quot;gehrung,kurz,lang&quot; ))),#LF##LF#IIF( EQUAL( Board.EdgeTypeLeft, &quot;0&quot; ), &quot;&quot;, Board.EdgeLeftMaterialLabel),#LF#IIF( EQUAL( Board.EdgeTypeLeft, &quot;0&quot; ), &quot;&quot;, TRANSLATE( Board.EdgeTypeLeft, &quot;1,2&quot;, &quot;Anleimer,Umleimer&quot; )),#LF#IIF( EQUAL( Board.EdgeTypeLeft, &quot;0&quot; ), &quot;&quot;, IIF( EQUAL( Board.EdgeTypeBottom, &quot;0&quot; ), &quot;kurz&quot;, TRANSLATE( Board.CornerTypeLeft, &quot;0,1,2&quot;, &quot;gehrung,kurz,lang&quot; ))),#LF##LF#IIF( EQUAL( Board.EdgeTypeBottom, &quot;0&quot; ), &quot;&quot;, Board.EdgeBottomMaterialLabel),#LF#IIF( EQUAL( Board.EdgeTypeBottom, &quot;0&quot; ), &quot;&quot;, TRANSLATE( Board.EdgeTypeBottom, &quot;1,2&quot;, &quot;Anleimer,Umleimer&quot; )),#LF#IIF( EQUAL( Board.EdgeTypeBottom, &quot;0&quot; ), &quot;&quot;, IIF( EQUAL( Board.EdgeTypeRight, &quot;0&quot; ), &quot;kurz&quot;, TRANSLATE( Board.CornerTypeBottom, &quot;0,1,2&quot;, &quot;gehrung,kurz,lang&quot; ))),#LF#IIF( NOT( Board.IsRect ), &quot;Ja &quot;, &quot;&quot; ),#LF#Board.ObjectType,#LF#Board.FeatureEfforts,#LF#Board.Text,#LF#Board.KuhnleCNCString " />
+		<DisplayFmt value="VAR_PID,#LF##LF#VAR_OBJEKTNAME,#LF#VAR_ANZAHL,#LF#VAR_PLATTENTYP,#LF##LF#VAR_FMLÄNGE,#LF#VAR_FMBREITE,#LF#VAR_FMSTÄRKE,#LF##LF#VAR_KANTENBILD,#LF##LF#VAR_MASERUNG_QUER,#LF##LF#VAR_WERKSTATT_TEXT,#LF##LF#VAR_POS_X,#LF#VAR_POS_Y,#LF#VAR_POS_Z,#LF##LF#VAR_ROT_X,#LF#VAR_ROT_Y,#LF#VAR_ROT_Z,#LF##LF#VAR_OFFSET_X,#LF#VAR_OFFSET_Y,#LF#VAR_OFFSET_Z,#LF##LF#Board.ShowPID,#LF#VAR_PLATTENMATERIAL,#LF#Board.EdgeBottomMaterialLabel,#LF#Board.EdgeTopMaterialLabel,#LF#Board.EdgeRightMaterialLabel,#LF#Board.EdgeLeftMaterialLabel," />
+		<DisplayHdr value="PID,Objektname,Anzahl,Plattentyp,Länge,Breite,Stätrke,Kantenbild,Maserung,Notiz,X,Y,Z,RX,RY,RZ,OX,OY,OZ, BPID, MID, EBID, ETID, ERID, ELID" />
+		<DisplayFtr value="" />
+		<ExternStart value="false" />
+		<ExternCall value="&quot;[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\Excel.exe\Standard]&quot; &quot;%s&quot;" />
+		<ExternButton value="Excel" />
+		<LuaPostProcess value="Holztechnik3.1Beta" />
+		<PostProcessMapping value="C:\PaletteCAD\Dat\Bom\Mapping\Holztechnik3.0\Holztechnik3.0.db" />
+		<PostProcessMappingStd value="Materialien" />
+		<SchemaType value="0" />
+		<Countries value="" />
+		<DescriptionText value="@DESCRIPTION" />
+		<CustomizationAllowed value="true" />
+	</General>
+	<Flags />
+	<CSV>
+		<Enable value="true" useglobal="false" />
+		<ButtonLabel value="" useglobal="false" />
+		<FilePath value="" useglobal="true" />
+		<Delimiter value="" useglobal="true" />
+		<NewLine value="" useglobal="true" />
+		<QuoteValues value="false" useglobal="true" />
+		<DoublePrecision value="0" useglobal="true" />
+		<DoubleSeparatorComma value="false" useglobal="true" />
+		<PrintColumnHeaders value="false" useglobal="true" />
+		<UseUTF8 value="false" useglobal="true" />
+		<StartExternal value="false" useglobal="true" />
+		<ExternalCall value="" useglobal="true" />
+		<OpenInExplorer value="false" useglobal="true" />
+		<PrintGroups value="false" useglobal="false" />
+		<InheritGroupValues value="false" useglobal="false" />
+	</CSV>
+	<ExcelXML>
+		<Enable value="true" useglobal="false" />
+		<ButtonLabel value="" useglobal="false" />
+		<FilePath value="" useglobal="true" />
+		<DoublePrecision value="0" useglobal="true" />
+		<StartExternal value="false" useglobal="true" />
+		<ExternalCall value="" useglobal="true" />
+		<OpenInExplorer value="false" useglobal="true" />
+	</ExcelXML>
+	<ExcelXLS>
+		<Enable value="true" useglobal="false" />
+		<ButtonLabel value="" useglobal="false" />
+		<FilePath value="" useglobal="true" />
+		<PrintColumnHeaders value="false" useglobal="true" />
+		<DoublePrecision value="0" useglobal="true" />
+		<StartExternal value="false" useglobal="true" />
+		<ExternalCall value="" useglobal="true" />
+		<OpenInExplorer value="false" useglobal="true" />
+	</ExcelXLS>
+	<HTML>
+		<Enable value="true" useglobal="false" />
+		<ButtonLabel value="" useglobal="false" />
+		<FilePath value="" useglobal="true" />
+		<DoublePrecision value="0" useglobal="true" />
+		<PrintColumnHeaders value="false" useglobal="true" />
+		<UseUTF8 value="false" useglobal="true" />
+		<StartExternal value="false" useglobal="true" />
+		<ExternalCall value="" useglobal="true" />
+		<OpenInExplorer value="false" useglobal="true" />
+		<PrintGroups value="true" useglobal="false" />
+		<InheritGroupValues value="false" useglobal="false" />
+	</HTML>
+	<LL>
+		<Enable value="true" useglobal="false" />
+		<ButtonLabel value="" useglobal="false" />
+		<Mode value="1" useglobal="false" />
+		<Dataprovider value="false" useglobal="false" />
+	</LL>
+	<IDS>
+		<Enable value="false" useglobal="false" />
+		<ButtonLabel value="" useglobal="false" />
+		<VERSION value="2.3" useglobal="false" />
+		<BASEURL value="" useglobal="false" />
+		<IDSArticleFields value="" useglobal="false" />
+		<IDSQuantityFields value="" useglobal="false" />
+		<IDSUnitFields value="" useglobal="false" />
+		<IDSManufacIDFields value="" useglobal="false" />
+		<IDSManufacIDTypeFields value="" useglobal="false" />
+	</IDS>
+	<GAEB90>
+		<Enable value="false" useglobal="false" />
+		<ButtonLabel value="" useglobal="false" />
+		<FilePath value="" useglobal="true" />
+		<StartExternal value="false" useglobal="true" />
+		<ExternalCall value="" useglobal="true" />
+		<OpenInExplorer value="false" useglobal="true" />
+		<GAEPArticleFields value="TBL_RAILS:ARTNO;TBL_RAILS:ARTICLE;TBL_TILES:ARTNO;TBL_TILES:ARTICLE;TBL_TILES:ARTNO;TBL_TILES:ARTICLE;TBL_RAILS:ARTNO;TBL_RAILS:ARTICLE" useglobal="false" />
+		<GAEPQuantityFields value="TBL_RAILS:LFM;TBL_RAILS:LFM;TBL_RAILS:COUNTTOTAL;TBL_RAILS:COUNTTOTAL;TBL_TILES:LFM;TBL_TILES:LFM;TBL_TILES:AREATOTAL;TBL_TILES:AREATOTAL" useglobal="false" />
+		<GAEPUnitFields value="TBL_RAILS:lfm;TBL_RAILS:lfm;TBL_RAILS:Stk;TBL_RAILS:Stk;TBL_TILES:lfm;TBL_TILES:lfm;TBL_TILES:qm;TBL_TILES:qm" useglobal="false" />
+	</GAEB90>
+	<UGL>
+		<Enable value="false" useglobal="false" />
+		<ButtonLabel value="" useglobal="false" />
+		<FilePath value="" useglobal="true" />
+		<StartExternal value="false" useglobal="true" />
+		<ExternalCall value="" useglobal="true" />
+		<OpenInExplorer value="false" useglobal="true" />
+		<UGLArticleFields value="" useglobal="false" />
+		<UGLQuantityFields value="" useglobal="false" />
+		<UGLUnitFields value="" useglobal="false" />
+		<UGLLongDescFields value="" useglobal="false" />
+	</UGL>
+	<MAIL>
+		<Enable value="false" useglobal="false" />
+		<ButtonLabel value="" useglobal="false" />
+		<Recipient value="" useglobal="false" />
+		<Subject value="" useglobal="false" />
+		<Body value="" useglobal="false" />
+		<DoublePrecision value="2" useglobal="false" />
+		<PrintColumnHeaders value="true" useglobal="false" />
+		<OpenInExplorer value="false" useglobal="false" />
+		<PrintGroups value="false" useglobal="false" />
+		<InheritGroupValues value="true" useglobal="false" />
+	</MAIL>
+	<XIOPD>
+		<Enable value="false" useglobal="false" />
+		<ButtonLabel value="" useglobal="false" />
+		<FilePath value="" useglobal="true" />
+		<DoublePrecision value="0" useglobal="true" />
+		<StartExternal value="false" useglobal="true" />
+		<ExternalCall value="" useglobal="true" />
+		<OpenInExplorer value="false" useglobal="true" />
+		<Currency value="EUR" useglobal="false" />
+		<XIOPDArticleFields value="" useglobal="false" />
+		<XIOPDQuantityFields value="" useglobal="false" />
+		<XIOPDUnitFields value="" useglobal="false" />
+		<XIOPDLongDescFields value="" useglobal="false" />
+		<XIOPDShortDescFields value="" useglobal="false" />
+	</XIOPD>
+	<Print>
+		<Enable value="false" useglobal="false" />
+	</Print>
+	<SHOWROOM>
+		<Enable value="false" useglobal="false" />
+		<FilePath value="" useglobal="true" />
+		<ButtonLabel value="" useglobal="false" />
+		<HighEndRendering value="false" useglobal="false" />
+	</SHOWROOM>
+</Kalkbom>

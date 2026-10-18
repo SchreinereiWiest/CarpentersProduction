@@ -1,0 +1,1 @@
+schema path: C:\PaletteCAD\Dat\Bom\Schemas\Holz
