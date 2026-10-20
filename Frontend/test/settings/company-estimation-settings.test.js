@@ -23,7 +23,9 @@ describe("company settings", () => {
       schemaVersion: 5,
       userInterface: {
         showTips: true,
-        lineLockThresholdCm: 5
+        lineLockThresholdCm: 5,
+        measurementLabelSizePercent: 100,
+        measurementLabelOffsetY: -30
       },
       estimation: {
         candidatePoolSize: 500,
@@ -52,7 +54,9 @@ describe("company settings", () => {
       userInterface: { showTips: false, lineLockThresholdCm: "7,5" }
     }).userInterface).toEqual({
       showTips: false,
-      lineLockThresholdCm: 7.5
+      lineLockThresholdCm: 7.5,
+      measurementLabelSizePercent: 100,
+      measurementLabelOffsetY: -30
     });
   });
 
@@ -60,5 +64,17 @@ describe("company settings", () => {
     expect(normalizeCompanySettings({
       userInterface: { lineLockThresholdCm: -2 }
     }).userInterface.lineLockThresholdCm).toBe(0);
+  });
+
+  it("normalizes the Aufmaß label size and vertical offset", () => {
+    const settings = normalizeCompanySettings({
+      userInterface: {
+        measurementLabelSizePercent: 240,
+        measurementLabelOffsetY: "-42,5"
+      }
+    });
+
+    expect(settings.userInterface.measurementLabelSizePercent).toBe(200);
+    expect(settings.userInterface.measurementLabelOffsetY).toBe(-42.5);
   });
 });

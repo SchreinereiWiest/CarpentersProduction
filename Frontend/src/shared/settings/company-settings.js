@@ -34,7 +34,9 @@ export const DEFAULT_COMPANY_SETTINGS = {
     ],
     userInterface: {
         showTips: true,
-        lineLockThresholdCm: 5
+        lineLockThresholdCm: 5,
+        measurementLabelSizePercent: 100,
+        measurementLabelOffsetY: -30
     },
     estimation: {
         ...normalizeEstimationSettings(),
@@ -113,6 +115,12 @@ export function normalizeCompanySettings(data) {
             showTips: userInterface.showTips !== false,
             lineLockThresholdCm: normalizeLineLockThresholdCm(
                 userInterface.lineLockThresholdCm
+            ),
+            measurementLabelSizePercent: normalizeMeasurementLabelSizePercent(
+                userInterface.measurementLabelSizePercent
+            ),
+            measurementLabelOffsetY: normalizeMeasurementLabelOffsetY(
+                userInterface.measurementLabelOffsetY
             )
         },
         estimation: {
@@ -150,6 +158,24 @@ export function normalizeLineLockThresholdCm(value) {
     }
 
     return Math.max(0, parsed);
+}
+
+export function normalizeMeasurementLabelSizePercent(value) {
+    const parsed = Number.parseFloat(String(value ?? "").replace(",", "."));
+    if (!Number.isFinite(parsed)) {
+        return DEFAULT_COMPANY_SETTINGS.userInterface.measurementLabelSizePercent;
+    }
+
+    return Math.min(200, Math.max(50, parsed));
+}
+
+export function normalizeMeasurementLabelOffsetY(value) {
+    const parsed = Number.parseFloat(String(value ?? "").replace(",", "."));
+    if (!Number.isFinite(parsed)) {
+        return DEFAULT_COMPANY_SETTINGS.userInterface.measurementLabelOffsetY;
+    }
+
+    return Math.min(200, Math.max(-200, parsed));
 }
 
 export function createWorkBlocks(settings) {

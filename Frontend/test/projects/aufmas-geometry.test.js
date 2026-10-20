@@ -50,10 +50,20 @@ describe("Aufmaß object geometry", () => {
         })).toEqual({ x: -50, y: 0 });
     });
 
-    it("locks line points horizontally within the configured deviation", () => {
+    it("keeps snapped points fixed instead of moving them onto an axis", () => {
+        const point = { x: 260, y: 204.9, snapped: true };
+
         expect(lockLinePoint(
             { x: 100, y: 200 },
-            { x: 260, y: 204.9, snapped: true },
+            point,
+            5
+        )).toBe(point);
+    });
+
+    it("locks free line points horizontally within the configured deviation", () => {
+        expect(lockLinePoint(
+            { x: 100, y: 200 },
+            { x: 260, y: 204.9, snapped: false },
             5
         )).toMatchObject({ x: 260, y: 200, snapped: false, lineLocked: "horizontal" });
     });

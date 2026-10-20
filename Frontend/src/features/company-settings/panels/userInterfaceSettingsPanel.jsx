@@ -6,6 +6,8 @@ import {
     DEFAULT_COMPANY_SETTINGS,
     loadCompanySettings,
     normalizeLineLockThresholdCm,
+    normalizeMeasurementLabelOffsetY,
+    normalizeMeasurementLabelSizePercent,
     normalizeCompanySettings
 } from "../../../shared/settings/company-settings.js";
 
@@ -56,6 +58,16 @@ export default function UserInterfaceSettingsPanel() {
             userInterface: {
                 ...previous.userInterface,
                 lineLockThresholdCm
+            }
+        }));
+    };
+
+    const setMeasurementDisplay = patch => {
+        setCompanySettings(previous => ({
+            ...previous,
+            userInterface: {
+                ...previous.userInterface,
+                ...patch
             }
         }));
     };
@@ -175,6 +187,67 @@ export default function UserInterfaceSettingsPanel() {
                             <span className="text-gray-400">cm</span>
                         </div>
                     </label>
+                </section>
+
+                <section className="rounded-xl border border-gray-700 bg-gray-800 p-5">
+                    <div>
+                        <h2 className="text-sm font-semibold text-gray-100">Aufmaßdarstellung</h2>
+                        <p className="mt-1 max-w-2xl text-xs text-gray-400">
+                            Passt Größe und vertikale Position der Maßzahl samt Rechteck an. Negative Offsetwerte verschieben die Anzeige über die Maßlinie.
+                        </p>
+                    </div>
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                        <label className="block text-sm text-gray-200">
+                            Maßgröße
+                            <div className="mt-2 flex items-center gap-3">
+                                <input
+                                    type="number"
+                                    min="50"
+                                    max="200"
+                                    step="5"
+                                    value={companySettings.userInterface.measurementLabelSizePercent}
+                                    onChange={event => setMeasurementDisplay({
+                                        measurementLabelSizePercent: event.target.value
+                                    })}
+                                    onBlur={() => setMeasurementDisplay({
+                                        measurementLabelSizePercent: normalizeMeasurementLabelSizePercent(
+                                            companySettings.userInterface.measurementLabelSizePercent
+                                        )
+                                    })}
+                                    className="w-28 rounded border border-gray-600 bg-gray-900 px-3 py-2 text-gray-100 outline-none focus:border-blue-500"
+                                />
+                                <span className="text-gray-400">%</span>
+                            </div>
+                            <span className="mt-1.5 block text-xs text-gray-500">
+                                50–200 %
+                            </span>
+                        </label>
+                        <label className="block text-sm text-gray-200">
+                            Maßoffset Y
+                            <div className="mt-2 flex items-center gap-3">
+                                <input
+                                    type="number"
+                                    min="-200"
+                                    max="200"
+                                    step="5"
+                                    value={companySettings.userInterface.measurementLabelOffsetY}
+                                    onChange={event => setMeasurementDisplay({
+                                        measurementLabelOffsetY: event.target.value
+                                    })}
+                                    onBlur={() => setMeasurementDisplay({
+                                        measurementLabelOffsetY: normalizeMeasurementLabelOffsetY(
+                                            companySettings.userInterface.measurementLabelOffsetY
+                                        )
+                                    })}
+                                    className="w-28 rounded border border-gray-600 bg-gray-900 px-3 py-2 text-gray-100 outline-none focus:border-blue-500"
+                                />
+                                <span className="text-gray-400">Rasterpunkte</span>
+                            </div>
+                            <span className="mt-1.5 block text-xs text-gray-500">
+                                Negativ = oberhalb der Maßlinie
+                            </span>
+                        </label>
+                    </div>
                 </section>
             </div>
         </div>

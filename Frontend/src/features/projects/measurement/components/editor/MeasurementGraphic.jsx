@@ -14,7 +14,9 @@ export default function MeasurementGraphic({
   selected,
   onSelect,
   interactive = true,
-  showObjectLabels = true
+  showObjectLabels = true,
+  measurementLabelSizePercent = 100,
+  measurementLabelOffsetY = -30
 }) {
   const color = selected
     ? "#6eb4f1"
@@ -193,7 +195,13 @@ export default function MeasurementGraphic({
   const label = object.value
     ? `${object.value} ${object.unit || "mm"}`
     : object.label || "Maß offen";
-  const labelWidth = Math.max(84, label.length * 8.2 + 24);
+  const labelScale = Math.min(
+    2,
+    Math.max(0.5, Number(measurementLabelSizePercent) / 100 || 1)
+  );
+  const labelWidth = Math.max(84, label.length * 8.2 + 24) * labelScale;
+  const labelHeight = 34 * labelScale;
+  const labelOffsetY = Number(measurementLabelOffsetY) || 0;
   return (
     <g
       {...objectPointerData}
@@ -234,20 +242,22 @@ export default function MeasurementGraphic({
         stroke={color}
         strokeWidth="3"
       />
-      <g transform={`translate(${middle.x - labelWidth / 2} ${middle.y - 17})`}>
+      <g
+        transform={`translate(${middle.x - labelWidth / 2} ${middle.y - labelHeight / 2 + labelOffsetY})`}
+      >
         <rect
           width={labelWidth}
-          height="34"
-          rx="7"
+          height={labelHeight}
+          rx={7 * labelScale}
           fill="#17232e"
           stroke={color}
         />
         <text
           x={labelWidth / 2}
-          y="22"
+          y={22 * labelScale}
           textAnchor="middle"
           fill="#f1f5f8"
-          fontSize="14"
+          fontSize={14 * labelScale}
           fontWeight="600"
         >
           {label}

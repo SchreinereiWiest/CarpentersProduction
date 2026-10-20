@@ -49,6 +49,41 @@ export const panForPinchAnchor = ({
 const validPoint = (point) =>
   Number.isFinite(point?.x) && Number.isFinite(point?.y);
 
+export const createMeasurementScale = (first, second, referenceMm) => {
+  if (!validPoint(first) || !validPoint(second)) return null;
+  const rasterDistance = Math.hypot(second.x - first.x, second.y - first.y);
+  const millimeters = Number(referenceMm);
+  if (
+    !Number.isFinite(rasterDistance) ||
+    rasterDistance < 0.001 ||
+    !Number.isFinite(millimeters) ||
+    millimeters <= 0
+  ) {
+    return null;
+  }
+  return {
+    millimetersPerUnit: millimeters / rasterDistance,
+    referenceValueMm: millimeters,
+    referencePoints: [first, second].map(({ x, y }) => ({ x, y }))
+  };
+};
+
+export const measurementValueForPoints = (points, scale) => {
+  const [first, second] = points ?? [];
+  const millimetersPerUnit = Number(scale?.millimetersPerUnit);
+  if (
+    !validPoint(first) ||
+    !validPoint(second) ||
+    !Number.isFinite(millimetersPerUnit) ||
+    millimetersPerUnit <= 0
+  ) {
+    return "";
+  }
+  const millimeters =
+    Math.hypot(second.x - first.x, second.y - first.y) * millimetersPerUnit;
+  return String(Math.round(millimeters));
+};
+
 export const lineLockThresholdForCanvas = ({
   thresholdCm,
   dxfScale,
@@ -64,6 +99,10 @@ export const lineLockThresholdForCanvas = ({
 
 export const lockLinePoint = (start, point, threshold) => {
   if (!validPoint(start) || !validPoint(point)) return point;
+
+  // Ein explizit gefangener Rasterpunkt ist bereits die präziseste Vorgabe
+  // und darf nicht durch die nachgelagerte Achsenfixierung verschoben werden.
+  if (point.snapped) return point;
 
   const maximumDeviation = Number(threshold);
   if (!Number.isFinite(maximumDeviation) || maximumDeviation <= 0) return point;

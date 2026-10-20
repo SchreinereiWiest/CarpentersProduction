@@ -480,7 +480,8 @@ export default function AufmasWorkspace() {
               imageFileId: null,
               pageNumber: page.pageNumber,
               pdfSnapPoints: [],
-              pdfSnapStats: null
+              pdfSnapStats: null,
+              measurementScale: null
             };
           } else {
             nextDrawingViews.push({
@@ -491,7 +492,8 @@ export default function AufmasWorkspace() {
               dxfFileId: null,
               pageNumber: page.pageNumber,
               pdfSnapPoints: [],
-              pdfSnapStats: null
+              pdfSnapStats: null,
+              measurementScale: null
             });
           }
         });
@@ -577,7 +579,8 @@ export default function AufmasWorkspace() {
       dxfFileId: null,
       pageNumber: 1,
       pdfSnapPoints: [],
-      pdfSnapStats: null
+      pdfSnapStats: null,
+      measurementScale: null
     };
 
     setViews((current) => {
@@ -814,6 +817,13 @@ export default function AufmasWorkspace() {
                 showTips={companySettings.userInterface?.showTips !== false}
                 lineLockThresholdCm={
                   companySettings.userInterface?.lineLockThresholdCm ?? 5
+                }
+                measurementLabelSizePercent={
+                  companySettings.userInterface?.measurementLabelSizePercent ??
+                  100
+                }
+                measurementLabelOffsetY={
+                  companySettings.userInterface?.measurementLabelOffsetY ?? -30
                 }
               />
             )}

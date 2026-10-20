@@ -9,9 +9,11 @@ import {
 import { derivePdfSnapPoints } from "../../import/pdfSnap.js";
 import {
   clampCanvasPan,
+  createMeasurementScale,
   getPlacedObjectSnapPoints,
   lockLinePoint,
   lineLockThresholdForCanvas,
+  measurementValueForPoints,
   panForPinchAnchor,
   rectangleFromPoints
 } from "../../domain/geometry.js";
@@ -40,7 +42,9 @@ export default function AufmasEditor({
   importing,
   readOnly = false,
   showTips = true,
-  lineLockThresholdCm = 5
+  lineLockThresholdCm = 5,
+  measurementLabelSizePercent = 100,
+  measurementLabelOffsetY = -30
 }) {
   const svgRef = useRef(null);
   const panDragRef = useRef(null);
@@ -55,6 +59,7 @@ export default function AufmasEditor({
   const [panMode, setPanMode] = useState(false);
   const [panning, setPanning] = useState(false);
   const [calibration, setCalibration] = useState(null);
+  const [pdfCalibration, setPdfCalibration] = useState(null);
   const [derivingPdf, setDerivingPdf] = useState(false);
   const [pdfDerivationMessage, setPdfDerivationMessage] = useState("");
 
@@ -165,6 +170,7 @@ export default function AufmasEditor({
     setPointer(null);
     setHoverSnap(null);
     setCalibration(null);
+    setPdfCalibration(null);
     setPdfDerivationMessage("");
   }, [activeTool, readOnly, view.id]);
 
@@ -202,13 +208,16 @@ export default function AufmasEditor({
   }, []);
 
   useEffect(() => {
-    if (!calibration) return undefined;
+    if (!calibration && !pdfCalibration) return undefined;
     const cancel = (event) => {
-      if (event.key === "Escape") setCalibration(null);
+      if (event.key === "Escape") {
+        setCalibration(null);
+        setPdfCalibration(null);
+      }
     };
     window.addEventListener("keydown", cancel);
     return () => window.removeEventListener("keydown", cancel);
-  }, [calibration]);
+  }, [calibration, pdfCalibration]);
 
   const rawCanvasPoint = (event) => {
     const svgPoint = svgRef.current.createSVGPoint();
@@ -311,11 +320,15 @@ export default function AufmasEditor({
         unit: ""
       });
     } else {
+      const calculatedValue = measurementValueForPoints(
+        points,
+        view.measurementScale
+      );
       onCreate({
         ...base,
         type: "Raumbreite",
         label: "Neue Messung",
-        value: "",
+        value: calculatedValue,
         unit: "mm"
       });
     }
@@ -338,6 +351,17 @@ export default function AufmasEditor({
   };
 
   const performEditorAction = (event) => {
+    if (pdfCalibration) {
+      if (pdfCalibration.step >= 2) return;
+      const clicked = rawCanvasPoint(event);
+      setPdfCalibration((current) => ({
+        ...current,
+        step: current.step + 1,
+        points: [...current.points, clicked],
+        error: ""
+      }));
+      return;
+    }
     if (calibration) {
       const clicked = rawCanvasPoint(event);
       if (calibration.step === 0 || calibration.step === 2) {
@@ -459,7 +483,10 @@ export default function AufmasEditor({
       svgRef.current.setPointerCapture?.(event.pointerId);
       if (touchPointersRef.current.size >= 2) {
         startPinch();
-      } else if ((panMode || (!activeTool && !calibration)) && zoom > 1) {
+      } else if (
+        (panMode || (!activeTool && !calibration && !pdfCalibration)) &&
+        zoom > 1
+      ) {
         beginPan(event);
       }
       return;
@@ -569,6 +596,11 @@ export default function AufmasEditor({
       }
       return;
     }
+    if (pdfCalibration) {
+      setPointer(rawCanvasPoint(event));
+      setHoverSnap(null);
+      return;
+    }
     if (calibration) {
       const nextPoint = rawCanvasPoint(event);
       setPointer(nextPoint);
@@ -612,7 +644,8 @@ export default function AufmasEditor({
         svgRef.current?.releasePointerCapture?.(event.pointerId);
         setPanning(false);
         if (cancelled || primaryPointer.moved) return;
-        if (activeTool || calibration) performEditorAction(event);
+        if (activeTool || calibration || pdfCalibration)
+          performEditorAction(event);
         else if (primaryPointer.objectId) onSelect(primaryPointer.objectId);
         return;
       }
@@ -632,7 +665,7 @@ export default function AufmasEditor({
     }
 
     if (!touch || cancelled || wasPinching || touch.moved || panMode) return;
-    if (activeTool || calibration) {
+    if (activeTool || calibration || pdfCalibration) {
       performEditorAction(event);
     } else if (touch.objectId) {
       onSelect(touch.objectId);
@@ -654,9 +687,18 @@ export default function AufmasEditor({
   const calibrationDxfStep =
     calibration && (calibration.step === 1 || calibration.step === 3);
 
-  const deriveFromPdf = async () => {
+  const pdfCalibrationPrompt =
+    pdfCalibration &&
+    [
+      "Ersten Punkt des Referenzmaßes wählen",
+      "Zweiten Punkt des Referenzmaßes wählen",
+      "Referenzmaß eingeben"
+    ][pdfCalibration.step];
+
+  const deriveFromPdf = async (measurementScale) => {
     if (!planPage || derivingPdf) return;
     setDerivingPdf(true);
+    setPdfCalibration(null);
     setPdfDerivationMessage("");
     try {
       await new Promise((resolve) =>
@@ -665,7 +707,8 @@ export default function AufmasEditor({
       const result = await derivePdfSnapPoints(planPage);
       onUpdateView({
         pdfSnapPoints: result.points,
-        pdfSnapStats: result.stats
+        pdfSnapStats: result.stats,
+        measurementScale
       });
       setPdfDerivationMessage(`${result.points.length} PDF-Fangpunkte erkannt`);
     } catch (error) {
@@ -674,6 +717,24 @@ export default function AufmasEditor({
     } finally {
       setDerivingPdf(false);
     }
+  };
+
+  const finishPdfCalibration = (event) => {
+    event.preventDefault();
+    const normalizedValue = pdfCalibration.referenceValue.replace(",", ".");
+    const measurementScale = createMeasurementScale(
+      pdfCalibration.points[0],
+      pdfCalibration.points[1],
+      normalizedValue
+    );
+    if (!measurementScale) {
+      setPdfCalibration((current) => ({
+        ...current,
+        error: "Bitte ein gültiges Referenzmaß größer als 0 eingeben."
+      }));
+      return;
+    }
+    void deriveFromPdf(measurementScale);
   };
 
   return (
@@ -689,6 +750,9 @@ export default function AufmasEditor({
           <p className="mt-0.5 text-[11px] text-[#728391]">
             {hasDxf ? `${dxf.snapPoints.length} DXF` : "Kein DXF"} ·{" "}
             {pdfSnapPoints.length} PDF-Fangpunkte
+            {view.measurementScale?.millimetersPerUnit > 0 && (
+              <span className="ml-2 text-[#c7a66e]">· Maßstab gesetzt</span>
+            )}
             {pdfDerivationMessage && (
               <span className="ml-2 text-[#9ab4c5]">
                 {pdfDerivationMessage}
@@ -730,6 +794,7 @@ export default function AufmasEditor({
                   setDraft([]);
                   setPointer(null);
                   setHoverSnap(null);
+                  setPdfCalibration(null);
                   setCalibration({
                     step: 0,
                     pdfPoints: [],
@@ -755,9 +820,20 @@ export default function AufmasEditor({
               <button
                 type="button"
                 disabled={!hasPlan || derivingPdf}
-                onClick={deriveFromPdf}
-                className="inline-flex items-center gap-2 rounded-lg border border-[#5b5040] bg-[#29241d] px-3 py-2 text-xs font-medium text-[#d8bd8e] hover:border-[#8a7049] hover:text-[#f1d5a3] disabled:cursor-not-allowed disabled:opacity-35"
-                title="Geometrische Fangpunkte direkt aus dem PDF-Raster ableiten"
+                onClick={() => {
+                  setDraft([]);
+                  setPointer(null);
+                  setHoverSnap(null);
+                  setCalibration(null);
+                  setPdfCalibration({
+                    step: 0,
+                    points: [],
+                    referenceValue: "",
+                    error: ""
+                  });
+                }}
+                className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium hover:border-[#8a7049] hover:text-[#f1d5a3] disabled:cursor-not-allowed disabled:opacity-35 ${pdfCalibration ? "border-[#b58a4d] bg-[#493a25] text-[#ffe0aa]" : "border-[#5b5040] bg-[#29241d] text-[#d8bd8e]"}`}
+                title="PDF-Raster über ein Referenzmaß skalieren und Fangpunkte ableiten"
               >
                 <AufmasIcon name="point" className="size-4" />{" "}
                 {derivingPdf ? "PDF wird analysiert …" : "PDF ableiten"}
@@ -766,7 +842,11 @@ export default function AufmasEditor({
                 <button
                   type="button"
                   onClick={() =>
-                    onUpdateView({ pdfSnapPoints: [], pdfSnapStats: null })
+                    onUpdateView({
+                      pdfSnapPoints: [],
+                      pdfSnapStats: null,
+                      measurementScale: null
+                    })
                   }
                   className="rounded-lg border border-[#5b5040] bg-[#29241d] p-2 text-[#a78d68] hover:border-[#704b49] hover:text-[#e8a09b]"
                   title="Abgeleitete PDF-Fangpunkte entfernen"
@@ -996,6 +1076,8 @@ export default function AufmasEditor({
                   onSelect={onSelect}
                   interactive={!activeTool && !panMode}
                   showObjectLabels={display.objectLabels}
+                  measurementLabelSizePercent={measurementLabelSizePercent}
+                  measurementLabelOffsetY={measurementLabelOffsetY}
                 />
               ))}
           {display.objects &&
@@ -1009,6 +1091,8 @@ export default function AufmasEditor({
                   onSelect={onSelect}
                   interactive={!activeTool && !panMode}
                   showObjectLabels={display.objectLabels}
+                  measurementLabelSizePercent={measurementLabelSizePercent}
+                  measurementLabelOffsetY={measurementLabelOffsetY}
                 />
               ))}
           {activeTool === "cabinet" &&
@@ -1079,6 +1163,27 @@ export default function AufmasEditor({
               </text>
             </g>
           ))}
+          {pdfCalibration?.points.map((point, index) => (
+            <g key={`pdf-scale-${index}`} pointerEvents="none">
+              <circle
+                cx={point.x}
+                cy={point.y}
+                r="10"
+                fill="#e3ad60"
+                stroke="#fff0cf"
+                strokeWidth="2"
+              />
+              <text
+                x={point.x + 14}
+                y={point.y - 12}
+                fill="#f4c77f"
+                fontSize="13"
+                fontWeight="700"
+              >
+                Referenz {index + 1}
+              </text>
+            </g>
+          ))}
           {calibration?.dxfPoints.map((point, index) => {
             const mapped = applyDxfTransform(point, dxfTransform);
             return (
@@ -1120,12 +1225,69 @@ export default function AufmasEditor({
             )}
           </div>
         )}
+        {pdfCalibration && (
+          <div
+            className={`absolute left-1/2 top-6 min-w-80 -translate-x-1/2 rounded-xl border border-[#7e6848] bg-[#211d17]/95 px-4 py-3 text-center text-xs text-[#f1dfc1] shadow-xl ${pdfCalibration.step < 2 ? "pointer-events-none" : ""}`}
+          >
+            <p className="font-semibold">{pdfCalibrationPrompt}</p>
+            {pdfCalibration.step < 2 ? (
+              <p className="mt-1 text-[10px] text-[#b09b78]">
+                Punkt exakt auf der PDF-Zeichnung setzen · ESC zum Abbrechen
+              </p>
+            ) : (
+              <form onSubmit={finishPdfCalibration} className="mt-3">
+                <label className="block text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-[#b09b78]">
+                  Referenzmaß in mm
+                  <input
+                    autoFocus
+                    type="text"
+                    inputMode="decimal"
+                    value={pdfCalibration.referenceValue}
+                    onChange={(event) =>
+                      setPdfCalibration((current) => ({
+                        ...current,
+                        referenceValue: event.target.value,
+                        error: ""
+                      }))
+                    }
+                    className="mt-1.5 w-full rounded-lg border border-[#66563e] bg-[#15130f] px-3 py-2 text-sm font-semibold tabular-nums text-white outline-none focus:border-[#c89a56]"
+                    placeholder="z. B. 1000"
+                  />
+                </label>
+                <div className="mt-3 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPdfCalibration(null)}
+                    className="rounded-lg border border-[#544b3e] px-3 py-2 text-[#b8aa93] hover:text-white"
+                  >
+                    Abbrechen
+                  </button>
+                  <button
+                    type="submit"
+                    className="rounded-lg border border-[#a47b42] bg-[#5b4325] px-3 py-2 font-semibold text-[#ffe0aa] hover:bg-[#6d512e]"
+                  >
+                    Maßstab setzen &amp; ableiten
+                  </button>
+                </div>
+              </form>
+            )}
+            {pdfCalibration.error && (
+              <p className="mt-2 text-[10px] text-[#f0a39e]">
+                {pdfCalibration.error}
+              </p>
+            )}
+          </div>
+        )}
         {showTips && panMode && zoom > 1 && (
           <div className="pointer-events-none absolute left-1/2 top-6 -translate-x-1/2 rounded-full border border-[#456579] bg-[#162631]/95 px-4 py-2 text-xs text-[#c9dce8] shadow-xl">
             Ansicht ziehen · Verschiebung ist auf den Zeichenbereich begrenzt
           </div>
         )}
-        {showTips && activeTool && !calibration && !panMode && (
+        {showTips &&
+          activeTool &&
+          !calibration &&
+          !pdfCalibration &&
+          !panMode && (
           <div className="pointer-events-none absolute left-1/2 top-6 -translate-x-1/2 rounded-full border border-[#3f5363] bg-[#16212a]/95 px-4 py-2 text-xs text-[#c2d0da] shadow-xl">
             {activeTool === "measurement" &&
               (draft.length ? "Zweiten Punkt wählen" : "Ersten Punkt wählen")}
