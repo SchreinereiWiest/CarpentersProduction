@@ -5,14 +5,19 @@ import {
     setCachedGlobalFile,
     touchCachedFile
 } from "./indexed-db.js";
-import { downloadFile, readDownloadMetadata } from "../api/file-api.js";
+import { downloadFile, readDownloadMetadata, uploadJSONFile } from "../api/file-api.js";
 import { OfflineResourceUnavailableError } from "../offline/offline-errors.js";
-import { pushOfflineNotice } from "../offline/offline-status.js";
+import { createUuid } from "../utils/uuid.js";
+import {
+    dismissOfflineNotice,
+    pushOfflineNotice
+} from "../offline/offline-status.js";
 
 export const S3_REVALIDATE_INTERVAL_MS = 5 * 60 * 1000;
 const ACTIVE_CACHE_WINDOW_MS = 60 * 60 * 1000;
 const memoryCache = new Map();
 const activeRevalidations = new Map();
+const activeUploads = new Map();
 const keyFor = file => `global:${file}`;
 const isOffline = () => typeof navigator !== "undefined" && !navigator.onLine;
 const isNetworkError = error => !error.response || error.code === "ERR_NETWORK";
@@ -44,6 +49,12 @@ const storeGlobalEntry = async ({
     version,
     fileId = null,
     sourcePath,
+    uploadPath = null,
+    syncStatus = "synced",
+    localRevision = 0,
+    mutationId = null,
+    updatedLocallyAt = null,
+    error = null,
     lastValidatedAt = Date.now(),
     retentionProtected = false
 }) => {
@@ -53,16 +64,28 @@ const storeGlobalEntry = async ({
         version,
         fileId,
         sourcePath,
+        uploadPath,
+        syncStatus,
+        localRevision,
+        mutationId,
+        updatedLocallyAt,
+        error,
         lastAccessedAt: Date.now(),
         lastValidatedAt,
         retentionProtected
     });
     memoryCache.set(keyFor(file), entry);
+    if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("offline-cache-changed"));
+    }
     return entry;
 };
 
 const revalidateGlobalFile = async ({ file, cached, loadFromServer, force = false, redownload = false }) => {
-    if (isOffline() || !cached || !loadFromServer?.download?.getDescriptor) return cached;
+    if (isOffline()
+        || !cached
+        || ["pending", "error"].includes(cached.syncStatus)
+        || !loadFromServer?.download?.getDescriptor) return cached;
     if (!force && Date.now() - (cached.lastValidatedAt ?? 0) < S3_REVALIDATE_INTERVAL_MS) return cached;
 
     const descriptor = await loadFromServer.download.getDescriptor(loadFromServer.path, {
@@ -132,6 +155,7 @@ export const getGlobalFile = async ({ file, loadFromServer }) => {
     if (cached) {
         memoryCache.set(key, cached);
         if (memoryEntry) void touchCachedFile(key);
+        if (["pending", "error"].includes(cached.syncStatus)) return cached.data;
         if (!isOffline()) void queueGlobalRevalidation({ file, cached, loadFromServer, force: true });
         return cached.data;
     }
@@ -208,18 +232,130 @@ export const refreshCachedGlobalFiles = async ({
     return result;
 };
 
+const sendGlobalEntry = async (entry, upload = uploadJSONFile) => {
+    try {
+        const response = await upload(entry.uploadPath ?? entry.sourcePath, entry.data);
+        const version = response?.version ?? response?.fileEntry?.serverVersion ?? Date.now();
+        const latest = await getCachedGlobalFile({ file: entry.file });
+
+        if (latest?.mutationId && latest.mutationId !== entry.mutationId) {
+            await storeGlobalEntry({
+                ...latest,
+                version,
+                fileId: response?.fileId ?? response?.fileEntry?.id ?? latest.fileId ?? null,
+                syncStatus: "pending",
+                error: null
+            });
+            return { ...response, status: "superseded", data: latest.data };
+        }
+
+        await storeGlobalEntry({
+            ...entry,
+            version,
+            fileId: response?.fileId ?? response?.fileEntry?.id ?? entry.fileId ?? null,
+            syncStatus: "synced",
+            localRevision: 0,
+            mutationId: null,
+            updatedLocallyAt: null,
+            error: null
+        });
+        dismissOfflineNotice(`global-sync-error:${entry.file}`);
+        return { ...response, status: "synced", data: entry.data };
+    } catch (error) {
+        const pending = !error.response || error.code === "ERR_NETWORK" || isOffline();
+        const latest = await getCachedGlobalFile({ file: entry.file });
+        const target = latest?.mutationId && latest.mutationId !== entry.mutationId
+            ? latest
+            : entry;
+        await storeGlobalEntry({
+            ...target,
+            syncStatus: pending ? "pending" : "error",
+            error: pending ? null : (error.response?.data ?? error.message)
+        });
+        pushOfflineNotice({
+            id: pending ? "offline-pending" : `global-sync-error:${entry.file}`,
+            type: pending ? "info" : "error",
+            title: pending ? "Lokal gespeichert" : "Synchronisierung fehlgeschlagen",
+            message: pending
+                ? "Änderungen warten auf eine Internetverbindung."
+                : `${entry.file} konnte nicht übertragen werden.`,
+            persistent: true
+        });
+        if (pending) return { status: "pending", offline: true };
+        throw error;
+    }
+};
+
+const queueGlobalUpload = (entry, upload = uploadJSONFile) => {
+    const key = keyFor(entry.file);
+    const previous = activeUploads.get(key) ?? Promise.resolve();
+    const task = previous
+        .catch(() => null)
+        .then(async () => {
+            if (isOffline()) return { status: "pending", offline: true };
+            const latest = await getCachedGlobalFile({ file: entry.file });
+            if (!latest || !["pending", "error"].includes(latest.syncStatus)) {
+                return { status: latest?.syncStatus ?? "missing" };
+            }
+            return sendGlobalEntry(latest, upload);
+        })
+        .catch(error => {
+            console.error(`Hintergrund-Synchronisierung für ${entry.file} fehlgeschlagen`, error);
+            return { status: "error", error };
+        })
+        .finally(() => {
+            if (activeUploads.get(key) === task) activeUploads.delete(key);
+        });
+    activeUploads.set(key, task);
+    return task;
+};
+
 export const uploadGlobalFile = async ({ file, data, uploadFunction, retentionProtected = false }) => {
-    const response = await uploadFunction.upload(uploadFunction.path, data);
-    const version = response?.version ?? response?.fileEntry?.serverVersion ?? Date.now();
-    await storeGlobalEntry({
+    const current = await getCachedGlobalFile({ file });
+    const entry = await storeGlobalEntry({
         file,
         data,
-        version,
-        fileId: response?.fileId ?? response?.fileEntry?.id ?? null,
+        version: current?.version ?? null,
+        fileId: current?.fileId ?? null,
         sourcePath: uploadFunction.sourcePath ?? uploadFunction.path,
+        uploadPath: uploadFunction.path,
+        syncStatus: "pending",
+        localRevision: (current?.localRevision ?? 0) + 1,
+        mutationId: createUuid(),
+        updatedLocallyAt: new Date().toISOString(),
+        error: null,
         retentionProtected
     });
-    return response;
+
+    if (isOffline()) {
+        pushOfflineNotice({
+            id: "offline-pending",
+            type: "info",
+            title: "Lokal gespeichert",
+            message: "Änderungen warten auf eine Internetverbindung.",
+            persistent: true
+        });
+        return { status: "pending", offline: true, data };
+    }
+
+    const syncPromise = queueGlobalUpload(entry, uploadFunction.upload);
+    return { status: "pending", queued: true, data, syncPromise };
+};
+
+export const syncPendingGlobalFiles = async () => {
+    if (isOffline()) return { synced: 0, errors: 0 };
+    const entries = (await listCachedGlobalFiles())
+        .filter(entry => ["pending", "error"].includes(entry.syncStatus));
+    const result = { synced: 0, errors: 0 };
+
+    for (const entry of entries) {
+        const response = await queueGlobalUpload(entry);
+        if (["error", "pending"].includes(response.status)) result.errors += 1;
+        else result.synced += 1;
+    }
+
+    if (result.synced > 0 && result.errors === 0) dismissOfflineNotice("offline-pending");
+    return result;
 };
 
 export const clearGlobalMemoryCache = () => memoryCache.clear();

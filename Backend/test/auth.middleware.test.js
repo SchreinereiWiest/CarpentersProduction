@@ -6,8 +6,10 @@ import {
 import { verifyCsrfToken, verifyRequestOrigin } from "../src/middleware/csrf.middleware.js";
 import {
     canAccessFile,
+    customerReferenceWhere,
     projectAccessWhere
 } from "../src/middleware/resourceAuthorization.middleware.js";
+import { createCustomerSearchQuery } from "../src/modules/customers/customer.controller.js";
 
 function createResponse() {
     return {
@@ -70,6 +72,32 @@ test("Projektzugriff erlaubt Benutzern alle aktiven Projekte", () => {
 test("Projektzugriff beschränkt privilegierte Rollen nicht nach Status", () => {
     assert.deepEqual(projectAccessWhere({ id: "admin-id", role: "admin" }), {});
     assert.deepEqual(projectAccessWhere({ id: "manager-id", role: "manager" }), {});
+});
+
+test("Kundenreferenzen für Projekte prüfen keine Eigentümerschaft", () => {
+    assert.deepEqual(customerReferenceWhere("customer-id"), {
+        id: "customer-id",
+        deletedAt: null
+    });
+});
+
+test("Kundensuche liefert Benutzern ausschließlich ID sowie Vor- und Nachname", () => {
+    const query = createCustomerSearchQuery({ role: "user" }, "Muster");
+
+    assert.deepEqual(query.select, {
+        id: true,
+        firstName: true,
+        lastName: true
+    });
+    assert.equal(query.where.OR.length, 2);
+    assert.equal(query.where.OR.some(filter => Object.hasOwn(filter, "companyName")), false);
+});
+
+test("Privilegierte Kundensuche darf weiterhin Firmennamen durchsuchen", () => {
+    const query = createCustomerSearchQuery({ role: "manager" }, "Muster");
+
+    assert.equal(Object.hasOwn(query, "select"), false);
+    assert.equal(query.where.OR.some(filter => Object.hasOwn(filter, "companyName")), true);
 });
 
 test("Dateizugriff folgt dem Status des zugehörigen Projekts", () => {

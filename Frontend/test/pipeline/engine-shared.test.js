@@ -5,6 +5,7 @@ import {
 } from '@Engine/cabinet/cabinet.js';
 import { getMiddleWallCenter } from '@Engine/cabinet/geometry/middleWall.js';
 import { resizeCabinetContents } from '@Engine/cabinet/geometry/resizeCabinetContents.js';
+import { generateFronts } from '@Engine/cabinet/sektions/front/generateFronts.js';
 import {
     findTreeNode,
     findTreeParent,
@@ -124,6 +125,61 @@ describe('shared Engine helpers', () => {
             height: 1000,
             sections: [],
             fronts: []
+        });
+    });
+
+    it('uses negative outer front gaps as overhangs when generating and resizing fronts', () => {
+        let generatedCabinet;
+
+        generateFronts(
+            '1',
+            'vertical',
+            {
+                width: 600,
+                height: 1000,
+                frontGap: 3,
+                frontGapLeft: -10,
+                frontGapRight: -20,
+                frontGapTop: -5,
+                frontGapBottom: -15
+            },
+            changes => {
+                generatedCabinet = changes;
+            },
+            () => {}
+        );
+
+        expect(generatedCabinet.fronts[0]).toMatchObject({
+            x: -10,
+            y: -5,
+            width: 630,
+            height: 1020
+        });
+
+        const resized = resizeCabinetContents(
+            {
+                width: 600,
+                height: 1000,
+                frontGap: 3,
+                frontGapLeft: -10,
+                frontGapRight: -20,
+                frontGapTop: -5,
+                frontGapBottom: -15,
+                frontLayout: {
+                    spec: '1',
+                    direction: 'vertical'
+                },
+                fronts: generatedCabinet.fronts,
+                sections: []
+            },
+            { width: 700, height: 1200 }
+        );
+
+        expect(resized.fronts[0]).toMatchObject({
+            x: -10,
+            y: -5,
+            width: 730,
+            height: 1220
         });
     });
 

@@ -3,7 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { downloadFile, uploadJSONFile } from '../../src/shared/api/file-api.js';
 import { getCachedGlobalFile, markCachedFileStale, setCachedGlobalFile } from '../../src/shared/cache/indexed-db.js';
-import { getGlobalFile, refreshCachedGlobalFiles } from '../../src/shared/cache/global-cache.js';
+import {
+  getGlobalFile,
+  refreshCachedGlobalFiles,
+  syncPendingGlobalFiles,
+  uploadGlobalFile,
+} from '../../src/shared/cache/global-cache.js';
 import { getProjectFile, uploadProjectFile } from '../../src/shared/cache/project-cache.js';
 import { getCachedProjectFile, setCachedProjectFile } from '../../src/shared/cache/project-indexed-db.js';
 import { loadCadFile } from '../../src/features/projects/measurement/import/cadLoader.js';
@@ -149,7 +154,7 @@ describe('Dateispeicherung und -abruf', () => {
       },
     });
 
-    expect(upload).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(upload).toHaveBeenCalledOnce());
 
     vi.resetModules();
     const { getProjectFile } = await import('../../src/shared/cache/project-cache.js');
@@ -282,7 +287,11 @@ describe('Dateispeicherung und -abruf', () => {
       uploadFunction: { upload },
     });
 
-    expect(upload).toHaveBeenCalledWith(
+    expect(result).toMatchObject({
+      status: 'pending',
+      data: localNesting,
+    });
+    await vi.waitFor(() => expect(upload).toHaveBeenCalledWith(
       '/api/projects/generated/project-initial-nesting-race/nesting',
       localNesting,
       expect.objectContaining({
@@ -291,22 +300,128 @@ describe('Dateispeicherung und -abruf', () => {
           'X-Calculation-Source': CALCULATION_SOURCES.CLIENT,
         }),
       }),
-    );
-    expect(result).toMatchObject({
-      status: 'synced',
-      calculationSource: CALCULATION_SOURCES.SERVER,
-      data: serverNesting,
-      version: 1,
+    ));
+    await vi.waitFor(async () => {
+      await expect(getCachedProjectFile({
+        projectId: 'project-initial-nesting-race',
+        file: 'nesting.json',
+      })).resolves.toMatchObject({
+        data: serverNesting,
+        serverVersion: 1,
+        baseVersion: 1,
+        syncStatus: 'synced',
+        calculationSource: CALCULATION_SOURCES.SERVER,
+      });
     });
-    await expect(getCachedProjectFile({
-      projectId: 'project-initial-nesting-race',
-      file: 'nesting.json',
-    })).resolves.toMatchObject({
-      data: serverNesting,
-      serverVersion: 1,
-      baseVersion: 1,
+  });
+
+  it('bestätigt Projektdateien lokal, ohne auf eine langsame Verbindung zu warten', async () => {
+    const projectId = `local-first-project-${Date.now()}`;
+    let finishUpload;
+    const upload = vi.fn(() => new Promise(resolve => { finishUpload = resolve; }));
+    const payload = { value: 'local' };
+
+    await expect(uploadProjectFile({
+      projectId,
+      file: 'cabinet.json',
+      data: payload,
+      uploadFunction: { upload },
+    })).resolves.toMatchObject({ status: 'pending', queued: true, data: payload });
+
+    await expect(getProjectFile({
+      projectId,
+      file: 'cabinet.json',
+      loadFromServer: { download: vi.fn() },
+    })).resolves.toEqual(payload);
+    await vi.waitFor(() => expect(upload).toHaveBeenCalledOnce());
+
+    finishUpload({ version: 1, fileId: 'cabinet-file' });
+    await vi.waitFor(async () => {
+      await expect(getCachedProjectFile({ projectId, file: 'cabinet.json' }))
+        .resolves.toMatchObject({ syncStatus: 'synced', data: payload });
+    });
+  });
+
+  it('behält bei schnellen Folgespeicherungen immer den neuesten lokalen Stand', async () => {
+    const projectId = `serial-project-${Date.now()}`;
+    const resolvers = [];
+    const upload = vi.fn(() => new Promise(resolve => resolvers.push(resolve)));
+
+    await uploadProjectFile({
+      projectId,
+      file: 'list.json',
+      data: { revision: 1 },
+      uploadFunction: { upload },
+    });
+    await vi.waitFor(() => expect(upload).toHaveBeenCalledTimes(1));
+
+    await uploadProjectFile({
+      projectId,
+      file: 'list.json',
+      data: { revision: 2 },
+      uploadFunction: { upload },
+    });
+    resolvers[0]({ version: 1, fileId: 'list-file' });
+
+    await vi.waitFor(() => expect(upload).toHaveBeenCalledTimes(2));
+    expect(upload.mock.calls[1][1]).toEqual({ revision: 2 });
+    expect(upload.mock.calls[1][2].headers['If-Match']).toBe('"1"');
+    resolvers[1]({ version: 2, fileId: 'list-file' });
+
+    await vi.waitFor(async () => {
+      await expect(getCachedProjectFile({ projectId, file: 'list.json' }))
+        .resolves.toMatchObject({ syncStatus: 'synced', data: { revision: 2 }, serverVersion: 2 });
+    });
+  });
+
+  it('speichert globale Bereiche ebenfalls vor dem Hintergrund-Upload lokal', async () => {
+    const file = `local-first-global-${Date.now()}.json`;
+    let finishUpload;
+    const upload = vi.fn(() => new Promise(resolve => { finishUpload = resolve; }));
+    const payload = { theme: 'dark' };
+
+    await expect(uploadGlobalFile({
+      file,
+      data: payload,
+      uploadFunction: { upload, path: '/api/settings/test' },
+    })).resolves.toMatchObject({ status: 'pending', queued: true, data: payload });
+    await expect(getGlobalFile({
+      file,
+      loadFromServer: { download: vi.fn() },
+    })).resolves.toEqual(payload);
+    await vi.waitFor(() => expect(upload).toHaveBeenCalledOnce());
+
+    finishUpload({ version: 3, fileId: 'global-file' });
+    await vi.waitFor(async () => {
+      await expect(getCachedGlobalFile({ file }))
+        .resolves.toMatchObject({ syncStatus: 'synced', data: payload, version: 3 });
+    });
+  });
+
+  it('überträgt offline gespeicherte globale Bereiche nach Wiederherstellung der Verbindung', async () => {
+    const file = `offline-global-${Date.now()}.json`;
+    const online = vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
+
+    await expect(uploadGlobalFile({
+      file,
+      data: { offline: true },
+      uploadFunction: { upload: vi.fn(), path: '/api/settings/offline-test' },
+    })).resolves.toMatchObject({ status: 'pending', offline: true });
+    await expect(getCachedGlobalFile({ file })).resolves.toMatchObject({ syncStatus: 'pending' });
+
+    online.mockReturnValue(true);
+    axios.post.mockResolvedValue({ data: { version: 4, fileId: 'offline-global-file' } });
+    await syncPendingGlobalFiles();
+
+    expect(axios.post).toHaveBeenCalledWith(
+      '/api/settings/offline-test',
+      { offline: true },
+      expect.objectContaining({ withCredentials: true })
+    );
+    await expect(getCachedGlobalFile({ file })).resolves.toMatchObject({
       syncStatus: 'synced',
-      calculationSource: CALCULATION_SOURCES.SERVER,
+      data: { offline: true },
+      version: 4
     });
   });
 

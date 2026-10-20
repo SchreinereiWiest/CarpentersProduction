@@ -1,4 +1,4 @@
-import { getBlockForEntry } from "./helper.js";
+import { formatLocalDate, getBlockForEntry, shiftLocalDate } from "./helper.js";
 import { createCalendarEntry, createWeek } from "./createCalendar.js";
 import { findInsertSlot, insertSlot } from "./SlotsCalendar.js";
 import axios from "axios";
@@ -25,30 +25,62 @@ export async function loadWeek(userId, Cal, weekOffset) {
     // Wochenwechsel berücksichtigen
     weekStart.setDate(weekStart.getDate() + weekOffset * 7);
 
-    const dateString = [
-    weekStart.getFullYear(),
-    String(weekStart.getMonth() + 1).padStart(2, "0"),
-    String(weekStart.getDate()).padStart(2, "0")
-].join("-");
+    const dateString = formatLocalDate(weekStart);
 
         // console.log(userId, dateString);
 
-    try {
-        const data = await getGlobalFile({
-            file: `weekData:${userId.id}:${dateString}`,
-            loadFromServer: {
-                download: downloadFile,
-                path: `/api/time/downloadWeek/${userId.id}/${dateString}`
-            }
-        });
-        return {
-            weekData: data ?? createWeek(Cal, weekOffset),
-            days: Cal.days
-        };
-    } catch(error) {
-        console.warn("Wochendaten konnten nicht geladen werden", error);
+    const loadStoredWeek = async (weekDate) => {
+        try {
+            return await getGlobalFile({
+                file: `weekData:${userId.id}:${weekDate}`,
+                loadFromServer: {
+                    download: downloadFile,
+                    path: `/api/time/downloadWeek/${userId.id}/${weekDate}`
+                }
+            });
+        } catch (error) {
+            console.warn(`Wochendaten für ${weekDate} konnten nicht geladen werden`, error);
+            return null;
+        }
+    };
+
+    const emptyWeek = createWeek(Cal, weekOffset);
+    let data = await loadStoredWeek(dateString);
+
+    if (!Array.isArray(data) || data.length === 0) {
+        // Ältere Clients haben den lokalen Montag per toISOString als Sonntag
+        // gespeichert. Dieser Fallback macht diese Wochen wieder sichtbar.
+        data = await loadStoredWeek(shiftLocalDate(dateString, -1));
     }
-    
+
+    return {
+        weekData: normalizeWeekDates(data, emptyWeek),
+        days: Cal.days
+    };
+}
+
+export function normalizeWeekDates(storedWeek, emptyWeek) {
+    if (!Array.isArray(storedWeek) || storedWeek.length === 0) return emptyWeek;
+
+    return emptyWeek.map((templateDay, index) => {
+        const storedDay = storedWeek.find(day => day.day === templateDay.day)
+            ?? storedWeek[index];
+
+        if (!storedDay) return templateDay;
+
+        return {
+            ...storedDay,
+            day: templateDay.day,
+            date: templateDay.date,
+            blocks: (storedDay.blocks ?? templateDay.blocks).map(block => ({
+                ...block,
+                slots: (block.slots ?? []).map(slot => ({
+                    ...slot,
+                    date: templateDay.date
+                }))
+            }))
+        };
+    });
 }
 
 

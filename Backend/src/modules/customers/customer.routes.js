@@ -6,7 +6,13 @@ import {
 import { authenticate, authorizeRoles, requireFeature } from "../../middleware/auth.middleware.js";
 
 const router = express.Router();
-router.use(authenticate, requireFeature("crm"));
+router.use(authenticate);
+
+// Die reduzierte Namenssuche wird auch beim Erstellen von Projekten benötigt.
+// Sie ist deshalb unabhängig vom weiterhin geschützten CRM-Bereich verfügbar.
+router.get("/search", requireFeature("cabinet"), searchCustomers);
+
+router.use(requireFeature("crm"));
 
 router.post("/new", authorizeRoles("admin", "manager"), newcustomer);
 
@@ -15,7 +21,5 @@ router.get("/all", authorizeRoles("admin", "manager"), getCustomers);
 router.get("/get/:id", authorizeRoles("admin", "manager"), getCustomerInfo);
 
 router.post("/update/:id", authorizeRoles("admin", "manager"), updateCustomer);
-
-router.get("/search", searchCustomers);
 
 export default router;

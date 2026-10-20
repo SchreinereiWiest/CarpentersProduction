@@ -56,7 +56,8 @@ export const updateProject = async (req, res) => {
                 customerId: req.body.customerId,
                 title: req.body.title,
                 description: req.body.description,
-                status: req.body.status
+                status: req.body.status,
+                internalNotes: req.body.internalNotes
             },
         });
 

@@ -49,6 +49,27 @@ export const authorizeCustomerBody = (field = "customerId") => async (req, res, 
     return authorizeCustomer("authorizationCustomerId")(req, res, next);
 };
 
+export const customerReferenceWhere = id => ({
+    id,
+    deletedAt: null
+});
+
+export const authorizeCustomerReference = (parameter = "id") => async (req, res, next) => {
+    const customer = await prisma.customer.findFirst({
+        where: customerReferenceWhere(req.params[parameter]),
+        select: { id: true }
+    });
+
+    if (!customer) return missing(res, "Customer");
+    req.authorizedCustomer = customer;
+    next();
+};
+
+export const authorizeCustomerReferenceBody = (field = "customerId") => async (req, res, next) => {
+    req.params.authorizationCustomerId = req.body[field];
+    return authorizeCustomerReference("authorizationCustomerId")(req, res, next);
+};
+
 export const canAccessFile = (user, file, { allowSharedShop = false } = {}) => {
     if (isPrivileged(user)) return true;
     if (file.category === 'management-document') return false;

@@ -11,6 +11,7 @@ import {
   createCabinetsFromPartList,
   readCpImport
 } from "./cpImport.js";
+import MaterialSelect from "../cabinet/components/editor/properties/MaterialSelect.jsx";
 
 const IMPORT_ASSET_ENDPOINT = "/api/files/project-import-asset";
 
@@ -576,26 +577,24 @@ export default function ProjectImportDialog({
                               <span>{reference.occurrences}× verwendet</span>
                             </div>
                           </div>
-                          <select
+                          <MaterialSelect
                             value={mapping?.materialId || ""}
-                            onChange={(event) =>
-                              updateMaterialMapping(reference.source, event.target.value)
+                            ariaLabel={`Materialzuordnung für ${reference.source}`}
+                            materials={materials}
+                            loading={materialsLoading}
+                            emptyLabel="Originalwert beibehalten"
+                            getOptionLabel={material => (
+                              `${materialOptionLabel(material)}${
+                                material.materialNumber
+                                  ? ""
+                                  : " · keine verwendbare Nummer"
+                              }`
+                            )}
+                            isOptionDisabled={material => !material.materialNumber}
+                            onChange={materialId =>
+                              updateMaterialMapping(reference.source, materialId)
                             }
-                            disabled={materialsLoading}
-                            aria-label={`Materialzuordnung für ${reference.source}`}
-                            className="w-full rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-sm disabled:opacity-50"
-                          >
-                            <option value="">Originalwert beibehalten</option>
-                            {materials.map((material) => {
-                              const usable = Boolean(material.materialNumber);
-                              return (
-                                <option key={material.id} value={material.id} disabled={!usable}>
-                                  {materialOptionLabel(material)}
-                                  {!usable ? " · keine verwendbare Nummer" : ""}
-                                </option>
-                              );
-                            })}
-                          </select>
+                          />
                         </div>
                       );
                     })}

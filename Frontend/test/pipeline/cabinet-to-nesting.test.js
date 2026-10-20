@@ -11,6 +11,79 @@ import {
 } from '../fixtures/project.fixture.js';
 
 describe('Projektpipeline Korpus → Stückliste → CNC → Nesting', () => {
+  it('fasst gleiche Fachböden, Mittelwände und Fronten bereits in der Stückliste zusammen', async () => {
+    const section = {
+      id: 'section-1',
+      type: 'section',
+      x: 19,
+      y: 19,
+      width: 562,
+      height: 682,
+      children: [],
+      functionConfig: [
+        {
+          id: 'shelf-1',
+          type: 'shelf',
+          compartmentCount: 4,
+          shelfFrontOffset: 0,
+        },
+        {
+          id: 'wall-1',
+          type: 'middleWall',
+          orientation: 'horizontal',
+          positionReference: 'sectionBottom',
+          positionOffset: 200,
+        },
+        {
+          id: 'wall-2',
+          type: 'middleWall',
+          orientation: 'horizontal',
+          positionReference: 'sectionBottom',
+          positionOffset: 400,
+        },
+      ],
+    };
+    const cabinetWithAssemblies = {
+      ...cabinet,
+      sections: [section],
+      fronts: [
+        { id: 'front-1', name: 'Front 1', x: 0, y: 0, width: 300, height: 700, children: [] },
+        { id: 'front-2', name: 'Front 2', x: 300, y: 0, width: 300, height: 700, children: [] },
+      ],
+    };
+    const partList = await buildPartList([cabinetWithAssemblies], materials);
+
+    const partsByType = type => partList[0].Children.filter(
+      part => part.Plattentyp === type,
+    );
+
+    expect(partsByType('Fächer')).toHaveLength(1);
+    expect(partsByType('Fächer')[0].Anzahl).toBe(3);
+    expect(partsByType('Mittelwand')).toHaveLength(1);
+    expect(partsByType('Mittelwand')[0].Anzahl).toBe(2);
+    expect(partsByType('Front')).toHaveLength(1);
+    expect(partsByType('Front')[0].Anzahl).toBe(2);
+
+    const separatedPartList = await buildPartList([{
+      ...cabinetWithAssemblies,
+      partListSettings: {
+        grouping: 'separate',
+        separate: {
+          shelves: true,
+          middleWalls: true,
+          fronts: true,
+        },
+      },
+    }], materials);
+
+    expect(separatedPartList.find(group => group.Objektname === 'Fächer').Children).toHaveLength(1);
+    expect(separatedPartList.find(group => group.Objektname === 'Fächer').Children[0].Anzahl).toBe(3);
+    expect(separatedPartList.find(group => group.Objektname === 'Mittelwände').Children).toHaveLength(1);
+    expect(separatedPartList.find(group => group.Objektname === 'Mittelwände').Children[0].Anzahl).toBe(2);
+    expect(separatedPartList.find(group => group.Objektname === 'Fronten').Children).toHaveLength(1);
+    expect(separatedPartList.find(group => group.Objektname === 'Fronten').Children[0].Anzahl).toBe(2);
+  });
+
   it('erzeugt fertig platzierte Teile und erhält deren CNC-Daten', async () => {
     vi.spyOn(console, 'log').mockImplementation(() => {});
 

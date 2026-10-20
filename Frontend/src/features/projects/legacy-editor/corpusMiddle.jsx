@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
 import { platePresets } from "./helper.js";
+import MaterialSelect from "../cabinet/components/editor/properties/MaterialSelect.jsx";
+
+
+const materialLabel = material =>
+  `${material.materialNumber || material.name || "Material"} (${material.thickness} mm)`;
 
 export default function CorpusMiddle({ EditorState }) {
   const {
@@ -917,60 +922,28 @@ const EdgeEditor = () => (
 
         {/* Standard-Kantenmaterial */}
         <div>
-          <label className="block mb-1 text-xs text-gray-400">
-            Kantenmaterial Standard
-          </label>
-
-          <select
+          <MaterialSelect
+            label="Kantenmaterial Standard"
             value={edgeMaterials.primary ?? ""}
-            onChange={(e) =>
-              handleEdgeMaterialChange("primary", e.target.value)
-            }
-            onClick={(e) => e.stopPropagation()}
-            className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
-          >
-            <option value="">
-              Kantenmaterial auswählen...
-            </option>
-
-            {materials.map((material) => (
-              <option
-                key={material.id}
-                value={material.id}
-              >
-                {material.materialNumber} ({material.thickness} mm)
-              </option>
-            ))}
-          </select>
+            materials={materials}
+            emptyLabel="Kantenmaterial auswählen..."
+            getOptionLabel={materialLabel}
+            onChange={value => handleEdgeMaterialChange("primary", value)}
+            onClick={event => event.stopPropagation()}
+          />
         </div>
 
         {/* Alternatives Kantenmaterial */}
         <div>
-          <label className="block mb-1 text-xs text-gray-400">
-            Kantenmaterial 2
-          </label>
-
-          <select
+          <MaterialSelect
+            label="Kantenmaterial 2"
             value={edgeMaterials.secondary ?? ""}
-            onChange={(e) =>
-              handleEdgeMaterialChange("secondary", e.target.value)
-            }
-            onClick={(e) => e.stopPropagation()}
-            className="w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
-          >
-            <option value="">
-              Kantenmaterial auswählen...
-            </option>
-
-            {materials.map((material) => (
-              <option
-                key={material.id}
-                value={material.id}
-              >
-                {material.materialNumber} ({material.thickness} mm)
-              </option>
-            ))}
-          </select>
+            materials={materials}
+            emptyLabel="Kantenmaterial auswählen..."
+            getOptionLabel={materialLabel}
+            onChange={value => handleEdgeMaterialChange("secondary", value)}
+            onClick={event => event.stopPropagation()}
+          />
         </div>
 
         {/* Legende */}
@@ -1149,30 +1122,15 @@ const EdgeEditor = () => (
             {/* Material direkt sichtbar -
                 öffnet NICHT das Plattenmenü */}
             <div className="w-48 shrink-0">
-              <select
+              <MaterialSelect
+                ariaLabel={`Material für ${child.name || "Platte"}`}
                 value={child.MID ?? ""}
-                onChange={(e) =>
-                  handlePlateMaterialChange(
-                    child,
-                    e.target.value
-                  )
-                }
-                onClick={(e) => e.stopPropagation()}
-                className="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-white focus:border-blue-500 focus:outline-none"
-              >
-                <option value="">
-                  Material auswählen...
-                </option>
-
-                {materials.map((material) => (
-                  <option
-                    key={material.id}
-                    value={material.id}
-                  >
-                    {material.materialNumber} ({material.thickness} mm)
-                  </option>
-                ))}
-              </select>
+                materials={materials}
+                emptyLabel="Material auswählen..."
+                getOptionLabel={materialLabel}
+                onChange={value => handlePlateMaterialChange(child, value)}
+                onClick={event => event.stopPropagation()}
+              />
             </div>
 
             {/* Anzahl */}

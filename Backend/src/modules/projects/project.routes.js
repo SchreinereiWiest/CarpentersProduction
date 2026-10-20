@@ -3,7 +3,7 @@ import prisma from "../../infrastructure/database/prisma.js";
 
 import { newProject, getAllProjectsID, getProject, getGeneratedProjectData, createGeneratedProjectData, getAllProjects, getOfflineProjects, updateProject, deleteProject } from "./project.controller.js";
 import { authenticate, authorizeRoles, requireFeature } from "../../middleware/auth.middleware.js";
-import { authorizeCustomer, authorizeCustomerBody, authorizeProject, authorizeTimeEntry } from "../../middleware/resourceAuthorization.middleware.js";
+import { authorizeCustomer, authorizeCustomerReferenceBody, authorizeProject, authorizeTimeEntry } from "../../middleware/resourceAuthorization.middleware.js";
 import { getTime, manualTime, startTime, stopTime } from "../time-tracking/time.controller.js";
 import { exportProject, importProject } from "./project-archive.controller.js";
 import { getCalculationContext } from "../calculation/calculation.controller.js";
@@ -23,9 +23,9 @@ const archiveUpload = multer({
     limits: { fileSize: 2 * 1024 * 1024 * 1024, files: 1 }
 });
 
-router.post("/new", authorizeCustomerBody(), newProject);
+router.post("/new", authorizeCustomerReferenceBody(), newProject);
 
-router.put("/update/:id", authorizeProject(), authorizeCustomerBody(), updateProject);
+router.put("/update/:id", authorizeProject(), authorizeCustomerReferenceBody(), updateProject);
 
 router.delete("/delete/:projectId", authorizeRoles("admin", "manager"), deleteProject);
 

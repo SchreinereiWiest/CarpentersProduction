@@ -52,13 +52,18 @@ export const installNetworkClient = () => {
     installed = true;
 
     axios.interceptors.request.use(config => {
-        beginNetworkRequest();
+        config.__offlineRequestId = beginNetworkRequest({
+            method: config.method,
+            url: config.url
+        });
         config.__offlineTracked = true;
         return config;
     });
 
     axios.interceptors.response.use(async response => {
-        if (response.config.__offlineTracked) endNetworkRequest();
+        if (response.config.__offlineTracked) {
+            endNetworkRequest(response.config.__offlineRequestId);
+        }
         dismissOfflineNotice(`offline-write:${response.config.url}`);
         if (!isOfflineCacheResponse(response)
             && !response.config.backgroundCacheValidation) {
@@ -78,7 +83,7 @@ export const installNetworkClient = () => {
         return response;
     }, async error => {
         const config = error.config ?? {};
-        if (config.__offlineTracked) endNetworkRequest();
+        if (config.__offlineTracked) endNetworkRequest(config.__offlineRequestId);
 
         // Ein bewusst per AbortController abgebrochener Request ist kein
         // Verbindungsfehler. Das passiert z. B. beim Strict-Mode-Remount der
@@ -147,14 +152,18 @@ export const installNetworkClient = () => {
 
     const originalFetch = window.fetch.bind(window);
     window.fetch = async (...args) => {
-        beginNetworkRequest();
+        const [input, options] = args;
+        const requestId = beginNetworkRequest({
+            method: options?.method ?? input?.method,
+            url: typeof input === "string" || input instanceof URL ? input : input?.url
+        });
         try {
             return await originalFetch(...args);
         } catch (error) {
             setNetworkOnline(false);
             throw error;
         } finally {
-            endNetworkRequest();
+            endNetworkRequest(requestId);
         }
     };
 

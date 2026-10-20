@@ -34,6 +34,12 @@ import {getProjectFile, uploadProjectFile} from "../../../shared/cache/project-c
 import {downloadFile, uploadJSONFile} from "../../../shared/api/file-api.js";
 import { calculateEdgeRequirements } from "@Engine/nesting/edge-requirements.js";
 import { CALCULATION_SOURCES } from "@Engine/contracts/project/calculation-source.js";
+import {
+    filterPartListByMaterial,
+    replaceNestingMaterial
+} from "./recalculateMaterial.js";
+
+const RECALCULATE_LONG_PRESS_MS = 650;
 
 const edgeLengthFormatter = new Intl.NumberFormat("de-DE", {
     minimumFractionDigits: 2,
@@ -163,6 +169,8 @@ function NestingView() {
     const [showSettings, setShowSettings] = useState(false);
     const [rebuildOnRemove, setRebuildOnRemove] = useState(true);
     const orbitControlsRef = useRef(null);
+    const recalculatePressTimerRef = useRef(null);
+    const longRecalculationTriggeredRef = useRef(false);
 
     async function loadStorageMaterials() {
         try {
@@ -275,9 +283,99 @@ function NestingView() {
 
                 const authoritativeData = response?.data ?? generatedData;
                 setNestingResult(authoritativeData);
+                void response?.syncPromise?.then((syncResponse) => {
+                    if (Array.isArray(syncResponse?.data)) {
+                        setNestingResult(syncResponse.data);
+                    }
+                });
                 return authoritativeData;
 
             }
+
+    async function recalculateActiveMaterial() {
+        if (!projectId || !activeSheet || !Array.isArray(nestingResult)) return;
+
+        const processedData = await loadListData();
+        if (!processedData) return;
+
+        const materialContent = filterPartListByMaterial(processedData, activeSheet);
+        if (materialContent.length === 0) return;
+
+        const materials = storageMaterials.length > 0
+            ? storageMaterials
+            : await loadStorageMaterials();
+        const [recalculatedSheet] = calculateNesting(
+            materialContent,
+            [activeSettingsForSheet],
+            materials
+        );
+        if (!recalculatedSheet) return;
+
+        const generatedData = replaceNestingMaterial(
+            nestingResult,
+            activeSheetIndex,
+            recalculatedSheet
+        );
+
+        setSettings((currentSettings) => {
+            const nextSettings = [...currentSettings];
+            nextSettings[activeSheetIndex] = {
+                ...nextSettings[activeSheetIndex],
+                ...recalculatedSheet.settings
+            };
+            return nextSettings;
+        });
+        setNestingResult(generatedData);
+
+        const response = await uploadProjectFile({
+            projectId,
+            file: "nesting.json",
+            data: generatedData,
+            calculationSource: CALCULATION_SOURCES.CLIENT,
+            uploadFunction: {
+                upload: uploadJSONFile,
+                path: `/api/projects/generated/${projectId}/nesting`
+            }
+        });
+
+        const authoritativeData = response?.data ?? generatedData;
+        setNestingResult(authoritativeData);
+        void response?.syncPromise?.then((syncResponse) => {
+            if (Array.isArray(syncResponse?.data)) {
+                setNestingResult(syncResponse.data);
+            }
+        });
+        return authoritativeData;
+    }
+
+    const startRecalculatePress = (event) => {
+        if (event.pointerType === "mouse" && event.button !== 0) return;
+
+        clearTimeout(recalculatePressTimerRef.current);
+        longRecalculationTriggeredRef.current = false;
+        recalculatePressTimerRef.current = setTimeout(() => {
+            longRecalculationTriggeredRef.current = true;
+            void UploadData();
+        }, RECALCULATE_LONG_PRESS_MS);
+    };
+
+    const finishRecalculatePress = () => {
+        clearTimeout(recalculatePressTimerRef.current);
+        recalculatePressTimerRef.current = null;
+    };
+
+    const handleRecalculateClick = () => {
+        if (longRecalculationTriggeredRef.current) {
+            longRecalculationTriggeredRef.current = false;
+            return;
+        }
+
+        void recalculateActiveMaterial();
+    };
+
+    useEffect(() => () => {
+        clearTimeout(recalculatePressTimerRef.current);
+    }, []);
 
     async function saveNestingLayout() {
         if (!projectId || !nestingResult) return;
@@ -953,7 +1051,13 @@ function NestingView() {
                 hover:bg-gray-700
                 hover:text-white
             "
-            onClick={UploadData}
+            onPointerDown={startRecalculatePress}
+            onPointerUp={finishRecalculatePress}
+            onPointerCancel={finishRecalculatePress}
+            onPointerLeave={finishRecalculatePress}
+            onClick={handleRecalculateClick}
+            onContextMenu={(event) => event.preventDefault()}
+            title="Klick: aktuelles Material neu berechnen. Gedrückt halten: alle Materialien neu berechnen."
         >
             <span className="xl:font-medium">
                 Neu berechnen

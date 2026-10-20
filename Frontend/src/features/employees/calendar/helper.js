@@ -6,6 +6,19 @@ export function toMinutes(time) {
 
     }
 
+export function formatLocalDate(date) {
+    return [
+        date.getFullYear(),
+        String(date.getMonth() + 1).padStart(2, "0"),
+        String(date.getDate()).padStart(2, "0")
+    ].join("-");
+}
+
+export function shiftLocalDate(dateString, days) {
+    const [year, month, day] = dateString.split("-").map(Number);
+    return formatLocalDate(new Date(year, month - 1, day + days));
+}
+
 
 
 export function getBlockForEntry(entry, blocks) {

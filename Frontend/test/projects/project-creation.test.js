@@ -6,6 +6,7 @@ import {
   ProjectSave,
 } from '../../src/features/projects/legacy-editor/uploadProject.js';
 import { getProjectFile } from '../../src/shared/cache/project-cache.js';
+import { getCachedProjectFile } from '../../src/shared/cache/project-indexed-db.js';
 import {
   legacyCorpus,
   materials,
@@ -76,16 +77,18 @@ describe('Projektanlage im Frontend', () => {
     expect(attachmentCall[1].get('customerId')).toBe('customer-1');
     expect(attachmentCall[1].get('mimeType')).toBe('model/gltf-binary');
 
-    expect(axios.post).toHaveBeenCalledWith(
-      '/api/projects/generated/project-created/list',
-      expect.any(Array),
-      expect.objectContaining({ withCredentials: true }),
-    );
-    expect(axios.post).toHaveBeenCalledWith(
-      '/api/projects/generated/project-created/cabinet',
-      cabinets,
-      expect.objectContaining({ withCredentials: true }),
-    );
+    await vi.waitFor(() => {
+      expect(axios.post).toHaveBeenCalledWith(
+        '/api/projects/generated/project-created/list',
+        expect.any(Array),
+        expect.objectContaining({ withCredentials: true }),
+      );
+      expect(axios.post).toHaveBeenCalledWith(
+        '/api/projects/generated/project-created/cabinet',
+        cabinets,
+        expect.objectContaining({ withCredentials: true }),
+      );
+    });
 
     const list = await getProjectFile({
       projectId: 'project-created',
@@ -110,7 +113,7 @@ describe('Projektanlage im Frontend', () => {
     });
   });
 
-  it('meldet einen fehlgeschlagenen Listen-Upload an den Aufrufer zurück', async () => {
+  it('behält einen fehlgeschlagenen Listen-Upload lokal zur späteren Synchronisierung', async () => {
     axios.post.mockImplementation(async (path) => {
       if (path === '/api/projects/new') {
         return { data: { id: 'project-with-failed-list' } };
@@ -138,15 +141,17 @@ describe('Projektanlage im Frontend', () => {
       'create',
       null,
       [{ id: 'cabinet-1' }],
-    )).rejects.toMatchObject({
-      projectId: 'project-with-failed-list',
-    });
+    )).resolves.toEqual({ projectId: 'project-with-failed-list' });
 
-    expect(axios.post).not.toHaveBeenCalledWith(
-      '/api/projects/generated/project-with-failed-list/cabinet',
-      expect.anything(),
-      expect.anything(),
-    );
+    await vi.waitFor(async () => {
+      await expect(getCachedProjectFile({
+        projectId: 'project-with-failed-list',
+        file: 'list.json',
+      })).resolves.toMatchObject({
+        syncStatus: 'error',
+        data: expect.any(Array),
+      });
+    });
   });
 
   it('legt ein leeres Projekt ohne Listen- oder Korpusdatei an', async () => {

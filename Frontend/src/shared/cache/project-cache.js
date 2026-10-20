@@ -21,6 +21,7 @@ import {
 
 const memoryCache = new Map();
 const activeRevalidations = new Map();
+const activeUploads = new Map();
 let activeSync = null;
 const REVALIDATE_INTERVAL_MS = 5 * 60 * 1000;
 const ACTIVE_CACHE_WINDOW_MS = 60 * 60 * 1000;
@@ -224,8 +225,12 @@ const markConflict = async (entry, error) => {
     }
 
     const remoteMetadata = readDownloadMetadata(remoteData);
+    const latest = await getCachedProjectFileByKey(entry.key);
+    const target = latest?.idempotencyKey && latest.idempotencyKey !== entry.idempotencyKey
+        ? latest
+        : entry;
     const conflict = await storeEntry({
-        ...entry,
+        ...target,
         syncStatus: "conflict",
         remoteData,
         remoteVersion: remoteMetadata.serverVersion ?? error.response?.data?.currentVersion ?? null,
@@ -260,6 +265,21 @@ const adoptServerCalculation = async (entry, error) => {
     const version = remoteMetadata.serverVersion
         ?? error.response?.data?.currentVersion
         ?? null;
+    const latest = await getCachedProjectFileByKey(entry.key);
+
+    if (latest?.idempotencyKey && latest.idempotencyKey !== entry.idempotencyKey) {
+        await storeEntry({
+            ...latest,
+            fileId: remoteMetadata.fileId ?? error.response?.data?.fileId ?? latest.fileId ?? null,
+            serverVersion: version,
+            baseVersion: version,
+            baseData: remoteData,
+            syncStatus: "pending",
+            error: null
+        });
+        return { status: "superseded", data: latest.data, version };
+    }
+
     await storeEntry({
         ...entry,
         data: remoteData,
@@ -297,6 +317,21 @@ const sendEntry = async (entry, upload = uploadJSONFile) => {
             }
         });
         const version = response.version ?? response.fileEntry?.serverVersion ?? entry.serverVersion;
+        const latest = await getCachedProjectFileByKey(entry.key);
+
+        if (latest?.idempotencyKey && latest.idempotencyKey !== entry.idempotencyKey) {
+            await storeEntry({
+                ...latest,
+                fileId: response.fileId ?? response.fileEntry?.id ?? latest.fileId ?? null,
+                serverVersion: version,
+                baseVersion: version,
+                baseData: entry.data,
+                syncStatus: "pending",
+                error: null
+            });
+            return { ...response, status: "superseded", data: latest.data };
+        }
+
         await storeEntry({
             ...entry,
             fileId: response.fileId ?? response.fileEntry?.id ?? entry.fileId ?? null,
@@ -329,8 +364,12 @@ const sendEntry = async (entry, upload = uploadJSONFile) => {
             await markConflict(entry, error);
             return { status: "conflict" };
         }
+        const latest = await getCachedProjectFileByKey(entry.key);
+        const target = latest?.idempotencyKey && latest.idempotencyKey !== entry.idempotencyKey
+            ? latest
+            : entry;
         if (!error.response || error.code === "ERR_NETWORK" || isOffline()) {
-            await storeEntry({ ...entry, syncStatus: "pending", error: null });
+            await storeEntry({ ...target, syncStatus: "pending", error: null });
             pushOfflineNotice({
                 id: "offline-pending",
                 type: "info",
@@ -341,7 +380,7 @@ const sendEntry = async (entry, upload = uploadJSONFile) => {
             return { status: "pending", offline: true };
         }
 
-        await storeEntry({ ...entry, syncStatus: "error", error: error.response?.data ?? error.message });
+        await storeEntry({ ...target, syncStatus: "error", error: error.response?.data ?? error.message });
         pushOfflineNotice({
             id: `sync-error:${entry.key}`,
             type: "error",
@@ -351,6 +390,29 @@ const sendEntry = async (entry, upload = uploadJSONFile) => {
         });
         throw error;
     }
+};
+
+const queueProjectUpload = (entry, upload = uploadJSONFile) => {
+    const previous = activeUploads.get(entry.key) ?? Promise.resolve();
+    const task = previous
+        .catch(() => null)
+        .then(async () => {
+            if (isOffline()) return { status: "pending", offline: true };
+            const latest = await getCachedProjectFileByKey(entry.key);
+            if (!latest || !["pending", "error"].includes(latest.syncStatus)) {
+                return { status: latest?.syncStatus ?? "missing" };
+            }
+            return sendEntry(latest, upload);
+        })
+        .catch(error => {
+            console.error(`Hintergrund-Synchronisierung für ${entry.file} fehlgeschlagen`, error);
+            return { status: "error", error };
+        })
+        .finally(() => {
+            if (activeUploads.get(entry.key) === task) activeUploads.delete(entry.key);
+        });
+    activeUploads.set(entry.key, task);
+    return task;
 };
 
 export const uploadProjectFile = async ({
@@ -388,10 +450,11 @@ export const uploadProjectFile = async ({
             message: "Änderungen warten auf eine Internetverbindung.",
             persistent: true
         });
-        return { status: "pending", offline: true };
+        return { status: "pending", offline: true, data };
     }
 
-    return sendEntry(entry, uploadFunction.upload);
+    const syncPromise = queueProjectUpload(entry, uploadFunction.upload);
+    return { status: "pending", queued: true, data, syncPromise };
 };
 
 const runPendingProjectSync = async () => {
@@ -404,9 +467,10 @@ const runPendingProjectSync = async () => {
     try {
         for (const entry of entries) {
             try {
-                const response = await sendEntry(entry);
+                const response = await queueProjectUpload(entry);
                 if (response.status === "conflict") result.conflicts += 1;
                 else if (response.status === "pending") result.errors += 1;
+                else if (response.status === "error") result.errors += 1;
                 else result.synced += 1;
             } catch {
                 result.errors += 1;

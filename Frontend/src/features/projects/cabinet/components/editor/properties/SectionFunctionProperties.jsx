@@ -656,17 +656,22 @@ export default function SectionFunctionProperties({
                                         {/* Fächeranzahl */}
                                         <FormulaNumberInput
                                             label="Fächeranzahl"
-                                            value={func.compartmentCount ?? 2}
+                                            value={Math.max(
+                                                0,
+                                                Number(func.compartmentCount ?? 1) - 1
+                                            )}
                                             expression={func.measurementExpressions?.compartmentCount}
                                             variables={measurementVariables}
-                                            min={1}
+                                            min={0}
                                             unit=""
                                             onChange={(expression, evaluation) => updateFunctionFormula(
                                                 func.id,
                                                 "compartmentCount",
                                                 expression,
                                                 evaluation,
-                                                value => ({ compartmentCount: Math.max(1, value) })
+                                                value => ({
+                                                    compartmentCount: Math.max(1, value + 1)
+                                                })
                                             )}
                                         />
 

@@ -53,6 +53,12 @@ export const setCachedGlobalFile = async ({
     version = null,
     fileId = null,
     sourcePath = null,
+    uploadPath = null,
+    syncStatus = "synced",
+    localRevision = 0,
+    mutationId = null,
+    updatedLocallyAt = null,
+    error = null,
     lastAccessedAt = Date.now(),
     lastValidatedAt = Date.now(),
     retentionProtected = false
@@ -65,6 +71,12 @@ export const setCachedGlobalFile = async ({
         version: version ?? Date.now(),
         fileId,
         sourcePath,
+        uploadPath,
+        syncStatus,
+        localRevision,
+        mutationId,
+        updatedLocallyAt,
+        error,
         lastAccessedAt,
         lastValidatedAt,
         retentionProtected,
@@ -141,7 +153,7 @@ export const markCachedFileStale = async change => {
             const cursor = event.target.result;
             if (!cursor) return resolve(affected);
             const entry = cursor.value;
-            const hasLocalChanges = entry.scope === "project"
+            const hasLocalChanges = ["project", "global"].includes(entry.scope)
                 && ["pending", "conflict", "error"].includes(entry.syncStatus);
             if (cacheEntryMatchesChange(entry, change) && !hasLocalChanges) {
                 affected += 1;

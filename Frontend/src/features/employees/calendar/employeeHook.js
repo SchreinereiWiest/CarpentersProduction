@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import axios from "axios";
-import { addMinutesToTime, getCalendarWeek } from "./helper.js";
+import { addMinutesToTime, formatLocalDate, getCalendarWeek } from "./helper.js";
 import {loadDayEntries, loadWeek} from "./loadCalendar.js";
 import { createWeek } from "./createCalendar.js";
 import { insertSlot } from "./SlotsCalendar.js";
@@ -47,7 +47,7 @@ export function useEmployeeCalendar(companySettings) {
     // Fehler
     const [error, setError] = useState(null);
 
-    const [today] = useState(new Date().toISOString().split("T")[0]);
+    const [today] = useState(() => formatLocalDate(new Date()));
 
     const [days, setDays] = useState([
         {

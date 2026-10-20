@@ -1,4 +1,97 @@
-import React from "react";
+import { useState } from "react";
+
+
+function SignedNumberInput({
+    value,
+    onChange
+}) {
+    const numericValue = value ?? 0;
+    const [inputState, setInputState] =
+        useState({
+            draft: String(numericValue),
+            sourceValue: numericValue
+        });
+
+    const draft =
+        inputState.sourceValue === numericValue
+            ? inputState.draft
+            : String(numericValue);
+
+    const commitValue = nextDraft => {
+        const normalized =
+            nextDraft.replace(",", ".");
+
+        if (
+            normalized === "" ||
+            normalized === "-" ||
+            normalized === "." ||
+            normalized === "-."
+        ) {
+            return;
+        }
+
+        const nextValue = Number(normalized);
+
+        if (Number.isFinite(nextValue)) {
+            onChange(nextValue);
+            return nextValue;
+        }
+
+        return numericValue;
+    };
+
+    return (
+        <input
+            type="text"
+            inputMode="decimal"
+            value={draft}
+            onChange={event => {
+                const nextDraft = event.target.value;
+
+                if (!/^-?\d*(?:[.,]\d*)?$/.test(nextDraft)) {
+                    return;
+                }
+
+                setInputState({
+                    draft: nextDraft,
+                    sourceValue: commitValue(nextDraft) ?? numericValue
+                });
+            }}
+            onBlur={() => {
+                const normalized = draft.replace(",", ".");
+                const nextValue = Number(normalized);
+
+                if (
+                    draft !== "" &&
+                    Number.isFinite(nextValue)
+                ) {
+                    setInputState({
+                        draft: String(nextValue),
+                        sourceValue: nextValue
+                    });
+                    onChange(nextValue);
+                    return;
+                }
+
+                setInputState({
+                    draft: String(numericValue),
+                    sourceValue: numericValue
+                });
+            }}
+            className="
+                mt-1
+                w-full
+                rounded-lg
+                border
+                border-gray-700
+                bg-gray-900
+                px-3
+                py-2
+                text-white
+            "
+        />
+    );
+}
 
 
 export default function FrontProperties({
@@ -261,7 +354,7 @@ export default function FrontProperties({
         text-gray-400
         mb-2
     ">
-        Äußere Fugen
+        Äußere Fugen (negativ = Überstand)
     </div>
 
     <div className="
@@ -281,36 +374,13 @@ export default function FrontProperties({
                 Links
             </span>
 
-            <input
-                type="number"
-                min="0"
-                step="0.5"
-                value={
-                    activeCabinet.frontGapLeft ??
-                    0
-                }
-                onChange={(event) =>
+            <SignedNumberInput
+                value={activeCabinet.frontGapLeft ?? 0}
+                onChange={value =>
                     updateActiveCabinet({
-                        frontGapLeft:
-                            Math.max(
-                                0,
-                                Number(
-                                    event.target.value
-                                ) || 0
-                            )
+                        frontGapLeft: value
                     })
                 }
-                className="
-                    mt-1
-                    w-full
-                    rounded-lg
-                    border
-                    border-gray-700
-                    bg-gray-900
-                    px-3
-                    py-2
-                    text-white
-                "
             />
 
         </label>
@@ -327,36 +397,13 @@ export default function FrontProperties({
                 Rechts
             </span>
 
-            <input
-                type="number"
-                min="0"
-                step="0.5"
-                value={
-                    activeCabinet.frontGapRight ??
-                    0
-                }
-                onChange={(event) =>
+            <SignedNumberInput
+                value={activeCabinet.frontGapRight ?? 0}
+                onChange={value =>
                     updateActiveCabinet({
-                        frontGapRight:
-                            Math.max(
-                                0,
-                                Number(
-                                    event.target.value
-                                ) || 0
-                            )
+                        frontGapRight: value
                     })
                 }
-                className="
-                    mt-1
-                    w-full
-                    rounded-lg
-                    border
-                    border-gray-700
-                    bg-gray-900
-                    px-3
-                    py-2
-                    text-white
-                "
             />
 
         </label>
@@ -373,36 +420,13 @@ export default function FrontProperties({
                 Oben
             </span>
 
-            <input
-                type="number"
-                min="0"
-                step="0.5"
-                value={
-                    activeCabinet.frontGapTop ??
-                    0
-                }
-                onChange={(event) =>
+            <SignedNumberInput
+                value={activeCabinet.frontGapTop ?? 0}
+                onChange={value =>
                     updateActiveCabinet({
-                        frontGapTop:
-                            Math.max(
-                                0,
-                                Number(
-                                    event.target.value
-                                ) || 0
-                            )
+                        frontGapTop: value
                     })
                 }
-                className="
-                    mt-1
-                    w-full
-                    rounded-lg
-                    border
-                    border-gray-700
-                    bg-gray-900
-                    px-3
-                    py-2
-                    text-white
-                "
             />
 
         </label>
@@ -419,36 +443,13 @@ export default function FrontProperties({
                 Unten
             </span>
 
-            <input
-                type="number"
-                min="0"
-                step="0.5"
-                value={
-                    activeCabinet.frontGapBottom ??
-                    0
-                }
-                onChange={(event) =>
+            <SignedNumberInput
+                value={activeCabinet.frontGapBottom ?? 0}
+                onChange={value =>
                     updateActiveCabinet({
-                        frontGapBottom:
-                            Math.max(
-                                0,
-                                Number(
-                                    event.target.value
-                                ) || 0
-                            )
+                        frontGapBottom: value
                     })
                 }
-                className="
-                    mt-1
-                    w-full
-                    rounded-lg
-                    border
-                    border-gray-700
-                    bg-gray-900
-                    px-3
-                    py-2
-                    text-white
-                "
             />
 
         </label>

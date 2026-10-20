@@ -3,6 +3,11 @@ import { useNavigate } from 'react-router';
 
 import { ProjectSave } from './uploadProject.js';
 import CustomerSearch from './customerSearch.jsx';
+import MaterialSelect from '../cabinet/components/editor/properties/MaterialSelect.jsx';
+
+
+const materialLabel = material =>
+    `${material.materialNumber || material.name || "Material"} (${material.thickness} mm)`;
 
 export default function CorpusRight({EditorState, mode, id, incomingCabinets, nCustomer}) {
 
@@ -98,44 +103,14 @@ return <>
 
                 </label>
 
-                <select value={KorpusMaterialId} onChange={(e)=>
-                    setKorpusMaterialId(e.target.value)
-                    }
-
-                    className="
-                    w-full
-                    rounded-lg
-                    border
-                    border-gray-700
-                    bg-gray-900
-                    px-3
-                    py-2
-                    text-white
-                    focus:border-blue-500
-                    focus:outline-none
-                    "
-
-                    >
-
-                    <option value="">
-                        Material auswählen...
-                    </option>
-
-                    {
-
-                    materials.map(material => (
-
-                    <option key={material.id} value={material.id}>
-
-                        {material.materialNumber} ({material.thickness} mm)
-
-                    </option>
-
-                    ))
-
-                    }
-
-                </select>
+                <MaterialSelect
+                    ariaLabel="Material"
+                    value={KorpusMaterialId}
+                    materials={materials}
+                    emptyLabel="Material auswählen..."
+                    getOptionLabel={materialLabel}
+                    onChange={setKorpusMaterialId}
+                />
 
                 
 

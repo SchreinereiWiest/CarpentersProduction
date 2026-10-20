@@ -188,73 +188,66 @@ export const getCustomerInfo = async (req, res) => {
   }
 };
 
+export const createCustomerSearchQuery = (user, search) => {
+    const mayViewContactData = ["admin", "manager"].includes(user?.role);
+    const nameFilters = [
+        {
+            firstName: {
+                contains: search,
+                mode: "insensitive"
+            }
+        },
+        {
+            lastName: {
+                contains: search,
+                mode: "insensitive"
+            }
+        }
+    ];
 
-export const searchCustomers = async (req, res) => {
-
-    try {
-
-        const search = req.query.search ?? "";
-
-        const mayViewContactData = ["admin", "manager"].includes(req.user.role);
-
-        const customers = await prisma.customer.findMany({
-
-            where: {
-
-                deletedAt: null,
-
-                OR: [
-
-                    {
-                        firstName: {
-                            contains: search,
-                            mode: "insensitive"
-                        }
-                    },
-
-                    {
-                        lastName: {
-                            contains: search,
-                            mode: "insensitive"
-                        }
-                    },
-
+    return {
+        where: {
+            deletedAt: null,
+            OR: mayViewContactData
+                ? [
+                    ...nameFilters,
                     {
                         companyName: {
                             contains: search,
                             mode: "insensitive"
                         }
                     }
-
                 ]
+                : nameFilters
+        },
+        orderBy: [
+            { lastName: "asc" },
+            { firstName: "asc" }
+        ],
+        take: 15,
+        ...(mayViewContactData ? {} : {
+            select: {
+                id: true,
+                firstName: true,
+                lastName: true
+            }
+        })
+    };
+};
 
-            },
 
-            orderBy: [
+export const searchCustomers = async (req, res) => {
 
-                {
-                    companyName: "asc"
-                },
+    try {
 
-                {
-                    lastName: "asc"
-                }
+        const search = String(req.query.search ?? "").trim();
 
-            ],
+        if (search.length < 2) {
+            return res.status(200).json([]);
+        }
 
-            take: 15,
-
-            ...(mayViewContactData ? {} : {
-                select: {
-                    id: true,
-                    customerNumber: true,
-                    firstName: true,
-                    lastName: true,
-                    companyName: true,
-                    customerStatus: true
-                }
-            })
-
+        const customers = await prisma.customer.findMany({
+            ...createCustomerSearchQuery(req.user, search)
         });
 
         res.status(200).json(customers);

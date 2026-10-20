@@ -92,6 +92,7 @@ describe("automatische Cache-Bereinigung", () => {
     it("behält lokale Änderungen und ausdrücklich geschützte Downloads", async () => {
         const projectId = `pending-${suffix}`;
         const protectedFile = `protected-${suffix}.json`;
+        const pendingGlobalFile = `pending-global-${suffix}.json`;
         await setCachedProjectFile({
             projectId,
             file: "list.json",
@@ -105,6 +106,12 @@ describe("automatische Cache-Bereinigung", () => {
             retentionProtected: true,
             lastAccessedAt: oldTimestamp()
         });
+        await setCachedGlobalFile({
+            file: pendingGlobalFile,
+            data: { locallyChanged: true },
+            syncStatus: "pending",
+            lastAccessedAt: oldTimestamp()
+        });
 
         await runCacheCleanup({ force: true, retentionDays: 30 });
 
@@ -112,6 +119,8 @@ describe("automatische Cache-Bereinigung", () => {
             .resolves.toMatchObject({ syncStatus: "pending" });
         await expect(getCachedGlobalFile({ file: protectedFile }))
             .resolves.toMatchObject({ retentionProtected: true });
+        await expect(getCachedGlobalFile({ file: pendingGlobalFile }))
+            .resolves.toMatchObject({ syncStatus: "pending" });
     });
 
     it("wertet einen Cache-Zugriff als erneute Verwendung", async () => {

@@ -107,7 +107,8 @@ const cleanup = async retentionDays => {
         shouldDelete: entry => {
             if (!isUnused(entry) || entry.retentionProtected) return false;
             if (entry.projectId != null && manualProjectIds.has(String(entry.projectId))) return false;
-            if (entry.scope === "project" && PROTECTED_SYNC_STATUSES.has(entry.syncStatus)) return false;
+            if (["project", "global"].includes(entry.scope)
+                && PROTECTED_SYNC_STATUSES.has(entry.syncStatus)) return false;
             // Vor Einführung des Schutzmerkmals waren diese Einstellungen Teil
             // jedes manuellen Projekt-Downloads.
             if (hasManualProjects
