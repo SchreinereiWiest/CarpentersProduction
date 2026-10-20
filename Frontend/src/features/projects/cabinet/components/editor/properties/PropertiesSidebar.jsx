@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 
 import PropertiesTabs from "./PropertiesTabs.jsx";
 import SelectedElementProperties from "./SelectedElementProperties.jsx";
@@ -73,6 +73,7 @@ export default function PropertiesSidebar({
     loadingMaterials,
     materialError,
 
+    cncConfig,
     measurementVariables = [],
 
     updateCabinetLayout
@@ -357,6 +358,8 @@ export default function PropertiesSidebar({
                                 setSelectedElement={
                                     setSelectedElement
                                 }
+
+                                cncConfig={cncConfig}
 
                                 measurementVariables={
                                     measurementVariables

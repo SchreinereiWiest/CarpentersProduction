@@ -41,7 +41,13 @@ describe('Dateispeicherung und -abruf', () => {
 
     expect(axios.get).toHaveBeenCalledWith(
       '/api/projects/generated/project-download/list',
-      { withCredentials: true },
+      {
+        withCredentials: true,
+        headers: {
+          'Cache-Control': 'no-cache',
+          Pragma: 'no-cache',
+        },
+      },
     );
     expect(fetchMock).toHaveBeenCalledWith('https://storage.test/list.json');
   });

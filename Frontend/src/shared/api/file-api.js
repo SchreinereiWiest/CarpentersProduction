@@ -3,7 +3,15 @@ import axios from "axios";
 const FILE_METADATA = Symbol("fileMetadata");
 
 export const getDownloadDescriptor = async (path, options = {}) => {
-    const response = await axios.get(path, { withCredentials: true, ...options });
+    const response = await axios.get(path, {
+        withCredentials: true,
+        ...options,
+        headers: {
+            "Cache-Control": "no-cache",
+            Pragma: "no-cache",
+            ...(options.headers ?? {})
+        }
+    });
     return response.data;
 };
 

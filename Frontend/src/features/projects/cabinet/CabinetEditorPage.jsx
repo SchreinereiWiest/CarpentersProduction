@@ -1213,6 +1213,7 @@ export default function CabinetEditor() {
     }
     materialError={materialError}
 
+    cncConfig={defaultConfig}
     measurementVariables={measurementVariables}
 
     updateCabinetLayout={updateCabinetLayout}

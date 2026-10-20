@@ -4,6 +4,7 @@ import { getMiddleWallCenter } from "@Engine/cabinet/geometry/middleWall.js";
 import { findSection } from "@Engine/cabinet/sektions/interior/mergeSectionChildren.js";
 import { updateSectionTree } from "@Engine/cabinet/sektions/updateSectionTree.js";
 import { createId } from "@Engine/shared/id.js";
+import { createShelfHoleRowDefaults } from "../../../sectionFunctionDefaults.js";
 import FormulaNumberInput from "../FormulaNumberInput.jsx";
 
 
@@ -38,6 +39,7 @@ export default function SectionFunctionProperties({
     activeCabinet,
     updateActiveCabinet,
     setSelectedElement,
+    cncConfig,
     measurementVariables = []
 }) {
 
@@ -92,6 +94,7 @@ export default function SectionFunctionProperties({
      */
 
     const functions = currentSection.functionConfig ?? [];
+    const shelfHoleRowDefaults = createShelfHoleRowDefaults(cncConfig);
 
 
 
@@ -159,13 +162,7 @@ export default function SectionFunctionProperties({
 
                     shelfFrontOffset: 0,
 
-                    holeRow: {
-                        spacing: 32,
-                        frontOffset: 37,
-                        backOffset: 37,
-                        startFromBottom: 150,
-                        endFromTop: 150
-                    }
+                    holeRow: shelfHoleRowDefaults
                 };
 
 
@@ -748,7 +745,7 @@ export default function SectionFunctionProperties({
                                         {/* Vorne */}
                                         <FormulaNumberInput
                                             label="Abstand von vorne"
-                                            value={func.holeRow?.frontOffset ?? 37}
+                                            value={func.holeRow?.frontOffset ?? shelfHoleRowDefaults.frontOffset}
                                             expression={func.measurementExpressions?.["holeRow.frontOffset"]}
                                             variables={measurementVariables}
                                             min={0}
@@ -765,7 +762,7 @@ export default function SectionFunctionProperties({
                                         {/* Hinten */}
                                         <FormulaNumberInput
                                             label="Abstand von hinten"
-                                            value={func.holeRow?.backOffset ?? 37}
+                                            value={func.holeRow?.backOffset ?? shelfHoleRowDefaults.backOffset}
                                             expression={func.measurementExpressions?.["holeRow.backOffset"]}
                                             variables={measurementVariables}
                                             min={0}

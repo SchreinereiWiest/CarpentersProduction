@@ -1,8 +1,9 @@
 /* eslint-disable no-undef */
 const CACHE_VERSION = "__BUILD_ID__";
+const CACHE_SCHEMA_VERSION = "2";
 const DEVELOPMENT = CACHE_VERSION === "development";
-const SHELL_CACHE = `carpentersproduction-shell-${CACHE_VERSION}`;
-const ASSET_CACHE = `carpentersproduction-assets-${CACHE_VERSION}`;
+const SHELL_CACHE = `carpentersproduction-shell-${CACHE_SCHEMA_VERSION}-${CACHE_VERSION}`;
+const ASSET_CACHE = `carpentersproduction-assets-${CACHE_SCHEMA_VERSION}-${CACHE_VERSION}`;
 const SHELL_URLS = __PRECACHE_URLS__;
 
 self.addEventListener("install", event => {
@@ -46,7 +47,11 @@ self.addEventListener("fetch", event => {
         event.respondWith((async () => {
             const cache = await caches.open(ASSET_CACHE);
             const cached = await cache.match(request) || await caches.match(request);
-            if (DEVELOPMENT) {
+            // Module workers are loaded dynamically and require a valid JavaScript
+            // response. Prefer the network so an old response with an incorrect
+            // MIME type cannot poison PDF.js; retain the cache only for offline use.
+            const networkFirst = DEVELOPMENT || url.pathname.endsWith(".mjs");
+            if (networkFirst) {
                 try {
                     const response = await fetch(request);
                     if (response.ok) cache.put(request, response.clone());
