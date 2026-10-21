@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { csrfCookieOptions, isAllowedOrigin } from "../config/security.js";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+const PUBLIC_AUTH_PATHS = new Set(["/api/auth/login", "/api/auth/bootstrap"]);
 
 function sameToken(left, right) {
     if (typeof left !== "string" || typeof right !== "string") return false;
@@ -32,7 +33,7 @@ export function verifyRequestOrigin(req, res, next) {
 }
 
 export function verifyCsrfToken(req, res, next) {
-    if (SAFE_METHODS.has(req.method) || req.path === "/api/auth/login") {
+    if (SAFE_METHODS.has(req.method) || PUBLIC_AUTH_PATHS.has(req.path)) {
         return next();
     }
 

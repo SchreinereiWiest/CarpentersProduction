@@ -75,6 +75,9 @@ services:
 
     labels:
       - "traefik.enable=true"
+      # Das Backend hängt zusätzlich im Lizenznetz. Ohne diese Festlegung kann
+      # Traefik dessen für ihn unerreichbare MoebelDesign-IP wählen (HTTP 504).
+      - "traefik.docker.network=${COMPOSE_PROJECT_NAME:-carpentersproduction}_carpenters-network"
 
       - "traefik.http.routers.backend.rule=Host(`10.10.100.52`) && PathPrefix(`/api`)"
       - "traefik.http.routers.backend.priority=100"
@@ -88,6 +91,7 @@ services:
 
     networks:
       - carpenters-network
+      - MoebelDesign
 
   documentation:
     build:
@@ -165,3 +169,6 @@ services:
 networks:
   carpenters-network:
     driver: bridge
+  MoebelDesign:
+    name: MoebelDesign
+    external: true

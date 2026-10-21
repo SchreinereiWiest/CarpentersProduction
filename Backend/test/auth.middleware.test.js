@@ -166,6 +166,17 @@ test("CSRF-Prüfung lehnt fehlenden Header mit 403 ab", () => {
     assert.equal(res.statusCode, 403);
 });
 
+test("CSRF-Prüfung lässt ausschließlich die öffentlichen Auth-Einstiege ohne Token zu", () => {
+    for (const path of ["/api/auth/login", "/api/auth/bootstrap"]) {
+        const req = { method: "POST", path, cookies: {}, get() { return undefined; } };
+        const res = createResponse();
+        let nextCalled = false;
+
+        verifyCsrfToken(req, res, () => { nextCalled = true; });
+        assert.equal(nextCalled, true);
+    }
+});
+
 test("Origin-Prüfung lehnt fremde Origins ab", () => {
     const req = {
         method: "POST",

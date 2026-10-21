@@ -32,6 +32,13 @@ cp Backend/.env.example Backend/.env
 | `DATABASE_URL` | PostgreSQL-Verbindung für Prisma |
 | `JWT_ACCESS_SECRET` | Signieren und Prüfen des Login-Cookies |
 | `JWT_REFRESH_SECRET` | Nur von `generateRefreshToken` verwendet; kein Refresh-Endpunkt registriert |
+| `LICENSE_PROVIDER` | Lizenzquelle: `development`, `database` oder `remote` |
+| `LICENSE_CACHE_TTL_MS` | Dauer des mandantenbezogenen Lizenzcaches in Millisekunden |
+| `LICENSE_PUBLIC_KEY` | öffentlicher RS256-Schlüssel für den `database`-Provider |
+| `LICENSE_SERVER_URL` | Basis-URL von MoebelDesignLicencing für den `remote`-Provider; in Produktion HTTPS |
+| `LICENSE_SERVER_API_KEY` | geheimes Bearer-Token für die Backend-zu-Backend-Verbindung |
+| `LICENSE_SERVER_PRODUCT_ID` | Produktkennung im Lizenzserver, standardmäßig `carpenters-production` |
+| `LICENSE_SERVER_TIMEOUT_MS` | Timeout eines Lizenzserver-Aufrufs, 250 bis 60000 ms |
 | `ALLOWED_ORIGINS` | kommaseparierte Browser-Origins inklusive Schema für CORS und CSRF-Origin-Prüfung |
 | `S3_ENDPOINT` | interner Garage-Endpunkt für Upload und Delete |
 | `S3_PUBLIC_ENDPOINT` | für den Browser erreichbarer Endpunkt signierter Download-URLs |
@@ -48,6 +55,8 @@ DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE
 NODE_ENV=development
 JWT_ACCESS_SECRET=CHANGE_ME
 JWT_REFRESH_SECRET=CHANGE_ME
+LICENSE_PROVIDER=development
+LICENSE_CACHE_TTL_MS=300000
 ALLOWED_ORIGINS=http://localhost:5173,https://app.example.test
 S3_ENDPOINT=http://garage:3900
 S3_PUBLIC_ENDPOINT=https://storage.example.test
@@ -55,6 +64,8 @@ S3_ACCESS_KEY=CHANGE_ME
 S3_SECRET_KEY=CHANGE_ME
 S3_BUCKET=carpenters-storage
 ```
+
+Der vollständige Remote-Vertrag und die spätere Umschaltung stehen unter [Lizenzierung](licensing.md).
 
 ## Prisma
 

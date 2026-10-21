@@ -1,9 +1,10 @@
 import express from "express";
 
 import {
-    getAllUsers,
+  bootstrap,
+  getAllUsers,
   login,
-  logout,
+  logout
 } from "./auth.controller.js";
 import { authenticate, authorizeRoles } from "../../middleware/auth.middleware.js";
 
@@ -14,6 +15,7 @@ const router = express.Router();
 // authenticate middleware für reauthorization
 
 router.post("/login", login);
+router.post("/bootstrap", bootstrap);
 
 router.post("/logout", authenticate, logout);
 

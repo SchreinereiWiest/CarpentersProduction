@@ -90,6 +90,7 @@ nav:
       - Installation & Konfiguration: backend/installation.md
       - API-Referenz: backend/api.md
       - Authentifizierung: backend/authentication.md
+      - Lizenzierung: backend/licensing.md
       - Kunden: backend/customers.md
       - Projekte & Archive: backend/projects.md
       - Zeiterfassung: backend/time-tracking.md
