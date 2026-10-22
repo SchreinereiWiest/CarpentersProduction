@@ -111,9 +111,129 @@ model File {
   shopArticles           ShopArticle[]           @relation("ShopArticleImage")
   managementTransactions ManagementTransaction[]
   syncMutations          SyncMutation[]
+  measurementScans       MeasurementScan[]
 
   @@unique([tenantId, id])
   @@map("files")
+}
+
+model MeasurementPrintRun {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  projectId String  @map("project_id") @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdById String? @map("created_by") @db.Uuid
+  createdBy   User?   @relation("MeasurementPrintRunCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  schemaVersion Int    @default(1) @map("schema_version")
+  format        String @default("A4")
+  orientation   String @default("landscape")
+  sourceVersion Int?   @map("source_version")
+  status        String @default("active")
+  metadata      Json
+
+  pages MeasurementPrintPage[]
+  scans MeasurementScan[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, id])
+  @@index([projectId, createdAt])
+  @@map("measurement_print_runs")
+}
+
+model MeasurementPrintPage {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  printRunId String              @map("print_run_id") @db.Uuid
+  printRun   MeasurementPrintRun @relation(fields: [printRunId], references: [id], onDelete: Cascade)
+
+  viewId     String @map("view_id")
+  pageNumber Int    @map("page_number")
+  label      String
+  identifier String
+  widthMm    Float  @map("width_mm")
+  heightMm   Float  @map("height_mm")
+  fields     Json
+  metadata   Json?
+
+  scans MeasurementScan[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, identifier])
+  @@unique([printRunId, pageNumber])
+  @@index([printRunId])
+  @@map("measurement_print_pages")
+}
+
+model MeasurementScan {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  fileId String @unique @map("file_id") @db.Uuid
+  file   File   @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  printRunId  String?               @map("print_run_id") @db.Uuid
+  printRun    MeasurementPrintRun?  @relation(fields: [printRunId], references: [id], onDelete: SetNull)
+  printPageId String?               @map("print_page_id") @db.Uuid
+  printPage   MeasurementPrintPage? @relation(fields: [printPageId], references: [id], onDelete: SetNull)
+  projectId   String?               @map("project_id") @db.Uuid
+  project     Project?              @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  uploadedById String? @map("uploaded_by") @db.Uuid
+  uploadedBy   User?   @relation("MeasurementScanUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  status        String  @default("queued")
+  rawIdentifier String? @map("raw_identifier")
+  alignment     Json?
+  result        Json?
+  error         String?
+  attempts      Int     @default(0)
+
+  items MeasurementScanItem[]
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  completedAt DateTime? @map("completed_at")
+  appliedAt   DateTime? @map("applied_at")
+
+  @@unique([tenantId, id])
+  @@index([projectId, createdAt])
+  @@index([status, createdAt])
+  @@map("measurement_scans")
+}
+
+model MeasurementScanItem {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  scanId String          @map("scan_id") @db.Uuid
+  scan   MeasurementScan @relation(fields: [scanId], references: [id], onDelete: Cascade)
+
+  fieldId        String  @map("field_id")
+  objectId       String  @map("object_id")
+  viewId         String  @map("view_id")
+  label          String?
+  unit           String?
+  rawText        String? @map("raw_text")
+  predictedValue String? @map("predicted_value")
+  confidence     Float?
+  acceptedValue  String? @map("accepted_value")
+  status         String  @default("pending")
+  cropMetadata   Json?   @map("crop_metadata")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, id])
+  @@unique([scanId, fieldId])
+  @@index([scanId])
+  @@map("measurement_scan_items")
 }
 
 model SyncMutation {

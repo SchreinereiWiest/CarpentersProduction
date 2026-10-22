@@ -38,6 +38,12 @@ const remember = entry => {
 
 export const clearProjectMemoryCache = () => memoryCache.clear();
 
+/** Entfernt eine einzelne Projektdatei aus Speicher und IndexedDB, damit ein serverseitig geänderter Inhalt sofort neu geladen werden kann. */
+export const invalidateProjectFileCache = async ({ projectId, file }) => {
+    memoryCache.delete(cacheKey(projectId, file));
+    await invalidateProjectFile({ projectId, file });
+};
+
 const storeEntry = async entry => {
     const stored = remember(await setCachedProjectFile(entry));
     if (typeof window !== "undefined") {

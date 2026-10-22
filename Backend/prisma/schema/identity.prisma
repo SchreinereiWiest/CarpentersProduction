@@ -107,6 +107,8 @@ model User {
   memberships                  TenantMembership[]
   releasedCalculationSnapshots CalculationSnapshot[] @relation("CalculationSnapshotReleasedBy")
   tenantBackups                TenantBackup[]
+  measurementPrintRuns         MeasurementPrintRun[] @relation("MeasurementPrintRunCreatedBy")
+  measurementScans             MeasurementScan[]     @relation("MeasurementScanUploadedBy")
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")

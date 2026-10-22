@@ -16,6 +16,8 @@ import settingsRoutes from "./modules/settings/settings.routes.js";
 import timeRoutes from "./modules/time-tracking/time.routes.js";
 import userRoutes from "./modules/users/user.routes.js";
 import storageAdminRoutes from "./modules/storage-admin/storage-admin.routes.js";
+import measurementOcrRoutes from "./modules/measurement-ocr/measurement-ocr.routes.js";
+import measurementOcrInternalRoutes from "./modules/measurement-ocr/measurement-ocr.internal.routes.js";
 
 export function createApp() {
   const app = express();
@@ -37,6 +39,9 @@ export function createApp() {
   app.use(express.json({ limit: "20mb" }));
   app.use(express.urlencoded({ limit: "20mb", extended: true }));
   app.use(cookieParser());
+  // Worker callbacks use a dedicated shared secret and do not carry browser
+  // cookies, Origin or CSRF headers. Mount them before browser request guards.
+  app.use("/api/internal/measurement-ocr", measurementOcrInternalRoutes);
   app.use(verifyRequestOrigin);
   app.use(verifyCsrfToken);
 
@@ -52,6 +57,7 @@ export function createApp() {
   app.use("/api/management", managementRoutes);
   app.use("/api/license", licenseRoutes);
   app.use("/api/storage-admin", storageAdminRoutes);
+  app.use("/api/measurement-ocr", measurementOcrRoutes);
 
   app.use((error, _req, res, _next) => {
     const status = Number(error?.statusCode) || 500;

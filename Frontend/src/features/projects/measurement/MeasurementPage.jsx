@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
+import { jsPDF } from "jspdf";
+import QRCode from "qrcode";
 import { useNavigate, useParams } from "react-router";
+import { createMeasurementPrintDocuments } from "@EngineBrowser/measurement-pdf/createMeasurementPDF.js";
 import SideBar from "../../../shared/components/sideBar.jsx";
 import ProjectBar from "../../../shared/components/projectBar.jsx";
 import MobileWorkspaceGuard from "../../../shared/components/MobileWorkspaceGuard.jsx";
@@ -11,6 +14,7 @@ import {
 } from "../../../shared/cache/project-asset-cache.js";
 import {
   getProjectFile,
+  invalidateProjectFileCache,
   uploadProjectFile
 } from "../../../shared/cache/project-cache.js";
 import {
@@ -41,6 +45,31 @@ import {
 import { mimeFromFile, viewNameForPage } from "./utils/fileMetadata.js";
 import ImagesView from "./views/images/ImagesView.jsx";
 import AufmasThreeView from "./views/three/AufmasThreeView.jsx";
+import MeasurementReviewDialog from "./components/review/MeasurementReviewDialog.jsx";
+
+const imageDimensions = (source) =>
+  new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () =>
+      resolve({ width: image.naturalWidth || 1, height: image.naturalHeight || 1 });
+    image.onerror = () => reject(new Error("Bildabmessungen konnten nicht gelesen werden."));
+    image.src = source;
+  });
+
+const blobToDataUrl = (blob) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("Bild konnte nicht für den PDF-Druck gelesen werden."));
+    reader.readAsDataURL(blob);
+  });
+
+const safePdfName = (value) =>
+  String(value || "projekt")
+    .normalize("NFKD")
+    .replace(/[^a-zA-Z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toLowerCase() || "projekt";
 
 export default function AufmasWorkspace() {
   const { projectId } = useParams();
@@ -94,6 +123,9 @@ export default function AufmasWorkspace() {
   const [loading, setLoading] = useState(() => !cachedWorkspace);
   const [importing, setImporting] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [printing, setPrinting] = useState(false);
+  const [measurementScans, setMeasurementScans] = useState([]);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [saveStatus, setSaveStatus] = useState(
     () => cachedWorkspace?.saveStatus ?? (cachedWorkspace ? "saved" : "loading")
   );
@@ -128,17 +160,43 @@ export default function AufmasWorkspace() {
   const activeImage = activeView?.imageFileId
     ? photos.find((photo) => photo.id === activeView.imageFileId)
     : null;
-  const activePlanPage = activeView?.planFileId
-    ? pdfPages[`${activeView.planFileId}:${activeView.pageNumber || 1}`]
-    : activeImage
-      ? { dataUrl: activeImage.url, imageFileId: activeImage.id }
-      : null;
+  const activePlanPage = useMemo(
+    () =>
+      activeView?.planFileId
+        ? pdfPages[`${activeView.planFileId}:${activeView.pageNumber || 1}`]
+        : activeImage
+          ? { dataUrl: activeImage.url, imageFileId: activeImage.id }
+          : null,
+    [activeImage, activeView, pdfPages]
+  );
   const activeDxf = dxfLayers[activeView?.id] ?? { shapes: [], snapPoints: [] };
 
   const showNotice = useCallback((message, type = "info") => {
     setNotice({ message, type });
     window.setTimeout(() => setNotice(null), 4200);
   }, []);
+
+  const loadMeasurementScans = useCallback(async () => {
+    try {
+      const { data } = await axios.get(
+        `/api/measurement-ocr/projects/${projectId}/scans`
+      );
+      setMeasurementScans(data.scans ?? []);
+    } catch (error) {
+      if (error.response?.status !== 404) {
+        console.warn("Aufmaß-Scans konnten nicht geladen werden", error);
+      }
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    const initial = window.setTimeout(loadMeasurementScans, 0);
+    const interval = window.setInterval(loadMeasurementScans, 12_000);
+    return () => {
+      window.clearTimeout(initial);
+      window.clearInterval(interval);
+    };
+  }, [loadMeasurementScans]);
 
   useEffect(() => {
     if (cachedWorkspace) return undefined;
@@ -565,6 +623,152 @@ export default function AufmasWorkspace() {
     }
   };
 
+  const preparePrintAssets = async () => {
+    const drawingViews = views.filter(
+      (view) => !["three", "images"].includes(view.type)
+    );
+    const nextPdfPages = { ...pdfPages };
+    const nextDxfLayers = { ...dxfLayers };
+    const files = project?.files ?? [];
+
+    const missingPdfIds = [
+      ...new Set(
+        drawingViews
+          .filter(
+            (view) =>
+              view.planFileId &&
+              !nextPdfPages[`${view.planFileId}:${view.pageNumber || 1}`]
+          )
+          .map((view) => view.planFileId)
+      )
+    ];
+    await Promise.all(
+      missingPdfIds.map(async (fileId) => {
+        const file = files.find((candidate) => candidate.id === fileId);
+        if (!file) throw new Error("Eine verknüpfte PDF-Datei fehlt im Projekt.");
+        const pages = await renderPdfPages(await getProjectAssetBlob(file));
+        pages.forEach((page) => {
+          nextPdfPages[`${fileId}:${page.pageNumber}`] = page;
+        });
+      })
+    );
+
+    await Promise.all(
+      drawingViews
+        .filter((view) => view.dxfFileId && !nextDxfLayers[view.id])
+        .map(async (view) => {
+          const file = files.find((candidate) => candidate.id === view.dxfFileId);
+          if (!file) throw new Error("Eine verknüpfte DXF-Datei fehlt im Projekt.");
+          nextDxfLayers[view.id] = parseDxf(
+            await (await getProjectAssetBlob(file)).text()
+          );
+        })
+    );
+
+    const planPages = {};
+    await Promise.all(
+      drawingViews.map(async (view) => {
+        if (view.planFileId) {
+          planPages[view.id] =
+            nextPdfPages[`${view.planFileId}:${view.pageNumber || 1}`] ?? null;
+          return;
+        }
+        if (view.imageFileId) {
+          const photo = photos.find((candidate) => candidate.id === view.imageFileId);
+          if (!photo) return;
+          const dataUrl = await blobToDataUrl(await getProjectAssetBlob(photo));
+          const dimensions = await imageDimensions(dataUrl);
+          planPages[view.id] = { dataUrl, ...dimensions };
+        }
+      })
+    );
+    setPdfPages(nextPdfPages);
+    setDxfLayers(nextDxfLayers);
+    return { planPages, dxfLayers: nextDxfLayers };
+  };
+
+  const printMeasurement = async () => {
+    if (printing) return;
+    setPrinting(true);
+    try {
+      const assets = await preparePrintAssets();
+      const result = await createMeasurementPrintDocuments({
+        jsPDF,
+        encodeQr: (value) =>
+          QRCode.toDataURL(value, {
+            errorCorrectionLevel: "M",
+            margin: 1,
+            width: 512,
+            color: { dark: "#000000", light: "#ffffff" }
+          }),
+        projectId,
+        projectName: project?.title || project?.name || "Projekt",
+        views,
+        objects,
+        planPages: assets.planPages,
+        dxfLayers: assets.dxfLayers,
+        measurementLabelSizePercent:
+          companySettings.userInterface?.measurementLabelSizePercent ?? 100,
+        measurementLabelOffsetY:
+          companySettings.userInterface?.measurementLabelOffsetY ?? -30,
+        measurementFormFieldWidthMm:
+          companySettings.userInterface?.measurementFormFieldWidthMm ?? 32,
+        measurementFormFieldHeightMm:
+          companySettings.userInterface?.measurementFormFieldHeightMm ?? 10
+      });
+      await axios.post("/api/measurement-ocr/print-runs", {
+        projectId,
+        layout: result.layout,
+        generatedAt: new Date().toISOString()
+      });
+      const baseName = safePdfName(project?.title || project?.name);
+      result.documented.save(`${baseName}-aufmass-dokumentiert.pdf`);
+      result.fieldSheet.save(`${baseName}-aufmass-formular.pdf`);
+      showNotice(
+        `Zwei Aufmaß-PDFs mit ${result.layout.pages.length} Seite${result.layout.pages.length === 1 ? "" : "n"} wurden erstellt.`
+      );
+    } catch (error) {
+      console.error("Aufmaß-PDFs konnten nicht erstellt werden", error);
+      showNotice(
+        error.response?.data?.message ||
+          error.message ||
+          "Aufmaß-PDFs konnten nicht erstellt werden.",
+        "error"
+      );
+    } finally {
+      setPrinting(false);
+    }
+  };
+
+  const reloadAppliedMeasurements = async () => {
+    await invalidateProjectFileCache({ projectId, file: "aufmas.json" });
+    const saved = await getProjectFile({
+      projectId,
+      file: "aufmas.json",
+      loadFromServer: {
+        download: downloadFile,
+        path: `/api/projects/generated/${projectId}/aufmas`
+      }
+    });
+    if (!saved) return;
+    const loadedViews =
+      Array.isArray(saved.views) && saved.views.length ? saved.views : DEFAULT_VIEWS;
+    const loadedObjects = Array.isArray(saved.objects) ? saved.objects : [];
+    const loadedTodos = Array.isArray(saved.todos) ? saved.todos : DEFAULT_TODOS;
+    setViews(loadedViews);
+    setObjects(loadedObjects);
+    setTodos(loadedTodos);
+    setIsCompleted(Boolean(saved.completed));
+    lastSavedPayload.current = JSON.stringify({
+      version: 1,
+      views: loadedViews,
+      objects: loadedObjects,
+      todos: loadedTodos,
+      completed: Boolean(saved.completed)
+    });
+    showNotice("Die bestätigten OCR-Maße wurden als gemessen übernommen.");
+  };
+
   const createViewFromPhoto = (photo, name) => {
     if (isCompleted || !photo?.id) return;
     const label = String(name || "").trim();
@@ -737,6 +941,18 @@ export default function AufmasWorkspace() {
             </span>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setReviewOpen(true)}
+              className="inline-flex items-center gap-2 rounded-md border border-[#405769] bg-[#1b2b36] px-3 py-1.5 text-[11px] font-semibold text-[#bcd8e9] hover:bg-[#253d4d]"
+            >
+              <AufmasIcon name="measure" className="size-3.5" /> OCR prüfen
+              {measurementScans.filter((scan) => scan.status === "review").length > 0 && (
+                <span className="flex size-4 items-center justify-center rounded-full bg-[#b06f2d] text-[9px] text-white">
+                  {measurementScans.filter((scan) => scan.status === "review").length}
+                </span>
+              )}
+            </button>
             <div className="flex items-center gap-2 text-[10px] text-[#778a98]">
               <span
                 className={`size-1.5 rounded-full ${saveStatus === "error" ? "bg-[#dc6f67]" : saveStatus === "saving" ? "bg-[#dba45d]" : "bg-[#5eb08f]"}`}
@@ -805,6 +1021,7 @@ export default function AufmasWorkspace() {
                 planPage={activePlanPage}
                 onImportPdf={importPdf}
                 onImportDxf={importDxf}
+                onPrint={printMeasurement}
                 onUpdateView={(patch) =>
                   setViews((current) =>
                     current.map((view) =>
@@ -813,6 +1030,7 @@ export default function AufmasWorkspace() {
                   )
                 }
                 importing={importing}
+                printing={printing}
                 readOnly={isCompleted}
                 showTips={companySettings.userInterface?.showTips !== false}
                 lineLockThresholdCm={
@@ -884,6 +1102,15 @@ export default function AufmasWorkspace() {
           />{" "}
           {notice.message}
         </div>
+      )}
+      {reviewOpen && (
+        <MeasurementReviewDialog
+          scans={measurementScans}
+          onClose={() => setReviewOpen(false)}
+          onRefresh={loadMeasurementScans}
+          onApplied={reloadAppliedMeasurements}
+          canApply={saveStatus === "saved"}
+        />
       )}
     </div>
   );

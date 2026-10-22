@@ -67,6 +67,10 @@ services:
 
     environment:
       - NODE_ENV=development
+      - VALKEY_URL=redis://valkey:6379/0
+      - MEASUREMENT_OCR_SECRET=${MEASUREMENT_OCR_SECRET:?MEASUREMENT_OCR_SECRET muss in der root .env gesetzt sein}
+      - MEASUREMENT_OCR_RESOLVE_URL=http://backendjs:5000/api/internal/measurement-ocr/resolve
+      - MEASUREMENT_OCR_CALLBACK_URL=http://backendjs:5000/api/internal/measurement-ocr/result
 
     # Ermöglicht dem Backend-Container den Zugriff auf eine auf demselben
     # Linux-Host laufende Open-WebUI-Instanz (z. B. Port 3000).
@@ -88,10 +92,44 @@ services:
     depends_on:
       - postgres
       - garage
+      - valkey
 
     networks:
       - carpenters-network
       - MoebelDesign
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    restart: always
+    command: ["valkey-server", "--appendonly", "yes"]
+    volumes:
+      - measurement-ocr-valkey:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - carpenters-network
+
+  measurement-ocr:
+    build:
+      context: ./Services/MeasurementOCR
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      - VALKEY_URL=redis://valkey:6379/0
+      - MEASUREMENT_OCR_QUEUE=measurement:ocr:jobs
+      - MEASUREMENT_OCR_SECRET=${MEASUREMENT_OCR_SECRET:?MEASUREMENT_OCR_SECRET muss in der root .env gesetzt sein}
+      - MEASUREMENT_OCR_MAX_PAGES=${MEASUREMENT_OCR_MAX_PAGES:-50}
+      - LOG_LEVEL=${MEASUREMENT_OCR_LOG_LEVEL:-INFO}
+    depends_on:
+      valkey:
+        condition: service_healthy
+      backendjs:
+        condition: service_started
+    networks:
+      - carpenters-network
 
   documentation:
     build:
@@ -172,3 +210,6 @@ networks:
   MoebelDesign:
     name: MoebelDesign
     external: true
+
+volumes:
+  measurement-ocr-valkey:

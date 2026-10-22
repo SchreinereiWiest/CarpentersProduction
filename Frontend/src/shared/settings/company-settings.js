@@ -5,7 +5,7 @@ import { normalizeEstimationSettings } from "@Engine/calculation/estimation.mjs"
 export const CUSTOM_WORK_TYPE_ID = "__custom__";
 
 export const DEFAULT_COMPANY_SETTINGS = {
-    schemaVersion: 5,
+    schemaVersion: 6,
     workingHours: {
         start: "07:00",
         end: "16:45"
@@ -36,7 +36,9 @@ export const DEFAULT_COMPANY_SETTINGS = {
         showTips: true,
         lineLockThresholdCm: 5,
         measurementLabelSizePercent: 100,
-        measurementLabelOffsetY: -30
+        measurementLabelOffsetY: -30,
+        measurementFormFieldWidthMm: 32,
+        measurementFormFieldHeightMm: 10
     },
     estimation: {
         ...normalizeEstimationSettings(),
@@ -99,7 +101,7 @@ export function normalizeCompanySettings(data) {
         : [];
 
     return {
-        schemaVersion: 5,
+        schemaVersion: 6,
         workingHours,
         breaks: breaks.map((entry, index) => ({
             id: entry.id || `break-${index + 1}`,
@@ -121,6 +123,12 @@ export function normalizeCompanySettings(data) {
             ),
             measurementLabelOffsetY: normalizeMeasurementLabelOffsetY(
                 userInterface.measurementLabelOffsetY
+            ),
+            measurementFormFieldWidthMm: normalizeMeasurementFormFieldWidthMm(
+                userInterface.measurementFormFieldWidthMm
+            ),
+            measurementFormFieldHeightMm: normalizeMeasurementFormFieldHeightMm(
+                userInterface.measurementFormFieldHeightMm
             )
         },
         estimation: {
@@ -176,6 +184,24 @@ export function normalizeMeasurementLabelOffsetY(value) {
     }
 
     return Math.min(200, Math.max(-200, parsed));
+}
+
+export function normalizeMeasurementFormFieldWidthMm(value) {
+    const parsed = Number.parseFloat(String(value ?? "").replace(",", "."));
+    if (!Number.isFinite(parsed)) {
+        return DEFAULT_COMPANY_SETTINGS.userInterface.measurementFormFieldWidthMm;
+    }
+
+    return Math.min(80, Math.max(20, parsed));
+}
+
+export function normalizeMeasurementFormFieldHeightMm(value) {
+    const parsed = Number.parseFloat(String(value ?? "").replace(",", "."));
+    if (!Number.isFinite(parsed)) {
+        return DEFAULT_COMPANY_SETTINGS.userInterface.measurementFormFieldHeightMm;
+    }
+
+    return Math.min(30, Math.max(8, parsed));
 }
 
 export function createWorkBlocks(settings) {

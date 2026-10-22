@@ -6,6 +6,8 @@ import {
     DEFAULT_COMPANY_SETTINGS,
     loadCompanySettings,
     normalizeLineLockThresholdCm,
+    normalizeMeasurementFormFieldHeightMm,
+    normalizeMeasurementFormFieldWidthMm,
     normalizeMeasurementLabelOffsetY,
     normalizeMeasurementLabelSizePercent,
     normalizeCompanySettings
@@ -193,7 +195,7 @@ export default function UserInterfaceSettingsPanel() {
                     <div>
                         <h2 className="text-sm font-semibold text-gray-100">Aufmaßdarstellung</h2>
                         <p className="mt-1 max-w-2xl text-xs text-gray-400">
-                            Passt Größe und vertikale Position der Maßzahl samt Rechteck an. Negative Offsetwerte verschieben die Anzeige über die Maßlinie.
+                            Passt Größe und vertikale Position der Maßzahl sowie die leeren Schreibfelder im gedruckten Aufmaßformular an.
                         </p>
                     </div>
                     <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -247,6 +249,60 @@ export default function UserInterfaceSettingsPanel() {
                                 Negativ = oberhalb der Maßlinie
                             </span>
                         </label>
+                    </div>
+                    <div className="mt-5 border-t border-gray-700 pt-5">
+                        <h3 className="text-sm font-medium text-gray-100">Formularfelder</h3>
+                        <p className="mt-1 max-w-2xl text-xs text-gray-400">
+                            Physische Größe der leeren weißen Felder für handschriftliche Maße. Die eingestellten Maße werden auch für die spätere OCR-Auswertung gespeichert.
+                        </p>
+                        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                            <label className="block text-sm text-gray-200">
+                                Feldbreite
+                                <div className="mt-2 flex items-center gap-3">
+                                    <input
+                                        type="number"
+                                        min="20"
+                                        max="80"
+                                        step="1"
+                                        value={companySettings.userInterface.measurementFormFieldWidthMm}
+                                        onChange={event => setMeasurementDisplay({
+                                            measurementFormFieldWidthMm: event.target.value
+                                        })}
+                                        onBlur={() => setMeasurementDisplay({
+                                            measurementFormFieldWidthMm: normalizeMeasurementFormFieldWidthMm(
+                                                companySettings.userInterface.measurementFormFieldWidthMm
+                                            )
+                                        })}
+                                        className="w-28 rounded border border-gray-600 bg-gray-900 px-3 py-2 text-gray-100 outline-none focus:border-blue-500"
+                                    />
+                                    <span className="text-gray-400">mm</span>
+                                </div>
+                                <span className="mt-1.5 block text-xs text-gray-500">20–80 mm</span>
+                            </label>
+                            <label className="block text-sm text-gray-200">
+                                Feldhöhe
+                                <div className="mt-2 flex items-center gap-3">
+                                    <input
+                                        type="number"
+                                        min="8"
+                                        max="30"
+                                        step="1"
+                                        value={companySettings.userInterface.measurementFormFieldHeightMm}
+                                        onChange={event => setMeasurementDisplay({
+                                            measurementFormFieldHeightMm: event.target.value
+                                        })}
+                                        onBlur={() => setMeasurementDisplay({
+                                            measurementFormFieldHeightMm: normalizeMeasurementFormFieldHeightMm(
+                                                companySettings.userInterface.measurementFormFieldHeightMm
+                                            )
+                                        })}
+                                        className="w-28 rounded border border-gray-600 bg-gray-900 px-3 py-2 text-gray-100 outline-none focus:border-blue-500"
+                                    />
+                                    <span className="text-gray-400">mm</span>
+                                </div>
+                                <span className="mt-1.5 block text-xs text-gray-500">8–30 mm</span>
+                            </label>
+                        </div>
                     </div>
                 </section>
             </div>

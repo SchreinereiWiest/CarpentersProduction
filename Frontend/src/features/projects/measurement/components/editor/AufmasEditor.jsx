@@ -38,8 +38,10 @@ export default function AufmasEditor({
   planPage,
   onImportPdf,
   onImportDxf,
+  onPrint,
   onUpdateView,
   importing,
+  printing = false,
   readOnly = false,
   showTips = true,
   lineLockThresholdCm = 5,
@@ -789,6 +791,16 @@ export default function AufmasEditor({
               </label>
               <button
                 type="button"
+                disabled={printing}
+                onClick={onPrint}
+                className="inline-flex items-center gap-2 rounded-lg border border-[#42657b] bg-[#203847] px-3 py-2 text-xs font-medium text-[#cce5f4] hover:border-[#6594b1] hover:bg-[#29495d] disabled:cursor-not-allowed disabled:opacity-45"
+                title="Dokumentierte Ansicht und ausfüllbares Aufmaßblatt als PDF erzeugen"
+              >
+                <AufmasIcon name="print" className="size-4" />
+                {printing ? "PDFs …" : "Drucken"}
+              </button>
+              <button
+                type="button"
                 disabled={!hasPlan || !hasDxf}
                 onClick={() => {
                   setDraft([]);
@@ -855,6 +867,18 @@ export default function AufmasEditor({
                 </button>
               )}
             </>
+          )}
+          {readOnly && (
+            <button
+              type="button"
+              disabled={printing}
+              onClick={onPrint}
+              className="inline-flex items-center gap-2 rounded-lg border border-[#42657b] bg-[#203847] px-3 py-2 text-xs font-medium text-[#cce5f4] hover:border-[#6594b1] hover:bg-[#29495d] disabled:cursor-not-allowed disabled:opacity-45"
+              title="Dokumentierte Ansicht und ausfüllbares Aufmaßblatt als PDF erzeugen"
+            >
+              <AufmasIcon name="print" className="size-4" />
+              {printing ? "PDFs …" : "Drucken"}
+            </button>
           )}
           <div className="flex items-center rounded-lg border border-[#344451] bg-[#121b22] p-0.5">
             <button

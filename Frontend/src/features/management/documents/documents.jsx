@@ -1,4 +1,5 @@
 import { DocumentInbox } from './documentInbox.jsx';
+import { MeasurementScanInbox } from './measurementScanInbox.jsx';
 
 /** Zeigt die Betriebsdokumentenablage ohne die entfernte Erfassung einzelner Geschäftsvorfälle. */
 export function ManagementDocuments() {
@@ -11,6 +12,7 @@ export function ManagementDocuments() {
           derzeit ausgeblendet.
         </p>
       </header>
+      <MeasurementScanInbox />
       <DocumentInbox />
     </div>
   );

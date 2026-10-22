@@ -130,6 +130,12 @@ const paths = {
       <path d="M16 3v5h5M8 13h8M8 17h5" />
     </>
   ),
+  print: (
+    <>
+      <path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+      <path d="M6 14h12v7H6zM18 12h.01" />
+    </>
+  ),
   side: (
     <>
       <path d="M4 19V5h16v14H4Z" />

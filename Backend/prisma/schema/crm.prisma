@@ -110,6 +110,8 @@ model Project {
   timeEntries            TimeEntry[]
   managementTransactions ManagementTransaction[]
   calculationSnapshots   CalculationSnapshot[]
+  measurementPrintRuns   MeasurementPrintRun[]
+  measurementScans       MeasurementScan[]
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")

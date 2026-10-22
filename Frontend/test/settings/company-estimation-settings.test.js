@@ -20,12 +20,14 @@ describe("company settings", () => {
         }
       }
     })).toMatchObject({
-      schemaVersion: 5,
+      schemaVersion: 6,
       userInterface: {
         showTips: true,
         lineLockThresholdCm: 5,
         measurementLabelSizePercent: 100,
-        measurementLabelOffsetY: -30
+        measurementLabelOffsetY: -30,
+        measurementFormFieldWidthMm: 32,
+        measurementFormFieldHeightMm: 10
       },
       estimation: {
         candidatePoolSize: 500,
@@ -56,7 +58,9 @@ describe("company settings", () => {
       showTips: false,
       lineLockThresholdCm: 7.5,
       measurementLabelSizePercent: 100,
-      measurementLabelOffsetY: -30
+      measurementLabelOffsetY: -30,
+      measurementFormFieldWidthMm: 32,
+      measurementFormFieldHeightMm: 10
     });
   });
 
@@ -76,5 +80,17 @@ describe("company settings", () => {
 
     expect(settings.userInterface.measurementLabelSizePercent).toBe(200);
     expect(settings.userInterface.measurementLabelOffsetY).toBe(-42.5);
+  });
+
+  it("normalizes the printable measurement field dimensions", () => {
+    const settings = normalizeCompanySettings({
+      userInterface: {
+        measurementFormFieldWidthMm: 12,
+        measurementFormFieldHeightMm: "14,5"
+      }
+    });
+
+    expect(settings.userInterface.measurementFormFieldWidthMm).toBe(20);
+    expect(settings.userInterface.measurementFormFieldHeightMm).toBe(14.5);
   });
 });
