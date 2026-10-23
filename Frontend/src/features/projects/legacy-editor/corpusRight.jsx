@@ -118,6 +118,11 @@ return <>
             
             {mode == "edit" ? <></> : <div>
                 <CustomerSearch selectedCustomer={selectedCustomer} setSelectedCustomer={setSelectedCustomer} />
+                {!selectedCustomer && (
+                    <p className="-mt-3 mb-4 text-xs text-amber-300">
+                        Ohne Kundenauswahl wird das Projekt ausschließlich lokal auf diesem Gerät gespeichert.
+                    </p>
+                )}
 
 <input placeholder="Name" className="mt-4 rounded-lg bg-gray-900 p-3 w-full" type="text" value={projectName} onChange={(e)=>
 setProjectName(e.target.value)

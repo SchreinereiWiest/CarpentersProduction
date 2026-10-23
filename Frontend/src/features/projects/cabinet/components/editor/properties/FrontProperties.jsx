@@ -108,6 +108,7 @@ export default function FrontProperties({
     setFrontSplitDirection,
 
     splitFront,
+    toggleFrontRemoved,
     mergeFrontChildren,
     findFrontParent,
 
@@ -135,6 +136,15 @@ export default function FrontProperties({
                 selectedElement.id
             ) !== null
         );
+
+    const isLeafFront =
+        isSelectedFront &&
+        !selectedElement.children?.length;
+
+    const frontGrainDirection =
+        activeCabinet.frontGrainDirection === "horizontal"
+            ? "horizontal"
+            : "vertical";
 
 
     return (
@@ -469,6 +479,7 @@ export default function FrontProperties({
 
                         <button
                             type="button"
+                            disabled={selectedElement.isRemoved}
                             onClick={() =>
                                 splitFront(
                                     selectedElement.id,
@@ -489,10 +500,45 @@ export default function FrontProperties({
                                 py-2
                                 text-sm
                                 hover:bg-gray-700
+                                disabled:cursor-not-allowed
+                                disabled:opacity-30
                             "
                         >
                             Front unterteilen
                         </button>
+
+
+                        {isLeafFront && (
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    toggleFrontRemoved(
+                                        selectedElement.id,
+                                        activeCabinet,
+                                        updateActiveCabinet,
+                                        setSelectedElement
+                                    )
+                                }
+                                className={`
+                                    w-full
+                                    rounded
+                                    border
+                                    px-3
+                                    py-2
+                                    text-sm
+
+                                    ${selectedElement.isRemoved
+                                        ? "border-green-800 text-green-400 hover:bg-green-950"
+                                        : "border-red-800 text-red-400 hover:bg-red-950"
+                                    }
+                                `}
+                            >
+                                {selectedElement.isRemoved
+                                    ? "Front wieder einfügen"
+                                    : "Front löschen"
+                                }
+                            </button>
+                        )}
 
 
                         <button
@@ -553,6 +599,78 @@ export default function FrontProperties({
                         Fronten erzeugen
                     </button>
 
+                )}
+
+                {!isSelectedFront && (
+                    <div>
+
+                        <div className="text-xs text-gray-400">
+                            Maserrichtung
+                        </div>
+
+                        <div
+                            className="mt-1 grid grid-cols-2 gap-2"
+                            role="group"
+                            aria-label="Maserrichtung"
+                        >
+                            <button
+                                type="button"
+                                aria-pressed={
+                                    frontGrainDirection === "vertical"
+                                }
+                                onClick={() =>
+                                    updateActiveCabinet({
+                                        frontGrainDirection: "vertical"
+                                    })
+                                }
+                                className={`
+                                    rounded
+                                    border
+                                    px-3
+                                    py-2
+                                    text-sm
+
+                                    ${frontGrainDirection === "vertical"
+                                        ? "border-blue-600 bg-blue-900 text-blue-200"
+                                        : "border-gray-700 bg-gray-800 text-gray-400"
+                                    }
+                                `}
+                            >
+                                Hochkant
+                            </button>
+
+                            <button
+                                type="button"
+                                aria-pressed={
+                                    frontGrainDirection === "horizontal"
+                                }
+                                onClick={() =>
+                                    updateActiveCabinet({
+                                        frontGrainDirection: "horizontal"
+                                    })
+                                }
+                                className={`
+                                    rounded
+                                    border
+                                    px-3
+                                    py-2
+                                    text-sm
+
+                                    ${frontGrainDirection === "horizontal"
+                                        ? "border-blue-600 bg-blue-900 text-blue-200"
+                                        : "border-gray-700 bg-gray-800 text-gray-400"
+                                    }
+                                `}
+                            >
+                                Quer
+                            </button>
+                        </div>
+
+                        <div className="mt-2 text-xs text-gray-500">
+                            Quer vertauscht Länge und Breite der Fronten in der Part List.
+                        </div>
+
+                    </div>
                 )}
 
             </div>

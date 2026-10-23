@@ -90,7 +90,7 @@ describe("Notizen in der Teileliste", () => {
         );
 
         const notes = await screen.findByRole("textbox", { name: "Notizen" });
-        expect(notes).toHaveValue("Bestehende Notiz");
+        await waitFor(() => expect(notes).toHaveValue("Bestehende Notiz"));
 
         fireEvent.change(notes, { target: { value: "Neue Notiz" } });
         fireEvent.click(screen.getByRole("button", { name: "Update" }));

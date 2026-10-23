@@ -44,6 +44,7 @@ export default function PropertiesSidebar({
     setFrontSplitDirection,
 
     splitFront,
+    toggleFrontRemoved,
     mergeFrontChildren,
     findFrontParent,
 
@@ -186,6 +187,10 @@ export default function PropertiesSidebar({
 
                                         splitFront={
                                             splitFront
+                                        }
+
+                                        toggleFrontRemoved={
+                                            toggleFrontRemoved
                                         }
 
                                         mergeFrontChildren={

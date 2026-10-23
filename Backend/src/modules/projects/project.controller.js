@@ -27,9 +27,11 @@ export const newProject = async (req, res) => {
 
         const project = await prisma.project.create({
             data: {
+                id: req.body.id || undefined,
                 customerId: req.body.customerId,
                 title: req.body.title,
                 description: req.body.description,
+                status: req.body.status || undefined,
                 createdById: req.user.id,
             },
         });

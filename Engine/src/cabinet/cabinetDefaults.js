@@ -13,6 +13,7 @@ export const DEFAULT_CABINET = {
     frontGapRight: 0,
     frontGapTop: 0,
     frontGapBottom: 0,
+    frontGrainDirection: "vertical",
     backPanel: {
         construction: "butt",
         continuous: "side"

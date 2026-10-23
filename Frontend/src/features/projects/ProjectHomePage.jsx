@@ -12,6 +12,7 @@ import { downloadFile } from "../../shared/api/file-api.js";
 import { getProjectFile } from "../../shared/cache/project-cache.js";
 import { getGlobalFile } from "../../shared/cache/global-cache.js";
 import { getS3FileBlob } from "../../shared/cache/project-asset-cache.js";
+import { getProjectRecord } from "../../shared/projects/project-records.js";
 
 //Untermenü in Kontakte, um ein neues Projekt für den Kunden zu erstellen.
 
@@ -24,11 +25,17 @@ function ShowProject() {
 
   useEffect(() => {
     const fetchProject = async () => {
-    const { data } = await axios.get(`/api/projects/get/${projectId}`);
-    setProject(data.project);
+    const loadedProject = await getProjectRecord(projectId);
+    setProject(loadedProject);
 
-    const customerdata = await axios.get(`/api/customers/get/${data.project.customerId}`);
-    setCustomer(customerdata.data.customer);
+    if (loadedProject.customer) {
+      setCustomer(loadedProject.customer);
+    } else if (loadedProject.customerId) {
+      const customerdata = await axios.get(`/api/customers/get/${loadedProject.customerId}`);
+      setCustomer(customerdata.data.customer);
+    } else {
+      setCustomer(null);
+    }
     
 };
 
@@ -125,7 +132,7 @@ fetchProject();
                     <div className="flex flex-col gap-2 md:flex-row md:items-center">
 
                         <h2 className="mt-2 truncate text-xl font-bold sm:text-2xl md:w-1/5">
-                            {customer?.lastName}
+                            {customer?.lastName ?? (project?.localOnly ? "Lokales Projekt ohne Kunde" : "")}
                         </h2>
 
                         <h2 className="mt-2 text-xl font-bold sm:text-2xl md:ml-0">

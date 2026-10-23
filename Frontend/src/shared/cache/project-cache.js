@@ -18,6 +18,7 @@ import {
     CALCULATION_SOURCES,
     CALCULATION_SOURCE_HEADER
 } from "@Engine/contracts/project/calculation-source.js";
+import { isLocalProject } from "../offline/local-projects.js";
 
 const memoryCache = new Map();
 const activeRevalidations = new Map();
@@ -75,7 +76,7 @@ const revalidateProjectFile = async ({
 }) => {
     if (isOffline()
         || !cached
-        || ["pending", "conflict", "error"].includes(cached.syncStatus)
+        || ["local", "pending", "conflict", "error"].includes(cached.syncStatus)
         || !loadFromServer?.download?.getDescriptor) {
         return cached;
     }
@@ -165,8 +166,13 @@ export const getProjectFile = async ({
     const key = cacheKey(projectId, file);
     const memoryEntry = memoryCache.get(key);
     const cached = memoryEntry ?? await getCachedProjectFile({ projectId, file });
+    const localOnly = await isLocalProject(projectId);
     if (cached) remember(cached);
     if (memoryEntry) void touchCachedFile(memoryEntry.key);
+
+    if (localOnly) {
+        return result(cached?.data ?? null, cached?.calculationSource);
+    }
 
     if (cached && ["pending", "conflict", "error"].includes(cached.syncStatus)) {
         return result(cached.data, cached.calculationSource);
@@ -429,6 +435,7 @@ export const uploadProjectFile = async ({
     calculationSource = null
 }) => {
     const current = await getCachedProjectFile({ projectId, file });
+    const localOnly = await isLocalProject(projectId);
     const entry = await storeEntry({
         projectId,
         file,
@@ -437,7 +444,7 @@ export const uploadProjectFile = async ({
         baseVersion: current?.baseVersion ?? current?.serverVersion ?? 0,
         baseData: current?.baseData ?? current?.data ?? null,
         localRevision: (current?.localRevision ?? 0) + 1,
-        syncStatus: "pending",
+        syncStatus: localOnly ? "local" : "pending",
         updatedLocallyAt: new Date().toISOString(),
         // Jeder neue lokale Bearbeitungsstand erhält einen eigenen Schlüssel.
         // Nur automatische Wiederholungen desselben Eintrags verwenden ihn
@@ -447,6 +454,10 @@ export const uploadProjectFile = async ({
         sourcePath: current?.sourcePath ?? `/api/projects/generated/${projectId}/${file.replace(/\.json$/i, "")}`,
         retentionProtected: current?.retentionProtected
     });
+
+    if (localOnly) {
+        return { status: "local", localOnly: true, data };
+    }
 
     if (isOffline()) {
         pushOfflineNotice({
@@ -461,6 +472,29 @@ export const uploadProjectFile = async ({
 
     const syncPromise = queueProjectUpload(entry, uploadFunction.upload);
     return { status: "pending", queued: true, data, syncPromise };
+};
+
+export const uploadLocalProjectFiles = async projectId => {
+    const entries = await listProjectFiles({ projectId });
+
+    for (const entry of entries) {
+        if (entry.syncStatus === "synced") continue;
+
+        const pending = await storeEntry({
+            ...entry,
+            fileId: null,
+            serverVersion: null,
+            baseVersion: 0,
+            baseData: null,
+            syncStatus: "pending",
+            idempotencyKey: entry.idempotencyKey ?? newMutationId(),
+            error: null
+        });
+        const response = await sendEntry(pending);
+        if (["conflict", "pending", "error"].includes(response?.status)) {
+            throw new Error(`${entry.file} konnte nicht hochgeladen werden.`);
+        }
+    }
 };
 
 const runPendingProjectSync = async () => {
@@ -517,7 +551,7 @@ export const refreshCachedProjectFiles = async ({
     const now = Date.now();
     const entries = await listProjectFiles();
     for (const cached of entries) {
-        if (["pending", "conflict", "error"].includes(cached.syncStatus)) continue;
+        if (["local", "pending", "conflict", "error"].includes(cached.syncStatus)) continue;
         if (!includeInactive
             && now - (cached.lastAccessedAt ?? cached.cachedAt ?? 0) > ACTIVE_CACHE_WINDOW_MS) continue;
         const path = cached.sourcePath ?? generatedPath(cached);

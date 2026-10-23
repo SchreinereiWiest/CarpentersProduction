@@ -15,7 +15,10 @@ export const generateFrontParts = ({
     const fronts =
         getLeafFronts(
             cabinet.fronts ?? []
-        );
+        ).filter(front => !front.isRemoved);
+
+    const hasHorizontalGrain =
+        cabinet.frontGrainDirection === "horizontal";
 
 
     fronts.forEach(
@@ -59,12 +62,16 @@ export const generateFrontParts = ({
 
                     L:
                         Number(
-                            front.height
+                            hasHorizontalGrain
+                                ? front.width
+                                : front.height
                         ),
 
                     B:
                         Number(
-                            front.width
+                            hasHorizontalGrain
+                                ? front.height
+                                : front.width
                         ),
 
                     T:

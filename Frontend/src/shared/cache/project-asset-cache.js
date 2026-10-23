@@ -7,6 +7,7 @@ import {
 } from "./project-indexed-db.js";
 import { OfflineResourceUnavailableError } from "../offline/offline-errors.js";
 import { pushOfflineNotice } from "../offline/offline-status.js";
+import { createUuid } from "../utils/uuid.js";
 
 const REVALIDATE_INTERVAL_MS = 5 * 60 * 1000;
 const ACTIVE_CACHE_WINDOW_MS = 60 * 60 * 1000;
@@ -15,6 +16,16 @@ const retiredObjectUrls = new Set();
 const activeRevalidations = new Map();
 const offline = () => typeof navigator !== "undefined" && !navigator.onLine;
 const isNetworkError = error => !error.response || error.code === "ERR_NETWORK";
+
+const readBlobBytes = blob => {
+    if (typeof blob.arrayBuffer === "function") return blob.arrayBuffer();
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsArrayBuffer(blob);
+    });
+};
 
 const descriptorFor = async (file, backgroundCacheValidation = false) => {
     const response = await axios.get(`/api/files/download/${file.id}`, {
@@ -63,7 +74,7 @@ const downloadAsset = async (projectId, file, descriptor = null, retentionProtec
 };
 
 const revalidateAsset = async ({ cached, file, projectId, force = false, redownload = false }) => {
-    if (offline() || !cached?.blob) return cached;
+    if (offline() || cached?.localOnly || !cached?.blob) return cached;
     if (!force && Date.now() - (cached.lastValidatedAt ?? 0) < REVALIDATE_INTERVAL_MS) return cached;
 
     let descriptor;
@@ -133,7 +144,16 @@ const queueAssetRevalidation = options => {
 
 export const cacheProjectAsset = async (projectId, file, { retentionProtected = false } = {}) => {
     let cached = await getCachedProjectAsset(file.id);
+    if (cached?.localOnly && cached.localBytes) {
+        return {
+            ...cached,
+            blob: new Blob([cached.localBytes], {
+                type: cached.mimeType || file.mimeType || "application/octet-stream"
+            })
+        };
+    }
     if (cached?.blob) {
+        if (cached.localOnly) return cached;
         if (retentionProtected && !cached.retentionProtected) {
             cached = await setCachedProjectAsset({
                 projectId: projectId || cached.projectId,
@@ -150,6 +170,34 @@ export const cacheProjectAsset = async (projectId, file, { retentionProtected = 
     }
     if (offline()) throw new OfflineResourceUnavailableError(file.fileName || file.id);
     return downloadAsset(projectId, file, null, retentionProtected);
+};
+
+export const storeLocalProjectAsset = async (
+    projectId,
+    file,
+    { category = null } = {}
+) => {
+    const descriptor = {
+        id: createUuid(),
+        projectId,
+        fileName: file.name,
+        originalName: file.name,
+        mimeType: file.type || "application/octet-stream",
+        fileSize: file.size,
+        category,
+        localOnly: true
+    };
+
+    await setCachedProjectAsset({
+        projectId,
+        file: descriptor,
+        blob: null,
+        localBytes: await readBlobBytes(file),
+        localOnly: true,
+        retentionProtected: true
+    });
+
+    return descriptor;
 };
 
 export const getProjectAssetBlob = async file => {
@@ -197,6 +245,7 @@ export const refreshCachedProjectAssets = async ({
     const now = Date.now();
     const entries = await listProjectAssets();
     for (const cached of entries) {
+        if (cached.localOnly) continue;
         if (!includeInactive
             && now - (cached.lastAccessedAt ?? cached.cachedAt ?? 0) > ACTIVE_CACHE_WINDOW_MS) continue;
         result.total += 1;

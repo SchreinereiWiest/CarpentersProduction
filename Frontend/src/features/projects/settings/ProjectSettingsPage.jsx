@@ -6,6 +6,14 @@ import SideBar from "../../../shared/components/sideBar.jsx";
 import ProjectBar from "../../../shared/components/projectBar.jsx";
 import CustomerSearch from "../legacy-editor/customerSearch.jsx";
 import DeleteConfirm from "./deleteConfirm.jsx";
+import {
+  getProjectRecord,
+  updateLocalProjectRecord
+} from "../../../shared/projects/project-records.js";
+import { promoteLocalProject } from "../../../shared/projects/local-project-promotion.js";
+import { deleteLocalProject } from "../../../shared/offline/local-projects.js";
+import { storeLocalProjectAsset } from "../../../shared/cache/project-asset-cache.js";
+import { invalidateProjectAsset } from "../../../shared/cache/project-indexed-db.js";
 
 export default function ProjectSettings() {
   const { projectId } = useParams();
@@ -19,6 +27,8 @@ export default function ProjectSettings() {
   const [projectState, setProjectState] = useState("active");
 
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+
+  const [localOnly, setLocalOnly] = useState(false);
 
   const [projectFiles, setProjectFiles] = useState([]);
 
@@ -45,9 +55,7 @@ export default function ProjectSettings() {
 
     const fetchProject = async () => {
       try {
-        const { data } = await axios.get(`/api/projects/get/${projectId}`);
-
-        const project = data.project;
+        const project = await getProjectRecord(projectId);
 
         console.log("Projekt geladen:", project);
 
@@ -59,10 +67,18 @@ export default function ProjectSettings() {
 
         setProjectFiles(project.files ?? []);
 
-        const customerdata = await axios.get(
-          `/api/customers/get/${project.customerId}`
-        );
-        setSelectedCustomer(customerdata.data.customer);
+        setLocalOnly(Boolean(project.localOnly));
+
+        if (project.customer) {
+          setSelectedCustomer(project.customer);
+        } else if (project.customerId) {
+          const customerdata = await axios.get(
+            `/api/customers/get/${project.customerId}`
+          );
+          setSelectedCustomer(customerdata.data.customer);
+        } else {
+          setSelectedCustomer(null);
+        }
       } catch (error) {
         console.error("Projekt konnte nicht geladen werden:", error);
       } finally {
@@ -82,10 +98,49 @@ export default function ProjectSettings() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (selectedCustomer?.id && projectName) {
-      setSaving(true);
+    if (!projectName.trim()) {
+      alert("Bitte gib einen Projektnamen ein.");
+      return;
+    }
 
-      try {
+    if (!localOnly && !selectedCustomer?.id) {
+      alert("Bitte wähle einen Kunden aus.");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      if (localOnly) {
+        const addedFiles = [];
+        for (const file of newFiles) {
+          addedFiles.push(await storeLocalProjectAsset(projectId, file));
+        }
+
+        const localProject = await updateLocalProjectRecord(projectId, {
+          title: projectName.trim(),
+          description: projectDescription,
+          status: projectState,
+          files: [...projectFiles, ...addedFiles]
+        });
+
+        setProjectFiles(localProject.files);
+        setNewFiles([]);
+
+        if (selectedCustomer?.id) {
+          const uploadedProject = await promoteLocalProject({
+            projectId,
+            customerId: selectedCustomer.id,
+            title: projectName.trim(),
+            description: projectDescription,
+            status: projectState
+          });
+          setProjectFiles(uploadedProject.files ?? []);
+          setLocalOnly(false);
+        }
+        return;
+      }
+
         /*
          * Projektinformationen speichern
          */
@@ -143,20 +198,16 @@ export default function ProjectSettings() {
         /*
          * Projekt neu laden
          */
-        const { data } = await axios.get(`/api/projects/get/${projectId}`);
-
-        const project = data.project;
+        const project = await getProjectRecord(projectId);
 
         console.log("Projekt geladen:", project);
 
         setProjectFiles(project.files ?? []);
-      } catch (error) {
-        console.error("Projekt konnte nicht gespeichert werden:", error);
-      } finally {
-        setSaving(false);
-      }
-    } else {
-      alert("Bitte wähle einen Kunden aus und gib einen Projektnamen ein.");
+    } catch (error) {
+      console.error("Projekt konnte nicht gespeichert werden:", error);
+      alert(error?.response?.data?.message ?? error.message ?? "Projekt konnte nicht gespeichert werden.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -175,6 +226,14 @@ export default function ProjectSettings() {
     // }
 
     try {
+      if (localOnly) {
+        await invalidateProjectAsset(file.id);
+        const files = projectFiles.filter(currentFile => currentFile.id !== file.id);
+        await updateLocalProjectRecord(projectId, { files });
+        setProjectFiles(files);
+        return;
+      }
+
       await axios.delete(`/api/files/delete/${file.id}`);
 
       setProjectFiles((currentFiles) =>
@@ -193,6 +252,12 @@ export default function ProjectSettings() {
     setDeleting(true);
 
     try {
+      if (localOnly) {
+        await deleteLocalProject(projectId);
+        navigate("/Projects");
+        return;
+      }
+
       await axios.delete(`/api/projects/delete/${projectId}`);
 
       navigate("/Projects");
@@ -212,6 +277,11 @@ export default function ProjectSettings() {
     setExportError("");
 
     try {
+      if (localOnly) {
+        setExportError("Bitte weise zuerst einen Kunden zu und lade das Projekt hoch.");
+        return;
+      }
+
       const response = await axios.get(`/api/projects/export/${projectId}`, {
         responseType: "blob"
       });
@@ -294,6 +364,12 @@ export default function ProjectSettings() {
               <p className="text-gray-400 mt-1">
                 Projektinformationen und Dateien verwalten
               </p>
+
+              {localOnly && (
+                <div className="mt-4 rounded-lg border border-amber-700 bg-amber-950/40 p-4 text-sm text-amber-200">
+                  Dieses Projekt ist nur auf diesem Gerät gespeichert. Sobald du einen Kunden auswählst und speicherst, werden das Projekt und alle lokalen Dateien mit derselben Projekt-ID hochgeladen.
+                </div>
+              )}
             </div>
 
             {/* -------------------------------- */}
@@ -646,7 +722,14 @@ export default function ProjectSettings() {
                                             font-semibold
                                         "
                   >
-                    {saving ? "Speichern..." : "Änderungen speichern"}
+                    {saving
+                      ? localOnly && selectedCustomer?.id
+                        ? "Projekt wird hochgeladen..."
+                        : "Speichern..."
+                      : localOnly && selectedCustomer?.id
+                        ? "Projekt hochladen"
+                        : "Änderungen speichern"
+                    }
                   </button>
                 </div>
               </form>

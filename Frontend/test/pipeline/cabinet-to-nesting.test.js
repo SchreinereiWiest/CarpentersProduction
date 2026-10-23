@@ -11,6 +11,37 @@ import {
 } from '../fixtures/project.fixture.js';
 
 describe('Projektpipeline Korpus → Stückliste → CNC → Nesting', () => {
+  it('dreht Frontmaße bei querer Maserrichtung und behält hochkant als Standard', async () => {
+    const front = {
+      id: 'front-grain',
+      name: 'Front Maserung',
+      x: 0,
+      y: 0,
+      width: 420,
+      height: 700,
+      children: [],
+    };
+
+    const verticalPartList = await buildPartList([{
+      ...cabinet,
+      fronts: [front],
+    }], materials);
+    const horizontalPartList = await buildPartList([{
+      ...cabinet,
+      frontGrainDirection: 'horizontal',
+      fronts: [front],
+    }], materials);
+    const verticalFront = verticalPartList[0].Children.find(
+      part => part.Plattentyp === 'Front',
+    );
+    const horizontalFront = horizontalPartList[0].Children.find(
+      part => part.Plattentyp === 'Front',
+    );
+
+    expect(verticalFront).toMatchObject({ L: 700, B: 420 });
+    expect(horizontalFront).toMatchObject({ L: 420, B: 700 });
+  });
+
   it('fasst gleiche Fachböden, Mittelwände und Fronten bereits in der Stückliste zusammen', async () => {
     const section = {
       id: 'section-1',
@@ -49,6 +80,7 @@ describe('Projektpipeline Korpus → Stückliste → CNC → Nesting', () => {
       fronts: [
         { id: 'front-1', name: 'Front 1', x: 0, y: 0, width: 300, height: 700, children: [] },
         { id: 'front-2', name: 'Front 2', x: 300, y: 0, width: 300, height: 700, children: [] },
+        { id: 'front-removed', name: 'Entfernte Front', x: 0, y: 0, width: 300, height: 700, isRemoved: true, children: [] },
       ],
     };
     const partList = await buildPartList([cabinetWithAssemblies], materials);

@@ -1,10 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
-import { getProjectAssetUrl } from "../../../shared/cache/project-asset-cache.js";
+import {
+    getProjectAssetUrl,
+    storeLocalProjectAsset
+} from "../../../shared/cache/project-asset-cache.js";
+import { invalidateProjectAsset } from "../../../shared/cache/project-indexed-db.js";
 import { useParams } from "react-router";
 import SideBar from "../../../shared/components/sideBar.jsx";
 import ProjectBar from "../../../shared/components/projectBar.jsx";
 import { useAuth } from "../../../app/providers/AuthContext.js";
+import { getProjectRecord } from "../../../shared/projects/project-records.js";
+import {
+    getLocalProject,
+    saveLocalProject
+} from "../../../shared/offline/local-projects.js";
 
 const ATTACHMENT_CATEGORY = "production-attachment";
 const ACCEPTED_TYPES = new Set(["image/jpeg", "application/pdf"]);
@@ -61,6 +70,25 @@ function UploadModal({ existingFiles, onClose, onUploaded, onDeleted }) {
         setError("");
 
         try {
+            const localProject = await getLocalProject(projectId);
+            if (localProject) {
+                const descriptors = [];
+                for (const file of files) {
+                    descriptors.push(await storeLocalProjectAsset(
+                        projectId,
+                        file,
+                        { category: ATTACHMENT_CATEGORY }
+                    ));
+                }
+                await saveLocalProject({
+                    ...localProject,
+                    files: [...(localProject.files ?? []), ...descriptors]
+                });
+                await onUploaded();
+                onClose();
+                return;
+            }
+
             for (const file of files) {
                 const formData = new FormData();
                 formData.append("file", file);
@@ -83,6 +111,17 @@ function UploadModal({ existingFiles, onClose, onUploaded, onDeleted }) {
         setBusy(true);
         setError("");
         try {
+            const localProject = await getLocalProject(projectId);
+            if (localProject) {
+                await invalidateProjectAsset(file.id);
+                await saveLocalProject({
+                    ...localProject,
+                    files: (localProject.files ?? []).filter(item => item.id !== file.id)
+                });
+                await onDeleted();
+                return;
+            }
+
             await axios.delete(`/api/files/delete/${file.id}`);
             await onDeleted();
         } catch (deleteError) {
@@ -101,6 +140,11 @@ function UploadModal({ existingFiles, onClose, onUploaded, onDeleted }) {
         setSelectedResults(new Set());
         setSearched(false);
         try {
+            if (await getLocalProject(projectId)) {
+                setError("Die Artikelsuche ist erst nach der Kundenzuweisung und dem Projekt-Upload verfügbar.");
+                return;
+            }
+
             const { data } = await axios.post("/api/files/attachment-search", { projectId, articleNumber: query });
             setSearchResults(data.results || []);
             setUsedOpenWeb(Boolean(data.usedOpenWeb));
@@ -264,8 +308,7 @@ export default function ProjectAttachments() {
         setLoading(true);
         setError("");
         try {
-            const { data } = await axios.get(`/api/projects/get/${projectId}`);
-            const nextProject = data.project;
+            const nextProject = await getProjectRecord(projectId);
             const files = (nextProject?.files || []).filter(file => file.category === ATTACHMENT_CATEGORY);
             const loaded = await Promise.all(files.map(async file => {
                 return { ...file, url: await getProjectAssetUrl(file) };

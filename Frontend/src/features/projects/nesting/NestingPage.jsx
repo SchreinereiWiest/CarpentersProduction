@@ -38,6 +38,7 @@ import {
     filterPartListByMaterial,
     replaceNestingMaterial
 } from "./recalculateMaterial.js";
+import { getProjectRecord } from "../../../shared/projects/project-records.js";
 
 const RECALCULATE_LONG_PRESS_MS = 650;
 
@@ -398,10 +399,15 @@ function NestingView() {
     //fetch project and customer data
     useEffect(() => {
         const fetchProject = async () => {
-            const { data } = await axios.get(`/api/projects/get/${projectId}`);
-
-            const customerdata = await axios.get(`/api/customers/get/${data.project.customerId}`);
-            setCustomer(customerdata.data.customer);
+            const project = await getProjectRecord(projectId);
+            if (project.customer) {
+                setCustomer(project.customer);
+            } else if (project.customerId) {
+                const customerdata = await axios.get(`/api/customers/get/${project.customerId}`);
+                setCustomer(customerdata.data.customer);
+            } else {
+                setCustomer(null);
+            }
 
         };
 

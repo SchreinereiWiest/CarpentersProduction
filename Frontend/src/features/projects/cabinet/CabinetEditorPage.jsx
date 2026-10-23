@@ -12,6 +12,7 @@ import { resizeCabinetContents } from "@Engine/cabinet/geometry/resizeCabinetCon
 import { createInitialSections } from "@Engine/cabinet/sektions/interior/createInitialSections.js";
 import { generateFronts } from "@Engine/cabinet/sektions/front/generateFronts.js";
 import { splitFront } from "@Engine/cabinet/sektions/front/splitFront.js";
+import { toggleFrontRemoved } from "@Engine/cabinet/sektions/front/toggleFrontRemoved.js";
 import { splitSection } from "@Engine/cabinet/sektions/splitSections.js";
 import { mergeSectionChildren, findParent } from "@Engine/cabinet/sektions/interior/mergeSectionChildren.js";
 import { frontsToSections } from "@Engine/cabinet/sektions/functions/parseFrontSections.js";
@@ -35,6 +36,7 @@ import {
 import { getAufmasWorkspaceCache } from "../measurement/state/workspaceCache.js";
 import { createProjectRecord } from "../legacy-editor/uploadProject.js";
 import CustomerSearch from "../legacy-editor/customerSearch.jsx";
+import { getProjectRecord } from "../../../shared/projects/project-records.js";
 export default function CabinetEditor() {
 
     // conmstant Section alle Editor daten
@@ -532,8 +534,8 @@ export default function CabinetEditor() {
 
         const trimmedProjectName = emptyProjectName.trim();
 
-        if (!emptyProjectCustomer?.id || !trimmedProjectName) {
-            setSkipError("Bitte wähle einen Kunden aus und gib einen Projektnamen ein.");
+        if (!trimmedProjectName) {
+            setSkipError("Bitte gib einen Projektnamen ein.");
             return;
         }
 
@@ -542,7 +544,7 @@ export default function CabinetEditor() {
 
         try {
             const newProjectId = await createProjectRecord({
-                customerId: emptyProjectCustomer.id,
+                customerId: emptyProjectCustomer?.id,
                 title: trimmedProjectName,
                 description: emptyProjectDescription.trim()
             });
@@ -590,11 +592,7 @@ export default function CabinetEditor() {
 
             try {
 
-                const { data } = await axios.get(
-                    `/api/projects/get/${projectId}`
-                );
-
-                const project = data.project;
+                const project = await getProjectRecord(projectId);
 
                 setProject(project);
 
@@ -1180,6 +1178,7 @@ export default function CabinetEditor() {
     }
 
     splitFront={splitFront}
+    toggleFrontRemoved={toggleFrontRemoved}
     mergeFrontChildren={
         mergeFrontChildren
     }
@@ -1279,7 +1278,7 @@ export default function CabinetEditor() {
 
                     <div className="mt-5">
                         <label className="mb-2 block text-sm text-gray-300">
-                            Kunde <span aria-hidden="true" className="text-red-400">*</span>
+                            Kunde <span className="text-gray-500">(optional)</span>
                         </label>
                         <CustomerSearch
                             selectedCustomer={emptyProjectCustomer}
@@ -1332,7 +1331,7 @@ export default function CabinetEditor() {
                         </button>
                         <button
                             type="submit"
-                            disabled={creatingEmptyProject || !emptyProjectCustomer?.id || !emptyProjectName.trim()}
+                            disabled={creatingEmptyProject || !emptyProjectName.trim()}
                             className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             {creatingEmptyProject ? "Projekt wird erstellt ..." : "Projekt erstellen"}

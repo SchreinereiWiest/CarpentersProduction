@@ -10,7 +10,8 @@ import MobileWorkspaceGuard from "../../../shared/components/MobileWorkspaceGuar
 import useCompanySettings from "../../../shared/hooks/useCompanySettings.js";
 import {
   getProjectAssetBlob,
-  getProjectAssetUrl
+  getProjectAssetUrl,
+  storeLocalProjectAsset
 } from "../../../shared/cache/project-asset-cache.js";
 import {
   getProjectFile,
@@ -46,6 +47,11 @@ import { mimeFromFile, viewNameForPage } from "./utils/fileMetadata.js";
 import ImagesView from "./views/images/ImagesView.jsx";
 import AufmasThreeView from "./views/three/AufmasThreeView.jsx";
 import MeasurementReviewDialog from "./components/review/MeasurementReviewDialog.jsx";
+import { getProjectRecord } from "../../../shared/projects/project-records.js";
+import {
+  getLocalProject,
+  saveLocalProject
+} from "../../../shared/offline/local-projects.js";
 
 const imageDimensions = (source) =>
   new Promise((resolve, reject) => {
@@ -178,6 +184,11 @@ export default function AufmasWorkspace() {
 
   const loadMeasurementScans = useCallback(async () => {
     try {
+      if (await getLocalProject(projectId)) {
+        setMeasurementScans([]);
+        return;
+      }
+
       const { data } = await axios.get(
         `/api/measurement-ocr/projects/${projectId}/scans`
       );
@@ -204,8 +215,8 @@ export default function AufmasWorkspace() {
     const load = async () => {
       setLoading(true);
       try {
-        const [{ data }, saved] = await Promise.all([
-          axios.get(`/api/projects/get/${projectId}`),
+        const [loadedProject, saved] = await Promise.all([
+          getProjectRecord(projectId),
           getProjectFile({
             projectId,
             file: "aufmas.json",
@@ -223,7 +234,7 @@ export default function AufmasWorkspace() {
           })
         ]);
         if (cancelled) return;
-        setProject(data.project);
+        setProject(loadedProject);
         if (saved) {
           const loadedViews =
             Array.isArray(saved.views) && saved.views.length
@@ -487,6 +498,17 @@ export default function AufmasWorkspace() {
   }, [activeView?.type, isCompleted, selectedId]);
 
   const uploadProjectAsset = async (file) => {
+    const localProject = await getLocalProject(projectId);
+    if (localProject) {
+      const fileEntry = await storeLocalProjectAsset(projectId, file);
+      const updatedProject = await saveLocalProject({
+        ...localProject,
+        files: [...(localProject.files ?? []), fileEntry]
+      });
+      setProject(updatedProject);
+      return fileEntry;
+    }
+
     const formData = new FormData();
     formData.append("file", file);
     formData.append("entityId", projectId);
@@ -716,11 +738,13 @@ export default function AufmasWorkspace() {
         measurementFormFieldHeightMm:
           companySettings.userInterface?.measurementFormFieldHeightMm ?? 10
       });
-      await axios.post("/api/measurement-ocr/print-runs", {
-        projectId,
-        layout: result.layout,
-        generatedAt: new Date().toISOString()
-      });
+      if (!project?.localOnly) {
+        await axios.post("/api/measurement-ocr/print-runs", {
+          projectId,
+          layout: result.layout,
+          generatedAt: new Date().toISOString()
+        });
+      }
       const baseName = safePdfName(project?.title || project?.name);
       result.documented.save(`${baseName}-aufmass-dokumentiert.pdf`);
       result.fieldSheet.save(`${baseName}-aufmass-formular.pdf`);

@@ -48,6 +48,8 @@ export const setCachedProjectAsset = async ({
     file,
     blob,
     serverVersion = null,
+    localOnly = false,
+    localBytes = null,
     lastAccessedAt = Date.now(),
     lastValidatedAt = Date.now(),
     retentionProtected = false
@@ -61,6 +63,8 @@ export const setCachedProjectAsset = async ({
         mimeType: file.mimeType || blob.type,
         blob,
         serverVersion,
+        localOnly,
+        localBytes,
         lastAccessedAt,
         lastValidatedAt,
         retentionProtected,

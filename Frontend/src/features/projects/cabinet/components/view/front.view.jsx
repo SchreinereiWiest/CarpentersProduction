@@ -1,6 +1,3 @@
-import React from "react";
-
-
 export function FrontLayer({
     cabinet,
     selectedElement,
@@ -35,6 +32,9 @@ export function FrontLayer({
                 const hasChildren =
                     front.children &&
                     front.children.length > 0;
+
+                const isRemoved =
+                    front.isRemoved === true;
 
 
                 return (
@@ -76,6 +76,7 @@ export function FrontLayer({
                                 style={{
                                     cursor: "pointer"
                                 }}
+                                opacity={isRemoved ? 0.35 : 1}
                             >
 
                                 <rect
@@ -85,13 +86,19 @@ export function FrontLayer({
                                     height={front.height}
 
                                     fill={
-                                        selected
+                                        isRemoved
+                                            ? "#52525b"
+                                            : selected
                                             ? "#166534"
                                             : "#14532d"
                                     }
 
                                     stroke={
-                                        selected
+                                        isRemoved
+                                            ? selected
+                                                ? "#e4e4e7"
+                                                : "#a1a1aa"
+                                            : selected
                                             ? "#4ade80"
                                             : "#22c55e"
                                     }
@@ -103,6 +110,7 @@ export function FrontLayer({
                                     }
 
                                     vectorEffect="non-scaling-stroke"
+                                    strokeDasharray={isRemoved ? "8 6" : undefined}
                                 />
 
 
@@ -120,7 +128,7 @@ export function FrontLayer({
                                     textAnchor="middle"
                                     dominantBaseline="middle"
 
-                                    fill="#bbf7d0"
+                                    fill={isRemoved ? "#f4f4f5" : "#bbf7d0"}
 
                                     fontSize="30"
 
@@ -144,7 +152,7 @@ export function FrontLayer({
                                     textAnchor="middle"
                                     dominantBaseline="middle"
 
-                                    fill="#86efac"
+                                    fill={isRemoved ? "#d4d4d8" : "#86efac"}
 
                                     fontSize="28"
 

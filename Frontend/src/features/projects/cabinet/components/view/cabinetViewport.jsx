@@ -518,6 +518,44 @@ export default function CabinetViewport({
 
     /*
     ====================================================
+    NATIVER WHEEL-LISTENER
+
+    React registriert Wheel-Events je nach Browser passiv.
+    Ein nativer, nicht-passiver Listener verhindert, dass
+    Strg + Mausrad bzw. Trackpad-Pinch die ganze Seite zoomt.
+    ====================================================
+    */
+
+    useEffect(() => {
+
+        const container =
+            containerRef.current;
+
+        if (!container) {
+            return;
+        }
+
+
+        container.addEventListener(
+            "wheel",
+            handleWheel,
+            { passive: false }
+        );
+
+
+        return () => {
+
+            container.removeEventListener(
+                "wheel",
+                handleWheel
+            );
+        };
+
+    }, [handleWheel]);
+
+
+    /*
+    ====================================================
     PAN START
     ====================================================
     */
@@ -851,10 +889,6 @@ export default function CabinetViewport({
                     touchAction: "none",
                     userSelect: "none"
                 }}
-
-                onWheel={
-                    handleWheel
-                }
 
                 onPointerDown={
                     handlePointerDown

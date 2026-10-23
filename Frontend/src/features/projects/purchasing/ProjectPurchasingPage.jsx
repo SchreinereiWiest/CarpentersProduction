@@ -20,6 +20,7 @@ import {
     loadShopSettings,
     saveProjectProcurement
 } from "../../purchasing/procurementApi.js";
+import { getProjectRecord } from "../../../shared/projects/project-records.js";
 
 const money = new Intl.NumberFormat("de-DE", {
     style: "currency",
@@ -224,8 +225,8 @@ export default function ProjectPurchasing() {
             setError("");
 
             try {
-                const [projectResponse, nesting, partList, cabinetData, procurement, materialResponse, shopSettings, catalog] = await Promise.all([
-                    axios.get(`/api/projects/get/${projectId}`),
+                const [loadedProject, nesting, partList, cabinetData, procurement, materialResponse, shopSettings, catalog] = await Promise.all([
+                    getProjectRecord(projectId),
                     safeProjectFile(projectId, "nesting"),
                     safeProjectFile(projectId, "list"),
                     safeProjectFile(projectId, "cabinet"),
@@ -254,7 +255,7 @@ export default function ProjectPurchasing() {
                     supplierName: suppliersById.get(item.supplierId) || item.supplierName || ""
                 }));
 
-                setProject(projectResponse.data.project);
+                setProject(loadedProject);
                 setItems(mergedItems);
                 setLockedReleasedKeys(new Set(
                     mergedItems.filter(item => item.released && !item.purchased).map(item => item.sourceKey)

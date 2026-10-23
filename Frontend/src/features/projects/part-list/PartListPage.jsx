@@ -10,6 +10,10 @@ import { processContent } from './listProcess.js';
 import { createPartsListPDF } from './createPDF.js';
 import {getProjectFile, uploadProjectFile} from "../../../shared/cache/project-cache.js";
 import {downloadFile, uploadJSONFile} from "../../../shared/api/file-api.js";
+import {
+    getProjectRecord,
+    updateLocalProjectRecord
+} from "../../../shared/projects/project-records.js";
 
 function ListMaterial() {
     const navigate = useNavigate();
@@ -25,9 +29,9 @@ function ListMaterial() {
     // Projektdaten und gespeicherte Notiz laden.
     useEffect(() => {
         const fetchProject = async () => {
-        const { data } = await axios.get(`/api/projects/get/${projectId}`);
-        setProject(data.project);
-        setNotes(data.project.internalNotes ?? "");
+        const loadedProject = await getProjectRecord(projectId);
+        setProject(loadedProject);
+        setNotes(loadedProject.internalNotes ?? "");
   
     };
 
@@ -91,13 +95,15 @@ function ListMaterial() {
         setUpdating(true);
 
         try {
-            const { data } = await axios.put(`/api/projects/update/${projectId}`, {
-                customerId: project.customerId,
-                title: project.title,
-                description: project.description,
-                status: project.status,
-                internalNotes: notes
-            });
+            const data = project.localOnly
+                ? await updateLocalProjectRecord(projectId, { internalNotes: notes })
+                : (await axios.put(`/api/projects/update/${projectId}`, {
+                    customerId: project.customerId,
+                    title: project.title,
+                    description: project.description,
+                    status: project.status,
+                    internalNotes: notes
+                })).data;
 
             setProject((currentProject) => ({
                 ...currentProject,
