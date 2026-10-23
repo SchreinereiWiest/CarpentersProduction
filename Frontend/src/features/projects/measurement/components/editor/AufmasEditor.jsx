@@ -960,7 +960,7 @@ export default function AufmasEditor({
               <path
                 d="M20 0H0V20"
                 fill="none"
-                stroke="#253540"
+                stroke="var(--measurement-grid)"
                 strokeWidth="0.65"
               />
             </pattern>
@@ -974,12 +974,16 @@ export default function AufmasEditor({
               <path
                 d="M100 0H0V100"
                 fill="none"
-                stroke="#304451"
+                stroke="var(--measurement-grid-strong)"
                 strokeWidth="1"
               />
             </pattern>
           </defs>
-          <rect width={CANVAS_WIDTH} height={CANVAS_HEIGHT} fill="#141d24" />
+          <rect
+            width={CANVAS_WIDTH}
+            height={CANVAS_HEIGHT}
+            fill="var(--measurement-editor-background)"
+          />
           <rect
             width={CANVAS_WIDTH}
             height={CANVAS_HEIGHT}

@@ -891,7 +891,7 @@ export default function CabinetViewport({
                     y={viewBox.y - 10000}
                     width={20000}
                     height={20000}
-                    fill="#111827"
+                    fill="var(--cabinet-editor-background)"
                 />
 
 

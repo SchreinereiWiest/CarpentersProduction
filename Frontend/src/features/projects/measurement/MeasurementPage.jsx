@@ -910,7 +910,7 @@ export default function AufmasWorkspace() {
 
   if (loading) {
     return (
-      <div className="flex h-dvh bg-[#10171e] text-white">
+      <div className="measurement-page flex h-dvh bg-[#10171e] text-white">
         <SideBar selected={2} />
         <main className="flex min-w-0 flex-1 flex-col">
           <ProjectBar selected={1} />
@@ -923,7 +923,7 @@ export default function AufmasWorkspace() {
   }
 
   return (
-    <div className="flex h-dvh w-full overflow-hidden bg-[#10171e] text-white">
+    <div className="measurement-page flex h-dvh w-full overflow-hidden bg-[#10171e] text-white">
       <SideBar selected={2} />
       <MobileWorkspaceGuard title="Aufmaß" />
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden">

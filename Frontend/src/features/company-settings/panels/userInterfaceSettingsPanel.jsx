@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 
 import { uploadJSONFile } from "../../../shared/api/file-api.js";
 import { uploadGlobalFile } from "../../../shared/cache/global-cache.js";
+import { useTheme } from "../../../app/theme/ThemeContext.js";
+import { THEMES } from "../../../app/theme/theme.js";
 import {
     DEFAULT_COMPANY_SETTINGS,
     loadCompanySettings,
@@ -14,6 +16,7 @@ import {
 } from "../../../shared/settings/company-settings.js";
 
 export default function UserInterfaceSettingsPanel() {
+    const { theme, setTheme } = useTheme();
     const [companySettings, setCompanySettings] = useState(DEFAULT_COMPANY_SETTINGS);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -141,6 +144,33 @@ export default function UserInterfaceSettingsPanel() {
                         {message.text}
                     </div>
                 )}
+
+                <section className="rounded-xl border border-gray-700 bg-gray-800 p-5">
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-400">Darstellung</p>
+                        <h2 className="mt-1 text-base font-semibold text-gray-100">Theme</h2>
+                        <p className="mt-1 max-w-2xl text-xs leading-5 text-gray-400">
+                            Das Theme wird sofort angewendet und auf diesem Gerät gespeichert. Technische Zeichenflächen behalten ihre kontrastoptimierte Darstellung.
+                        </p>
+                    </div>
+
+                    <div className="mt-5 grid gap-4 sm:grid-cols-2" role="radiogroup" aria-label="Theme auswählen">
+                        <ThemeOption
+                            id={THEMES.DARK}
+                            title="Dark Mode"
+                            description="Das bisherige Carpenters-Theme mit dunklen Arbeitsflächen."
+                            selected={theme === THEMES.DARK}
+                            onSelect={setTheme}
+                        />
+                        <ThemeOption
+                            id={THEMES.LIGHT}
+                            title="Light Mode"
+                            description="Helle Flächen, Ink-Navigation und Copper-Akzente wie im Licensing-Portal."
+                            selected={theme === THEMES.LIGHT}
+                            onSelect={setTheme}
+                        />
+                    </div>
+                </section>
 
                 <section className="rounded-xl border border-gray-700 bg-gray-800 p-5">
                     <div className="flex items-start justify-between gap-6">
@@ -307,5 +337,51 @@ export default function UserInterfaceSettingsPanel() {
                 </section>
             </div>
         </div>
+    );
+}
+
+function ThemeOption({ id, title, description, selected, onSelect }) {
+    const light = id === THEMES.LIGHT;
+
+    return (
+        <button
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            onClick={() => onSelect(id)}
+            className={`overflow-hidden rounded-xl border text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+                selected
+                    ? "border-blue-500 ring-2 ring-blue-500/20"
+                    : "border-gray-700 hover:border-gray-600"
+            }`}
+        >
+            <span className={`block p-3 ${light ? "bg-[#f4f5f2]" : "bg-[#111827]"}`} aria-hidden="true">
+                <span className="grid h-24 grid-cols-[3.25rem_1fr] overflow-hidden rounded-lg shadow-lg">
+                    <span className={`flex flex-col gap-2 p-2 ${light ? "bg-[#111516]" : "bg-[#1f2937]"}`}>
+                        <span className={`h-2.5 rounded-full ${light ? "bg-[#cf8b4f]" : "bg-[#2563eb]"}`} />
+                        <span className={`h-2 rounded-full ${light ? "bg-[#223033]" : "bg-[#374151]"}`} />
+                        <span className={`h-2 rounded-full ${light ? "bg-[#223033]" : "bg-[#374151]"}`} />
+                    </span>
+                    <span className={`p-3 ${light ? "bg-[#f4f5f2]" : "bg-[#111827]"}`}>
+                        <span className={`block h-full rounded-md border p-2 ${light ? "border-[#d7ded9] bg-white" : "border-[#374151] bg-[#1f2937]"}`}>
+                            <span className={`block h-2 w-2/3 rounded ${light ? "bg-[#34413e]" : "bg-[#d1d5db]"}`} />
+                            <span className={`mt-2 block h-1.5 w-full rounded ${light ? "bg-[#d7ded9]" : "bg-[#4b5563]"}`} />
+                            <span className={`mt-1.5 block h-1.5 w-4/5 rounded ${light ? "bg-[#d7ded9]" : "bg-[#4b5563]"}`} />
+                        </span>
+                    </span>
+                </span>
+            </span>
+            <span className="flex items-start justify-between gap-4 px-4 py-3">
+                <span>
+                    <span className="block text-sm font-semibold text-gray-100">{title}</span>
+                    <span className="mt-1 block text-xs leading-5 text-gray-400">{description}</span>
+                </span>
+                <span className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border ${
+                    selected ? "border-blue-500 bg-blue-600" : "border-gray-600"
+                }`}>
+                    {selected && <span className="size-1.5 rounded-full bg-white" />}
+                </span>
+            </span>
+        </button>
     );
 }

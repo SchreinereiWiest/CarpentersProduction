@@ -45,7 +45,7 @@ export default function MeasurementGraphic({
           cx={start.x}
           cy={start.y}
           r={selected ? 15 : 12}
-          fill="#152331"
+          fill="var(--measurement-label-background)"
           stroke={color}
           strokeWidth="3"
         />
@@ -63,11 +63,11 @@ export default function MeasurementGraphic({
               width={Math.max(92, (object.label?.length ?? 6) * 7.2)}
               height="29"
               rx="6"
-              fill="#16222d"
+              fill="var(--measurement-label-background)"
               stroke={color}
               strokeWidth="1"
             />
-            <text x={start.x + 27} y={start.y + 5} fill="#dce8f1" fontSize="14">
+            <text x={start.x + 27} y={start.y + 5} fill="var(--measurement-label-text)" fontSize="14">
               {object.label || kindLabel(object.kind)}
             </text>
           </>
@@ -109,10 +109,10 @@ export default function MeasurementGraphic({
               width={labelWidth}
               height="28"
               rx="5"
-              fill="#16222d"
+              fill="var(--measurement-label-background)"
               stroke={color}
             />
-            <text x="12" y="19" fill="#dce8f1" fontSize="13">
+            <text x="12" y="19" fill="var(--measurement-label-text)" fontSize="13">
               {label}
             </text>
           </g>
@@ -176,13 +176,13 @@ export default function MeasurementGraphic({
           width="78"
           height="30"
           rx="6"
-          fill="#16222d"
+          fill="var(--measurement-label-background)"
           stroke={color}
         />
         <text
           x={start.x + 31}
           y={start.y - 11}
-          fill="#eaf2f7"
+          fill="var(--measurement-label-text)"
           fontSize="15"
           fontWeight="600"
         >
@@ -214,7 +214,7 @@ export default function MeasurementGraphic({
         y1={start.y}
         x2={end.x}
         y2={end.y}
-        stroke="#0e171f"
+        stroke="var(--measurement-line-backdrop)"
         strokeWidth="11"
         opacity=".82"
       />
@@ -230,7 +230,7 @@ export default function MeasurementGraphic({
         cx={start.x}
         cy={start.y}
         r="6"
-        fill="#15202a"
+        fill="var(--measurement-label-background)"
         stroke={color}
         strokeWidth="3"
       />
@@ -238,7 +238,7 @@ export default function MeasurementGraphic({
         cx={end.x}
         cy={end.y}
         r="6"
-        fill="#15202a"
+        fill="var(--measurement-label-background)"
         stroke={color}
         strokeWidth="3"
       />
@@ -249,14 +249,14 @@ export default function MeasurementGraphic({
           width={labelWidth}
           height={labelHeight}
           rx={7 * labelScale}
-          fill="#17232e"
+          fill="var(--measurement-label-background)"
           stroke={color}
         />
         <text
           x={labelWidth / 2}
           y={22 * labelScale}
           textAnchor="middle"
-          fill="#f1f5f8"
+          fill="var(--measurement-label-text)"
           fontSize={14 * labelScale}
           fontWeight="600"
         >

@@ -37,7 +37,7 @@ export default function CncPartsLayer({
                 height={height}
                 rx={1}
                 fill="rgb(55 65 81)"
-                fillOpacity={0.35}
+                fillOpacity={0.82}
                 stroke={
                     selected
                         ? "rgb(156 163 175)"

@@ -1,0 +1,361 @@
+/*
+ * Zentrale Theme-Tokens
+ * ---------------------
+ * Neue Komponenten sollten diese Variablen oder die theme-* Hilfsklassen
+ * verwenden. Der Kompatibilitätsblock darunter übersetzt die historisch
+ * verwendeten Gray-Tailwind-Klassen, damit das bestehende UI mitwechselt.
+ */
+:root,
+:root[data-theme="dark"] {
+    --theme-canvas: #111827;
+    --theme-surface: #1f2937;
+    --theme-surface-subtle: #374151;
+    --theme-surface-muted: #4b5563;
+    --theme-border: #374151;
+    --theme-border-strong: #4b5563;
+    --theme-text-primary: #f9fafb;
+    --theme-text-secondary: #d1d5db;
+    --theme-text-muted: #9ca3af;
+    --theme-text-faint: #6b7280;
+    --theme-navigation: #1f2937;
+    --theme-navigation-active: #111827;
+    --theme-navigation-text: #f9fafb;
+    --theme-accent: #2563eb;
+    --theme-accent-hover: #3b82f6;
+    --theme-accent-strong: #1d4ed8;
+    --theme-on-accent: #ffffff;
+    --theme-shadow: rgb(0 0 0 / 0.28);
+    --measurement-canvas: #10171e;
+    --measurement-surface: #172029;
+    --measurement-surface-raised: #1d2a34;
+    --measurement-surface-deep: #121a21;
+    --measurement-border: #2a3741;
+    --measurement-border-strong: #405769;
+    --measurement-text: #e5edf3;
+    --measurement-text-secondary: #b7c4cd;
+    --measurement-text-muted: #8193a0;
+    --measurement-accent: #315c78;
+    --measurement-accent-hover: #3c6f90;
+    --measurement-on-accent: #e5f3fb;
+    --measurement-editor-background: #141d24;
+    --measurement-grid: #253540;
+    --measurement-grid-strong: #304451;
+    --measurement-label-background: #16222d;
+    --measurement-label-text: #dce8f1;
+    --measurement-line-backdrop: #0e171f;
+    --cabinet-editor-background: #111827;
+}
+
+:root[data-theme="light"] {
+    /* An MoebelDesignLicencing angelehnte Light-Palette. */
+    --theme-canvas: #f4f5f2;
+    --theme-surface: #ffffff;
+    --theme-surface-subtle: #eef1ef;
+    --theme-surface-muted: #e2e7e4;
+    --theme-border: #d7ded9;
+    --theme-border-strong: #bcc7c1;
+    --theme-text-primary: #111516;
+    --theme-text-secondary: #34413e;
+    --theme-text-muted: #64716d;
+    --theme-text-faint: #84908b;
+    --theme-navigation: #223033;
+    --theme-navigation-active: #344447;
+    --theme-navigation-text: #f8faf9;
+    --theme-accent: #cf8b4f;
+    --theme-accent-hover: #e3ad75;
+    --theme-accent-strong: #b96f35;
+    --theme-on-accent: #111516;
+    --theme-shadow: rgb(31 42 44 / 0.10);
+    --measurement-canvas: #eef1ef;
+    --measurement-surface: #ffffff;
+    --measurement-surface-raised: #f4f5f2;
+    --measurement-surface-deep: #e7ece9;
+    --measurement-border: #d7ded9;
+    --measurement-border-strong: #b8c5be;
+    --measurement-text: #111516;
+    --measurement-text-secondary: #34413e;
+    --measurement-text-muted: #64716d;
+    --measurement-accent: #cf8b4f;
+    --measurement-accent-hover: #e3ad75;
+    --measurement-on-accent: #111516;
+    --measurement-editor-background: #f8f9f6;
+    --measurement-grid: #d7ded9;
+    --measurement-grid-strong: #b8c5be;
+    --measurement-label-background: #ffffff;
+    --measurement-label-text: #111516;
+    --measurement-line-backdrop: #eef1ef;
+    --cabinet-editor-background: #eef1ef;
+
+    /* Tailwind-Akzentklassen werden im Light Mode zu Copper. */
+    --color-blue-50: #fdf7f1;
+    --color-blue-100: #faeadb;
+    --color-blue-200: #f3d2b3;
+    --color-blue-300: #e3ad75;
+    --color-blue-400: #d99a60;
+    --color-blue-500: #cf8b4f;
+    --color-blue-600: #b96f35;
+    --color-blue-700: #96552b;
+    --color-blue-800: #754326;
+    --color-blue-900: #603921;
+    --color-blue-950: #341b0e;
+}
+
+html,
+body,
+#root {
+    background: var(--theme-canvas);
+    color: var(--theme-text-primary);
+}
+
+body,
+button,
+input,
+select,
+textarea {
+    transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+::selection {
+    background: color-mix(in srgb, var(--theme-accent) 30%, transparent);
+}
+
+.theme-canvas { background-color: var(--theme-canvas); }
+.theme-surface { background-color: var(--theme-surface); }
+.theme-surface-subtle { background-color: var(--theme-surface-subtle); }
+.theme-border { border-color: var(--theme-border); }
+.theme-text-primary { color: var(--theme-text-primary); }
+.theme-text-secondary { color: var(--theme-text-secondary); }
+.theme-text-muted { color: var(--theme-text-muted); }
+.theme-accent { color: var(--theme-accent); }
+.theme-shadow { box-shadow: 0 18px 50px var(--theme-shadow); }
+
+/* Light-Mode-Kompatibilität für die bestehende dunkle Gray-Palette. */
+:root[data-theme="light"] .bg-gray-950 { background-color: #e9eeeb; }
+:root[data-theme="light"] .bg-gray-900 { background-color: var(--theme-canvas); }
+:root[data-theme="light"] .bg-gray-800 { background-color: var(--theme-surface); }
+:root[data-theme="light"] .bg-gray-700 { background-color: var(--theme-surface-subtle); }
+:root[data-theme="light"] .bg-gray-600 { background-color: var(--theme-surface-muted); }
+:root[data-theme="light"] [class*="bg-gray-950/"] { background-color: rgb(233 238 235 / 0.92); }
+:root[data-theme="light"] [class*="bg-gray-900/"] { background-color: rgb(244 245 242 / 0.92); }
+:root[data-theme="light"] [class*="bg-gray-800/"] { background-color: rgb(255 255 255 / 0.92); }
+:root[data-theme="light"] [class*="bg-gray-700/"] { background-color: rgb(238 241 239 / 0.92); }
+
+:root[data-theme="light"] .border-gray-800,
+:root[data-theme="light"] .border-gray-700 { border-color: var(--theme-border); }
+:root[data-theme="light"] .border-gray-600 { border-color: var(--theme-border-strong); }
+:root[data-theme="light"] .border-gray-500 { border-color: #a5b1ab; }
+:root[data-theme="light"] [class*="border-gray-700/"] { border-color: rgb(215 222 217 / 0.78); }
+
+:root[data-theme="light"] .text-white,
+:root[data-theme="light"] .text-gray-50,
+:root[data-theme="light"] .text-gray-100 { color: var(--theme-text-primary); }
+:root[data-theme="light"] .text-gray-200 { color: var(--theme-text-secondary); }
+:root[data-theme="light"] .text-gray-300 { color: #475652; }
+:root[data-theme="light"] .text-gray-400 { color: var(--theme-text-muted); }
+:root[data-theme="light"] .text-gray-500 { color: var(--theme-text-faint); }
+
+:root[data-theme="light"] .hover\:bg-gray-900:hover { background-color: #e9eeeb; }
+:root[data-theme="light"] .hover\:bg-gray-800:hover,
+:root[data-theme="light"] .hover\:bg-gray-700:hover { background-color: var(--theme-surface-muted); }
+:root[data-theme="light"] .hover\:bg-gray-600:hover { background-color: #d6ddd9; }
+:root[data-theme="light"] .hover\:text-white:hover { color: var(--theme-text-primary); }
+
+/* Die Hauptnavigation nutzt den helleren Ink-Ton der Licensing-Palette. */
+:root[data-theme="light"] .app-sidebar {
+    background-color: var(--theme-navigation);
+    border-color: #405154;
+    color: var(--theme-navigation-text);
+}
+:root[data-theme="light"] .app-sidebar .bg-gray-900 {
+    background-color: var(--theme-navigation-active);
+    color: var(--theme-navigation-text);
+}
+:root[data-theme="light"] .app-sidebar .text-gray-400 { color: #a5b0b2; }
+:root[data-theme="light"] .app-sidebar .hover\:bg-gray-700:hover { background-color: #2d3d40; }
+
+/*
+ * Aufmaß-Arbeitsbereich
+ * Die Ansicht hatte historisch eine eigene, fest codierte Dunkelpalette. Die
+ * Zuordnung bleibt hier gekapselt, damit die fachlichen Statusfarben und die
+ * Kontraste der Zeichenwerkzeuge unverändert bleiben.
+ */
+.measurement-page {
+    background-color: var(--measurement-canvas);
+    color: var(--measurement-text);
+}
+
+:root[data-theme="light"] .measurement-page :is(
+    [class~="bg-[#0c1217]"],
+    [class~="bg-[#0d141a]"],
+    [class~="bg-[#0f161d]"],
+    [class~="bg-[#0f171e]"],
+    [class~="bg-[#10171e]"],
+    [class~="bg-[#10181f]"],
+    [class~="bg-[#101820]"],
+    [class~="bg-[#111820]"],
+    [class~="bg-[#111920]"],
+    [class~="bg-[#111a21]"],
+    [class~="bg-[#121a20]"],
+    [class~="bg-[#121a21]"],
+    [class~="bg-[#121b22]"],
+    [class~="bg-[#141d25]"],
+    [class~="bg-[#141e26]"],
+    [class~="bg-[#151e26]"]
+) { background-color: var(--measurement-canvas); }
+
+:root[data-theme="light"] .measurement-page :is(
+    [class~="bg-[#131d25]"],
+    [class~="bg-[#16212a]"],
+    [class~="bg-[#172029]"],
+    [class~="bg-[#17212a]"],
+    [class~="bg-[#17232c]"],
+    [class~="bg-[#19232b]"],
+    [class~="bg-[#19232d]"],
+    [class~="bg-[#192630]"],
+    [class~="bg-[#1b2933]"],
+    [class~="bg-[#1b2b36]"],
+    [class~="bg-[#1d2933]"],
+    [class~="bg-[#1d2a34]"],
+    [class~="bg-[#202d37]"]
+) { background-color: var(--measurement-surface); }
+
+:root[data-theme="light"] .measurement-page :is(
+    [class~="bg-[#203847]"],
+    [class~="bg-[#213746]"],
+    [class~="bg-[#223746]"],
+    [class~="bg-[#233b4c]"],
+    [class~="bg-[#253746]"],
+    [class~="bg-[#27485d]"],
+    [class~="bg-[#2d526b]"],
+    [class~="bg-[#31536b]"],
+    [class~="bg-[#315c78]"]
+) {
+    background-color: var(--measurement-accent);
+    color: var(--measurement-on-accent);
+}
+
+:root[data-theme="light"] .measurement-page :is(
+    [class~="bg-[#0e161d]/80"],
+    [class~="bg-[#131c24]/95"],
+    [class~="bg-[#16212a]/95"],
+    [class~="bg-[#162631]/95"],
+    [class~="bg-[#17212b]/95"]
+) { background-color: rgb(255 255 255 / 0.94); }
+
+:root[data-theme="light"] .measurement-page :is(
+    [class~="border-[#273540]"],
+    [class~="border-[#2a3741]"],
+    [class~="border-[#2b3844]"],
+    [class~="border-[#2b3943]"],
+    [class~="border-[#2d3b46]"],
+    [class~="border-[#2e3d47]"],
+    [class~="border-[#2e3e49]"],
+    [class~="border-[#2f3e49]"],
+    [class~="border-[#303f4a]"],
+    [class~="border-[#30424e]"],
+    [class~="border-[#31414c]"],
+    [class~="border-[#324552]"],
+    [class~="border-[#33404d]"],
+    [class~="border-[#334753]"],
+    [class~="border-[#344451]"],
+    [class~="border-[#344550]"],
+    [class~="border-[#354550]"],
+    [class~="border-[#354650]"],
+    [class~="border-[#354754]"],
+    [class~="border-[#3a4853]"],
+    [class~="border-[#3a4b57]"],
+    [class~="border-[#3a4b5b]"],
+    [class~="border-[#3a4c59]"],
+    [class~="border-[#3b4c59]"],
+    [class~="border-[#3f5363]"],
+    [class~="border-[#405463]"],
+    [class~="border-[#405769]"],
+    [class~="border-[#42627a]"],
+    [class~="border-[#42657b]"],
+    [class~="border-[#455967]"],
+    [class~="border-[#4d6474]"],
+    [class~="border-[#4d7188]"],
+    [class~="border-[#4e7895]"],
+    [class~="border-[#506779]"],
+    [class~="border-[#52616c]"],
+    [class~="border-[#55768d]"],
+    [class~="border-[#5a8eb2]"],
+    [class~="border-[#5c8eb4]"]
+) { border-color: var(--measurement-border); }
+
+:root[data-theme="light"] .measurement-page :is(
+    [class~="text-[#51616d]"], [class~="text-[#5f7280]"],
+    [class~="text-[#61727f]"], [class~="text-[#627581]"],
+    [class~="text-[#657681]"], [class~="text-[#687b88]"],
+    [class~="text-[#6c7f8c]"], [class~="text-[#6f808d]"],
+    [class~="text-[#708292]"], [class~="text-[#718391]"],
+    [class~="text-[#728391]"], [class~="text-[#728492]"],
+    [class~="text-[#778a98]"], [class~="text-[#7f8d99]"],
+    [class~="text-[#8193a0]"], [class~="text-[#8294a2]"],
+    [class~="text-[#8295a2]"], [class~="text-[#8296a3]"],
+    [class~="text-[#899aa7]"], [class~="text-[#8ea0af]"],
+    [class~="text-[#91a1ae]"], [class~="text-[#91a1af]"],
+    [class~="text-[#95a6b2]"], [class~="text-[#9aabb9]"],
+    [class~="text-[#9cacb8]"], [class~="text-[#9eacb7]"],
+    [class~="text-[#a8b7c1]"], [class~="text-[#aab8c2]"],
+    [class~="text-[#aebbc5]"], [class~="text-[#b3c0ca]"]
+) { color: var(--measurement-text-muted); }
+
+:root[data-theme="light"] .measurement-page :is(
+    [class~="text-[#b7c4cd]"], [class~="text-[#b9c7d1]"],
+    [class~="text-[#c2d0da]"], [class~="text-[#c6d2da]"],
+    [class~="text-[#c8d5df]"], [class~="text-[#c9d5dd]"],
+    [class~="text-[#c9dce8]"], [class~="text-[#cce5f4]"],
+    [class~="text-[#d4dfe6]"], [class~="text-[#d7e1e8]"],
+    [class~="text-[#d8e3ea]"], [class~="text-[#d8e8f2]"],
+    [class~="text-[#dbe5ee]"], [class~="text-[#dbe6ed]"],
+    [class~="text-[#dce6ec]"], [class~="text-[#e4edf3]"],
+    [class~="text-[#e5edf3]"], [class~="text-[#e6edf3]"]
+) { color: var(--measurement-text); }
+
+:root[data-theme="light"] .measurement-page :is(
+    [class~="text-[#bcd8e9]"],
+    [class~="text-[#cce5f4]"],
+    [class~="text-[#e5f3fb]"]
+) { color: var(--measurement-on-accent); }
+
+:root[data-theme="light"] .measurement-page :is(
+    [class~="hover:bg-[#1d2a34]"],
+    [class~="hover:bg-[#1e2b35]"],
+    [class~="hover:bg-[#202d37]"],
+    [class~="hover:bg-[#25343f]"],
+    [class~="hover:bg-[#253d4d]"],
+    [class~="hover:bg-[#263746]"],
+    [class~="hover:bg-[#273541]"]
+):hover { background-color: var(--measurement-surface-raised); }
+
+:root[data-theme="light"] .measurement-page :is(
+    [class~="hover:bg-[#29495d]"],
+    [class~="hover:bg-[#396b8a]"],
+    [class~="hover:bg-[#3c6f90]"]
+):hover {
+    background-color: var(--measurement-accent-hover);
+    color: var(--measurement-on-accent);
+}
+
+/* Text auf kräftigen Status- und Gefahrenflächen bleibt weiß. */
+:root[data-theme="light"] .text-white:is(
+    [class*="bg-red-"],
+    [class*="bg-green-"],
+    [class*="bg-emerald-"],
+    [class*="bg-black"],
+    [class*="bg-gray-950"]
+) { color: #ffffff; }
+
+/* Copper-Aktionen verwenden wie im Licensing-Frontend dunkle Schrift. */
+:root[data-theme="light"] .bg-blue-500,
+:root[data-theme="light"] .bg-blue-600,
+:root[data-theme="light"] .bg-blue-700 { color: var(--theme-on-accent); }
+
+@media (prefers-reduced-motion: reduce) {
+    body,
+    button,
+    input,
+    select,
+    textarea { transition: none; }
+}

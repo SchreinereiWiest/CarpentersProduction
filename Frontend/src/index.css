@@ -21,7 +21,6 @@ body,
 }
 
 :root {
-    color-scheme: dark;
     --mobile-navigation-height: 0px;
 }
 
@@ -41,7 +40,7 @@ textarea {
 .project-bar,
 .settings-bar {
     scrollbar-width: thin;
-    scrollbar-color: #4b5563 transparent;
+    scrollbar-color: var(--theme-border-strong, #4b5563) transparent;
 }
 
 .mobile-workspace-guard {
@@ -79,7 +78,7 @@ textarea {
         padding-bottom: env(safe-area-inset-bottom);
         overflow-x: auto !important;
         overflow-y: hidden !important;
-        border-top: 1px solid #374151;
+        border-top: 1px solid var(--theme-border, #374151);
     }
 
     .app-sidebar__items {
@@ -170,9 +169,9 @@ textarea {
 
     .responsive-card-table tr {
         overflow: hidden;
-        border: 1px solid #374151;
+        border: 1px solid var(--theme-border, #374151);
         border-radius: 0.75rem;
-        background: #1f2937;
+        background: var(--theme-surface, #1f2937);
     }
 
     .responsive-card-table td {
@@ -187,7 +186,7 @@ textarea {
     }
 
     .responsive-card-table td + td {
-        border-top: 1px solid #374151;
+        border-top: 1px solid var(--theme-border, #374151);
     }
 
     .responsive-card-table td > * {
@@ -197,7 +196,7 @@ textarea {
     .responsive-card-table td::before {
         content: attr(data-label);
         flex: 0 0 auto;
-        color: #9ca3af;
+        color: var(--theme-text-muted, #9ca3af);
         font-size: 0.75rem;
         font-weight: 600;
         letter-spacing: 0.04em;
@@ -220,7 +219,7 @@ textarea {
     .responsive-settings-panel .settings-panel-split > aside {
         max-height: 12rem;
         border-right: 0;
-        border-bottom: 1px solid #374151;
+        border-bottom: 1px solid var(--theme-border, #374151);
     }
 }
 
@@ -235,14 +234,14 @@ textarea {
         justify-content: center;
         overflow-y: auto;
         padding: max(1rem, env(safe-area-inset-top)) 1rem 1rem;
-        background: #111827;
+        background: var(--theme-canvas, #111827);
     }
 
     .mobile-workspace-guard__card {
         width: min(100%, 28rem);
-        border: 1px solid #374151;
+        border: 1px solid var(--theme-border, #374151);
         border-radius: 1rem;
-        background: #1f2937;
+        background: var(--theme-surface, #1f2937);
         padding: 1.5rem;
         text-align: center;
         box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.3);
