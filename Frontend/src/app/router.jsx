@@ -42,8 +42,8 @@ function LegacyCadRedirect() {
   return <Navigate to={`/Projects/Aufmas/${projectId}`} replace />;
 }
 
-const protectedPage = (element, requiredRole = "user") => (
-  <ProtectedRoute requiredRole={requiredRole}>{element}</ProtectedRoute>
+const protectedPage = (element, requiredRole = "user", requiredFeatures = []) => (
+  <ProtectedRoute requiredRole={requiredRole} requiredFeatures={requiredFeatures}>{element}</ProtectedRoute>
 );
 
 export default function AppRouter() {
@@ -55,7 +55,7 @@ export default function AppRouter() {
           <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
           <Route path="/" element={protectedPage(<DashboardPage />, undefined)} />
 
-          <Route path="/Management" element={protectedPage(<ManagementLayout />, "admin")}>
+          <Route path="/Management" element={protectedPage(<ManagementLayout />, "admin", ["business-management"])}>
             <Route index element={<ManagementOverview />} />
             <Route path="Setup/:step" element={<ManagementSetup />} />
             <Route path="Hours" element={<ManagementHours />} />
@@ -66,41 +66,41 @@ export default function AppRouter() {
             <Route path="Settings" element={<Navigate to="/Management/Setup/Business" replace />} />
             <Route path="Transactions" element={<Navigate to="/Management" replace />} />
           </Route>
-          <Route path="/Documents" element={protectedPage(<ManagementLayout sidebarSelected={3} />, "admin")}>
+          <Route path="/Documents" element={protectedPage(<ManagementLayout sidebarSelected={3} />, "admin", ["business-management"])}>
             <Route index element={<ManagementDocuments />} />
           </Route>
 
-          <Route path="/Projects" element={protectedPage(<ProjectOverviewPage />)} />
-          <Route path="/Projects/:projectId" element={protectedPage(<ProjectHomePage />)} />
-          <Route path="/Projects/Aufmas/:projectId" element={protectedPage(<MeasurementPage />)} />
-          <Route path="/Projects/CAD/:projectId" element={protectedPage(<LegacyCadRedirect />)} />
-          <Route path="/Projects/List/:projectId" element={protectedPage(<PartListPage />)} />
-          <Route path="/Projects/Nesting/:projectId" element={protectedPage(<NestingPage />)} />
-          <Route path="/Projects/Cut/:projectId" element={protectedPage(<CuttingPage />)} />
-          <Route path="/Projects/Time/:projectId" element={protectedPage(<TimeTrackingPage />)} />
-          <Route path="/Projects/Create" element={protectedPage(<CabinetEditorPage />)} />
-          <Route path="/Projects/Create/List" element={protectedPage(<LegacyProjectEditorPage />)} />
-          <Route path="/Projects/Create/:id" element={protectedPage(<LegacyProjectEditorPage />)} />
-          <Route path="/Projects/Settings/:projectId" element={protectedPage(<ProjectSettingsPage />)} />
-          <Route path="/Projects/Cabinet/:projectId" element={protectedPage(<CabinetEditorPage />)} />
-          <Route path="/Projects/Cnc/:projectId" element={protectedPage(<CncEditorPage />)} />
-          <Route path="/Projects/Purchasing/:projectId" element={protectedPage(<ProjectPurchasingPage />)} />
-          <Route path="/Projects/Attachments/:projectId" element={protectedPage(<ProjectAttachmentsPage />)} />
-          <Route path="/Projects/Calculation/:projectId" element={protectedPage(<CalculationPage />)} />
+          <Route path="/Projects" element={protectedPage(<ProjectOverviewPage />, "user", ["work-preparation"])} />
+          <Route path="/Projects/:projectId" element={protectedPage(<ProjectHomePage />, "user", ["work-preparation"])} />
+          <Route path="/Projects/Aufmas/:projectId" element={protectedPage(<MeasurementPage />, "user", ["work-preparation"])} />
+          <Route path="/Projects/CAD/:projectId" element={protectedPage(<LegacyCadRedirect />, "user", ["work-preparation"])} />
+          <Route path="/Projects/List/:projectId" element={protectedPage(<PartListPage />, "user", ["work-preparation"])} />
+          <Route path="/Projects/Nesting/:projectId" element={protectedPage(<NestingPage />, "user", ["work-preparation"])} />
+          <Route path="/Projects/Cut/:projectId" element={protectedPage(<CuttingPage />, "user", ["work-preparation"])} />
+          <Route path="/Projects/Time/:projectId" element={protectedPage(<TimeTrackingPage />, "user", ["work-preparation"])} />
+          <Route path="/Projects/Create" element={protectedPage(<CabinetEditorPage />, "user", ["work-preparation"])} />
+          <Route path="/Projects/Create/List" element={protectedPage(<LegacyProjectEditorPage />, "user", ["work-preparation"])} />
+          <Route path="/Projects/Create/:id" element={protectedPage(<LegacyProjectEditorPage />, "user", ["work-preparation"])} />
+          <Route path="/Projects/Settings/:projectId" element={protectedPage(<ProjectSettingsPage />, "user", ["work-preparation"])} />
+          <Route path="/Projects/Cabinet/:projectId" element={protectedPage(<CabinetEditorPage />, "user", ["work-preparation"])} />
+          <Route path="/Projects/Cnc/:projectId" element={protectedPage(<CncEditorPage />, "user", ["work-preparation"])} />
+          <Route path="/Projects/Purchasing/:projectId" element={protectedPage(<ProjectPurchasingPage />, "user", ["work-preparation", "shop"])} />
+          <Route path="/Projects/Attachments/:projectId" element={protectedPage(<ProjectAttachmentsPage />, "user", ["work-preparation"])} />
+          <Route path="/Projects/Calculation/:projectId" element={protectedPage(<CalculationPage />, "user", ["work-preparation", "calculation"])} />
 
-          <Route path="/Storage" element={protectedPage(<InventoryPage />)} />
-          <Route path="/Mitarbeiter" element={protectedPage(<EmployeesPage />)} />
-          <Route path="/Purchasing" element={protectedPage(<PurchasingPage />)} />
+          <Route path="/Storage" element={protectedPage(<InventoryPage />, "user", ["work-preparation"])} />
+          <Route path="/Mitarbeiter" element={protectedPage(<EmployeesPage />, "user", ["work-preparation"])} />
+          <Route path="/Purchasing" element={protectedPage(<PurchasingPage />, "user", ["shop"])} />
 
-          <Route path="/Kontakte" element={protectedPage(<ContactsPage />, "admin")} />
-          <Route path="/Kontakte/new" element={protectedPage(<NewContactPage />, "admin")} />
-          <Route path="/Kontakte/info/:userid" element={protectedPage(<ContactDetailsPage />, "admin")} />
-          <Route path="/Kontakte/edit/:userid" element={protectedPage(<EditContactPage />, "admin")} />
-          <Route path="/Kontakte/NewProject/:userId" element={protectedPage(<CabinetEditorPage />, "admin")} />
+          <Route path="/Kontakte" element={protectedPage(<ContactsPage />, "admin", ["crm"])} />
+          <Route path="/Kontakte/new" element={protectedPage(<NewContactPage />, "admin", ["crm"])} />
+          <Route path="/Kontakte/info/:userid" element={protectedPage(<ContactDetailsPage />, "admin", ["crm"])} />
+          <Route path="/Kontakte/edit/:userid" element={protectedPage(<EditContactPage />, "admin", ["crm"])} />
+          <Route path="/Kontakte/NewProject/:userId" element={protectedPage(<CabinetEditorPage />, "admin", ["crm", "work-preparation"])} />
 
           <Route path="/CompanySettings" element={protectedPage(<CompanySettingsPage />, "adminOnly")} />
           <Route path="/User" element={protectedPage(<UserProfilePage />)} />
-          <Route path="/Offline/Merge/:conflictKey" element={protectedPage(<OfflineMergePage />)} />
+          <Route path="/Offline/Merge/:conflictKey" element={protectedPage(<OfflineMergePage />, "user", ["work-preparation"])} />
         </Routes>
       </CacheRefreshBoundary>
     </>

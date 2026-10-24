@@ -64,7 +64,7 @@ Eine erfolgreiche Antwort hat exakt eine `license`-Hülle:
     "companyName": "Möbelschreinerei Beispiel",
     "status": "active",
     "plan": "professional",
-    "features": ["crm", "cabinet", "nesting", "management", "storage", "time", "purchasing"],
+    "features": ["crm", "work-preparation", "calculation", "shop", "business-management"],
     "maxUsers": 12,
     "validUntil": "2027-12-31T23:59:59.000Z"
   }
@@ -87,6 +87,8 @@ Erwartete Fehlerstatus des Lizenzservers:
 `GET /api/license/current` und `PUT /api/license/current` sind nur für Administratoren des angemeldeten Mandanten erreichbar. Die Antwort enthält bereinigte Lizenzdaten, niemals Client-Secret oder vollständigen Lizenzschlüssel.
 
 `authenticate` prüft die Lizenz serverseitig für jeden geschützten Request, wobei der Provider-Cache den externen Traffic begrenzt. `requireFeature("...")` erzwingt einzelne Modulfreigaben zusätzlich an den Fachrouten. Das React-Frontend blendet Funktionen nur ergänzend aus; es ist keine Sicherheitsgrenze.
+
+Carpenters verwendet fünf Modulkennungen: `crm`, `work-preparation`, `calculation`, `shop` und `business-management`. Projektbearbeitung, Lager, CNC und Zeiterfassung gehören zur Arbeitsvorbereitung. Kalkulation und Betriebsmanagement werden getrennt geprüft. Ist Kalkulation aktiv und Betriebsmanagement nicht freigeschaltet, können Administratoren die benötigten Easy-Stundensätze weiterhin unter Firmeneinstellungen → Stundensätze pflegen.
 
 ## Umschaltung
 

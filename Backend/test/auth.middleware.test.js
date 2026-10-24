@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-    authorizeRoles
+    authorizeRoles,
+    requireFeature
 } from "../src/middleware/auth.middleware.js";
 import { verifyCsrfToken, verifyRequestOrigin } from "../src/middleware/csrf.middleware.js";
 import {
@@ -60,6 +61,21 @@ test("authorizeRoles verlangt eine authentifizierte Identität", () => {
     });
 
     assert.equal(res.statusCode, 401);
+});
+
+test("requireFeature lässt nur explizit lizenzierte Module passieren", () => {
+    const allowedRequest = { license: { features: ["crm", "calculation"] } };
+    const allowedResponse = createResponse();
+    let nextCalled = false;
+    requireFeature("calculation")(allowedRequest, allowedResponse, () => { nextCalled = true; });
+    assert.equal(nextCalled, true);
+
+    const deniedResponse = createResponse();
+    requireFeature("business-management")(allowedRequest, deniedResponse, () => {
+        assert.fail("next darf ohne Modulfreigabe nicht aufgerufen werden");
+    });
+    assert.equal(deniedResponse.statusCode, 403);
+    assert.equal(deniedResponse.payload.error, "LICENSE_FEATURE_MISSING");
 });
 
 test("Projektzugriff erlaubt Benutzern alle aktiven Projekte", () => {

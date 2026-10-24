@@ -158,7 +158,9 @@ export const installNetworkClient = () => {
             url: typeof input === "string" || input instanceof URL ? input : input?.url
         });
         try {
-            return await originalFetch(...args);
+            const response = await originalFetch(...args);
+            markServerReachable();
+            return response;
         } catch (error) {
             setNetworkOnline(false);
             throw error;
@@ -171,4 +173,5 @@ export const installNetworkClient = () => {
         void verifyServerConnection();
     });
     window.addEventListener("offline", () => setNetworkOnline(false));
+    void verifyServerConnection();
 };

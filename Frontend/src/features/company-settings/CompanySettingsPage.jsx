@@ -35,6 +35,8 @@ import AttachmentSearchSettingsPanel
     from "./panels/attachmentSearchSettingsPanel.jsx";
 import StorageSettingsPanel
     from "./panels/storageSettingsPanel.jsx";
+import HourlyRatesSettingsPanel
+    from "./panels/hourlyRatesSettingsPanel.jsx";
 
 
 export default function CompanySettings() {
@@ -91,6 +93,11 @@ export default function CompanySettings() {
             case "estimation":
                 return (
                     <EstimationSettingsPanel />
+                );
+
+            case "hourlyRates":
+                return (
+                    <HourlyRatesSettingsPanel />
                 );
 
             case "ai":

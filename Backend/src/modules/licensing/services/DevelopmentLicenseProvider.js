@@ -2,12 +2,10 @@ import { LicenseProvider } from "./LicenseProvider.js";
 
 const DEVELOPMENT_FEATURES = [
     "crm",
-    "cabinet",
-    "nesting",
-    "management",
-    "storage",
-    "time",
-    "purchasing"
+    "work-preparation",
+    "calculation",
+    "shop",
+    "business-management"
 ];
 
 /**

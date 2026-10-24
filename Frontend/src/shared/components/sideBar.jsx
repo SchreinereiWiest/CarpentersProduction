@@ -71,7 +71,7 @@ return (
         </ProtectedElement>
 
 
-        <ProtectedElement requiredRole="admin">
+        <ProtectedElement requiredRole="admin" requiredFeature="business-management">
             <Link to="/Management" aria-label="Management" title="Management" className={SideBarCollapsed ? selected===1
                 ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
@@ -92,7 +92,7 @@ return (
             </Link>
         </ProtectedElement>
 
-        <ProtectedElement requiredRole="user">
+        <ProtectedElement requiredRole="user" requiredFeature="work-preparation">
         <Link to="/Projects" aria-label="Projekte" title="Projekte" className={SideBarCollapsed ? selected===2
             ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
             : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
@@ -112,7 +112,7 @@ return (
         </Link>
         </ProtectedElement>
 
-        <ProtectedElement requiredRole="admin">
+        <ProtectedElement requiredRole="admin" requiredFeature="business-management">
             <Link to="/Documents" aria-label="Dokumente" title="Dokumente" className={SideBarCollapsed ? selected===3
                 ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
@@ -132,7 +132,7 @@ return (
             </Link>
         </ProtectedElement>
 
-        <ProtectedElement requiredRole="user">
+        <ProtectedElement requiredRole="user" requiredFeature="work-preparation">
             <Link to="/" aria-label="Planung" title="Planung" className={SideBarCollapsed ? selected===4
                 ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
@@ -152,7 +152,7 @@ return (
             </Link>
         </ProtectedElement>
 
-        <ProtectedElement requiredRole="admin">
+        <ProtectedElement requiredRole="admin" requiredFeature="crm">
             <Link to="/Kontakte" aria-label="Kontakte" title="Kontakte" className={SideBarCollapsed ? selected===5
                 ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
@@ -171,7 +171,7 @@ return (
             </Link>
         </ProtectedElement>
 
-        <ProtectedElement requiredRole="user">
+        <ProtectedElement requiredRole="user" requiredFeature="work-preparation">
             <Link to="/Storage" aria-label="Lager" title="Lager" className={SideBarCollapsed ? selected===6
                 ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
@@ -190,7 +190,7 @@ return (
             </Link>
         </ProtectedElement>
 
-        <ProtectedElement requiredRole="user">
+        <ProtectedElement requiredRole="user" requiredFeature="work-preparation">
             <Link to="/Mitarbeiter" aria-label="Mitarbeiter" title="Mitarbeiter" className={SideBarCollapsed ? selected===7
                 ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
@@ -207,7 +207,7 @@ return (
             </Link>
         </ProtectedElement>
 
-                <ProtectedElement requiredRole="user">
+                <ProtectedElement requiredRole="user" requiredFeature="shop">
                         <Link to="/Purchasing" aria-label="Einkauf" title="Einkauf" className={SideBarCollapsed ? selected===10
                     ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                     : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"

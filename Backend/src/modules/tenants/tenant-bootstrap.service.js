@@ -170,9 +170,12 @@ export async function ensureDevelopmentTenant() {
             licenseId: "development-license",
             companyName: tenant.name,
             plan: "development",
-            features: ["crm", "cabinet", "nesting", "management", "storage", "time", "purchasing"],
+            features: ["crm", "work-preparation", "calculation", "shop", "business-management"],
             status: "active"
         },
-        update: { companyName: tenant.name }
+        update: {
+            companyName: tenant.name,
+            features: ["crm", "work-preparation", "calculation", "shop", "business-management"]
+        }
     });
 }

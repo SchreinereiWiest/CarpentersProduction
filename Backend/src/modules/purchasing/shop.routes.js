@@ -8,7 +8,7 @@ import {
 } from "./shop.controller.js";
 
 const router = express.Router();
-router.use(authenticate, requireFeature("purchasing"));
+router.use(authenticate, requireFeature("shop"));
 
 router.get("/catalog", getShopCatalog);
 router.put("/catalog", authorizeRoles("admin", "manager"), saveShopCatalog);

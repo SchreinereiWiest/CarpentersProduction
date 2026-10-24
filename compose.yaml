@@ -1,28 +1,20 @@
 services:
-
   traefik:
-    image: traefik:v3.0
-    container_name: traefik
-
+    image: traefik:v3.7.15
+    restart: unless-stopped
     command:
-      - "--api.dashboard=true"
-      - "--api.insecure=true"
-
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-
-      - "--entrypoints.web.address=:80"
-
-
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=carpenters-proxy
+      - --entrypoints.web.address=:80
     ports:
       - "80:80"
-      - "8080:8080"
-
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-
     networks:
-      - carpenters-network
+      carpenters-proxy:
+        aliases:
+          - storage.localhost
 
   frontend:
     build:
@@ -43,15 +35,16 @@ services:
 
     labels:
       - "traefik.enable=true"
-
-      - "traefik.http.routers.frontend.rule=Host(`10.10.100.52`) && PathPrefix(`/`)"
-      - "traefik.http.routers.frontend.priority=1"   
-      - "traefik.http.routers.frontend.entrypoints=web"
-
-      - "traefik.http.services.frontend.loadbalancer.server.port=5173"
+      - "traefik.docker.network=carpenters-proxy"
+      - "traefik.http.routers.carpenters-frontend.rule=Host(`av.localhost`)"
+      - "traefik.http.routers.carpenters-frontend.priority=1"
+      - "traefik.http.routers.carpenters-frontend.entrypoints=web"
+      - "traefik.http.routers.carpenters-frontend.service=carpenters-frontend"
+      - "traefik.http.services.carpenters-frontend.loadbalancer.server.port=5173"
 
     networks:
       - carpenters-network
+      - carpenters-proxy
  
   backendjs:
     build:
@@ -79,15 +72,12 @@ services:
 
     labels:
       - "traefik.enable=true"
-      # Das Backend hängt zusätzlich im Lizenznetz. Ohne diese Festlegung kann
-      # Traefik dessen für ihn unerreichbare MoebelDesign-IP wählen (HTTP 504).
-      - "traefik.docker.network=${COMPOSE_PROJECT_NAME:-carpentersproduction}_carpenters-network"
-
-      - "traefik.http.routers.backend.rule=Host(`10.10.100.52`) && PathPrefix(`/api`)"
-      - "traefik.http.routers.backend.priority=100"
-      - "traefik.http.routers.backend.entrypoints=web"
-
-      - "traefik.http.services.backend.loadbalancer.server.port=5000"
+      - "traefik.docker.network=carpenters-proxy"
+      - "traefik.http.routers.carpenters-backend.rule=Host(`av.localhost`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.carpenters-backend.priority=100"
+      - "traefik.http.routers.carpenters-backend.entrypoints=web"
+      - "traefik.http.routers.carpenters-backend.service=carpenters-backend"
+      - "traefik.http.services.carpenters-backend.loadbalancer.server.port=5000"
 
     depends_on:
       - postgres
@@ -97,6 +87,7 @@ services:
     networks:
       - carpenters-network
       - MoebelDesign
+      - carpenters-proxy
 
   valkey:
     image: valkey/valkey:8-alpine
@@ -140,26 +131,15 @@ services:
 
     labels:
       - "traefik.enable=true"
-
-      - "traefik.http.routers.documentation.rule=Host(`10.10.100.52`) && PathPrefix(`/docs/`)"
-      - "traefik.http.routers.documentation.priority=110"
-      - "traefik.http.routers.documentation.entrypoints=web"
-      - "traefik.http.routers.documentation.middlewares=documentation-strip"
-
-      - "traefik.http.routers.documentation-root.rule=Host(`10.10.100.52`) && Path(`/docs`)"
-      - "traefik.http.routers.documentation-root.priority=111"
-      - "traefik.http.routers.documentation-root.entrypoints=web"
-      - "traefik.http.routers.documentation-root.middlewares=documentation-add-slash"
-      - "traefik.http.routers.documentation-root.service=documentation"
-
-      - "traefik.http.middlewares.documentation-strip.stripprefix.prefixes=/docs"
-      - "traefik.http.middlewares.documentation-add-slash.redirectregex.regex=^(.*)/docs$"
-      - "traefik.http.middlewares.documentation-add-slash.redirectregex.replacement=$${1}/docs/"
-      - "traefik.http.middlewares.documentation-add-slash.redirectregex.permanent=true"
-      - "traefik.http.services.documentation.loadbalancer.server.port=80"
+      - "traefik.docker.network=carpenters-proxy"
+      - "traefik.http.routers.carpenters-documentation.rule=Host(`docs.localhost`)"
+      - "traefik.http.routers.carpenters-documentation.entrypoints=web"
+      - "traefik.http.routers.carpenters-documentation.service=carpenters-documentation"
+      - "traefik.http.services.carpenters-documentation.loadbalancer.server.port=80"
 
     networks:
       - carpenters-network
+      - carpenters-proxy
 
   postgres:
     image: postgres:16
@@ -192,21 +172,30 @@ services:
 
     labels:
       - "traefik.enable=true"
-
-      - "traefik.http.routers.garage.rule=Host(`10.10.100.52`) && PathPrefix(`/carpenters-storage`)"
-      - "traefik.http.routers.garage.priority=50"
-      - "traefik.http.routers.garage.entrypoints=web"
-
-      - "traefik.http.services.garage.loadbalancer.server.port=3900"
+      - "traefik.docker.network=carpenters-proxy"
+      - "traefik.http.routers.carpenters-garage.rule=Host(`storage.localhost`)"
+      - "traefik.http.routers.carpenters-garage.priority=50"
+      - "traefik.http.routers.carpenters-garage.entrypoints=web"
+      - "traefik.http.routers.carpenters-garage.service=carpenters-garage"
+      - "traefik.http.routers.carpenters-garage.middlewares=carpenters-storage-cors"
+      - "traefik.http.middlewares.carpenters-storage-cors.headers.accesscontrolallowmethods=GET,HEAD,OPTIONS"
+      - "traefik.http.middlewares.carpenters-storage-cors.headers.accesscontrolallowheaders=*"
+      - "traefik.http.middlewares.carpenters-storage-cors.headers.accesscontrolalloworiginlist=http://av.localhost"
+      - "traefik.http.middlewares.carpenters-storage-cors.headers.accesscontrolexposeheaders=ETag,Content-Length,Content-Type,Last-Modified"
+      - "traefik.http.middlewares.carpenters-storage-cors.headers.addvaryheader=true"
+      - "traefik.http.services.carpenters-garage.loadbalancer.server.port=3900"
 
 
 
     networks:
-      - carpenters-network
+      carpenters-network: {}
+      carpenters-proxy: {}
 
 networks:
   carpenters-network:
     driver: bridge
+  carpenters-proxy:
+    name: carpenters-proxy
   MoebelDesign:
     name: MoebelDesign
     external: true

@@ -10,7 +10,7 @@ router.use(authenticate);
 
 // Die reduzierte Namenssuche wird auch beim Erstellen von Projekten benötigt.
 // Sie ist deshalb unabhängig vom weiterhin geschützten CRM-Bereich verfügbar.
-router.get("/search", requireFeature("cabinet"), searchCustomers);
+router.get("/search", requireFeature("work-preparation"), searchCustomers);
 
 router.use(requireFeature("crm"));
 

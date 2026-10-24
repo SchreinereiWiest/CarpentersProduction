@@ -13,7 +13,7 @@ import {
 import { authorizeProject, authorizeProjectBody, authorizeTimeEntry, authorizeUserResource } from "../../middleware/resourceAuthorization.middleware.js";
 
 const router = express.Router();
-router.use(authenticate, requireFeature("time"));
+router.use(authenticate, requireFeature("work-preparation"));
 
 router.get("/day/:date", getDayEntrys);
 

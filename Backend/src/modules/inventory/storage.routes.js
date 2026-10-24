@@ -5,7 +5,7 @@ import { getMaterials, createMaterial, updateMaterial, updateMaterialQuantity } 
 import { authenticate, authorizeRoles, requireFeature } from "../../middleware/auth.middleware.js";
 
 const router = express.Router();
-router.use(authenticate, requireFeature("storage"));
+router.use(authenticate, requireFeature("work-preparation"));
 
 router.post("/create", createMaterial);
 

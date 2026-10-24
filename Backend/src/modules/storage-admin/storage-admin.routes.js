@@ -4,7 +4,7 @@ import os from "os";
 import express from "express";
 import multer from "multer";
 
-import { authenticate, authorizeRoles } from "../../middleware/auth.middleware.js";
+import { authenticate, authorizeRoles, requireFeature } from "../../middleware/auth.middleware.js";
 import {
     cleanupOrphanedObjects,
     deleteStorageFolder,
@@ -34,7 +34,7 @@ const backupUpload = multer({
     limits: { fileSize: 10 * 1024 * 1024 * 1024, files: 1 }
 });
 
-router.use(authenticate, authorizeRoles("admin"));
+router.use(authenticate, requireFeature("work-preparation"), authorizeRoles("admin"));
 
 router.get("/overview", getStorageOverview);
 router.get("/objects/:id/download", downloadStorageObject);

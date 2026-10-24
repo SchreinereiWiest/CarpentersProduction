@@ -122,7 +122,7 @@ return (
 
         </Link>
 
-
+        <ProtectedElement requiredRole="user" requiredFeature="shop">
         <Link to={`/Projects/Purchasing/${projectId}`} aria-label="Projekt-Einkaufswagen" title="Projekt-Einkaufswagen" className={selected===9
             ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
@@ -133,8 +133,9 @@ return (
         </svg>
 
         </Link>
+        </ProtectedElement>
 
-        <ProtectedElement requiredRole="user">
+        <ProtectedElement requiredRole="user" requiredFeature="calculation">
 
             <Link to={`/Projects/Calculation/${projectId}`} aria-label="Kalkulation" title="Kalkulation" className={selected===11
                 ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"

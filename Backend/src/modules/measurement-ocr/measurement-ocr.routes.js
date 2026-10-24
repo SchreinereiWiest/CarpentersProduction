@@ -24,7 +24,7 @@ const upload = multer({
 });
 
 const router = express.Router();
-router.use(authenticate, requireFeature("cabinet"));
+router.use(authenticate, requireFeature("work-preparation"));
 
 router.post("/print-runs", authorizeProjectBody("projectId"), createPrintRun);
 router.post("/scans", authorizeRoles("admin", "manager"), upload.single("file"), uploadScan);

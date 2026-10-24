@@ -12,10 +12,11 @@ cp .env.example .env
 docker compose up -d --build documentation
 ```
 
-Traefik veröffentlicht die Dokumentation ohne zusätzlichen Host-Port unter:
+Der zentrale Traefik veröffentlicht die Dokumentation ohne zusätzlichen
+Host-Port unter:
 
 ```text
-http://10.10.100.52/docs/
+http://docs.localhost/
 ```
 
 Nach Markdown- oder `mkdocs.yml`-Änderungen wird nur das Dokumentationsimage neu gebaut:
@@ -55,6 +56,12 @@ Die vollständige Entwicklungsumgebung wird aus dem Repository-Stamm gestartet:
 ```bash
 docker compose up --build
 ```
+
+CarpentersProduction ist der Haupt-Stack und muss vor MoebelDesignSuite und
+MoebelDesignLicencing gestartet werden. Er betreibt den einzigen
+Traefik-Container, erzeugt das gemeinsame Netzwerk `carpenters-proxy` und stellt
+Carpenters unter `http://av.localhost` bereit. Die abhängigen Stacks binden das
+Netzwerk ausschließlich als externes Netzwerk ein.
 
 Nur das Backend lokal starten:
 

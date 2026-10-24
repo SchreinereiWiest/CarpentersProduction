@@ -20,7 +20,7 @@ const activeLicense = {
   companyName: tenant.name,
   status: "active",
   plan: "professional",
-  features: ["crm", "cabinet", "crm"],
+  features: ["crm", "work-preparation", "crm"],
   maxUsers: 12,
   validUntil: "2027-12-31T23:59:59.000Z"
 };
@@ -68,7 +68,7 @@ test("RemoteLicenseProvider sendet den versionierten Validierungsvertrag", async
     }
   });
   assert.equal(license.provider, "remote");
-  assert.deepEqual(license.features, ["crm", "cabinet"]);
+  assert.deepEqual(license.features, ["crm", "work-preparation"]);
   assert.equal(license.licenseKey, null);
   assert.equal(license.lastCheckedAt.toISOString(), "2026-10-21T10:00:00.000Z");
 });

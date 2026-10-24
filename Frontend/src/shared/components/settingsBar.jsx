@@ -1,5 +1,7 @@
 
 
+import { useAuth } from '../../app/providers/AuthContext.js';
+
 const tabs = [
     {
         id: "company",
@@ -7,11 +9,19 @@ const tabs = [
     },
     {
         id: "estimation",
-        label: "Stundenschätzung"
+        label: "Stundenschätzung",
+        requiredFeature: "calculation"
+    },
+    {
+        id: "hourlyRates",
+        label: "Stundensätze",
+        requiredFeature: "calculation",
+        excludedFeature: "business-management"
     },
     {
         id: "ai",
-        label: "AI"
+        label: "AI",
+        requiredFeature: "work-preparation"
     },
     {
         id: "programSettings",
@@ -27,7 +37,8 @@ const tabs = [
     },
     {
         id: "storage",
-        label: "Storage"
+        label: "Storage",
+        requiredFeature: "work-preparation"
     },
     {
         id: "users",
@@ -35,15 +46,18 @@ const tabs = [
     },
     {
         id: "project",
-        label: "Projekt"
+        label: "Projekt",
+        requiredFeature: "work-preparation"
     },
     {
         id: "cnc",
-        label: "CNC"
+        label: "CNC",
+        requiredFeature: "work-preparation"
     },
     {
         id: "shop",
-        label: "Shop"
+        label: "Shop",
+        requiredFeature: "shop"
     }
 ];
 
@@ -51,6 +65,13 @@ export default function SettingsBar({
     selected,
     onSelect
 }) {
+
+    const { user } = useAuth();
+    const features = new Set(user?.features || []);
+    const visibleTabs = tabs.filter(tab =>
+        (!tab.requiredFeature || features.has(tab.requiredFeature))
+        && (!tab.excludedFeature || !features.has(tab.excludedFeature))
+    );
 
     return (
         <nav aria-label="Einstellungsbereiche" className="settings-bar
@@ -70,7 +91,7 @@ export default function SettingsBar({
                 overflow-x-auto
             ">
 
-                {tabs.map(tab => {
+                {visibleTabs.map(tab => {
 
                     const active =
                         selected === tab.id;
