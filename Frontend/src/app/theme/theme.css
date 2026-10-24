@@ -44,6 +44,14 @@
     --measurement-label-text: #dce8f1;
     --measurement-line-backdrop: #0e171f;
     --cabinet-editor-background: #111827;
+    --cnc-editor-background: #0b1118;
+    --cnc-editor-grid: #1f2937;
+    --cnc-part-fill: #27313f;
+    --cnc-part-stroke: #66717d;
+    --cnc-part-stroke-selected: #aeb7c0;
+    --cnc-part-guide: #596574;
+    --cnc-dimension-line: #f97316;
+    --cnc-dimension-text: #fb923c;
 }
 
 :root[data-theme="light"] {
@@ -85,6 +93,14 @@
     --measurement-label-text: #111516;
     --measurement-line-backdrop: #eef1ef;
     --cabinet-editor-background: #eef1ef;
+    --cnc-editor-background: #eef1ef;
+    --cnc-editor-grid: #d1d9d4;
+    --cnc-part-fill: var(--theme-accent);
+    --cnc-part-stroke: var(--theme-accent-strong);
+    --cnc-part-stroke-selected: #96552b;
+    --cnc-part-guide: #754326;
+    --cnc-dimension-line: #111516;
+    --cnc-dimension-text: #111516;
 
     /* Tailwind-Akzentklassen werden im Light Mode zu Copper. */
     --color-blue-50: #fdf7f1;
@@ -128,6 +144,7 @@ textarea {
 .theme-text-muted { color: var(--theme-text-muted); }
 .theme-accent { color: var(--theme-accent); }
 .theme-shadow { box-shadow: 0 18px 50px var(--theme-shadow); }
+.cnc-viewport { background-color: var(--cnc-editor-background); }
 
 /* Light-Mode-Kompatibilität für die bestehende dunkle Gray-Palette. */
 :root[data-theme="light"] .bg-gray-950 { background-color: #e9eeeb; }

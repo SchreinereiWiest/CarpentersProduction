@@ -36,12 +36,11 @@ export default function CncPartsLayer({
                 width={width}
                 height={height}
                 rx={1}
-                fill="rgb(55 65 81)"
-                fillOpacity={0.82}
+                fill="var(--cnc-part-fill)"
                 stroke={
                     selected
-                        ? "rgb(156 163 175)"
-                        : "rgb(75 85 99)"
+                        ? "var(--cnc-part-stroke-selected)"
+                        : "var(--cnc-part-stroke)"
                 }
                 strokeWidth={2}
                 onClick={(event) => {
@@ -61,7 +60,7 @@ export default function CncPartsLayer({
                 y1={height / 2}
                 x2={width}
                 y2={height / 2}
-                stroke="rgb(75 85 99)"
+                stroke="var(--cnc-part-guide)"
                 strokeWidth={0.5}
                 strokeDasharray="8 8"
                 pointerEvents="none"
@@ -75,7 +74,7 @@ export default function CncPartsLayer({
                 y1={0}
                 x2={width / 2}
                 y2={height}
-                stroke="rgb(75 85 99)"
+                stroke="var(--cnc-part-guide)"
                 strokeWidth={0.5}
                 strokeDasharray="8 8"
                 pointerEvents="none"

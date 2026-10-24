@@ -118,9 +118,9 @@ export default function CncViewport({
             <svg
 
                 className="
+                    cnc-viewport
                     h-full
                     w-full
-                    bg-gray-950
                 "
 
                 viewBox={`
@@ -156,13 +156,38 @@ export default function CncViewport({
                                 0 50
                             "
                             fill="none"
-                            stroke="rgb(31 41 55)"
+                            stroke="var(--cnc-editor-grid)"
                             strokeWidth="0.5"
                         />
 
                     </pattern>
 
                 </defs>
+
+
+                <rect
+
+                    x={
+                        -padding
+                    }
+
+                    y={
+                        -padding
+                    }
+
+                    width={
+                        width +
+                        padding * 2
+                    }
+
+                    height={
+                        height +
+                        padding * 2
+                    }
+
+                    fill="var(--cnc-editor-background)"
+
+                />
 
 
                 <rect

@@ -303,7 +303,7 @@ export default function CncDimensionLayer({
                             y1={-dimensionOffset - 12}
                             x2={0}
                             y2={-dimensionOffset + 12}
-                            stroke="#f97316"
+                            stroke="var(--cnc-dimension-line)"
                             strokeWidth="1.5"
                             vectorEffect="non-scaling-stroke"
                         />
@@ -316,7 +316,7 @@ export default function CncDimensionLayer({
                             y1={-dimensionOffset - 12}
                             x2={x}
                             y2={-dimensionOffset + 12}
-                            stroke="#f97316"
+                            stroke="var(--cnc-dimension-line)"
                             strokeWidth="1.5"
                             vectorEffect="non-scaling-stroke"
                         />
@@ -329,7 +329,7 @@ export default function CncDimensionLayer({
                             y1={-dimensionOffset}
                             x2={x}
                             y2={-dimensionOffset}
-                            stroke="#f97316"
+                            stroke="var(--cnc-dimension-line)"
                             strokeWidth="1.5"
                             vectorEffect="non-scaling-stroke"
                         />
@@ -344,7 +344,7 @@ export default function CncDimensionLayer({
                             y={
                                 -dimensionOffset - 12
                             }
-                            fill="#fb923c"
+                            fill="var(--cnc-dimension-text)"
                             fontSize="18"
                             textAnchor="middle"
                         >
@@ -373,7 +373,7 @@ export default function CncDimensionLayer({
                             y1={-dimensionOffset - 12}
                             x2={x2 ? x2 : x}
                             y2={-dimensionOffset + 12}
-                            stroke="#f97316"
+                            stroke="var(--cnc-dimension-line)"
                             strokeWidth="1.5"
                             vectorEffect="non-scaling-stroke"
                         />
@@ -386,7 +386,7 @@ export default function CncDimensionLayer({
                             y1={-dimensionOffset - 12}
                             x2={width}
                             y2={-dimensionOffset + 12}
-                            stroke="#f97316"
+                            stroke="var(--cnc-dimension-line)"
                             strokeWidth="1.5"
                             vectorEffect="non-scaling-stroke"
                         />
@@ -399,7 +399,7 @@ export default function CncDimensionLayer({
                             y1={-dimensionOffset}
                             x2={width}
                             y2={-dimensionOffset}
-                            stroke="#f97316"
+                            stroke="var(--cnc-dimension-line)"
                             strokeWidth="1.5"
                             vectorEffect="non-scaling-stroke"
                         />
@@ -418,7 +418,7 @@ export default function CncDimensionLayer({
                                 -dimensionOffset -
                                 12
                             }
-                            fill="#fb923c"
+                            fill="var(--cnc-dimension-text)"
                             fontSize="18"
                             textAnchor="middle"
                         >
@@ -449,7 +449,7 @@ export default function CncDimensionLayer({
                             y1={0}
                             x2={-dimensionOffset}
                             y2={y}
-                            stroke="#f97316"
+                            stroke="var(--cnc-dimension-line)"
                             strokeWidth="1.5"
                             vectorEffect="non-scaling-stroke"
                         />
@@ -468,7 +468,7 @@ export default function CncDimensionLayer({
                                 tickSize
                             }
                             y2={0}
-                            stroke="#f97316"
+                            stroke="var(--cnc-dimension-line)"
                             strokeWidth="1.5"
                             vectorEffect="non-scaling-stroke"
                         />
@@ -487,7 +487,7 @@ export default function CncDimensionLayer({
                                 tickSize
                             }
                             y2={y}
-                            stroke="#f97316"
+                            stroke="var(--cnc-dimension-line)"
                             strokeWidth="1.5"
                             vectorEffect="non-scaling-stroke"
                         />
@@ -503,7 +503,7 @@ export default function CncDimensionLayer({
                             y={
                                 y / 2
                             }
-                            fill="#fb923c"
+                            fill="var(--cnc-dimension-text)"
                             fontSize="18"
                             textAnchor="middle"
                             transform={`
