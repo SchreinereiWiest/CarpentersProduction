@@ -9,6 +9,7 @@ import {
     applyEdgeQuantityMode,
     buildGeneratedProcurementItems,
     createProcurementPayload,
+    createManualProcurementItem,
     mergeGeneratedItems,
     normalizeCatalog,
     normalizeProcurementDocument,
@@ -54,7 +55,8 @@ function SourceBadge({ source }) {
     const labels = {
         nesting: "Nesting",
         hardware: "Cabinet",
-        shop: "Shop"
+        shop: "Shop",
+        manual: "Manuell"
     };
 
     return (
@@ -64,7 +66,7 @@ function SourceBadge({ source }) {
     );
 }
 
-function PurchaseTable({ title, description, items, lockedReleasedKeys, onChange, onRemove }) {
+function PurchaseTable({ title, description, items, lockedReleasedKeys, onChange, onRemove, action = null }) {
     return (
         <section className="overflow-hidden rounded-xl border border-gray-700 bg-gray-800 shadow-lg">
             <div className="flex flex-wrap items-end justify-between gap-3 border-b border-gray-700 px-5 py-4">
@@ -72,7 +74,10 @@ function PurchaseTable({ title, description, items, lockedReleasedKeys, onChange
                     <h2 className="text-lg font-semibold">{title}</h2>
                     <p className="mt-1 text-sm text-gray-400">{description}</p>
                 </div>
-                <span className="text-sm text-gray-400">{items.length} Positionen</span>
+                <div className="flex items-center gap-3">
+                    <span className="text-sm text-gray-400">{items.length} Positionen</span>
+                    {action}
+                </div>
             </div>
 
             {items.length === 0 ? (
@@ -159,7 +164,7 @@ function PurchaseTable({ title, description, items, lockedReleasedKeys, onChange
                                         </td>
                                         <td data-label="Freigabe" className="px-5 py-4">
                                             <div className="flex items-center justify-end gap-3">
-                                                {item.source === "shop" && !readOnly && (
+                                                {["shop", "manual"].includes(item.source) && !readOnly && (
                                                     <button
                                                         type="button"
                                                         onClick={() => onRemove(item.sourceKey)}
@@ -207,6 +212,84 @@ function PurchaseTable({ title, description, items, lockedReleasedKeys, onChange
     );
 }
 
+function ManualArticleModal({ onClose, onAdd }) {
+    const [form, setForm] = useState({
+        name: "",
+        sku: "",
+        quantity: "1",
+        netPrice: "",
+        released: false
+    });
+    const [validationError, setValidationError] = useState("");
+
+    const submit = event => {
+        event.preventDefault();
+        if (!form.name.trim()) {
+            setValidationError("Bitte eine Bezeichnung eingeben.");
+            return;
+        }
+        onAdd({
+            ...form,
+            name: form.name.trim(),
+            sku: form.sku.trim(),
+            quantity: Number(form.quantity),
+            netPrice: Number(form.netPrice)
+        });
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4" onMouseDown={event => {
+            if (event.target === event.currentTarget) onClose();
+        }}>
+            <form onSubmit={submit} className="w-full max-w-xl rounded-xl border border-gray-700 bg-gray-800 p-5 shadow-2xl sm:p-6">
+                <div className="flex items-start justify-between gap-4">
+                    <div>
+                        <h2 className="text-xl font-semibold">Manuellen Artikel hinzufügen</h2>
+                        <p className="mt-1 text-sm text-gray-400">Ein einmaliger Artikel nur für dieses Projekt. Der interne Shop-Katalog bleibt unverändert.</p>
+                    </div>
+                    <button type="button" onClick={onClose} className="text-2xl leading-none text-gray-400 hover:text-white" aria-label="Dialog schließen">×</button>
+                </div>
+
+                <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                    <label className="sm:col-span-2">
+                        <span className="mb-1.5 block text-sm text-gray-300">Bezeichnung</span>
+                        <input required autoFocus value={form.name} onChange={event => setForm(current => ({ ...current, name: event.target.value }))} className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2.5 text-white outline-none focus:border-blue-500" />
+                    </label>
+                    <label>
+                        <span className="mb-1.5 block text-sm text-gray-300">Artikelnummer</span>
+                        <input value={form.sku} onChange={event => setForm(current => ({ ...current, sku: event.target.value }))} className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2.5 text-white outline-none focus:border-blue-500" />
+                    </label>
+                    <label>
+                        <span className="mb-1.5 block text-sm text-gray-300">Anzahl</span>
+                        <input required type="number" min="1" step="1" value={form.quantity} onChange={event => setForm(current => ({ ...current, quantity: event.target.value }))} className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2.5 text-white outline-none focus:border-blue-500" />
+                    </label>
+                    <label className="sm:col-span-2">
+                        <span className="mb-1.5 block text-sm text-gray-300">Nettopreis pro Stück</span>
+                        <span className="relative block">
+                            <input required type="number" min="0" step="0.01" value={form.netPrice} onChange={event => setForm(current => ({ ...current, netPrice: event.target.value }))} className="w-full rounded-lg border border-gray-600 bg-gray-900 py-2.5 pl-3 pr-10 text-white outline-none focus:border-blue-500" />
+                            <span className="absolute right-3 top-2.5 text-gray-500">€</span>
+                        </span>
+                    </label>
+                    <label className="sm:col-span-2 flex cursor-pointer items-center gap-3 rounded-lg border border-gray-700 bg-gray-900/70 px-4 py-3">
+                        <input type="checkbox" checked={form.released} onChange={event => setForm(current => ({ ...current, released: event.target.checked }))} className="size-5 accent-blue-600" />
+                        <span>
+                            <span className="block font-medium text-gray-200">Direkt freigeben</span>
+                            <span className="mt-0.5 block text-xs text-gray-500">Menge und Preis werden beim Speichern festgeschrieben.</span>
+                        </span>
+                    </label>
+                </div>
+
+                {validationError && <p className="mt-4 text-sm text-red-400">{validationError}</p>}
+
+                <div className="mt-6 flex justify-end gap-3">
+                    <button type="button" onClick={onClose} className="rounded-lg border border-gray-600 px-4 py-2 text-gray-300 hover:bg-gray-700">Abbrechen</button>
+                    <button type="submit" className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-500">Artikel hinzufügen</button>
+                </div>
+            </form>
+        </div>
+    );
+}
+
 export default function ProjectPurchasing() {
     const { projectId } = useParams();
     const [project, setProject] = useState(null);
@@ -214,6 +297,7 @@ export default function ProjectPurchasing() {
     const [lockedReleasedKeys, setLockedReleasedKeys] = useState(() => new Set());
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [showManualArticleModal, setShowManualArticleModal] = useState(false);
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
 
@@ -275,7 +359,8 @@ export default function ProjectPurchasing() {
     const groupedItems = useMemo(() => ({
         plates: items.filter(item => item.source === "nesting"),
         hardware: items.filter(item => item.source === "hardware"),
-        shop: items.filter(item => item.source === "shop")
+        shop: items.filter(item => item.source === "shop"),
+        manual: items.filter(item => item.source === "manual")
     }), [items]);
 
     const purchasableItems = items.filter(item => !item.purchased);
@@ -326,6 +411,13 @@ export default function ProjectPurchasing() {
     const removeItem = sourceKey => {
         setMessage("");
         setItems(current => current.filter(item => item.sourceKey !== sourceKey || item.purchased || lockedReleasedKeys.has(item.sourceKey)));
+    };
+
+    const addManualArticle = values => {
+        setItems(current => [...current, createManualProcurementItem(values)]);
+        setShowManualArticleModal(false);
+        setError("");
+        setMessage("Manueller Artikel wurde hinzugefügt. Zum Abschließen bitte den Einkaufsstand speichern.");
     };
 
     const save = async () => {
@@ -444,11 +536,31 @@ export default function ProjectPurchasing() {
                                     onChange={changeItem}
                                     onRemove={removeItem}
                                 />
+                                <PurchaseTable
+                                    title="Manuell hinzugefügte Artikel"
+                                    description="Einmalig benötigte Projektartikel ohne Eintrag im internen Shop-Katalog."
+                                    items={groupedItems.manual}
+                                    lockedReleasedKeys={lockedReleasedKeys}
+                                    onChange={changeItem}
+                                    onRemove={removeItem}
+                                    action={(
+                                        <button type="button" onClick={() => setShowManualArticleModal(true)} className="rounded-lg bg-blue-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-blue-500">
+                                            + Artikel hinzufügen
+                                        </button>
+                                    )}
+                                />
                             </div>
                         )}
                     </div>
                 </div>
             </main>
+
+            {showManualArticleModal && (
+                <ManualArticleModal
+                    onClose={() => setShowManualArticleModal(false)}
+                    onAdd={addManualArticle}
+                />
+            )}
         </div>
     );
 }

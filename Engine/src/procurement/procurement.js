@@ -385,6 +385,7 @@ export const mergeGeneratedItems = (generatedItems, savedItems = []) => {
     const retainedSavedItems = (Array.isArray(savedItems) ? savedItems : [])
         .filter(item => (
             item?.source === "shop"
+            || item?.source === "manual"
             || item?.purchased
             || item?.released
         ) && !generatedKeys.has(item.sourceKey));
@@ -425,6 +426,37 @@ export const addArticleToProcurement = (items, article, quantity = 1) => {
         purchasedAt: null,
         released: false
     }];
+};
+
+export const createManualProcurementItem = values => {
+    const id = createUuid();
+    const sourceKey = `manual:${id}`;
+    const rawPrice = values?.netPrice;
+    const parsedPrice = rawPrice === "" || rawPrice === null || rawPrice === undefined
+        ? null
+        : Number(rawPrice);
+    const netPrice = Number.isFinite(parsedPrice) ? Math.max(0, parsedPrice) : null;
+
+    return {
+        id: sourceKey,
+        sourceKey,
+        source: "manual",
+        category: "Manuell",
+        name: String(values?.name || "").trim(),
+        sku: String(values?.sku || "").trim(),
+        description: "Einmaliger Projektartikel",
+        quantity: toPositiveNumber(values?.quantity),
+        quantityMode: "piece",
+        unit: "Stk.",
+        netPrice,
+        supplierId: null,
+        supplierName: "",
+        quantityManuallyEdited: true,
+        priceManuallyEdited: true,
+        purchased: false,
+        purchasedAt: null,
+        released: Boolean(values?.released) && netPrice !== null
+    };
 };
 
 export const createProcurementPayload = items => ({
