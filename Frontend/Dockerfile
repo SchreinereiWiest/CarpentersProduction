@@ -2,12 +2,12 @@
 # Development - Vite React App
 # =========================================
 
-ARG PNPM_VERSION=12.4.1
+ARG PNPM_VERSION=12.15.0
 
 FROM ghcr.io/pnpm/pnpm:${PNPM_VERSION}
 
 # Node 22
-RUN pnpm runtime set node 22.23.2 -g
+RUN pnpm runtime set node 22.23.4 -g
 
 WORKDIR /app
 

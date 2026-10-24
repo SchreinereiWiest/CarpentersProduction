@@ -1,4 +1,5 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../../../generated/prisma/client.ts";
 import { requireTenantContext } from "./tenant-context.js";
 
 /**
@@ -10,7 +11,9 @@ import { requireTenantContext } from "./tenant-context.js";
  * den unten exportierten Tenant-Client laufen, weil nur dieser Filter und RLS
  * setzt.
  */
-export const systemPrisma = new PrismaClient();
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+
+export const systemPrisma = new PrismaClient({ adapter });
 
 // Jeder Delegate in dieser Liste enthält Geschäftsdaten. Der Proxy erzwingt
 // sowohl einen Prisma-Filter als auch eine kurze RLS-Transaktion. Neue

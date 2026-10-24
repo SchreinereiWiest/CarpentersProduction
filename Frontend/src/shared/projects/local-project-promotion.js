@@ -74,14 +74,57 @@ const createOrUpdateServerProject = async (project, customerId) => {
             customerId,
             title: project.title,
             description: project.description,
-            status: project.status
+            // Während der Übertragung muss das Projekt auch für Benutzer
+            // sichtbar bleiben, die nur aktive Projekte bearbeiten dürfen.
+            // Der gewünschte Endstatus wird erst nach allen Uploads gesetzt.
+            status: "active"
         }, {
             withCredentials: true
         });
+        if (!data?.id || data.id !== project.id) {
+            throw new Error(
+                "Das Backend hat das Projekt nicht mit der lokalen Projekt-ID angelegt. "
+                + "Bitte den Backend-Dienst aktualisieren bzw. neu starten und den Upload erneut ausführen."
+            );
+        }
         await markLocalProjectCreatedOnServer(project.id);
         return data;
     }
 
+    try {
+        const { data } = await axios.put(`/api/projects/update/${project.id}`, {
+            customerId,
+            title: project.title,
+            description: project.description,
+            status: "active"
+        });
+        return data;
+    } catch (error) {
+        // Der Browser kann nach einem fehlgeschlagenen oder zurückgerollten
+        // Upload noch den Zwischenstand "serverCreated" besitzen. Ein
+        // fehlender Datensatz wird deshalb mit derselben ID neu angelegt.
+        if (error.response?.status !== 404) throw error;
+
+        const { data } = await axios.post("/api/projects/new", {
+            id: project.id,
+            customerId,
+            title: project.title,
+            description: project.description,
+            status: "active"
+        }, {
+            withCredentials: true
+        });
+        if (!data?.id || data.id !== project.id) {
+            throw new Error(
+                "Das Backend hat das Projekt nicht mit der lokalen Projekt-ID angelegt.",
+                { cause: error }
+            );
+        }
+        return data;
+    }
+};
+
+const finishServerProject = async (project, customerId) => {
     const { data } = await axios.put(`/api/projects/update/${project.id}`, {
         customerId,
         title: project.title,
@@ -113,10 +156,11 @@ export const promoteLocalProject = async ({
         status: status ?? project.status,
         customerId
     });
-    const serverProject = await createOrUpdateServerProject(project, customerId);
+    await createOrUpdateServerProject(project, customerId);
 
     await uploadLocalProjectFiles(projectId);
     project = await uploadLocalAssets(project, customerId);
+    const serverProject = await finishServerProject(project, customerId);
     await finishLocalProjectPromotion(projectId);
 
     return {

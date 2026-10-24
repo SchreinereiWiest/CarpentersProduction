@@ -2,11 +2,11 @@
 # Stage: Development (Node.js Backend)
 # =========================================
 
-ARG PNPM_VERSION=12.4.1
+ARG PNPM_VERSION=12.15.0
 
 FROM ghcr.io/pnpm/pnpm:${PNPM_VERSION} AS dev
 
-RUN pnpm runtime set node 22.23.2 -g
+RUN pnpm runtime set node 22.23.4 -g
 
 WORKDIR /app
 
@@ -19,6 +19,7 @@ RUN pnpm install
 
 # Prisma
 COPY prisma ./prisma
+COPY prisma.config.ts ./prisma.config.ts
 RUN pnpm exec prisma generate
 
 # Application
