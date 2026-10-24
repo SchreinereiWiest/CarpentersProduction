@@ -15,10 +15,12 @@ import {
 import {
     createBackup,
     createDatabaseBackup,
+    createShopDatabaseBackup,
     deleteBackup,
     downloadBackup,
     importBackup,
     importDatabaseBackup,
+    importShopDatabaseBackup,
     listBackups,
     restoreBackup
 } from "./storage-backup.controller.js";
@@ -48,5 +50,7 @@ router.delete("/backups/:id", deleteBackup);
 router.post("/backups/import", backupUpload.single("backup"), importBackup);
 router.post("/database-backups", createDatabaseBackup);
 router.post("/database-backups/import", backupUpload.single("backup"), importDatabaseBackup);
+router.post("/shop-database-backups", createShopDatabaseBackup);
+router.post("/shop-database-backups/import", backupUpload.single("backup"), importShopDatabaseBackup);
 
 export default router;

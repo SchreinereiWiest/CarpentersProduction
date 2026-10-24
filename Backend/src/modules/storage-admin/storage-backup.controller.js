@@ -13,6 +13,16 @@ import tar from "tar-stream";
 import prisma from "../../infrastructure/database/prisma.js";
 import { getTenantId } from "../../infrastructure/database/tenant-context.js";
 import { s3Download, s3Upload } from "../../infrastructure/storage/s3.js";
+import {
+    BACKUP_TABLES,
+    BACKUP_TYPES,
+    backupTables,
+    DATABASE_BACKUP,
+    FULL_BACKUP,
+    prepareShopRestore,
+    SHOP_BACKUP_TABLES,
+    SHOP_DATABASE_BACKUP
+} from "./storage-backup.policy.js";
 
 const BACKUP_FORMAT = "carpenters-production-tenant";
 const BACKUP_VERSION = 1;
@@ -21,39 +31,6 @@ const DATABASE_PATH = "database.json";
 const MAX_MANIFEST_SIZE = 10 * 1024 * 1024;
 const MAX_DATABASE_SIZE = 512 * 1024 * 1024;
 const MAX_ARCHIVE_ENTRIES = 100000;
-const FULL_BACKUP = "full";
-const DATABASE_BACKUP = "database";
-const BACKUP_TYPES = new Set([FULL_BACKUP, DATABASE_BACKUP]);
-
-// Authentifizierungs-, Mitgliedschafts- und Lizenzdaten bleiben bewusst außerhalb
-// eines Betriebsdaten-Restores, damit ein Backup keinen Tenant aussperren kann.
-const BACKUP_TABLES = [
-    "tenant_secrets",
-    "customers",
-    "customer_addresses",
-    "projects",
-    "communications",
-    "appointments",
-    "s3_objects",
-    "files",
-    "project_storage",
-    "suppliers",
-    "materials",
-    "shop_configurations",
-    "shop_article_groups",
-    "shop_articles",
-    "shop_hardware_mappings",
-    "time_entries",
-    "calculation_snapshots",
-    "management_periods",
-    "management_transactions",
-    "management_payments",
-    "management_assets",
-    "management_loans",
-    "management_repayments",
-    "audit_logs"
-];
-
 const RESTORE_ORDER = [
     "tenant_secrets",
     "customers",
@@ -83,6 +60,18 @@ const RESTORE_ORDER = [
 
 const DELETE_ORDER = [...RESTORE_ORDER].reverse();
 
+const backupExtension = backupType => {
+    if (backupType === DATABASE_BACKUP) return "cdbbackup";
+    if (backupType === SHOP_DATABASE_BACKUP) return "cshopbackup";
+    return "cbackup";
+};
+
+const backupDefaultName = backupType => {
+    if (backupType === DATABASE_BACKUP) return "Datenbank-Backup";
+    if (backupType === SHOP_DATABASE_BACKUP) return "Shop-Datenbank-Backup";
+    return "Manuelles Backup";
+};
+
 function safeName(value) {
     return String(value || "Manuelles Backup")
         .trim()
@@ -108,11 +97,11 @@ function sendArchiveEntry(pack, header, body) {
     });
 }
 
-async function tenantDatabaseSnapshot() {
+async function tenantDatabaseSnapshot(tablesToExport) {
     const tenantId = getTenantId();
     return prisma.$transaction(async transaction => {
         const tables = {};
-        for (const table of BACKUP_TABLES) {
+        for (const table of tablesToExport) {
             const [result] = await transaction.$queryRawUnsafe(
                 `SELECT COALESCE(json_agg(row_to_json(t)), '[]'::json) AS data FROM "${table}" t WHERE tenant_id = $1::uuid`,
                 tenantId
@@ -130,6 +119,7 @@ async function sha256(filePath) {
 }
 
 async function createArchive(filePath, tenant, snapshot, backupType) {
+    const tablesToExport = backupTables(backupType);
     const objects = snapshot.tables.s3_objects || [];
     const binaryEntries = backupType === FULL_BACKUP ? objects.map(object => ({
         id: object.id,
@@ -144,7 +134,7 @@ async function createArchive(filePath, tenant, snapshot, backupType) {
         tenantId: tenant.id,
         tenantName: tenant.name,
         exportedAt: new Date().toISOString(),
-        tables: Object.fromEntries(BACKUP_TABLES.map(table => [table, snapshot.tables[table]?.length || 0])),
+        tables: Object.fromEntries(tablesToExport.map(table => [table, snapshot.tables[table]?.length || 0])),
         excluded: ["tenants", "tenant_memberships", "tenant_licenses", "users", "tenant_backups", "storage_deletion_jobs", "sync_mutations"],
         binaryEntries
     };
@@ -183,16 +173,16 @@ export async function listBackups(_req, res) {
 }
 
 async function createBackupByType(req, res, backupType) {
-    const defaultName = backupType === DATABASE_BACKUP ? "Datenbank-Backup" : "Manuelles Backup";
-    const name = safeName(req.body?.name || defaultName);
+    const name = safeName(req.body?.name || backupDefaultName(backupType));
     const backup = await prisma.tenantBackup.create({
         data: { name, backupType, createdById: req.user.id, status: "creating" }
     });
-    const extension = backupType === DATABASE_BACKUP ? "cdbbackup" : "cbackup";
+    const extension = backupExtension(backupType);
     const tempPath = path.join(os.tmpdir(), `tenant-backup-${backup.id}.${extension}`);
 
     try {
-        const snapshot = await tenantDatabaseSnapshot();
+        const tablesToExport = backupTables(backupType);
+        const snapshot = await tenantDatabaseSnapshot(tablesToExport);
         const manifest = await createArchive(tempPath, req.tenant, snapshot, backupType);
         const stats = await fs.stat(tempPath);
         const checksum = await sha256(tempPath);
@@ -216,7 +206,7 @@ async function createBackupByType(req, res, backupType) {
                 fileSize: BigInt(stats.size),
                 checksum,
                 fileCount: manifest.binaryEntries.length,
-                tableCount: BACKUP_TABLES.length,
+                tableCount: tablesToExport.length,
                 completedAt: new Date(),
                 error: null
             },
@@ -228,7 +218,9 @@ async function createBackupByType(req, res, backupType) {
                 actorUserId: req.user.id,
                 action: backupType === DATABASE_BACKUP
                     ? "storage.database-backup.create"
-                    : "storage.backup.create",
+                    : backupType === SHOP_DATABASE_BACKUP
+                        ? "storage.shop-database-backup.create"
+                        : "storage.backup.create",
                 entityType: "TenantBackup",
                 entityId: backup.id,
                 metadata: { backupType, fileCount: manifest.binaryEntries.length, fileSize: stats.size },
@@ -251,6 +243,7 @@ async function createBackupByType(req, res, backupType) {
 
 export const createBackup = (req, res) => createBackupByType(req, res, FULL_BACKUP);
 export const createDatabaseBackup = (req, res) => createBackupByType(req, res, DATABASE_BACKUP);
+export const createShopDatabaseBackup = (req, res) => createBackupByType(req, res, SHOP_DATABASE_BACKUP);
 
 export async function downloadBackup(req, res) {
     const backup = await prisma.tenantBackup.findUnique({ where: { id: req.params.id } });
@@ -261,7 +254,7 @@ export async function downloadBackup(req, res) {
         Bucket: backup.bucketName,
         Key: backup.objectKey
     }), { expiresIn: 900 });
-    const extension = backup.backupType === DATABASE_BACKUP ? "cdbbackup" : "cbackup";
+    const extension = backupExtension(backup.backupType || FULL_BACKUP);
     return res.json({ url, fileName: `${backup.name.replace(/[^a-zA-Z0-9._-]+/g, "-")}.${extension}` });
 }
 
@@ -281,29 +274,39 @@ function validateArchive(manifest, database, expectedType = null) {
     if (manifest?.format !== BACKUP_FORMAT || manifest?.version !== BACKUP_VERSION) {
         throw new Error("Ungültiges oder nicht unterstütztes Backup-Format");
     }
-    if (manifest.tenantId !== tenantId || database?.tenantId !== tenantId) {
-        throw new Error("Das Backup gehört zu einem anderen Unternehmen");
-    }
     const backupType = manifest.backupType || FULL_BACKUP;
     if (!BACKUP_TYPES.has(backupType) || (expectedType && backupType !== expectedType)) {
-        throw new Error(expectedType === DATABASE_BACKUP
-            ? "Die Datei ist kein Datenbank-Backup"
-            : "Die Datei ist kein vollständiges Backup");
+        if (expectedType === DATABASE_BACKUP) throw new Error("Die Datei ist kein Datenbank-Backup");
+        if (expectedType === SHOP_DATABASE_BACKUP) throw new Error("Die Datei ist kein Shop-Datenbank-Backup");
+        throw new Error("Die Datei ist kein vollständiges Backup");
     }
-    if (!database.tables || BACKUP_TABLES.some(table => !Array.isArray(database.tables[table]))) {
+    if (!manifest.tenantId || manifest.tenantId !== database?.tenantId) {
+        throw new Error("Die Tenant-Angaben im Backup stimmen nicht überein");
+    }
+    // Nur der Shop-Katalog ist für den Transfer zwischen Unternehmen gedacht.
+    // Alle übrigen Restore-Typen bleiben strikt an ihren Ursprungstenant gebunden.
+    if (backupType !== SHOP_DATABASE_BACKUP && manifest.tenantId !== tenantId) {
+        throw new Error("Das Backup gehört zu einem anderen Unternehmen");
+    }
+    const requiredTables = backupTables(backupType);
+    if (!database.tables || requiredTables.some(table => !Array.isArray(database.tables[table]))) {
         throw new Error("Der Datenbank-Snapshot ist unvollständig");
+    }
+    if (backupType === SHOP_DATABASE_BACKUP
+        && Object.keys(database.tables).some(table => !SHOP_BACKUP_TABLES.includes(table))) {
+        throw new Error("Das Shop-Backup enthält nicht erlaubte Datenbanktabellen");
     }
     if (!Array.isArray(manifest.binaryEntries)) throw new Error("Die Dateiliste ist ungültig");
     const paths = new Set();
     for (const entry of manifest.binaryEntries) {
         if (!/^objects\/[a-f0-9-]+$/i.test(entry.archivePath)
             || paths.has(entry.archivePath)
-            || !String(entry.objectKey).startsWith(`tenants/${tenantId}/`)) {
+            || !String(entry.objectKey).startsWith(`tenants/${manifest.tenantId}/`)) {
             throw new Error("Das Backup enthält einen ungültigen Dateipfad");
         }
         paths.add(entry.archivePath);
     }
-    if (backupType === DATABASE_BACKUP && manifest.binaryEntries.length) {
+    if (backupType !== FULL_BACKUP && manifest.binaryEntries.length) {
         throw new Error("Ein Datenbank-Backup darf keine Garage-Dateien enthalten");
     }
     return backupType;
@@ -311,28 +314,63 @@ function validateArchive(manifest, database, expectedType = null) {
 
 const RESTORE_VALIDATED = "RESTORE_VALIDATION_ROLLBACK";
 
-async function replaceTenantDatabase(database, req, { validateOnly = false } = {}) {
+async function replaceTenantDatabase(database, req, backupType, { validateOnly = false } = {}) {
     const tenantId = getTenantId();
-    // Ein Restore auf einer anderen Storage-Konfiguration soll die lokale
-    // Bucket-/Endpoint-Konfiguration verwenden, nicht Werte aus dem Archiv.
-    database.tables.s3_objects = database.tables.s3_objects.map(object => ({
-        ...object,
-        tenant_id: tenantId,
-        bucket_name: process.env.S3_BUCKET,
-        endpoint: process.env.S3_PUBLIC_ENDPOINT || null
-    }));
+    let tables = database.tables;
+    if (backupType === SHOP_DATABASE_BACKUP) {
+        tables = prepareShopRestore(database, tenantId);
+    } else {
+        // Ein Restore auf einer anderen Storage-Konfiguration soll die lokale
+        // Bucket-/Endpoint-Konfiguration verwenden, nicht Werte aus dem Archiv.
+        tables = {
+            ...database.tables,
+            s3_objects: database.tables.s3_objects.map(object => ({
+                ...object,
+                tenant_id: tenantId,
+                bucket_name: process.env.S3_BUCKET,
+                endpoint: process.env.S3_PUBLIC_ENDPOINT || null
+            }))
+        };
+    }
 
     await prisma.$transaction(async transaction => {
-        for (const table of DELETE_ORDER) {
-            await transaction.$executeRawUnsafe(`DELETE FROM "${table}" WHERE tenant_id = $1::uuid`, tenantId);
-        }
-        for (const table of RESTORE_ORDER) {
-            const rows = database.tables[table];
-            if (!rows.length) continue;
-            await transaction.$executeRawUnsafe(
-                `INSERT INTO "${table}" SELECT * FROM json_populate_recordset(NULL::"${table}", $1::json)`,
-                JSON.stringify(rows)
-            );
+        if (backupType === SHOP_DATABASE_BACKUP) {
+            for (const table of ["shop_hardware_mappings", "shop_articles", "shop_article_groups", "shop_configurations"]) {
+                await transaction.$executeRawUnsafe(`DELETE FROM "${table}" WHERE tenant_id = $1::uuid`, tenantId);
+            }
+            for (const table of SHOP_BACKUP_TABLES) {
+                const rows = tables[table];
+                if (!rows.length) continue;
+                if (table === "suppliers") {
+                    await transaction.$executeRawUnsafe(
+                        `INSERT INTO "suppliers" SELECT * FROM json_populate_recordset(NULL::"suppliers", $1::json)
+                         ON CONFLICT ("id") DO UPDATE SET
+                           "name" = EXCLUDED."name",
+                           "external_id" = EXCLUDED."external_id",
+                           "procurement_type" = EXCLUDED."procurement_type",
+                           "procurement_config" = EXCLUDED."procurement_config",
+                           "updated_at" = EXCLUDED."updated_at"`,
+                        JSON.stringify(rows)
+                    );
+                } else {
+                    await transaction.$executeRawUnsafe(
+                        `INSERT INTO "${table}" SELECT * FROM json_populate_recordset(NULL::"${table}", $1::json)`,
+                        JSON.stringify(rows)
+                    );
+                }
+            }
+        } else {
+            for (const table of DELETE_ORDER) {
+                await transaction.$executeRawUnsafe(`DELETE FROM "${table}" WHERE tenant_id = $1::uuid`, tenantId);
+            }
+            for (const table of RESTORE_ORDER) {
+                const rows = tables[table];
+                if (!rows.length) continue;
+                await transaction.$executeRawUnsafe(
+                    `INSERT INTO "${table}" SELECT * FROM json_populate_recordset(NULL::"${table}", $1::json)`,
+                    JSON.stringify(rows)
+                );
+            }
         }
         if (validateOnly) {
             const rollback = new Error(RESTORE_VALIDATED);
@@ -342,10 +380,12 @@ async function replaceTenantDatabase(database, req, { validateOnly = false } = {
         await transaction.auditLog.create({
             data: {
                 actorUserId: req.user.id,
-                action: "storage.backup.restore",
+                action: backupType === SHOP_DATABASE_BACKUP
+                    ? "storage.shop-database-backup.restore"
+                    : "storage.backup.restore",
                 entityType: "Tenant",
                 entityId: tenantId,
-                metadata: { restoredAt: new Date().toISOString() },
+                metadata: { backupType, restoredAt: new Date().toISOString() },
                 ipAddress: req.ip || null,
                 userAgent: req.get("user-agent") || null
             }
@@ -386,7 +426,7 @@ async function restoreArchive(filePath, req, expectedType = null) {
                 backupType = validateArchive(manifest, database, expectedType);
                 // Prüft Relationen, Datentypen und Fremdschlüssel vollständig in
                 // einer zurückgerollten Transaktion, bevor Dateien überschrieben werden.
-                await replaceTenantDatabase(database, null, { validateOnly: true });
+                await replaceTenantDatabase(database, null, backupType, { validateOnly: true });
                 next();
                 return;
             }
@@ -425,7 +465,7 @@ async function restoreArchive(filePath, req, expectedType = null) {
     if (uploadedPaths.size !== manifest.binaryEntries.length) {
         throw new Error("Das Backup enthält nicht alle erwarteten Dateien");
     }
-    await replaceTenantDatabase(database, req);
+    await replaceTenantDatabase(database, req, backupType);
     if (backupType === FULL_BACKUP) {
         const restoredKeys = new Set(manifest.binaryEntries.map(entry => entry.objectKey));
         const obsoleteObjects = previousObjects.filter(object => !restoredKeys.has(object.objectKey));
@@ -454,7 +494,7 @@ export async function restoreBackup(req, res) {
         return res.status(404).json({ message: "Backup not found" });
     }
     const backupType = backup.backupType || FULL_BACKUP;
-    const extension = backupType === DATABASE_BACKUP ? "cdbbackup" : "cbackup";
+    const extension = backupExtension(backupType);
     const tempPath = path.join(os.tmpdir(), `tenant-restore-${crypto.randomUUID()}.${extension}`);
     try {
         await downloadBackupToFile(backup, tempPath);
@@ -479,7 +519,7 @@ async function importBackupByType(req, res, backupType) {
         const stats = await fs.stat(req.file.path);
         const checksum = await sha256(req.file.path);
         const backupId = crypto.randomUUID();
-        const extension = backupType === DATABASE_BACKUP ? "cdbbackup" : "cbackup";
+        const extension = backupExtension(backupType);
         const objectKey = `tenants/${getTenantId()}/backups/${backupId}.${extension}`;
         await s3Upload.send(new PutObjectCommand({
             Bucket: process.env.S3_BUCKET,
@@ -491,7 +531,7 @@ async function importBackupByType(req, res, backupType) {
         const backup = await prisma.tenantBackup.create({
             data: {
                 id: backupId,
-                name: safeName(req.file.originalname?.replace(/\.(?:cdbbackup|cbackup)$/i, "")),
+                name: safeName(req.file.originalname?.replace(/\.(?:cshopbackup|cdbbackup|cbackup)$/i, "")),
                 backupType,
                 status: "completed",
                 objectKey,
@@ -499,7 +539,7 @@ async function importBackupByType(req, res, backupType) {
                 fileSize: BigInt(stats.size),
                 checksum,
                 fileCount: manifest.binaryEntries.length,
-                tableCount: BACKUP_TABLES.length,
+                tableCount: backupTables(backupType).length,
                 createdById: req.user.id,
                 completedAt: new Date(),
                 restoredAt: new Date()
@@ -516,6 +556,7 @@ async function importBackupByType(req, res, backupType) {
 
 export const importBackup = (req, res) => importBackupByType(req, res, FULL_BACKUP);
 export const importDatabaseBackup = (req, res) => importBackupByType(req, res, DATABASE_BACKUP);
+export const importShopDatabaseBackup = (req, res) => importBackupByType(req, res, SHOP_DATABASE_BACKUP);
 
 export async function deleteBackup(req, res) {
     const backup = await prisma.tenantBackup.findUnique({ where: { id: req.params.id } });
