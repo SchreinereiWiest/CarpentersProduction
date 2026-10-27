@@ -74,3 +74,57 @@ export const loadShopImageUrl = async fileId => {
     if (!fileId) return null;
     return getS3FileUrl({ id: fileId });
 };
+
+export const loadPurchaseLists = async () => {
+    const response = await axios.get("/api/shop/lists");
+    return response.data?.lists ?? [];
+};
+
+export const createPurchaseList = async payload => {
+    const response = await axios.post("/api/shop/lists", payload);
+    return response.data?.lists ?? [];
+};
+
+export const updatePurchaseList = async (id, payload) => {
+    const response = await axios.put(`/api/shop/lists/${id}`, payload);
+    return response.data?.lists ?? [];
+};
+
+export const deletePurchaseList = id => axios.delete(`/api/shop/lists/${id}`);
+
+export const releasePurchaseList = async id => {
+    const response = await axios.post(`/api/shop/lists/${id}/release`);
+    return response.data;
+};
+
+export const loadNonProjectPurchases = async status => {
+    const response = await axios.get("/api/shop/non-project-purchases", { params: status ? { status } : {} });
+    return response.data?.items ?? [];
+};
+
+export const processNonProjectPurchases = async (ids, action) => {
+    const response = await axios.patch("/api/shop/non-project-purchases/process", { ids, action });
+    return response.data;
+};
+
+export const loadArticleArchive = async () => {
+    const response = await axios.get("/api/shop/archive");
+    return response.data?.entries ?? [];
+};
+
+export const createArticleArchiveEntry = async payload => {
+    const response = await axios.post("/api/shop/archive", payload);
+    return response.data?.entries ?? [];
+};
+
+export const updateArticleArchiveEntry = async (id, payload) => {
+    const response = await axios.put(`/api/shop/archive/${id}`, payload);
+    return response.data?.entries ?? [];
+};
+
+export const deleteArticleArchiveEntry = id => axios.delete(`/api/shop/archive/${id}`);
+
+export const activateArticleArchiveEntry = async id => {
+    const response = await axios.post(`/api/shop/archive/${id}/activate`);
+    return response.data;
+};

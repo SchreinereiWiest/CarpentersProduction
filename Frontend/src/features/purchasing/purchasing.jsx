@@ -11,12 +11,24 @@ import {
     normalizeShopSettings
 } from "@Engine/procurement/procurement.js";
 import {
+    activateArticleArchiveEntry,
+    createArticleArchiveEntry,
+    createPurchaseList,
+    deleteArticleArchiveEntry,
+    deletePurchaseList,
+    loadArticleArchive,
+    loadNonProjectPurchases,
+    loadPurchaseLists,
     loadProcurementCatalog,
     loadProjectProcurement,
     loadShopSettings,
     loadShopImageUrl,
+    processNonProjectPurchases,
+    releasePurchaseList,
     saveProcurementCatalog,
     saveProjectProcurement,
+    updateArticleArchiveEntry,
+    updatePurchaseList,
     uploadShopImage
 } from "./procurementApi.js";
 import {
@@ -26,6 +38,12 @@ import {
     ShopArticle,
     ShopGroup
 } from "./shopComponents.jsx";
+import {
+    ArticleArchiveModal,
+    ArticleArchiveView,
+    PurchaseListModal,
+    PurchaseListsView
+} from "./purchasingExtensions.jsx";
 
 const money = new Intl.NumberFormat("de-DE", {
     style: "currency",
@@ -47,6 +65,23 @@ const sortBySupplier = (items, suppliers) => [...items].sort((left, right) => (
     getSupplierName(left, suppliers).localeCompare(getSupplierName(right, suppliers), "de") ||
     String(left.name || "").localeCompare(String(right.name || ""), "de")
 ));
+
+const groupNonProjectPurchases = items => Object.values(items.reduce((groups, item) => {
+    const key = item.listId || item.listName || "allgemein";
+    if (!groups[key]) {
+        groups[key] = {
+            project: {
+                id: `non-project:${key}`,
+                title: item.listName || "Projektfreie Bestellung",
+                projectNumber: "Ohne Projekt",
+                isNonProject: true
+            },
+            items: []
+        };
+    }
+    groups[key].items.push(item);
+    return groups;
+}, {}));
 
 function ReleasedTable({ rows, suppliers, showProject, selectedKeys, processing, onToggle }) {
     return (
@@ -271,6 +306,8 @@ export default function Purchasing() {
     const [articles, setArticles] = useState([]);
     const [articleGroups, setArticleGroups] = useState([]);
     const [suppliers, setSuppliers] = useState([]);
+    const [purchaseLists, setPurchaseLists] = useState([]);
+    const [archiveEntries, setArchiveEntries] = useState([]);
     const [imageUrls, setImageUrls] = useState({});
     const [selectedProjectId, setSelectedProjectId] = useState("");
     const [search, setSearch] = useState("");
@@ -285,6 +322,12 @@ export default function Purchasing() {
     const [addingArticleId, setAddingArticleId] = useState(null);
     const [selectedReleaseKeys, setSelectedReleaseKeys] = useState(() => new Set());
     const [processingAction, setProcessingAction] = useState(null);
+    const [processingListId, setProcessingListId] = useState(null);
+    const [processingArchiveId, setProcessingArchiveId] = useState(null);
+    const [editingPurchaseList, setEditingPurchaseList] = useState(null);
+    const [showPurchaseListModal, setShowPurchaseListModal] = useState(false);
+    const [editingArchiveEntry, setEditingArchiveEntry] = useState(null);
+    const [showArchiveModal, setShowArchiveModal] = useState(false);
     const [releasedView, setReleasedView] = useState("project");
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
@@ -297,10 +340,14 @@ export default function Purchasing() {
             setError("");
 
             try {
-                const [projectResponse, catalogResponse, settingsResponse] = await Promise.all([
+                const [projectResponse, catalogResponse, settingsResponse, loadedLists, loadedArchive, nonProjectReleased, nonProjectPurchased] = await Promise.all([
                     axios.get("/api/projects/getAll"),
                     loadProcurementCatalog(),
-                    loadShopSettings()
+                    loadShopSettings(),
+                    loadPurchaseLists(),
+                    loadArticleArchive(),
+                    loadNonProjectPurchases("released"),
+                    loadNonProjectPurchases("purchased")
                 ]);
                 const loadedProjects = projectResponse.data.projects || [];
                 const procurementDocuments = await Promise.all(
@@ -316,12 +363,14 @@ export default function Purchasing() {
                     }))
                     .filter(group => group.items.length > 0)
                     .sort((left, right) => left.project.title.localeCompare(right.project.title, "de"));
+                groups.push(...groupNonProjectPurchases(nonProjectReleased));
                 const purchased = loadedProjects
                     .map((project, index) => ({
                         project,
                         items: procurementByProject[index].items.filter(item => item.purchased)
                     }))
                     .filter(group => group.items.length > 0);
+                purchased.push(...groupNonProjectPurchases(nonProjectPurchased));
 
                 const normalizedCatalog = normalizeCatalog(catalogResponse);
                 const normalizedSettings = normalizeShopSettings(settingsResponse);
@@ -343,6 +392,8 @@ export default function Purchasing() {
                 setArticles(normalizedCatalog.articles);
                 setArticleGroups(normalizedCatalog.groups);
                 setSuppliers(normalizedSettings.suppliers);
+                setPurchaseLists(loadedLists);
+                setArchiveEntries(loadedArchive);
                 setImageUrls(Object.fromEntries(imageEntries));
                 setReleasedGroups(groups);
                 setPurchasedGroups(purchased);
@@ -482,7 +533,7 @@ export default function Purchasing() {
             const sourceKeys = group.items
                 .filter(item => selectedReleaseKeys.has(`${group.project.id}:${item.sourceKey}`))
                 .map(item => item.sourceKey);
-            if (sourceKeys.length > 0) result.push({ projectId: group.project.id, sourceKeys });
+            if (sourceKeys.length > 0) result.push({ projectId: group.project.id, project: group.project, items: group.items, sourceKeys });
             return result;
         }, []);
         const completedKeys = new Set();
@@ -493,6 +544,19 @@ export default function Purchasing() {
         for (const selection of selectionsByProject) {
             try {
                 const selectedSources = new Set(selection.sourceKeys);
+                if (selection.project.isNonProject) {
+                    const selectedItems = selection.items.filter(item => selectedSources.has(item.sourceKey));
+                    await processNonProjectPurchases(selectedItems.map(item => item.id), action);
+                    selection.sourceKeys.forEach(sourceKey => completedKeys.add(`${selection.projectId}:${sourceKey}`));
+                    if (action === "purchased") {
+                        completedPurchases.push({
+                            projectId: selection.projectId,
+                            project: selection.project,
+                            items: selectedItems.map(item => ({ ...item, purchased: true, purchasedAt: timestamp, released: false }))
+                        });
+                    }
+                    continue;
+                }
                 const current = normalizeProcurementDocument(await loadProjectProcurement(selection.projectId));
                 const nextItems = current.items.map(item => {
                     if (!selectedSources.has(item.sourceKey)) return item;
@@ -505,6 +569,7 @@ export default function Purchasing() {
                 if (action === "purchased") {
                     completedPurchases.push({
                         projectId: selection.projectId,
+                        project: selection.project,
                         items: nextItems.filter(item => selectedSources.has(item.sourceKey))
                     });
                 }
@@ -526,7 +591,7 @@ export default function Purchasing() {
                 setPurchasedGroups(current => {
                     const next = current.map(group => ({ ...group, items: [...group.items] }));
                     for (const purchase of completedPurchases) {
-                        const project = projects.find(item => item.id === purchase.projectId);
+                        const project = purchase.project || projects.find(item => item.id === purchase.projectId);
                         if (!project) continue;
                         const existing = next.find(group => group.project.id === purchase.projectId);
                         if (existing) {
@@ -570,6 +635,101 @@ export default function Purchasing() {
         setMessage("Gruppe entfernt; ihre Artikel sind jetzt ungruppiert. Zum Abschließen bitte speichern.");
     };
 
+    const savePurchaseListEntry = async payload => {
+        setError("");
+        try {
+            const next = editingPurchaseList
+                ? await updatePurchaseList(editingPurchaseList.id, payload)
+                : await createPurchaseList(payload);
+            setPurchaseLists(next);
+            setShowPurchaseListModal(false);
+            setEditingPurchaseList(null);
+            setMessage(editingPurchaseList ? "Bestellliste wurde aktualisiert." : "Bestellliste wurde angelegt.");
+        } catch (saveError) {
+            console.error("Bestellliste konnte nicht gespeichert werden", saveError);
+            setError("Die Bestellliste konnte nicht gespeichert werden.");
+        }
+    };
+
+    const removePurchaseList = async list => {
+        if (!window.confirm(`Bestellliste „${list.name}“ wirklich löschen?`)) return;
+        setError("");
+        try {
+            await deletePurchaseList(list.id);
+            setPurchaseLists(current => current.filter(item => item.id !== list.id));
+            setMessage("Bestellliste wurde gelöscht.");
+        } catch (deleteError) {
+            console.error("Bestellliste konnte nicht gelöscht werden", deleteError);
+            setError("Die Bestellliste konnte nicht gelöscht werden.");
+        }
+    };
+
+    const releaseList = async list => {
+        setProcessingListId(list.id);
+        setError("");
+        try {
+            const result = await releasePurchaseList(list.id);
+            const nonProjectReleased = await loadNonProjectPurchases("released");
+            setReleasedGroups(current => [
+                ...current.filter(group => !group.project.isNonProject),
+                ...groupNonProjectPurchases(nonProjectReleased)
+            ]);
+            setMessage(`${result.released} Artikel aus „${list.name}“ wurden ohne Projekt freigegeben.`);
+        } catch (releaseError) {
+            console.error("Bestellliste konnte nicht freigegeben werden", releaseError);
+            setError("Die Bestellliste konnte nicht freigegeben werden.");
+        } finally {
+            setProcessingListId(null);
+        }
+    };
+
+    const saveArchiveEntry = async payload => {
+        setError("");
+        try {
+            const next = editingArchiveEntry
+                ? await updateArticleArchiveEntry(editingArchiveEntry.id, payload)
+                : await createArticleArchiveEntry(payload);
+            setArchiveEntries(next);
+            setShowArchiveModal(false);
+            setEditingArchiveEntry(null);
+            setMessage("Lieferantenvariante wurde im Archiv gespeichert.");
+        } catch (saveError) {
+            console.error("Archivposition konnte nicht gespeichert werden", saveError);
+            setError("Die Lieferantenvariante konnte nicht gespeichert werden.");
+        }
+    };
+
+    const removeArchiveEntry = async entry => {
+        if (!window.confirm(`Archivvariante von „${entry.supplierName}“ wirklich löschen?`)) return;
+        setError("");
+        try {
+            await deleteArticleArchiveEntry(entry.id);
+            setArchiveEntries(current => current.filter(item => item.id !== entry.id));
+            setMessage("Archivposition wurde gelöscht.");
+        } catch (deleteError) {
+            console.error("Archivposition konnte nicht gelöscht werden", deleteError);
+            setError("Die Archivposition konnte nicht gelöscht werden.");
+        }
+    };
+
+    const activateArchiveEntry = async entry => {
+        setProcessingArchiveId(entry.id);
+        setError("");
+        try {
+            const result = await activateArticleArchiveEntry(entry.id);
+            const normalizedCatalog = normalizeCatalog(result.catalog);
+            setArticles(normalizedCatalog.articles);
+            setArticleGroups(normalizedCatalog.groups);
+            setArchiveEntries(result.archive?.entries || []);
+            setMessage(`${entry.supplierName} ist jetzt der aktive Lieferant für „${entry.article.name}“. Der vorherige Lieferant wurde archiviert.`);
+        } catch (activateError) {
+            console.error("Archivposition konnte nicht aktiviert werden", activateError);
+            setError("Die Lieferantenvariante konnte nicht aktiviert werden.");
+        } finally {
+            setProcessingArchiveId(null);
+        }
+    };
+
     const openGroup = articleGroups.find(group => group.id === openGroupId) || null;
     const openGroupArticles = openGroup
         ? articles.filter(article => article.groupId === openGroup.id)
@@ -605,6 +765,8 @@ export default function Purchasing() {
                         <button type="button" onClick={() => setActiveTab("released")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "released" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Freigegebene Artikel</button>
                         <button type="button" onClick={() => setActiveTab("shop")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "shop" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Interner Shop</button>
                         <button type="button" onClick={() => setActiveTab("purchased")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "purchased" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Gekaufte Artikel</button>
+                        <button type="button" onClick={() => setActiveTab("lists")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "lists" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Listen</button>
+                        <button type="button" onClick={() => setActiveTab("archive")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "archive" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Archiv</button>
                     </div>
 
                     {message && <div className="mt-5 rounded-lg border border-emerald-800 bg-emerald-950/40 px-4 py-3 text-emerald-300">{message}</div>}
@@ -646,6 +808,54 @@ export default function Purchasing() {
                             </>
                         ) : activeTab === "purchased" ? (
                             <PurchasedHistory groups={purchasedGroups} suppliers={suppliers} loading={loading} />
+                        ) : activeTab === "lists" ? (
+                            <>
+                                <div className="mb-6 flex flex-wrap items-end justify-between gap-4 rounded-xl border border-gray-700 bg-gray-800 p-4">
+                                    <label className="min-w-64 flex-1">
+                                        <span className="mb-1.5 block text-xs uppercase tracking-wide text-gray-500">Listen durchsuchen</span>
+                                        <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Liste, Kategorie oder Artikel" className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 outline-none focus:border-blue-500" />
+                                    </label>
+                                    {canEdit && <button type="button" onClick={() => { setEditingPurchaseList(null); setShowPurchaseListModal(true); }} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold hover:bg-blue-500">+ Neue Liste</button>}
+                                </div>
+                                {loading ? (
+                                    <div className="rounded-xl border border-gray-700 bg-gray-800 p-10 text-center text-gray-400">Listen werden geladen …</div>
+                                ) : (
+                                    <PurchaseListsView
+                                        lists={purchaseLists}
+                                        search={search}
+                                        canEdit={canEdit}
+                                        processingId={processingListId}
+                                        onCreate={() => { setEditingPurchaseList(null); setShowPurchaseListModal(true); }}
+                                        onEdit={list => { setEditingPurchaseList(list); setShowPurchaseListModal(true); }}
+                                        onDelete={removePurchaseList}
+                                        onRelease={releaseList}
+                                    />
+                                )}
+                            </>
+                        ) : activeTab === "archive" ? (
+                            <>
+                                <div className="mb-6 flex flex-wrap items-end justify-between gap-4 rounded-xl border border-gray-700 bg-gray-800 p-4">
+                                    <label className="min-w-64 flex-1">
+                                        <span className="mb-1.5 block text-xs uppercase tracking-wide text-gray-500">Archiv durchsuchen</span>
+                                        <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Artikel, Lieferant, Nummer oder Kategorie" className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 outline-none focus:border-blue-500" />
+                                    </label>
+                                    {canEdit && <button type="button" onClick={() => { setEditingArchiveEntry(null); setShowArchiveModal(true); }} disabled={articles.length === 0 || suppliers.length === 0} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40">+ Lieferantenvariante</button>}
+                                </div>
+                                {loading ? (
+                                    <div className="rounded-xl border border-gray-700 bg-gray-800 p-10 text-center text-gray-400">Archiv wird geladen …</div>
+                                ) : (
+                                    <ArticleArchiveView
+                                        entries={archiveEntries}
+                                        search={search}
+                                        canEdit={canEdit}
+                                        processingId={processingArchiveId}
+                                        onCreate={() => { setEditingArchiveEntry(null); setShowArchiveModal(true); }}
+                                        onEdit={entry => { setEditingArchiveEntry(entry); setShowArchiveModal(true); }}
+                                        onDelete={removeArchiveEntry}
+                                        onActivate={activateArchiveEntry}
+                                    />
+                                )}
+                            </>
                         ) : (
                             <>
                                 <div className="flex flex-wrap items-end justify-between gap-4 rounded-xl border border-gray-700 bg-gray-800 p-4">
@@ -735,6 +945,26 @@ export default function Purchasing() {
                     articles={articles}
                     onClose={() => { setShowGroupModal(false); setEditingGroup(null); }}
                     onSave={upsertGroup}
+                />
+            )}
+
+            {showPurchaseListModal && (
+                <PurchaseListModal
+                    list={editingPurchaseList}
+                    articles={articles}
+                    suppliers={suppliers}
+                    onClose={() => { setShowPurchaseListModal(false); setEditingPurchaseList(null); }}
+                    onSave={savePurchaseListEntry}
+                />
+            )}
+
+            {showArchiveModal && (
+                <ArticleArchiveModal
+                    entry={editingArchiveEntry}
+                    articles={articles}
+                    suppliers={suppliers}
+                    onClose={() => { setShowArchiveModal(false); setEditingArchiveEntry(null); }}
+                    onSave={saveArchiveEntry}
                 />
             )}
 
