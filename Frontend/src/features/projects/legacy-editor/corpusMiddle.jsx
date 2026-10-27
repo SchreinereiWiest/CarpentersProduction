@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { platePresets } from "./helper.js";
 import MaterialSelect from "../cabinet/components/editor/properties/MaterialSelect.jsx";
+import { getEdgeMaterials } from "../../../shared/materials/material-utils.js";
 
 
 const materialLabel = material =>
@@ -63,6 +64,8 @@ export default function CorpusMiddle({ EditorState }) {
     primary: "",
     secondary: "",
   });
+
+  const availableEdgeMaterials = getEdgeMaterials(materials);
 
   /*
    * ------------------------------------------------------------
@@ -925,7 +928,7 @@ const EdgeEditor = () => (
           <MaterialSelect
             label="Kantenmaterial Standard"
             value={edgeMaterials.primary ?? ""}
-            materials={materials}
+            materials={availableEdgeMaterials}
             emptyLabel="Kantenmaterial auswählen..."
             getOptionLabel={materialLabel}
             onChange={value => handleEdgeMaterialChange("primary", value)}
@@ -938,7 +941,7 @@ const EdgeEditor = () => (
           <MaterialSelect
             label="Kantenmaterial 2"
             value={edgeMaterials.secondary ?? ""}
-            materials={materials}
+            materials={availableEdgeMaterials}
             emptyLabel="Kantenmaterial auswählen..."
             getOptionLabel={materialLabel}
             onChange={value => handleEdgeMaterialChange("secondary", value)}

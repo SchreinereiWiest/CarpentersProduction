@@ -296,6 +296,40 @@ describe("procurement data", () => {
         expect(hardware[0]).toMatchObject({ supplierId: "supplier-1", supplierName: "Häfele" });
     });
 
+    it("uses separate suppliers for a plate and its edge", () => {
+        const settings = {
+            suppliers: [
+                { id: "plate-supplier", name: "Plattenhandel" },
+                { id: "edge-supplier", name: "Kantenhandel" }
+            ]
+        };
+        const nesting = [{
+            MID: "W1000",
+            T: 19,
+            nestingPlates: [{ placedWidth: 2800, placedHeight: 2070, strips: [{}] }],
+            plates: [{ width: 1000, height: 500, EdgeR: "W1000" }]
+        }];
+        const materials = [{
+            materialNumber: "W1000",
+            name: "Weiß",
+            thickness: 19,
+            width: 2800,
+            height: 2070,
+            edgeArticleNumber: "K-W1000",
+            supplierId: "plate-supplier",
+            edgeSupplierId: "edge-supplier"
+        }];
+
+        expect(buildPlateItems(nesting, materials, settings)[0]).toMatchObject({
+            supplierId: "plate-supplier",
+            supplierName: "Plattenhandel"
+        });
+        expect(buildEdgeItems(nesting, materials, settings)[0]).toMatchObject({
+            supplierId: "edge-supplier",
+            supplierName: "Kantenhandel"
+        });
+    });
+
     it("keeps purchased items locked and creates a new line when reordered", () => {
         const purchased = [{
             sourceKey: "shop:x",

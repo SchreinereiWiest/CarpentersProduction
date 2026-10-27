@@ -187,7 +187,7 @@ export default function ShopSettingsPanel() {
                         <div>
                             <h2 className="font-semibold">Lieferanten</h2>
                             <p className="mt-1 text-sm text-gray-400">
-                                Diese Lieferanten stehen bei Shop-Artikeln und Plattenmaterial zur Auswahl. Die interne ID bleibt für spätere E-Procurement-Anbindungen stabil.
+                                Diese Lieferanten stehen bei Shop-Artikeln sowie Platten- und Kantenmaterial zur Auswahl. Die interne ID bleibt für spätere E-Procurement-Anbindungen stabil.
                             </p>
                         </div>
                         <button type="button" onClick={addSupplier} className="rounded-lg border border-gray-600 px-3 py-2 text-sm text-gray-200 hover:bg-gray-700">

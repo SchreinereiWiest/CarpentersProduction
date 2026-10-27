@@ -1,9 +1,41 @@
-import { useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import SideBar from '../../shared/components/sideBar.jsx'
 import axios from 'axios';
-import { useEffect } from "react";
 import {MaterialModal} from "./materialModal.jsx"
 import { updateQuantity } from './updateMaterial.jsx';
+
+const normalizeText = value => String(value ?? "").trim().toLocaleLowerCase("de-DE");
+
+
+function groupMaterials(materials, query) {
+    const normalizedQuery = normalizeText(query);
+    const groups = new Map();
+
+    materials
+        .filter(material => !normalizedQuery || [
+            material.name,
+            material.materialNumber,
+            material.manufacturer,
+            material.category,
+            material.thickness
+        ].some(value => normalizeText(value).includes(normalizedQuery)))
+        .forEach(material => {
+            const category = String(material.category ?? "").trim();
+            const key = normalizeText(category) || "__uncategorized__";
+            const group = groups.get(key) ?? {
+                key,
+                label: category || "Ohne Kategorie",
+                materials: []
+            };
+
+            group.materials.push(material);
+            groups.set(key, group);
+        });
+
+    return [...groups.values()].sort((left, right) =>
+        left.label.localeCompare(right.label, "de-DE", { sensitivity: "base" })
+    );
+}
 
 function increaseQuantity(material, setMaterials) {
 
@@ -80,6 +112,15 @@ loadMaterials();
 
 const [showMaterialModal, setShowMaterialModal] = useState(false);
 const [selectedMaterial, setSelectedMaterial] = useState(null);
+const [searchQuery, setSearchQuery] = useState("");
+const materialGroups = useMemo(
+    () => groupMaterials(materials, searchQuery),
+    [materials, searchQuery]
+);
+const visibleMaterialCount = materialGroups.reduce(
+    (count, group) => count + group.materials.length,
+    0
+);
 
 return (
 
@@ -198,6 +239,32 @@ return (
 
             )}
 
+            {!loading && !error && (
+                <div className="mb-4">
+                    <label htmlFor="material-search" className="sr-only">
+                        Materialien suchen
+                    </label>
+                    <div className="relative max-w-xl">
+                        <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500" aria-hidden="true">
+                            ⌕
+                        </span>
+                        <input
+                            id="material-search"
+                            type="search"
+                            value={searchQuery}
+                            onChange={event => setSearchQuery(event.target.value)}
+                            placeholder="Materialien suchen …"
+                            className="w-full rounded-lg border border-gray-700 bg-gray-800 py-2.5 pl-10 pr-4 text-white outline-none placeholder:text-gray-500 focus:border-blue-500"
+                        />
+                    </div>
+                    {searchQuery && (
+                        <p className="mt-2 text-sm text-gray-400">
+                            {visibleMaterialCount} {visibleMaterialCount === 1 ? "Material" : "Materialien"} gefunden
+                        </p>
+                    )}
+                </div>
+            )}
+
             {!loading &&
             !error && (
 
@@ -252,8 +319,23 @@ return (
 
                     <tbody>
 
-                        {materials.map(
-                        material => (
+                        {materialGroups.map(group => (
+                        <Fragment key={group.key}>
+                        <tr className="inventory-category-divider bg-gray-900/70">
+                            <td colSpan={6} className="px-6 py-3">
+                                <div className="flex items-center gap-4">
+                                    <span className="whitespace-nowrap text-xs font-semibold uppercase tracking-wider text-blue-300">
+                                        {group.label}
+                                    </span>
+                                    <span className="h-px flex-1 bg-gray-600" aria-hidden="true" />
+                                    <span className="text-xs text-gray-500">
+                                        {group.materials.length}
+                                    </span>
+                                </div>
+                            </td>
+                        </tr>
+
+                        {group.materials.map(material => (
 
                         <tr
                             key={material.id}
@@ -407,6 +489,16 @@ return (
                         </tr>
 
                         ))}
+                        </Fragment>
+                        ))}
+
+                        {visibleMaterialCount === 0 && (
+                            <tr>
+                                <td colSpan={6} className="px-6 py-10 text-center text-gray-400">
+                                    Keine Materialien für „{searchQuery}“ gefunden.
+                                </td>
+                            </tr>
+                        )}
 
                     </tbody>
 

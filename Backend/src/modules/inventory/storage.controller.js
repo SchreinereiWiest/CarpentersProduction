@@ -55,7 +55,8 @@ export async function createMaterial(req, res) {
             edgeArticleNumber,
             edgePricePerMeter,
             edgePurchaseLength,
-            supplierId
+            supplierId,
+            edgeSupplierId
 
         } = req.body;
 
@@ -78,7 +79,8 @@ export async function createMaterial(req, res) {
                     edgeArticleNumber,
                     edgePricePerMeter,
                     edgePurchaseLength,
-                    supplierId
+                    supplierId,
+                    edgeSupplierId
 
                 }
 
@@ -112,7 +114,7 @@ export async function updateMaterial(req, res) {
         const {
             materialNumber, name, width, height, minimumStorage, maser,
             manufacturer, category, thickness, pricePerSquareMeter,
-            edgeArticleNumber, edgePricePerMeter, edgePurchaseLength, supplierId
+            edgeArticleNumber, edgePricePerMeter, edgePurchaseLength, supplierId, edgeSupplierId
         } = req.body;
 
         const material = await prisma.material.update({
@@ -120,7 +122,7 @@ export async function updateMaterial(req, res) {
             data: {
                 materialNumber, name, width, height, minimumStorage, maser,
                 manufacturer, category, thickness, pricePerSquareMeter,
-                edgeArticleNumber, edgePricePerMeter, edgePurchaseLength, supplierId
+                edgeArticleNumber, edgePricePerMeter, edgePurchaseLength, supplierId, edgeSupplierId
             }
         });
 

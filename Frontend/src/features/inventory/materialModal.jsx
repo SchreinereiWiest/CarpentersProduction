@@ -20,6 +20,7 @@ export function MaterialModal({ onClose, onSaved, material = null }) {
         edgePricePerMeter: material?.edgePricePerMeter ?? "",
         edgePurchaseLength: material?.edgePurchaseLength ?? 75,
         supplierId: material?.supplierId ?? "",
+        edgeSupplierId: material?.edgeSupplierId ?? "",
         width: material?.width ?? "",
         height: material?.height ?? "",
         minimumStorage: material?.minimumStorage ?? "",
@@ -133,7 +134,10 @@ export function MaterialModal({ onClose, onSaved, material = null }) {
                                 : 75,
 
                         supplierId:
-                            formData.supplierId || null
+                            formData.supplierId || null,
+
+                        edgeSupplierId:
+                            formData.edgeSupplierId || null
 
                     };
 
@@ -657,6 +661,26 @@ export function MaterialModal({ onClose, onSaved, material = null }) {
                             </div>
                         </div>
 
+                        <div className="md:col-span-2">
+                            <label className="mb-2 block text-sm font-medium text-gray-300">
+                                Lieferant Platte
+                            </label>
+                            <select
+                                name="supplierId"
+                                value={formData.supplierId}
+                                onChange={handleChange}
+                                className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-white outline-none focus:border-blue-500"
+                            >
+                                <option value="">Ohne Lieferant</option>
+                                {formData.supplierId && !suppliers.some(supplier => supplier.id === formData.supplierId) && (
+                                    <option value={formData.supplierId}>Nicht mehr verfügbar</option>
+                                )}
+                                {suppliers.map(supplier => (
+                                    <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                                ))}
+                            </select>
+                        </div>
+
                         <div className="md:col-span-2 border-t border-gray-700 pt-5">
                             <h3 className="font-semibold text-white">Kantendaten</h3>
                             <p className="mt-1 text-sm text-gray-400">
@@ -712,7 +736,7 @@ export function MaterialModal({ onClose, onSaved, material = null }) {
                         </div>
 
 
-                        {/* Lieferant */}
+                        {/* Lieferant Kante */}
 
                         <div className="md:col-span-2">
 
@@ -725,14 +749,14 @@ export function MaterialModal({ onClose, onSaved, material = null }) {
                                     text-gray-300
                                 "
                             >
-                                Lieferant
+                                Lieferant Kante
                             </label>
 
 
                             <select
-                                name="supplierId"
+                                name="edgeSupplierId"
                                 value={
-                                    formData.supplierId
+                                    formData.edgeSupplierId
                                 }
                                 onChange={
                                     handleChange
@@ -751,6 +775,9 @@ export function MaterialModal({ onClose, onSaved, material = null }) {
                                 "
                             >
                                 <option value="">Ohne Lieferant</option>
+                                {formData.edgeSupplierId && !suppliers.some(supplier => supplier.id === formData.edgeSupplierId) && (
+                                    <option value={formData.edgeSupplierId}>Nicht mehr verfügbar</option>
+                                )}
                                 {suppliers.map(supplier => (
                                     <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
                                 ))}

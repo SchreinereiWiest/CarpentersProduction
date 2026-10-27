@@ -27,7 +27,10 @@ model Material {
   maser Boolean? @default(false) @map("maser")
 
   supplierId String?   @map("supplier_id") @db.Uuid
-  supplier   Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  supplier   Supplier? @relation("MaterialPlateSupplier", fields: [supplierId], references: [id], onDelete: SetNull)
+
+  edgeSupplierId String?   @map("edge_supplier_id") @db.Uuid
+  edgeSupplier   Supplier? @relation("MaterialEdgeSupplier", fields: [edgeSupplierId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -35,6 +38,7 @@ model Material {
   @@unique([tenantId, id])
   @@index([materialNumber])
   @@index([name])
+  @@index([edgeSupplierId])
   @@map("materials")
 }
 
@@ -62,7 +66,8 @@ model Supplier {
   procurementConfig Json?   @map("procurement_config")
 
   articles  ShopArticle[]
-  materials Material[]
+  materials     Material[] @relation("MaterialPlateSupplier")
+  edgeMaterials Material[] @relation("MaterialEdgeSupplier")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

@@ -203,6 +203,22 @@ textarea {
         text-transform: uppercase;
     }
 
+    .responsive-card-table .inventory-category-divider {
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+    }
+
+    .responsive-card-table .inventory-category-divider td {
+        display: block;
+        padding: 0.5rem 0 !important;
+        text-align: left !important;
+    }
+
+    .responsive-card-table .inventory-category-divider td::before {
+        display: none;
+    }
+
     .responsive-settings-panel {
         padding: 1rem !important;
     }

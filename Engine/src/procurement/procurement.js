@@ -188,7 +188,10 @@ export const buildEdgeItems = (nestingData = [], storageMaterials = [], shopSett
             candidate?.edgeArticleNumber ||
             candidate?.edgePricePerMeter !== null && candidate?.edgePricePerMeter !== undefined
         )) ?? matchingMaterials[0] ?? null;
-        const supplier = resolveSupplier(material?.supplierId, normalizedSettings);
+        const edgeSupplierId = material && Object.prototype.hasOwnProperty.call(material, "edgeSupplierId")
+            ? material.edgeSupplierId
+            : material?.supplierId;
+        const supplier = resolveSupplier(edgeSupplierId, normalizedSettings);
         const baseRequiredMeters = requirement.meters;
         const requiredMeters = baseRequiredMeters * (1 + wastePercentage / 100);
         const purchaseLength = toPositiveNumber(material?.edgePurchaseLength, 75);

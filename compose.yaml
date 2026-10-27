@@ -16,7 +16,7 @@ services:
         aliases:
           - storage.localhost
 
-  frontend:
+  carpenters-frontend:
     build:
       context: ./Frontend
       dockerfile: Dockerfile
@@ -80,16 +80,16 @@ services:
       - "traefik.http.services.carpenters-backend.loadbalancer.server.port=5000"
 
     depends_on:
-      - postgres
+      - carpenters-postgres
       - garage
-      - valkey
+      - carpenters-valkey
 
     networks:
       - carpenters-network
       - MoebelDesign
       - carpenters-proxy
 
-  valkey:
+  carpenters-valkey:
     image: valkey/valkey:8-alpine
     restart: always
     command: ["valkey-server", "--appendonly", "yes"]
@@ -101,7 +101,9 @@ services:
       timeout: 3s
       retries: 10
     networks:
-      - carpenters-network
+      carpenters-network:
+        aliases:
+          - valkey
 
   measurement-ocr:
     build:
@@ -115,7 +117,7 @@ services:
       - MEASUREMENT_OCR_MAX_PAGES=${MEASUREMENT_OCR_MAX_PAGES:-50}
       - LOG_LEVEL=${MEASUREMENT_OCR_LOG_LEVEL:-INFO}
     depends_on:
-      valkey:
+      carpenters-valkey:
         condition: service_healthy
       backendjs:
         condition: service_started
@@ -141,7 +143,7 @@ services:
       - carpenters-network
       - carpenters-proxy
 
-  postgres:
+  carpenters-postgres:
     image: postgres:16
 
     container_name: postgresql
@@ -158,7 +160,9 @@ services:
       - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
 
     networks:
-      - carpenters-network
+      carpenters-network:
+        aliases:
+          - postgres
 
   garage:
     image: dxflrs/garage:v2.3.0
@@ -178,9 +182,9 @@ services:
       - "traefik.http.routers.carpenters-garage.entrypoints=web"
       - "traefik.http.routers.carpenters-garage.service=carpenters-garage"
       - "traefik.http.routers.carpenters-garage.middlewares=carpenters-storage-cors"
-      - "traefik.http.middlewares.carpenters-storage-cors.headers.accesscontrolallowmethods=GET,HEAD,OPTIONS"
+      - "traefik.http.middlewares.carpenters-storage-cors.headers.accesscontrolallowmethods=GET,PUT,HEAD,OPTIONS"
       - "traefik.http.middlewares.carpenters-storage-cors.headers.accesscontrolallowheaders=*"
-      - "traefik.http.middlewares.carpenters-storage-cors.headers.accesscontrolalloworiginlist=http://av.localhost"
+      - "traefik.http.middlewares.carpenters-storage-cors.headers.accesscontrolalloworiginlist=http://av.localhost,http://app.localhost,http://suite.localhost,http://localhost:5173,http://10.10.100.52"
       - "traefik.http.middlewares.carpenters-storage-cors.headers.accesscontrolexposeheaders=ETag,Content-Length,Content-Type,Last-Modified"
       - "traefik.http.middlewares.carpenters-storage-cors.headers.addvaryheader=true"
       - "traefik.http.services.carpenters-garage.loadbalancer.server.port=3900"
@@ -196,9 +200,11 @@ networks:
     driver: bridge
   carpenters-proxy:
     name: carpenters-proxy
+    external: true
   MoebelDesign:
     name: MoebelDesign
     external: true
 
 volumes:
   measurement-ocr-valkey:
+    name: carpentersproduction_measurement-ocr-valkey
