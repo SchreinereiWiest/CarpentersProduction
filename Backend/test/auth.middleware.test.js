@@ -10,7 +10,11 @@ import {
     customerReferenceWhere,
     projectAccessWhere
 } from "../src/middleware/resourceAuthorization.middleware.js";
-import { createCustomerSearchQuery } from "../src/modules/customers/customer.controller.js";
+import {
+    createCustomerDisplayStatusWhere,
+    createCustomerSearchQuery,
+    getCustomerDisplayStatus
+} from "../src/modules/customers/customer.controller.js";
 
 function createResponse() {
     return {
@@ -114,6 +118,39 @@ test("Privilegierte Kundensuche darf weiterhin Firmennamen durchsuchen", () => {
 
     assert.equal(Object.hasOwn(query, "select"), false);
     assert.equal(query.where.OR.some(filter => Object.hasOwn(filter, "companyName")), true);
+});
+
+test("Kundenstatus ist nur bei ausschließlich archivierten Projekten inaktiv", () => {
+    assert.equal(getCustomerDisplayStatus([]), "active");
+    assert.equal(getCustomerDisplayStatus([{ status: "archive" }]), "inactive");
+    assert.equal(getCustomerDisplayStatus([
+        { status: "archive" },
+        { status: "inactive" }
+    ]), "active");
+    assert.equal(getCustomerDisplayStatus([
+        { status: "archive" },
+        { status: "active" }
+    ]), "active");
+    assert.equal(getCustomerDisplayStatus([
+        { status: "archive" },
+        { status: "active", deletedAt: new Date() }
+    ]), "inactive");
+});
+
+test("Kundenstatusfilter ignorieren gelöschte Projekte", () => {
+    const activeWhere = createCustomerDisplayStatusWhere("active");
+    const inactiveWhere = createCustomerDisplayStatusWhere("inactive");
+
+    assert.deepEqual(activeWhere.OR[0], {
+        projects: { none: { deletedAt: null } }
+    });
+    assert.deepEqual(inactiveWhere.projects, {
+        some: { deletedAt: null },
+        none: {
+            deletedAt: null,
+            status: { not: "archive" }
+        }
+    });
 });
 
 test("Dateizugriff folgt dem Status des zugehörigen Projekts", () => {

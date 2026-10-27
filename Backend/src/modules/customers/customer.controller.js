@@ -1,5 +1,53 @@
 import prisma from "../../infrastructure/database/prisma.js";
 
+const customerOrderBy = [
+    { lastName: "asc" },
+    { firstName: "asc" }
+];
+
+const customerListInclude = {
+    addresses: {
+        where: { deletedAt: null }
+    }
+};
+
+export const getCustomerDisplayStatus = (projects = []) => {
+    const existingProjects = projects.filter(project => !project.deletedAt);
+
+    return existingProjects.length > 0
+        && existingProjects.every(project => project.status === "archive")
+        ? "inactive"
+        : "active";
+};
+
+export const createCustomerDisplayStatusWhere = status => {
+    if (status === "inactive") {
+        return {
+            projects: {
+                some: { deletedAt: null },
+                none: {
+                    deletedAt: null,
+                    status: { not: "archive" }
+                }
+            }
+        };
+    }
+
+    return {
+        OR: [
+            { projects: { none: { deletedAt: null } } },
+            {
+                projects: {
+                    some: {
+                        deletedAt: null,
+                        status: { not: "archive" }
+                    }
+                }
+            }
+        ]
+    };
+};
+
 // Api endpoint für alle Kunden felder
 
 export const newcustomer = async (req, res) => {
@@ -30,7 +78,7 @@ export const newcustomer = async (req, res) => {
                 phoneLandline: req.body.phoneLandline,
                 preferredContact: req.body.preferredContact,
                 newsletterOptIn: req.body.newsletterOptIn,
-                customerStatus: req.body.customerStatus,
+                customerStatus: "active",
                 customerRating: req.body.customerRating,
                 source: req.body.source,
                 notes: req.body.notes,
@@ -69,30 +117,59 @@ export const newcustomer = async (req, res) => {
 
 export const getCustomers = async (req, res) => {
   try {
-    const page = Number(req.query.page) || 1;
+    const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
     const limit = 20;
-
     const skip = (page - 1) * limit;
+    const customerWhere = { deletedAt: null };
+    const activeWhere = {
+      ...customerWhere,
+      ...createCustomerDisplayStatusWhere("active"),
+    };
+    const inactiveWhere = {
+      ...customerWhere,
+      ...createCustomerDisplayStatusWhere("inactive"),
+    };
 
-    const [customers, totalCustomers] = await Promise.all([
-      prisma.customer.findMany({
-        orderBy: [
-          {
-            lastName: "asc",
-          },
-          {
-            firstName: "asc",
-          },
-        ],
-        skip,
-        take: limit,
-        include: {
-          addresses: true,
-        },
-      }),
-
-      prisma.customer.count(),
+    const [activeCustomersCount, totalCustomers] = await Promise.all([
+      prisma.customer.count({ where: activeWhere }),
+      prisma.customer.count({ where: customerWhere }),
     ]);
+
+    const activeTake = skip < activeCustomersCount
+      ? Math.min(limit, activeCustomersCount - skip)
+      : 0;
+    const activeCustomers = activeTake > 0
+      ? await prisma.customer.findMany({
+          where: activeWhere,
+          orderBy: customerOrderBy,
+          skip,
+          take: activeTake,
+          include: customerListInclude,
+        })
+      : [];
+
+    const inactiveTake = limit - activeCustomers.length;
+    const inactiveSkip = Math.max(skip - activeCustomersCount, 0);
+    const inactiveCustomers = inactiveTake > 0
+      ? await prisma.customer.findMany({
+          where: inactiveWhere,
+          orderBy: customerOrderBy,
+          skip: inactiveSkip,
+          take: inactiveTake,
+          include: customerListInclude,
+        })
+      : [];
+
+    const customers = [
+      ...activeCustomers.map(customer => ({
+        ...customer,
+        customerStatus: "active",
+      })),
+      ...inactiveCustomers.map(customer => ({
+        ...customer,
+        customerStatus: "inactive",
+      })),
+    ];
 
     res.status(200).json({
       customers,
@@ -128,7 +205,6 @@ export const updateCustomer = async (req, res) => {
                 phoneLandline: req.body.phoneLandline,
                 preferredContact: req.body.preferredContact,
                 newsletterOptIn: req.body.newsletterOptIn,
-                customerStatus: req.body.customerStatus,
                 customerRating: req.body.customerRating,
                 source: req.body.source,
                 notes: req.body.notes,
@@ -220,10 +296,7 @@ export const createCustomerSearchQuery = (user, search) => {
                 ]
                 : nameFilters
         },
-        orderBy: [
-            { lastName: "asc" },
-            { firstName: "asc" }
-        ],
+        orderBy: customerOrderBy,
         take: 15,
         ...(mayViewContactData ? {} : {
             select: {
@@ -246,9 +319,34 @@ export const searchCustomers = async (req, res) => {
             return res.status(200).json([]);
         }
 
+        const includeDisplayStatus = req.query.includeDisplayStatus === "true"
+            && ["admin", "manager"].includes(req.user?.role);
         const customers = await prisma.customer.findMany({
-            ...createCustomerSearchQuery(req.user, search)
+            ...createCustomerSearchQuery(req.user, search),
+            ...(includeDisplayStatus ? {
+                include: {
+                    ...customerListInclude,
+                    projects: {
+                        where: { deletedAt: null },
+                        select: { status: true }
+                    }
+                }
+            } : {})
         });
+
+        if (includeDisplayStatus) {
+            const customersWithStatus = customers
+                .map(({ projects, ...customer }) => ({
+                    ...customer,
+                    customerStatus: getCustomerDisplayStatus(projects)
+                }))
+                .sort((first, second) => (
+                    Number(first.customerStatus === "inactive")
+                    - Number(second.customerStatus === "inactive")
+                ));
+
+            return res.status(200).json(customersWithStatus);
+        }
 
         res.status(200).json(customers);
 

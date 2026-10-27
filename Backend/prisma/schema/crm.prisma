@@ -22,7 +22,7 @@ model Customer {
   newsletterOptIn   Boolean   @default(false) @map("newsletter_opt_in")
   newsletterOptInAt DateTime? @map("newsletter_opt_in_at")
 
-  customerStatus CustomerStatus @default(lead) @map("customer_status")
+  customerStatus CustomerStatus @default(active) @map("customer_status")
   customerRating Int            @default(0) @map("customer_rating") @db.SmallInt
 
   source String?

@@ -86,7 +86,6 @@ return (
                         <p className="">{customer?.phoneLandline}</p>
                         <p className="">{customer?.preferredContact}</p>
                         <p className="">{customer?.newsletterOptIn}</p>
-                        <p className="">{customer?.customerStatus}</p>
                         <p className="">{customer?.customerRating}</p>
                         <p className="">{customer?.source}</p>
 

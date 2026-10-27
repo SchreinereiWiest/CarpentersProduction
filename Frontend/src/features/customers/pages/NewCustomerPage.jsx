@@ -18,11 +18,10 @@ function Contacts() {
 
     const [newsletterOptIn, setNewsletterOptIn] = useState(false);
 
-    const [customerStatus, setCustomerStatus] = useState("");
     const [customerRating, setCustomerRating] = useState(0);
 
     const [source, setSource] = useState("");
-    const [notes, setNotes] = useState("");
+    const notes = "";
 
     // Adress Information
     const [street, setStreet] = useState("");
@@ -32,7 +31,7 @@ function Contacts() {
     const [country, setCountry] = useState("");
 
     const [floor, setFloor] = useState("");
-    const [elevatorAvailable, setElevatorAvailable] = useState(false);
+    const elevatorAvailable = false;
     const [parkingInfo, setParkingInfo] = useState("");
 
     const navigate = useNavigate();
@@ -50,7 +49,6 @@ function Contacts() {
             phoneLandline,
             preferredContact,
             newsletterOptIn,
-            customerStatus,
             customerRating,
             source,
             notes,
@@ -171,16 +169,6 @@ function Contacts() {
                             </div>
 
                             <div className="-mx-3 flex flex-wrap">
-                                <div className="w-full px-3 sm:w-1/2">
-                               
-                                    <div className="mb-5">
-                                        <input type="text" name="customerStatus" id="customerStatus"
-                                            placeholder="Customer Status" value={customerStatus} onChange={(e)=>
-                                        setCustomerStatus(e.target.value)}
-                                        className="w-full rounded-md border border-[#e0e0e0] bg-white py-3 px-6
-                                        text-base font-medium text-[#6B7280] outline-none focus:border-[#6A64F1]
-                                        focus:shadow-md" /></div>
-                                </div>
                                 <div className="w-full px-3 sm:w-1/2">
                              
                                     <div className="mb-5">

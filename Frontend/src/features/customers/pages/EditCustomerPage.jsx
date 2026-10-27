@@ -25,7 +25,6 @@ function EditContacts() {
 
     const [newsletterOptIn, setNewsletterOptIn] = useState(false);
 
-    const [customerStatus, setCustomerStatus] = useState("");
     const [customerRating, setCustomerRating] = useState(0);
 
     const [source, setSource] = useState("");
@@ -63,7 +62,6 @@ function EditContacts() {
 
             setNewsletterOptIn(data.customer.newsletterOptIn);
 
-            setCustomerStatus(data.customer.customerStatus);
             setCustomerRating(data.customer.customerRating);
 
             setSource(data.customer.source);
@@ -111,7 +109,6 @@ function EditContacts() {
             phoneLandline,
             preferredContact,
             newsletterOptIn,
-            customerStatus,
             customerRating,
             source,
             notes,
@@ -233,16 +230,6 @@ return (
                             </div>
 
                             <div className="-mx-3 flex flex-wrap">
-                                <div className="w-full px-3 sm:w-1/2">
-
-                                    <div className="mb-5">
-                                        <input type="text" name="customerStatus" id="customerStatus"
-                                            placeholder="Customer Status" value={customerStatus} onChange={(e)=>
-                                        setCustomerStatus(e.target.value)}
-                                        className="w-full rounded-md border border-[#e0e0e0] bg-white py-3 px-6
-                                        text-base font-medium text-[#6B7280] outline-none focus:border-[#6A64F1]
-                                        focus:shadow-md" /></div>
-                                </div>
                                 <div className="w-full px-3 sm:w-1/2">
 
                                     <div className="mb-5">
