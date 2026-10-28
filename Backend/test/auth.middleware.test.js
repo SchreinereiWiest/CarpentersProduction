@@ -82,10 +82,15 @@ test("requireFeature lässt nur explizit lizenzierte Module passieren", () => {
     assert.equal(deniedResponse.payload.error, "LICENSE_FEATURE_MISSING");
 });
 
-test("Projektzugriff erlaubt Benutzern alle aktiven Projekte", () => {
+test("Projektzugriff erlaubt Benutzern aktive und selbst angelegte inaktive Projekte", () => {
     assert.deepEqual(
         projectAccessWhere({ id: "user-id", role: "user" }),
-        { status: "active" }
+        {
+            OR: [
+                { status: "active" },
+                { createdById: "user-id" }
+            ]
+        }
     );
 });
 
@@ -169,6 +174,11 @@ test("Dateizugriff folgt dem Status des zugehörigen Projekts", () => {
         ...baseFile,
         project: { status: "inactive", deletedAt: null }
     }), false);
+
+    assert.equal(canAccessFile(user, {
+        ...baseFile,
+        project: { status: "inactive", deletedAt: null, createdById: user.id }
+    }), true);
 
     assert.equal(canAccessFile(user, {
         ...baseFile,

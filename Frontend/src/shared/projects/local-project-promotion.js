@@ -74,10 +74,7 @@ const createOrUpdateServerProject = async (project, customerId) => {
             customerId,
             title: project.title,
             description: project.description,
-            // Während der Übertragung muss das Projekt auch für Benutzer
-            // sichtbar bleiben, die nur aktive Projekte bearbeiten dürfen.
-            // Der gewünschte Endstatus wird erst nach allen Uploads gesetzt.
-            status: "active"
+            status: "inactive"
         }, {
             withCredentials: true
         });
@@ -96,7 +93,7 @@ const createOrUpdateServerProject = async (project, customerId) => {
             customerId,
             title: project.title,
             description: project.description,
-            status: "active"
+            status: "inactive"
         });
         return data;
     } catch (error) {
@@ -110,7 +107,7 @@ const createOrUpdateServerProject = async (project, customerId) => {
             customerId,
             title: project.title,
             description: project.description,
-            status: "active"
+            status: "inactive"
         }, {
             withCredentials: true
         });

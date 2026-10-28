@@ -54,7 +54,8 @@ const TENANT_DELEGATES = new Set([
     "managementPayment",
     "managementAsset",
     "managementLoan",
-    "managementRepayment"
+    "managementRepayment",
+    "calendarEvent"
 ]);
 
 const READ_WITH_WHERE = new Set([

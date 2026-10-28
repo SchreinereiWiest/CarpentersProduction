@@ -7,7 +7,12 @@ const missing = (res, resource) => res.status(404).json({ message: `${resource} 
 
 export const projectAccessWhere = user => isPrivileged(user)
     ? {}
-    : { status: "active" };
+    : {
+        OR: [
+            { status: "active" },
+            { createdById: user?.id }
+        ]
+    };
 
 export const authorizeProject = (parameter = "id") => async (req, res, next) => {
     const project = await prisma.project.findFirst({
@@ -77,7 +82,10 @@ export const canAccessFile = (user, file, { allowSharedShop = false } = {}) => {
     if (allowSharedShop && file.category === "shop") return true;
 
     if (file.project) {
-        return file.project.status === "active" && !file.project.deletedAt;
+        return !file.project.deletedAt && (
+            file.project.status === "active"
+            || file.project.createdById === user.id
+        );
     }
 
     return file.uploadedById === user.id
@@ -94,7 +102,7 @@ export const authorizeFile = (parameter = "id", options = {}) => async (req, res
             id: true,
             category: true,
             uploadedById: true,
-            project: { select: { status: true, deletedAt: true } },
+            project: { select: { status: true, deletedAt: true, createdById: true } },
             customer: { select: { createdById: true } }
         }
     });

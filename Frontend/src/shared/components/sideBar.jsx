@@ -133,7 +133,7 @@ return (
         </ProtectedElement>
 
         <ProtectedElement requiredRole="user" requiredFeature="work-preparation">
-            <Link to="/" aria-label="Planung" title="Planung" className={SideBarCollapsed ? selected===4
+            <Link to="/Calendar" aria-label="Kalender" title="Kalender" className={SideBarCollapsed ? selected===4
                 ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : selected===4
@@ -148,7 +148,7 @@ return (
                         d="M6.75 2.25A.75.75 0 0 1 7.5 3v1.5h9V3A.75.75 0 0 1 18 3v1.5h.75a3 3 0 0 1 3 3v11.25a3 3 0 0 1-3 3H5.25a3 3 0 0 1-3-3V7.5a3 3 0 0 1 3-3H6V3a.75.75 0 0 1 .75-.75Zm13.5 9a1.5 1.5 0 0 0-1.5-1.5H5.25a1.5 1.5 0 0 0-1.5 1.5v7.5a1.5 1.5 0 0 0 1.5 1.5h13.5a1.5 1.5 0 0 0 1.5-1.5v-7.5Z"
                         clipRule="evenodd" />
                 </svg>
-                <span className={SideBarCollapsed ? "hidden" : "pl-2 block" }>Planung</span>
+                <span className={SideBarCollapsed ? "hidden" : "pl-2 block" }>Kalender</span>
             </Link>
         </ProtectedElement>
 

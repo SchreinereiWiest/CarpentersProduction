@@ -18,6 +18,7 @@ import userRoutes from "./modules/users/user.routes.js";
 import storageAdminRoutes from "./modules/storage-admin/storage-admin.routes.js";
 import measurementOcrRoutes from "./modules/measurement-ocr/measurement-ocr.routes.js";
 import measurementOcrInternalRoutes from "./modules/measurement-ocr/measurement-ocr.internal.routes.js";
+import calendarRoutes from "./modules/calendar/calendar.routes.js";
 
 export function createApp() {
   const app = express();
@@ -58,6 +59,7 @@ export function createApp() {
   app.use("/api/license", licenseRoutes);
   app.use("/api/storage-admin", storageAdminRoutes);
   app.use("/api/measurement-ocr", measurementOcrRoutes);
+  app.use("/api/calendar", calendarRoutes);
 
   app.use((error, _req, res, _next) => {
     const status = Number(error?.statusCode) || 500;

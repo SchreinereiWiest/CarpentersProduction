@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router';
 import { useAuth } from '../../app/providers/AuthContext.js';
 import ProjectImportDialog from './import/ProjectImportDialog.jsx';
 import { getProjectRecords } from '../../shared/projects/project-records.js';
+import { formatGermanDate } from '../../shared/utils/date.js';
 
 function ProjectOverview() {
 
@@ -105,7 +106,7 @@ function ProjectOverview() {
                                     </td>
 
                                     <td data-label="Start" className="xl:py-4 py-3 px-6 truncate">
-                                        {project.startDate}
+                                        {formatGermanDate(project.startDate)}
                                     </td>
 
                                     <td data-label="Priorität" className="xl:py-4 py-3 px-6 truncate">

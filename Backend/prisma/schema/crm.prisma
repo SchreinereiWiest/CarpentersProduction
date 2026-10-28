@@ -86,7 +86,7 @@ model Project {
   description String?
 
   projectType String? @map("project_type")
-  status      String  @default("active")
+  status      String  @default("inactive")
   priority    String  @default("normal")
 
   estimatedValue Float? @map("estimated_value")
@@ -112,6 +112,7 @@ model Project {
   calculationSnapshots   CalculationSnapshot[]
   measurementPrintRuns   MeasurementPrintRun[]
   measurementScans       MeasurementScan[]
+  calendarEvents         CalendarEvent[]
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")

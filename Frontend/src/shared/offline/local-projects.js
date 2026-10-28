@@ -23,9 +23,9 @@ const normalizeProject = project => ({
     customer: null,
     title: project.title || "Neues Projekt",
     description: project.description ?? "",
-    status: project.status ?? "active",
+    status: project.status ?? "inactive",
     priority: project.priority ?? "normal",
-    startDate: project.startDate ?? new Date().toISOString(),
+    startDate: project.startDate ?? null,
     files: Array.isArray(project.files) ? project.files : [],
     ...project,
     localOnly: true
@@ -45,7 +45,7 @@ export const createLocalProject = async ({
     id = createUuid(),
     title = "Neues Projekt",
     description = "",
-    status = "active",
+    status = "inactive",
     files = []
 } = {}) => {
     const project = normalizeProject({

@@ -46,7 +46,7 @@ services:
       - carpenters-network
       - carpenters-proxy
  
-  backendjs:
+  carpenters-backend:
     build:
       context: ./Backend
       dockerfile: Dockerfile
@@ -119,7 +119,7 @@ services:
     depends_on:
       carpenters-valkey:
         condition: service_healthy
-      backendjs:
+      carpenters-backend:
         condition: service_started
     networks:
       - carpenters-network

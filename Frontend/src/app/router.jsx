@@ -36,6 +36,7 @@ import ManagementSetup from "../features/management/setup/setup.jsx";
 import { ManagementDocuments } from "../features/management/documents/documents.jsx";
 import ProtectedRoute from "./routing/ProtectedRoute.jsx";
 import PublicRoute from "./routing/PublicRoute.jsx";
+import CalendarPage from "../features/calendar/CalendarPage.jsx";
 
 function LegacyCadRedirect() {
   const { projectId } = useParams();
@@ -71,6 +72,7 @@ export default function AppRouter() {
           </Route>
 
           <Route path="/Projects" element={protectedPage(<ProjectOverviewPage />, "user", ["work-preparation"])} />
+          <Route path="/Calendar" element={protectedPage(<CalendarPage />, "user", ["work-preparation"])} />
           <Route path="/Projects/:projectId" element={protectedPage(<ProjectHomePage />, "user", ["work-preparation"])} />
           <Route path="/Projects/Aufmas/:projectId" element={protectedPage(<MeasurementPage />, "user", ["work-preparation"])} />
           <Route path="/Projects/CAD/:projectId" element={protectedPage(<LegacyCadRedirect />, "user", ["work-preparation"])} />

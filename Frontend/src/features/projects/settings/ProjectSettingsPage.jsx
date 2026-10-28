@@ -63,7 +63,7 @@ export default function ProjectSettings() {
 
         setProjectDescription(project.description ?? "");
 
-        setProjectState(project.status ?? "active");
+        setProjectState(project.status ?? "inactive");
 
         setProjectFiles(project.files ?? []);
 

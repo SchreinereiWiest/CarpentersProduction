@@ -274,7 +274,7 @@ describe('Projektanlage im Frontend', () => {
       expect.objectContaining({
         id: result.projectId,
         customerId: 'customer-1',
-        status: 'active',
+        status: 'inactive',
       }),
       { withCredentials: true },
     );

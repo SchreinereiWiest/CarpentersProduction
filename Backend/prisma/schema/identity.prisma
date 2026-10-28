@@ -16,6 +16,7 @@ model Tenant {
   shopConfiguration    ShopConfiguration?
   calculationSnapshots CalculationSnapshot[]
   secrets              TenantSecret[]
+  calendarEvents       CalendarEvent[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -109,6 +110,8 @@ model User {
   tenantBackups                TenantBackup[]
   measurementPrintRuns         MeasurementPrintRun[] @relation("MeasurementPrintRunCreatedBy")
   measurementScans             MeasurementScan[]     @relation("MeasurementScanUploadedBy")
+  calendarEventsOwned          CalendarEvent[]       @relation("CalendarEventOwner")
+  calendarEventsCreated        CalendarEvent[]       @relation("CalendarEventCreatedBy")
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
