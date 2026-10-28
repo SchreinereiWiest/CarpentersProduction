@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router";
 import SideBar from "../../shared/components/sideBar.jsx";
 import { useAuth } from "../../app/providers/AuthContext.js";
 import CalendarEventForm from "./components/CalendarEventForm.jsx";
@@ -22,9 +23,16 @@ const initialFilters = Object.fromEntries(CALENDAR_TYPES.map(item => [item.key, 
 
 export default function CalendarPage() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   const admin = user?.role === "admin";
-  const [view, setView] = useState("week");
-  const [focusDate, setFocusDate] = useState(() => new Date());
+  const [view, setView] = useState(() => {
+    const requested = searchParams.get("view");
+    return ["day", "week", "month"].includes(requested) ? requested : "week";
+  });
+  const [focusDate, setFocusDate] = useState(() => {
+    const requested = new Date(searchParams.get("date") || "");
+    return Number.isNaN(requested.getTime()) ? new Date() : requested;
+  });
   const [events, setEvents] = useState([]);
   const [projects, setProjects] = useState([]);
   const [filters, setFilters] = useState(initialFilters);

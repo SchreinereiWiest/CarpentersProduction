@@ -37,6 +37,7 @@ import { ManagementDocuments } from "../features/management/documents/documents.
 import ProtectedRoute from "./routing/ProtectedRoute.jsx";
 import PublicRoute from "./routing/PublicRoute.jsx";
 import CalendarPage from "../features/calendar/CalendarPage.jsx";
+import CustomerCrmPage from "../features/customers/pages/CustomerCrmPage.jsx";
 
 function LegacyCadRedirect() {
   const { projectId } = useParams();
@@ -97,6 +98,7 @@ export default function AppRouter() {
           <Route path="/Kontakte" element={protectedPage(<ContactsPage />, "admin", ["crm"])} />
           <Route path="/Kontakte/new" element={protectedPage(<NewContactPage />, "admin", ["crm"])} />
           <Route path="/Kontakte/info/:userid" element={protectedPage(<ContactDetailsPage />, "admin", ["crm"])} />
+          <Route path="/Kontakte/info/:userid/crm" element={protectedPage(<CustomerCrmPage />, "admin", ["crm"])} />
           <Route path="/Kontakte/edit/:userid" element={protectedPage(<EditContactPage />, "admin", ["crm"])} />
           <Route path="/Kontakte/NewProject/:userId" element={protectedPage(<CabinetEditorPage />, "admin", ["crm", "work-preparation"])} />
 

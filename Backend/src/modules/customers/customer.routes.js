@@ -4,6 +4,15 @@ import {
   newcustomer, getCustomers, getCustomerInfo, updateCustomer, searchCustomers
 } from "./customer.controller.js";
 import { authenticate, authorizeRoles, requireFeature } from "../../middleware/auth.middleware.js";
+import {
+  createAppointment,
+  createCommunication,
+  deleteAppointment,
+  deleteCommunication,
+  getCustomerCrm,
+  updateAppointment,
+  updateCommunication
+} from "./customer-crm.controller.js";
 
 const router = express.Router();
 router.use(authenticate);
@@ -21,5 +30,13 @@ router.get("/all", authorizeRoles("admin", "manager"), getCustomers);
 router.get("/get/:id", authorizeRoles("admin", "manager"), getCustomerInfo);
 
 router.post("/update/:id", authorizeRoles("admin", "manager"), updateCustomer);
+
+router.get("/crm/:id", authorizeRoles("admin", "manager"), getCustomerCrm);
+router.post("/crm/:id/communications", authorizeRoles("admin", "manager"), createCommunication);
+router.put("/crm/:id/communications/:communicationId", authorizeRoles("admin", "manager"), updateCommunication);
+router.delete("/crm/:id/communications/:communicationId", authorizeRoles("admin", "manager"), deleteCommunication);
+router.post("/crm/:id/appointments", authorizeRoles("admin", "manager"), createAppointment);
+router.put("/crm/:id/appointments/:appointmentId", authorizeRoles("admin", "manager"), updateAppointment);
+router.delete("/crm/:id/appointments/:appointmentId", authorizeRoles("admin", "manager"), deleteAppointment);
 
 export default router;
