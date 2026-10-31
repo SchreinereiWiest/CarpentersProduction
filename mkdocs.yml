@@ -60,6 +60,7 @@ nav:
       - Routing & Authentifizierung: frontend/routing-auth.md
       - State, API & Cache: frontend/state-data.md
       - Seiten & Komponenten: frontend/pages-components.md
+      - UI-/UX-Konzept: frontend/ui-ux-concept.md
       - Projektmodule: frontend/project-modules.md
       - Management & Betriebskalkulation: frontend/management.md
       - Funktionsreferenz: frontend/functions.md

@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import {
     loadProcurementCatalog,
     loadShopSettings,
-    saveShopSettings
+    saveShopSettings,
+    uploadSupplierDatanorm
 } from "../../purchasing/procurementApi.js";
 import {
     createSupplierId,
@@ -17,12 +18,19 @@ const COLOR_LABELS = {
     gray: "Grau"
 };
 
+const PROCUREMENT_TYPES = [
+    { value: "", label: "Kein Fetch-Plugin" },
+    { value: "datanorm", label: "DATANORM" },
+    { value: "haefele-browser-extension", label: "Häfele (Firefox-Erweiterung)" }
+];
+
 export default function ShopSettingsPanel() {
     const [config, setConfig] = useState(() => normalizeShopSettings(null));
     const [articles, setArticles] = useState([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState(null);
+    const [datanormFiles, setDatanormFiles] = useState({});
 
     useEffect(() => {
         let active = true;
@@ -76,38 +84,73 @@ export default function ShopSettingsPanel() {
         setMessage(null);
     };
 
+    const updateSupplierPlugin = (id, type) => {
+        setConfig(current => ({
+            ...current,
+            suppliers: current.suppliers.map(supplier => supplier.id === id
+                ? {
+                    ...supplier,
+                    procurementType: type || null,
+                    datanormArticleCount: supplier.procurementType === type
+                        ? supplier.datanormArticleCount
+                        : 0
+                }
+                : supplier)
+        }));
+        setMessage(null);
+    };
+
     const removeSupplier = id => {
         setConfig(current => ({
             ...current,
             suppliers: current.suppliers.filter(supplier => supplier.id !== id)
         }));
+        setDatanormFiles(current => {
+            const next = { ...current };
+            delete next[id];
+            return next;
+        });
         setMessage(null);
     };
 
     const save = async () => {
-        setSaving(true);
         setMessage(null);
+
+        const activeSuppliers = config.suppliers
+            .map(supplier => ({
+                id: supplier.id,
+                name: supplier.name.trim(),
+                externalId: supplier.externalId.trim(),
+                procurementType: supplier.procurementType || null
+            }))
+            .filter(supplier => supplier.name);
+        setSaving(true);
 
         try {
             const payload = {
                 ...config,
                 edgeWastePercentage: Math.max(0, Number(config.edgeWastePercentage) || 0),
-                suppliers: config.suppliers
-                    .map(supplier => ({
-                        ...supplier,
-                        name: supplier.name.trim(),
-                        externalId: supplier.externalId.trim()
-                    }))
-                    .filter(supplier => supplier.name),
+                suppliers: activeSuppliers,
                 version: 1,
                 updatedAt: new Date().toISOString()
             };
             await saveShopSettings(payload);
-            setConfig(payload);
-            setMessage({ type: "success", text: "Shop-Einstellungen wurden gespeichert." });
+            const pendingImports = activeSuppliers.filter(supplier => datanormFiles[supplier.id]?.length > 0);
+            for (const supplier of pendingImports) {
+                await uploadSupplierDatanorm(supplier.id, datanormFiles[supplier.id]);
+            }
+            const refreshed = normalizeShopSettings(await loadShopSettings());
+            setConfig(refreshed);
+            setDatanormFiles({});
+            setMessage({
+                type: "success",
+                text: pendingImports.length > 0
+                    ? "Shop-Einstellungen und DATANORM-Daten wurden gespeichert."
+                    : "Shop-Einstellungen wurden gespeichert."
+            });
         } catch (error) {
-            console.error("Shop-Einstellungen konnten nicht gespeichert werden", error);
-            setMessage({ type: "error", text: "Die Shop-Zuordnungen konnten nicht gespeichert werden." });
+            console.error("Shop-Einstellungen konnten nicht gespeichert werden", error?.response?.status || "request-failed");
+            setMessage({ type: "error", text: error?.response?.data?.error || "Die Shop-Zuordnungen konnten nicht gespeichert werden." });
         } finally {
             setSaving(false);
         }
@@ -200,8 +243,9 @@ export default function ShopSettingsPanel() {
                     ) : (
                         <div className="divide-y divide-gray-700">
                             {config.suppliers.map(supplier => (
-                                <div key={supplier.id} className="grid gap-3 px-5 py-4 md:grid-cols-[minmax(220px,1fr)_minmax(220px,1fr)_auto]">
-                                    <label>
+                                <div key={supplier.id} className="space-y-4 px-5 py-4">
+                                    <div className="grid gap-3 md:grid-cols-[minmax(180px,1fr)_minmax(180px,1fr)_minmax(210px,1fr)_auto]">
+                                        <label>
                                         <span className="mb-1.5 block text-xs uppercase tracking-wide text-gray-500">Name</span>
                                         <input
                                             value={supplier.name}
@@ -209,25 +253,66 @@ export default function ShopSettingsPanel() {
                                             placeholder="z. B. Häfele"
                                             className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
                                         />
-                                    </label>
-                                    <label>
-                                        <span className="mb-1.5 block text-xs uppercase tracking-wide text-gray-500">Kunden-/Lieferantenkennung</span>
+                                        </label>
+                                        <label>
+                                        <span className="mb-1.5 block text-xs uppercase tracking-wide text-gray-500">Interne Lieferantenkennung</span>
                                         <input
                                             value={supplier.externalId}
                                             onChange={event => updateSupplier(supplier.id, "externalId", event.target.value)}
-                                            placeholder="Optional"
+                                            placeholder="Optional, keine Zugangsdaten"
                                             className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
                                         />
-                                    </label>
-                                    <button
+                                        </label>
+                                        <label>
+                                        <span className="mb-1.5 block text-xs uppercase tracking-wide text-gray-500">Shop-Fetch-Plugin</span>
+                                        <select
+                                            value={supplier.procurementType || ""}
+                                            onChange={event => updateSupplierPlugin(supplier.id, event.target.value)}
+                                            className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+                                        >
+                                            {PROCUREMENT_TYPES.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                                        </select>
+                                        </label>
+                                        <button
                                         type="button"
                                         onClick={() => removeSupplier(supplier.id)}
                                         className="self-end rounded-lg p-2.5 text-gray-500 hover:bg-gray-700 hover:text-red-400"
                                         aria-label={`${supplier.name || "Lieferant"} entfernen`}
                                         title="Lieferant entfernen"
-                                    >
+                                        >
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="size-5" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M6 7h12m-9 0V5h6v2m-7 0 1 13h6l1-13" /></svg>
-                                    </button>
+                                        </button>
+                                    </div>
+
+                                    {supplier.procurementType === "datanorm" && (
+                                        <div className="rounded-lg border border-gray-700 bg-gray-900/60 p-4">
+                                            <div className="flex flex-wrap items-start justify-between gap-3">
+                                                <div>
+                                                    <p className="text-sm font-semibold text-gray-200">DATANORM 4/5</p>
+                                                    <p className="mt-1 max-w-2xl text-xs text-gray-500">DATANORM-Datei oder Händler-ZIP auswählen. Beim Speichern ersetzt der Import nur den Datenbestand dieses Lieferanten; die Originaldatei wird nicht aufbewahrt.</p>
+                                                </div>
+                                                <span className="rounded-full bg-blue-950 px-2.5 py-1 text-xs font-medium text-blue-300">{supplier.datanormArticleCount || 0} Artikel importiert</span>
+                                            </div>
+                                            <label className="mt-4 block">
+                                                <span className="mb-1.5 block text-xs uppercase tracking-wide text-gray-500">DATANORM-Datei</span>
+                                                <input
+                                                    type="file"
+                                                    multiple
+                                                    accept=".zip,.001,.002,.003,.004,.005,.dat,.txt,.rab,.wrg"
+                                                    onChange={event => setDatanormFiles(current => ({ ...current, [supplier.id]: [...(event.target.files || [])] }))}
+                                                    className="block w-full rounded-lg border border-gray-600 bg-gray-950 px-3 py-2 text-sm text-gray-300 file:mr-4 file:rounded file:border-0 file:bg-blue-600 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white"
+                                                />
+                                                {datanormFiles[supplier.id]?.length > 0 && <span className="mt-1.5 block text-xs text-emerald-400">Wird beim Speichern importiert: {datanormFiles[supplier.id].map(file => file.name).join(", ")}</span>}
+                                            </label>
+                                        </div>
+                                    )}
+
+                                    {supplier.procurementType === "haefele-browser-extension" && (
+                                        <div className="rounded-lg border border-gray-700 bg-gray-900/60 p-4">
+                                            <p className="text-sm font-semibold text-gray-200">Häfele Firefox-Erweiterung</p>
+                                            <p className="mt-1 max-w-3xl text-xs leading-5 text-gray-500">Die Erweiterung aus <code>Plugins/haefele-firefox-extension</code> wird einmal in Firefox geladen. Beim Shop-Fetch öffnet sie Häfele im normalen Browserprofil. Login, Cookies und eine mögliche Cloudflare-Prüfung bleiben dort und werden nie an CarpentersProduction übertragen.</p>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>

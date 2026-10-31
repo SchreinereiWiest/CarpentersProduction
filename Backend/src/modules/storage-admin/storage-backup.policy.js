@@ -18,10 +18,12 @@ export const BACKUP_TABLES = Object.freeze([
     "files",
     "project_storage",
     "suppliers",
+    "supplier_catalog_articles",
     "materials",
     "shop_configurations",
     "shop_article_groups",
     "shop_articles",
+    "shop_catalog_entries",
     "shop_hardware_mappings",
     "time_entries",
     "calculation_snapshots",
@@ -40,8 +42,10 @@ export const BACKUP_TABLES = Object.freeze([
 export const SHOP_BACKUP_TABLES = Object.freeze([
     "shop_configurations",
     "suppliers",
+    "supplier_catalog_articles",
     "shop_article_groups",
     "shop_articles",
+    "shop_catalog_entries",
     "shop_hardware_mappings"
 ]);
 
@@ -59,6 +63,8 @@ export function prepareShopRestore(database, tenantId) {
     const supplierIds = idMap(source.suppliers);
     const groupIds = idMap(source.shop_article_groups);
     const articleIds = idMap(source.shop_articles);
+    const catalogEntryIds = idMap(source.shop_catalog_entries || []);
+    const supplierCatalogArticleIds = idMap(source.supplier_catalog_articles || []);
     const mappingIds = idMap(source.shop_hardware_mappings);
 
     return {
@@ -67,6 +73,12 @@ export function prepareShopRestore(database, tenantId) {
             ...row,
             id: supplierIds.get(row.id),
             tenant_id: tenantId
+        })),
+        supplier_catalog_articles: (source.supplier_catalog_articles || []).map(row => ({
+            ...row,
+            id: supplierCatalogArticleIds.get(row.id),
+            tenant_id: tenantId,
+            supplier_id: supplierIds.get(row.supplier_id)
         })),
         shop_article_groups: source.shop_article_groups.map(row => ({
             ...row,
@@ -83,6 +95,13 @@ export function prepareShopRestore(database, tenantId) {
             // Ursprungstenant können vorhandene Bilder erneut verknüpft werden;
             // in einem anderen Tenant wäre dieselbe ID dagegen verwaist.
             image_file_id: preserveIds ? row.image_file_id || null : null
+        })),
+        shop_catalog_entries: (source.shop_catalog_entries || []).map(row => ({
+            ...row,
+            id: catalogEntryIds.get(row.id),
+            tenant_id: tenantId,
+            supplier_id: row.supplier_id ? supplierIds.get(row.supplier_id) || null : null,
+            shop_article_id: row.shop_article_id ? articleIds.get(row.shop_article_id) || null : null
         })),
         shop_hardware_mappings: source.shop_hardware_mappings.map(row => ({
             ...row,

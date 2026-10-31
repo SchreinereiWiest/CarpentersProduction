@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "CarpentersProduction Häfele Fetch",
+  "version": "1.1.2",
+  "description": "Prüft, verknüpft und bearbeitet Häfele-Artikel im angemeldeten Firefox-Profil für CarpentersProduction.",
+  "permissions": ["tabs", "storage", "activeTab", "scripting"],
+  "host_permissions": ["https://www.haefele.de/*"],
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "action": {
+    "default_title": "Häfele-Sidebar öffnen"
+  },
+  "sidebar_action": {
+    "default_title": "Carpenters · Häfele",
+    "default_panel": "sidebar/sidebar.html",
+    "open_at_install": false
+  },
+  "commands": {
+    "_execute_sidebar_action": {
+      "suggested_key": {
+        "default": "Alt+Shift+H"
+      }
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*/Purchasing*"],
+      "js": ["app-bridge.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://www.haefele.de/*"],
+      "js": ["haefele-page.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "haefele-fetch@carpenters-production.local",
+      "strict_min_version": "128.0"
+    }
+  }
+}

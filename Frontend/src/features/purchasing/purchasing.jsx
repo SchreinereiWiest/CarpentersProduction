@@ -18,6 +18,7 @@ import {
     deleteArticleArchiveEntry,
     deletePurchaseList,
     loadArticleArchive,
+    loadArticleCatalog,
     loadNonProjectPurchases,
     loadPurchaseLists,
     loadProcurementCatalog,
@@ -27,10 +28,13 @@ import {
     processNonProjectPurchases,
     releasePurchaseList,
     saveProcurementCatalog,
+    saveArticleCatalog,
     saveProjectProcurement,
     updateArticleArchiveEntry,
     updatePurchaseList,
-    uploadShopImage
+    uploadShopImage,
+    fetchArticleCatalogShopData,
+    saveBrowserExtensionResults
 } from "./procurementApi.js";
 import {
     ArticleModal,
@@ -45,6 +49,9 @@ import {
     PurchaseListModal,
     PurchaseListsView
 } from "./purchasingExtensions.jsx";
+import ArticleCatalogView from "./articleCatalog.jsx";
+import { formatShopFetchFailures } from "./shopFetchReport.js";
+import { fetchWithHaefeleFirefoxExtension } from "./haefeleFirefoxExtension.js";
 
 const money = new Intl.NumberFormat("de-DE", {
     style: "currency",
@@ -323,6 +330,7 @@ export default function Purchasing() {
     const [purchasedGroups, setPurchasedGroups] = useState([]);
     const [articles, setArticles] = useState([]);
     const [articleGroups, setArticleGroups] = useState([]);
+    const [articleCatalogEntries, setArticleCatalogEntries] = useState([]);
     const [suppliers, setSuppliers] = useState([]);
     const [purchaseLists, setPurchaseLists] = useState([]);
     const [archiveEntries, setArchiveEntries] = useState([]);
@@ -338,6 +346,8 @@ export default function Purchasing() {
     const [openGroupId, setOpenGroupId] = useState(null);
     const [loading, setLoading] = useState(true);
     const [catalogSaving, setCatalogSaving] = useState(false);
+    const [articleCatalogSaving, setArticleCatalogSaving] = useState(false);
+    const [fetchingShopData, setFetchingShopData] = useState(false);
     const [addingArticleId, setAddingArticleId] = useState(null);
     const [selectedReleaseKeys, setSelectedReleaseKeys] = useState(() => new Set());
     const [processingAction, setProcessingAction] = useState(null);
@@ -359,9 +369,10 @@ export default function Purchasing() {
             setError("");
 
             try {
-                const [projectResponse, catalogResponse, settingsResponse, loadedLists, loadedArchive, nonProjectReleased, nonProjectPurchased] = await Promise.all([
+                const [projectResponse, catalogResponse, articleCatalogResponse, settingsResponse, loadedLists, loadedArchive, nonProjectReleased, nonProjectPurchased] = await Promise.all([
                     axios.get("/api/projects/getAll"),
                     loadProcurementCatalog(),
+                    loadArticleCatalog(),
                     loadShopSettings(),
                     loadPurchaseLists(),
                     loadArticleArchive(),
@@ -410,6 +421,7 @@ export default function Purchasing() {
                 setSelectedProjectId(loadedProjects[0]?.id || "");
                 setArticles(normalizedCatalog.articles);
                 setArticleGroups(normalizedCatalog.groups);
+                setArticleCatalogEntries(Array.isArray(articleCatalogResponse?.entries) ? articleCatalogResponse.entries : []);
                 setSuppliers(normalizedSettings.suppliers);
                 setPurchaseLists(loadedLists);
                 setArchiveEntries(loadedArchive);
@@ -508,12 +520,114 @@ export default function Purchasing() {
         setError("");
         try {
             await saveProcurementCatalog(createCatalogPayload(articles, articleGroups));
+            const refreshedArticleCatalog = await loadArticleCatalog();
+            setArticleCatalogEntries(Array.isArray(refreshedArticleCatalog?.entries) ? refreshedArticleCatalog.entries : []);
             setMessage("Shop-Katalog wurde gespeichert.");
         } catch (saveError) {
             console.error("Katalog konnte nicht gespeichert werden", saveError);
             setError("Der Shop-Katalog konnte nicht gespeichert werden.");
         } finally {
             setCatalogSaving(false);
+        }
+    };
+
+    const addArticleCatalogEntry = () => {
+        setArticleCatalogEntries(current => [...current, {
+            id: createArticleId(),
+            sku: "",
+            name: "",
+            supplierId: suppliers[0]?.id || null,
+            shopArticleId: null,
+            origin: "manual"
+        }]);
+        setMessage("Neuer Katalogeintrag angelegt. Zum Abschließen bitte speichern.");
+    };
+
+    const updateArticleCatalogEntry = (id, field, value) => {
+        setArticleCatalogEntries(current => current.map(entry => entry.id === id
+            ? { ...entry, [field]: value }
+            : entry));
+    };
+
+    const removeArticleCatalogEntry = id => {
+        setArticleCatalogEntries(current => current.filter(entry => entry.id !== id));
+        setMessage("Manueller Katalogeintrag entfernt. Zum Abschließen bitte speichern.");
+    };
+
+    const persistArticleCatalog = async ({ quiet = false } = {}) => {
+        const invalid = articleCatalogEntries.some(entry => !entry.sku.trim() || !entry.name.trim());
+        if (invalid) {
+            setError("Bitte für jeden Katalogeintrag Artikelnummer und Bezeichnung angeben.");
+            return null;
+        }
+        setArticleCatalogSaving(true);
+        setError("");
+        try {
+            const saved = await saveArticleCatalog(articleCatalogEntries);
+            const nextEntries = Array.isArray(saved?.entries) ? saved.entries : [];
+            setArticleCatalogEntries(nextEntries);
+            if (!quiet) setMessage("Katalog wurde gespeichert.");
+            return nextEntries;
+        } catch (saveError) {
+            console.error("Artikelkatalog konnte nicht gespeichert werden", saveError);
+            setError("Der Katalog konnte nicht gespeichert werden.");
+            return null;
+        } finally {
+            setArticleCatalogSaving(false);
+        }
+    };
+
+    const fetchShopData = async () => {
+        if (fetchingShopData) return;
+        setFetchingShopData(true);
+        setMessage("");
+        setError("");
+        try {
+            const saved = await persistArticleCatalog({ quiet: true });
+            if (!saved) return;
+            const serverReport = await fetchArticleCatalogShopData();
+            const haefeleSupplierIds = new Set(
+                suppliers
+                    .filter(supplier => supplier.procurementType === "haefele-browser-extension")
+                    .map(supplier => supplier.id)
+            );
+            const haefeleEntries = saved.filter(entry => haefeleSupplierIds.has(entry.supplierId));
+            let browserReport = { updated: 0, created: 0, failed: 0, results: [] };
+            let browserError = "";
+            if (haefeleEntries.length > 0) {
+                try {
+                    setMessage(`Häfele: 0 von ${haefeleEntries.length} Artikeln verarbeitet. Bitte im geöffneten Firefox-Tab anmelden, falls erforderlich.`);
+                    const browserResults = await fetchWithHaefeleFirefoxExtension(
+                        haefeleEntries,
+                        progress => setMessage(progress)
+                    );
+                    browserReport = await saveBrowserExtensionResults(browserResults);
+                } catch (extensionError) {
+                    browserError = extensionError.message;
+                }
+            }
+            const report = {
+                updated: serverReport.updated + browserReport.updated,
+                created: serverReport.created + browserReport.created,
+                failed: serverReport.failed + browserReport.failed,
+                results: [...(serverReport.results || []), ...(browserReport.results || [])]
+            };
+            const [catalogResponse, articleCatalogResponse] = await Promise.all([
+                loadProcurementCatalog(),
+                loadArticleCatalog()
+            ]);
+            const normalizedCatalog = normalizeCatalog(catalogResponse);
+            setArticles(normalizedCatalog.articles);
+            setArticleGroups(normalizedCatalog.groups);
+            setArticleCatalogEntries(Array.isArray(articleCatalogResponse?.entries) ? articleCatalogResponse.entries : []);
+            setMessage(`${report.updated} Artikel aktualisiert, ${report.created} neu im internen Shop angelegt.`);
+            const fetchFailure = report.failed > 0 ? formatShopFetchFailures(report, suppliers) : "";
+            setError([fetchFailure, browserError && `Häfele: ${browserError}`].filter(Boolean).join(" · "));
+        } catch (fetchError) {
+            console.error("Shop-Daten konnten nicht geladen werden", fetchError);
+            setError("Die Shop-Daten konnten nicht geladen werden.");
+        } finally {
+            setFetchingShopData(false);
         }
     };
 
@@ -807,12 +921,25 @@ export default function Purchasing() {
                         )}
                     </div>
 
-                    <div className="mt-7 flex overflow-x-auto border-b border-gray-700">
-                        <button type="button" onClick={() => setActiveTab("released")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "released" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Freigegebene Artikel</button>
-                        <button type="button" onClick={() => setActiveTab("shop")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "shop" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Interner Shop</button>
-                        <button type="button" onClick={() => setActiveTab("purchased")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "purchased" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Gekaufte Artikel</button>
-                        <button type="button" onClick={() => setActiveTab("lists")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "lists" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Listen</button>
-                        <button type="button" onClick={() => setActiveTab("archive")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "archive" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Archiv</button>
+                    <div className="mt-7 flex border-b border-gray-700">
+                        <div className="flex min-w-0 flex-1 overflow-x-auto [&>button]:shrink-0 [&>button]:whitespace-nowrap">
+                            <button type="button" onClick={() => setActiveTab("released")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "released" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Freigegebene Artikel</button>
+                            <button type="button" onClick={() => setActiveTab("shop")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "shop" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Interner Shop</button>
+                            <button type="button" onClick={() => setActiveTab("catalog")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "catalog" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Katalog</button>
+                            <button type="button" onClick={() => setActiveTab("purchased")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "purchased" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Gekaufte Artikel</button>
+                            <button type="button" onClick={() => setActiveTab("lists")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "lists" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Listen</button>
+                            <button type="button" onClick={() => setActiveTab("archive")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "archive" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Archiv</button>
+                        </div>
+                        {canEdit && (
+                            <button
+                                type="button"
+                                onClick={fetchShopData}
+                                disabled={fetchingShopData || articleCatalogSaving || loading}
+                                className="shrink-0 whitespace-nowrap border-b-2 border-transparent px-5 py-3 font-semibold text-blue-300 hover:bg-blue-950/30 hover:text-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {fetchingShopData ? "Shop-Daten werden geladen …" : "Shop-Daten fetchen"}
+                            </button>
+                        )}
                     </div>
 
                     {message && <div className="mt-5 rounded-lg border border-emerald-800 bg-emerald-950/40 px-4 py-3 text-emerald-300">{message}</div>}
@@ -851,6 +978,33 @@ export default function Purchasing() {
                                     </div>
                                 </div>
                                 <ReleasedPurchases groups={releasedGroups} suppliers={suppliers} view={releasedView} loading={loading} selectedKeys={selectedReleaseKeys} processing={Boolean(processingAction)} onToggle={toggleReleasedSelection} />
+                            </>
+                        ) : activeTab === "catalog" ? (
+                            <>
+                                <div className="mb-6 flex flex-wrap items-end justify-between gap-4 rounded-xl border border-gray-700 bg-gray-800 p-4">
+                                    <label className="min-w-64 flex-1">
+                                        <span className="mb-1.5 block text-xs uppercase tracking-wide text-gray-500">Katalog durchsuchen</span>
+                                        <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Artikelnummer, Bezeichnung oder Lieferant" className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 outline-none focus:border-blue-500" />
+                                    </label>
+                                    {canEdit && (
+                                        <div className="flex flex-wrap gap-2">
+                                            <button type="button" onClick={addArticleCatalogEntry} className="rounded-lg border border-gray-600 px-4 py-2 text-gray-200 hover:bg-gray-700">+ Artikel</button>
+                                            <button type="button" onClick={() => persistArticleCatalog()} disabled={articleCatalogSaving} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold hover:bg-blue-500 disabled:opacity-50">{articleCatalogSaving ? "Speichert …" : "Katalog speichern"}</button>
+                                        </div>
+                                    )}
+                                </div>
+                                {loading ? (
+                                    <div className="rounded-xl border border-gray-700 bg-gray-800 p-10 text-center text-gray-400">Katalog wird geladen …</div>
+                                ) : (
+                                    <ArticleCatalogView
+                                        entries={articleCatalogEntries}
+                                        suppliers={suppliers}
+                                        search={search}
+                                        canEdit={canEdit}
+                                        onChange={updateArticleCatalogEntry}
+                                        onRemove={removeArticleCatalogEntry}
+                                    />
+                                )}
                             </>
                         ) : activeTab === "purchased" ? (
                             <PurchasedHistory groups={purchasedGroups} suppliers={suppliers} loading={loading} />

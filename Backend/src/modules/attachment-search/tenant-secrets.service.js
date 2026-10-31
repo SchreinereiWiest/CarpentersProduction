@@ -8,7 +8,7 @@ const KEY_VERSION = 1;
 
 function configurationError() {
     return Object.assign(
-        new Error("AI_SECRET_ENCRYPTION_KEY ist nicht korrekt konfiguriert."),
+        new Error("Der Tenant-Secret-Master-Schlüssel ist nicht korrekt konfiguriert."),
         { statusCode: 503, code: "AI_SECRET_ENCRYPTION_UNAVAILABLE" }
     );
 }
@@ -39,7 +39,7 @@ export function encryptTenantSecret(plaintext, { tenantId, name, key = loadSecre
 
 export function decryptTenantSecret(secret, { tenantId, name, key = loadSecretEncryptionKey() }) {
     if (secret.keyVersion !== KEY_VERSION) {
-        throw Object.assign(new Error("Die Version des verschlüsselten AI-Secrets wird nicht unterstützt."), { statusCode: 503, code: "AI_SECRET_VERSION_UNSUPPORTED" });
+        throw Object.assign(new Error("Die Version des verschlüsselten Tenant-Secrets wird nicht unterstützt."), { statusCode: 503, code: "AI_SECRET_VERSION_UNSUPPORTED" });
     }
     try {
         const decipher = crypto.createDecipheriv("aes-256-gcm", key, Buffer.from(secret.iv, "base64"));
@@ -50,7 +50,7 @@ export function decryptTenantSecret(secret, { tenantId, name, key = loadSecretEn
             decipher.final()
         ]).toString("utf-8");
     } catch {
-        throw Object.assign(new Error("Das gespeicherte AI-Secret konnte nicht entschlüsselt werden."), { statusCode: 503, code: "AI_SECRET_DECRYPTION_FAILED" });
+        throw Object.assign(new Error("Das gespeicherte Tenant-Secret konnte nicht entschlüsselt werden."), { statusCode: 503, code: "AI_SECRET_DECRYPTION_FAILED" });
     }
 }
 

@@ -13,6 +13,14 @@ const shopSnapshot = tenantId => ({
     tables: {
         shop_configurations: [{ tenant_id: tenantId, edge_waste_percentage: 10 }],
         suppliers: [{ id: "supplier-source", tenant_id: tenantId, name: "Beschlaghandel" }],
+        supplier_catalog_articles: [{
+            id: "supplier-catalog-source",
+            tenant_id: tenantId,
+            supplier_id: "supplier-source",
+            sku: "123",
+            normalized_sku: "123",
+            name: "Topfband"
+        }],
         shop_article_groups: [{ id: "group-source", tenant_id: tenantId, name: "Beschläge" }],
         shop_articles: [{
             id: "article-source",
@@ -21,6 +29,15 @@ const shopSnapshot = tenantId => ({
             supplier_id: "supplier-source",
             group_id: "group-source",
             image_file_id: "file-source"
+        }],
+        shop_catalog_entries: [{
+            id: "catalog-source",
+            tenant_id: tenantId,
+            sku: "123",
+            name: "Topfband",
+            supplier_id: "supplier-source",
+            shop_article_id: "article-source",
+            origin: "shop"
         }],
         shop_hardware_mappings: [{
             id: "mapping-source",
@@ -34,7 +51,7 @@ const shopSnapshot = tenantId => ({
 
 test("Shop-Backups enthalten ausschließlich freigegebene Shop-Stammdatentabellen", () => {
     assert.deepEqual(backupTables(SHOP_DATABASE_BACKUP), SHOP_BACKUP_TABLES);
-    for (const forbidden of ["customers", "customer_addresses", "projects", "files", "audit_logs"]) {
+    for (const forbidden of ["tenant_secrets", "customers", "customer_addresses", "projects", "files", "audit_logs"]) {
         assert.equal(SHOP_BACKUP_TABLES.includes(forbidden), false);
     }
 });
@@ -42,17 +59,23 @@ test("Shop-Backups enthalten ausschließlich freigegebene Shop-Stammdatentabelle
 test("Ein tenantübergreifender Shop-Import ordnet IDs und Relationen neu zu", () => {
     const restored = prepareShopRestore(shopSnapshot("tenant-source"), "tenant-target");
     const supplier = restored.suppliers[0];
+    const supplierCatalogArticle = restored.supplier_catalog_articles[0];
     const group = restored.shop_article_groups[0];
     const article = restored.shop_articles[0];
+    const catalogEntry = restored.shop_catalog_entries[0];
     const mapping = restored.shop_hardware_mappings[0];
 
     assert.notEqual(supplier.id, "supplier-source");
+    assert.notEqual(supplierCatalogArticle.id, "supplier-catalog-source");
+    assert.equal(supplierCatalogArticle.supplier_id, supplier.id);
     assert.notEqual(group.id, "group-source");
     assert.notEqual(article.id, "article-source");
     assert.equal(article.tenant_id, "tenant-target");
     assert.equal(article.supplier_id, supplier.id);
     assert.equal(article.group_id, group.id);
     assert.equal(article.image_file_id, null);
+    assert.equal(catalogEntry.supplier_id, supplier.id);
+    assert.equal(catalogEntry.shop_article_id, article.id);
     assert.equal(mapping.article_id, article.id);
 });
 
@@ -60,8 +83,10 @@ test("Beim Restore im Ursprungstenant bleiben Katalog-IDs stabil", () => {
     const restored = prepareShopRestore(shopSnapshot("tenant-source"), "tenant-source");
 
     assert.equal(restored.suppliers[0].id, "supplier-source");
+    assert.equal(restored.supplier_catalog_articles[0].id, "supplier-catalog-source");
     assert.equal(restored.shop_article_groups[0].id, "group-source");
     assert.equal(restored.shop_articles[0].id, "article-source");
+    assert.equal(restored.shop_catalog_entries[0].id, "catalog-source");
     assert.equal(restored.shop_hardware_mappings[0].id, "mapping-source");
     assert.equal(restored.shop_articles[0].image_file_id, "file-source");
 });

@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Carpenters · Häfele</title>
+    <link rel="stylesheet" href="sidebar.css">
+</head>
+<body>
+    <header class="app-header">
+        <div class="brand-mark" aria-hidden="true">H</div>
+        <div class="brand-copy">
+            <strong>Häfele Fetch</strong>
+            <span>CarpentersProduction</span>
+        </div>
+        <button id="open-shop" class="icon-button" type="button" title="Häfele-Tab öffnen" aria-label="Häfele-Tab öffnen">↗</button>
+    </header>
+
+    <main>
+        <div id="notice" class="notice" hidden></div>
+
+        <section class="panel settings-panel" aria-labelledby="workflow-title">
+            <div class="section-heading compact">
+                <div>
+                    <span class="eyebrow">Arbeitsweise</span>
+                    <h2 id="workflow-title">Kontrollierte Übertragung</h2>
+                </div>
+                <label class="switch" title="Ergebnisse vor der Übertragung prüfen">
+                    <input id="review-setting" type="checkbox">
+                    <span aria-hidden="true"></span>
+                </label>
+            </div>
+            <p class="muted">Treffer bleiben zur Bearbeitung in dieser Sidebar, bis du sie freigibst.</p>
+        </section>
+
+        <section id="empty-state" class="empty-state">
+            <div class="empty-icon" aria-hidden="true">⌕</div>
+            <h1>Noch kein Abruf</h1>
+            <p>Öffne in CarpentersProduction den Katalog und starte „Shop-Daten fetchen“.</p>
+            <button id="empty-open-shop" class="secondary-button" type="button">Häfele öffnen</button>
+        </section>
+
+        <section id="job-panel" hidden>
+            <article class="panel progress-panel">
+                <div class="status-row">
+                    <span id="job-status" class="status-badge">Bereit</span>
+                    <span id="job-count" class="count-label">0 / 0</span>
+                </div>
+                <div class="progress-track" aria-hidden="true"><span id="progress-bar"></span></div>
+                <p id="job-message" class="job-message"></p>
+            </article>
+
+            <article id="current-card" class="panel current-card">
+                <span class="eyebrow">Aktueller Artikel</span>
+                <h2 id="current-sku">–</h2>
+                <p id="current-name" class="muted">–</p>
+                <div class="button-grid">
+                    <button id="pause-resume" class="primary-button" type="button">Pausieren</button>
+                    <button id="skip-current" class="secondary-button" type="button">Überspringen</button>
+                </div>
+            </article>
+
+            <div class="section-heading">
+                <div>
+                    <span class="eyebrow">Prüfliste</span>
+                    <h2>Ergebnisse</h2>
+                </div>
+            </div>
+            <div id="result-list" class="result-list"></div>
+
+            <article class="panel editor-panel">
+                <div class="section-heading compact">
+                    <div>
+                        <span class="eyebrow">Manuelle Korrektur</span>
+                        <h2>Produktdaten & Verknüpfung</h2>
+                    </div>
+                </div>
+
+                <label class="field">
+                    <span>Katalogartikel</span>
+                    <select id="editor-entry"></select>
+                </label>
+                <div class="button-grid single">
+                    <button id="capture-page" class="capture-button" type="button">Aktuelle Häfele-Seite einlesen</button>
+                </div>
+
+                <label class="field">
+                    <span>Verknüpfte Häfele-Artikelnummer</span>
+                    <input id="editor-target-sku" type="text" maxlength="120" placeholder="Artikelnummer auf der Häfele-Seite">
+                </label>
+                <label class="field">
+                    <span>Produkt-URL</span>
+                    <input id="editor-product-url" type="url" maxlength="2048" placeholder="https://www.haefele.de/…">
+                </label>
+                <label class="field">
+                    <span>Name</span>
+                    <input id="editor-name" type="text" maxlength="500" required>
+                </label>
+                <label class="field">
+                    <span>Beschreibung</span>
+                    <textarea id="editor-description" rows="5" maxlength="20000"></textarea>
+                </label>
+                <div class="field-pair">
+                    <label class="field">
+                        <span>Nettopreis</span>
+                        <input id="editor-price" type="number" min="0" step="0.01" inputmode="decimal">
+                    </label>
+                    <label class="field">
+                        <span>Einheit</span>
+                        <input id="editor-unit" type="text" maxlength="50" value="Stk.">
+                    </label>
+                </div>
+                <label class="field">
+                    <span>Bild-URL</span>
+                    <input id="editor-image" type="url" maxlength="2048" placeholder="https://…">
+                </label>
+                <button id="save-manual" class="primary-button full" type="button">Daten und Verknüpfung übernehmen</button>
+            </article>
+
+            <article id="submit-panel" class="panel submit-panel">
+                <div>
+                    <strong>Prüfung abschließen</strong>
+                    <p id="submit-hint" class="muted">Alle Artikel benötigen ein Ergebnis.</p>
+                </div>
+                <button id="submit-job" class="success-button full" type="button">An Anwendung übertragen</button>
+                <button id="cancel-job" class="text-button danger" type="button">Abruf abbrechen</button>
+            </article>
+        </section>
+
+        <section class="mapping-section" aria-labelledby="mapping-title">
+            <div class="section-heading">
+                <div>
+                    <span class="eyebrow">Firefox-Profil</span>
+                    <h2 id="mapping-title">Gespeicherte Verknüpfungen</h2>
+                </div>
+                <span id="mapping-count" class="count-pill">0</span>
+            </div>
+            <p class="muted mapping-copy">Verknüpfungen steuern künftige Suchen und bleiben nur in diesem Firefox-Profil.</p>
+            <div id="mapping-list" class="mapping-list"></div>
+        </section>
+    </main>
+
+    <footer>Erweiterung 1.1.2 · Zugangsdaten und Cookies bleiben in Firefox</footer>
+    <script src="sidebar.js"></script>
+</body>
+</html>

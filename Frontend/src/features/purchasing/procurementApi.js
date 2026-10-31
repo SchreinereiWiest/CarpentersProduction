@@ -45,6 +45,26 @@ export const saveProcurementCatalog = async payload => {
     return response.data;
 };
 
+export const loadArticleCatalog = async () => {
+    const response = await axios.get("/api/shop/article-catalog");
+    return response.data ?? { version: 1, entries: [] };
+};
+
+export const saveArticleCatalog = async entries => {
+    const response = await axios.put("/api/shop/article-catalog", { version: 1, entries });
+    return response.data;
+};
+
+export const fetchArticleCatalogShopData = async () => {
+    const response = await axios.post("/api/shop/article-catalog/fetch");
+    return response.data;
+};
+
+export const saveBrowserExtensionResults = async results => {
+    const response = await axios.post("/api/shop/article-catalog/browser-results", { results });
+    return response.data;
+};
+
 export const loadShopSettings = async () => {
     try {
         const response = await axios.get("/api/shop/settings");
@@ -57,6 +77,13 @@ export const loadShopSettings = async () => {
 
 export const saveShopSettings = async payload => {
     const response = await axios.put("/api/shop/settings", payload);
+    return response.data;
+};
+
+export const uploadSupplierDatanorm = async (supplierId, files) => {
+    const formData = new FormData();
+    for (const file of files) formData.append("files", file);
+    const response = await axios.post(`/api/shop/settings/suppliers/${supplierId}/datanorm`, formData);
     return response.data;
 };
 

@@ -1,5 +1,6 @@
 import prisma from "../../infrastructure/database/prisma.js";
 import { getTenantId } from "../../infrastructure/database/tenant-context.js";
+import { SHOP_FETCH_TYPES } from "./shop-fetch/types.js";
 
 const LEGRABOX_VARIANTS = ["M", "K", "C", "L"];
 const LEGRABOX_COLORS = ["white", "gray"];
@@ -121,7 +122,10 @@ const readCatalog = async () => {
 
 const readSettings = async () => {
     const [suppliers, mappings, configuration] = await Promise.all([
-        prisma.supplier.findMany({ orderBy: { name: "asc" } }),
+        prisma.supplier.findMany({
+            orderBy: { name: "asc" },
+            include: { _count: { select: { datanormArticles: true } } }
+        }),
         prisma.shopHardwareMapping.findMany(),
         prisma.shopConfiguration.findFirst()
     ]);
@@ -145,7 +149,7 @@ const readSettings = async () => {
             name: supplier.name,
             externalId: supplier.externalId || "",
             procurementType: supplier.procurementType || null,
-            procurementConfig: supplier.procurementConfig || null
+            datanormArticleCount: supplier._count.datanormArticles
         })),
         legraboxArticleIds
     };
@@ -278,7 +282,11 @@ export const saveShopSettings = async (req, res) => {
         return res.status(400).json({ error: "Edge waste percentage must be between 0 and 1000" });
     }
 
-    if (suppliers.some(supplier => !UUID_PATTERN.test(supplier?.id || "") || !String(supplier?.name || "").trim())) {
+    if (suppliers.some(supplier => (
+        !UUID_PATTERN.test(supplier?.id || "") ||
+        !String(supplier?.name || "").trim() ||
+        supplier?.procurementType && !SHOP_FETCH_TYPES.has(supplier.procurementType)
+    ))) {
         return res.status(400).json({ error: "Every supplier needs a UUID and a name" });
     }
 
@@ -305,8 +313,7 @@ export const saveShopSettings = async (req, res) => {
                 const data = {
                     name: String(supplier.name).trim(),
                     externalId: cleanOptionalString(supplier.externalId),
-                    procurementType: cleanOptionalString(supplier.procurementType),
-                    procurementConfig: supplier.procurementConfig ?? undefined
+                    procurementType: cleanOptionalString(supplier.procurementType)
                 };
                 await transaction.supplier.upsert({
                     where: { id: supplier.id },

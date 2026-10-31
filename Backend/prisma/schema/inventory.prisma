@@ -61,15 +61,17 @@ model Supplier {
   name       String
   externalId String? @map("external_id")
 
-  // Für spätere IDS-Connect-/E-Procurement-Adapter. Zugangsdaten gehören nicht in dieses JSON.
-  procurementType   String? @map("procurement_type")
-  procurementConfig Json?   @map("procurement_config")
+  // Die Plugin-Auswahl ist nicht geheim. Sämtliche Fetch-Konfigurationen und
+  // Zugangsdaten liegen verschlüsselt und write-only in TenantSecret.
+  procurementType String? @map("procurement_type")
 
   articles               ShopArticle[]
+  catalogEntries         ShopCatalogEntry[]
+  datanormArticles       SupplierCatalogArticle[]
   archivedArticleOptions ShopArticleArchive[]
   nonProjectPurchases    NonProjectPurchase[]
-  materials              Material[]           @relation("MaterialPlateSupplier")
-  edgeMaterials          Material[]           @relation("MaterialEdgeSupplier")
+  materials              Material[]               @relation("MaterialPlateSupplier")
+  edgeMaterials          Material[]               @relation("MaterialEdgeSupplier")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -79,13 +81,44 @@ model Supplier {
   @@map("suppliers")
 }
 
+// Normalisierter, austauschbarer Händlerdatenbestand. DATANORM-Dateien werden
+// beim Import auf dieses kleine Format reduziert; Originaldateien und
+// Zugangsdaten werden nicht gespeichert.
+model SupplierCatalogArticle {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  supplierId String   @map("supplier_id") @db.Uuid
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  sku           String
+  normalizedSku String   @map("normalized_sku")
+  name          String
+  description   String?
+  unit          String?
+  netPrice      Decimal? @map("net_price") @db.Decimal(12, 2)
+  imageUrl      String?  @map("image_url")
+  sourceVersion String?  @map("source_version")
+  sourceFile    String?  @map("source_file")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, supplierId, sku])
+  @@unique([tenantId, supplierId, normalizedSku])
+  @@unique([tenantId, id])
+  @@index([supplierId, sku])
+  @@map("supplier_catalog_articles")
+}
+
 model ShopArticleGroup {
   id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   tenantId String @map("tenant_id") @db.Uuid
 
   name        String
   description String?
-  imageUrl    String? @map("image_url")
+  imageUrl    String?       @map("image_url")
   articles    ShopArticle[]
 
   createdAt DateTime @default(now()) @map("created_at")
@@ -121,6 +154,7 @@ model ShopArticle {
   purchaseListItems   PurchaseListItem[]
   archivedOptions     ShopArticleArchive[]
   nonProjectPurchases NonProjectPurchase[]
+  catalogEntry        ShopCatalogEntry?
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -132,6 +166,33 @@ model ShopArticle {
   @@index([supplierId])
   @@index([groupId])
   @@map("shop_articles")
+}
+
+// Schlanker Recherchekatalog. Er bleibt bewusst vom internen Shop getrennt:
+// Manuelle Einträge erzeugen erst beim expliziten Händler-Fetch einen Artikel.
+model ShopCatalogEntry {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  sku  String
+  name String
+
+  supplierId String?   @map("supplier_id") @db.Uuid
+  supplier   Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+
+  shopArticleId String?      @unique(map: "shop_catalog_entries_shop_article_id_key") @map("shop_article_id") @db.Uuid
+  shopArticle   ShopArticle? @relation(fields: [shopArticleId], references: [id], onDelete: SetNull)
+
+  origin String @default("manual")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, id])
+  @@index([supplierId, sku])
+  @@index([name])
+  @@map("shop_catalog_entries")
 }
 
 model PurchaseList {

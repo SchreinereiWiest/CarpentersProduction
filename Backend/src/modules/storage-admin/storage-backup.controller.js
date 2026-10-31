@@ -42,10 +42,12 @@ const RESTORE_ORDER = [
     "files",
     "project_storage",
     "suppliers",
+    "supplier_catalog_articles",
     "materials",
     "shop_configurations",
     "shop_article_groups",
     "shop_articles",
+    "shop_catalog_entries",
     "shop_hardware_mappings",
     "time_entries",
     "calculation_snapshots",
@@ -288,7 +290,10 @@ function validateArchive(manifest, database, expectedType = null) {
     if (backupType !== SHOP_DATABASE_BACKUP && manifest.tenantId !== tenantId) {
         throw new Error("Das Backup gehört zu einem anderen Unternehmen");
     }
-    const requiredTables = backupTables(backupType);
+    // Vor Einführung des schlanken Artikelkatalogs erstellte V1-Backups
+    // bleiben importierbar; für sie wird die neue Tabelle leer ergänzt.
+    const optionalV1Tables = new Set(["shop_catalog_entries", "supplier_catalog_articles"]);
+    const requiredTables = backupTables(backupType).filter(table => !optionalV1Tables.has(table));
     if (!database.tables || requiredTables.some(table => !Array.isArray(database.tables[table]))) {
         throw new Error("Der Datenbank-Snapshot ist unvollständig");
     }
@@ -323,6 +328,8 @@ async function replaceTenantDatabase(database, req, backupType, { validateOnly =
         // Ein Restore auf einer anderen Storage-Konfiguration soll die lokale
         // Bucket-/Endpoint-Konfiguration verwenden, nicht Werte aus dem Archiv.
         tables = {
+            shop_catalog_entries: [],
+            supplier_catalog_articles: [],
             ...database.tables,
             s3_objects: database.tables.s3_objects.map(object => ({
                 ...object,
@@ -335,7 +342,7 @@ async function replaceTenantDatabase(database, req, backupType, { validateOnly =
 
     await prisma.$transaction(async transaction => {
         if (backupType === SHOP_DATABASE_BACKUP) {
-            for (const table of ["shop_hardware_mappings", "shop_articles", "shop_article_groups", "shop_configurations"]) {
+            for (const table of ["shop_hardware_mappings", "shop_catalog_entries", "supplier_catalog_articles", "shop_articles", "shop_article_groups", "shop_configurations"]) {
                 await transaction.$executeRawUnsafe(`DELETE FROM "${table}" WHERE tenant_id = $1::uuid`, tenantId);
             }
             for (const table of SHOP_BACKUP_TABLES) {
@@ -348,7 +355,6 @@ async function replaceTenantDatabase(database, req, backupType, { validateOnly =
                            "name" = EXCLUDED."name",
                            "external_id" = EXCLUDED."external_id",
                            "procurement_type" = EXCLUDED."procurement_type",
-                           "procurement_config" = EXCLUDED."procurement_config",
                            "updated_at" = EXCLUDED."updated_at"`,
                         JSON.stringify(rows)
                     );
