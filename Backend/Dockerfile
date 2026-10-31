@@ -20,11 +20,14 @@ RUN pnpm install
 # Prisma
 COPY prisma ./prisma
 COPY prisma.config.ts ./prisma.config.ts
-RUN pnpm exec prisma generate
 
 # Application
 COPY --from=engine . /Engine
 COPY . .
+
+# Generate after copying the application so a locally generated, stale client
+# can never overwrite the client that belongs to the copied Prisma schema.
+RUN pnpm exec prisma generate
 
 EXPOSE 5000
 

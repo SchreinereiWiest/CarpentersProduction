@@ -21,18 +21,20 @@ describe("project calculation engine", () => {
       materialSurchargePercent: 10,
       hours: 10,
       hourlyRate: 60,
+      profitPercent: 20,
       cashDiscountPercent: 2,
       customerDiscountPercent: 5,
       vatPercent: 19
     })).toMatchObject({
       materialCosts: 1100,
       laborCosts: 600,
-      cashSellingPrice: 1700,
-      cashDiscountAmount: 34.69,
-      targetSellingPrice: 1734.69,
-      customerDiscountAmount: 91.3,
-      netSellingPrice: 1825.99,
-      grossSellingPrice: 2172.93
+      profitAmount: 340,
+      cashSellingPrice: 2040,
+      cashDiscountAmount: 41.63,
+      targetSellingPrice: 2081.63,
+      customerDiscountAmount: 109.56,
+      netSellingPrice: 2191.19,
+      grossSellingPrice: 2607.52
     });
   });
 
@@ -44,14 +46,16 @@ describe("project calculation engine", () => {
         { id: "workshop", name: "Werkstatt", hours: 5, hourlyRate: 80 },
         { id: "assembly", name: "Montage", hours: 2, hourlyRate: 70 }
       ],
-      administrationOverheadPercent: 10
+      administrationOverheadPercent: 10,
+      profitPercent: 20
     })).toMatchObject({
       materialCosts: 1000,
       productionLaborCosts: 540,
       productionCosts: 1540,
       administrationOverheadAmount: 154,
       manufacturingCosts: 1694,
-      grossSellingPrice: 2015.86
+      profitAmount: 338.8,
+      grossSellingPrice: 2419.03
     });
   });
 

@@ -53,6 +53,7 @@ describe("CalculationView", () => {
     expect(await screen.findByRole("heading", { name: "Testprojekt" })).toBeInTheDocument();
     expect(screen.getAllByDisplayValue("100").length).toBeGreaterThan(0);
     expect(screen.getByDisplayValue("60")).toBeInTheDocument();
+    expect(screen.getByRole("spinbutton", { name: "Gewinnzuschlag" })).toHaveValue(20);
     expect(screen.getByText("Gewichteter Mittelwert aus 2 Mitarbeitern; jederzeit editierbar")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Preisaufbau" })).toBeInTheDocument();
     expect(screen.queryByRole("spinbutton", { name: /h \/ Stück/ })).not.toBeInTheDocument();
@@ -78,6 +79,7 @@ describe("CalculationView", () => {
     fireEvent.click(screen.getByRole("button", { name: "Aufgeschlüsselt in Vollkalkulation" }));
     expect(screen.getByRole("tab", { name: "Vollkalkulation" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByLabelText("Stunden Werkstatt")).toHaveValue(4);
+    expect(screen.getByRole("spinbutton", { name: "Gewinnzuschlag" })).toHaveValue(20);
 
     fireEvent.click(screen.getByRole("tab", { name: "Nachkalkulation" }));
     await waitFor(() => expect(screen.getByLabelText("Stunden Werkstatt")).toHaveValue(2));

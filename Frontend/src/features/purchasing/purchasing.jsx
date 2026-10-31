@@ -4,6 +4,7 @@ import SideBar from "../../shared/components/sideBar.jsx";
 import { useAuth } from "../../app/providers/AuthContext.js";
 import {
     addArticleToProcurement,
+    createArticleId,
     createCatalogPayload,
     createProcurementPayload,
     normalizeCatalog,
@@ -54,6 +55,23 @@ const dateTime = new Intl.DateTimeFormat("de-DE", {
     dateStyle: "medium",
     timeStyle: "short"
 });
+
+const SHOP_COLUMNS_STORAGE_KEY = "purchasing.shopColumns";
+const SHOP_GRID_CLASSES = {
+    1: "grid-cols-1",
+    2: "grid-cols-1 lg:grid-cols-2",
+    3: "grid-cols-1 md:grid-cols-2 2xl:grid-cols-3",
+    4: "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
+};
+
+const loadShopColumns = () => {
+    try {
+        const columns = Number(window.localStorage.getItem(SHOP_COLUMNS_STORAGE_KEY));
+        return [1, 2, 3, 4].includes(columns) ? columns : 4;
+    } catch {
+        return 4;
+    }
+};
 
 const getSupplierName = (item, suppliers) => (
     suppliers.find(supplier => supplier.id === item.supplierId)?.name ||
@@ -311,6 +329,7 @@ export default function Purchasing() {
     const [imageUrls, setImageUrls] = useState({});
     const [selectedProjectId, setSelectedProjectId] = useState("");
     const [search, setSearch] = useState("");
+    const [shopColumns, setShopColumns] = useState(loadShopColumns);
     const [editMode, setEditMode] = useState(false);
     const [editingArticle, setEditingArticle] = useState(null);
     const [showArticleModal, setShowArticleModal] = useState(false);
@@ -439,12 +458,21 @@ export default function Purchasing() {
     const releaseKeys = releasedGroups.flatMap(group => group.items.map(item => `${group.project.id}:${item.sourceKey}`));
     const allReleasedSelected = releaseKeys.length > 0 && releaseKeys.every(key => selectedReleaseKeys.has(key));
 
+    const changeShopColumns = columns => {
+        setShopColumns(columns);
+        try {
+            window.localStorage.setItem(SHOP_COLUMNS_STORAGE_KEY, String(columns));
+        } catch {
+            // Die Ansicht bleibt für die aktuelle Sitzung aktiv, wenn lokaler Speicher gesperrt ist.
+        }
+    };
+
     const upsertArticle = async (article, imageFile) => {
         let nextArticle = article;
 
         if (imageFile) {
             const fileEntry = await uploadShopImage(imageFile);
-            nextArticle = { ...article, imageFileId: fileEntry.id };
+            nextArticle = { ...article, imageFileId: fileEntry.id, imageUrl: "" };
             try {
                 const imageUrl = await loadShopImageUrl(fileEntry.id);
                 setImageUrls(current => ({ ...current, [fileEntry.id]: imageUrl }));
@@ -626,6 +654,24 @@ export default function Purchasing() {
     const deleteArticle = id => {
         setArticles(current => current.filter(item => item.id !== id));
         setMessage("Artikel entfernt. Zum Abschließen bitte den Katalog speichern.");
+    };
+
+    const duplicateArticle = article => {
+        const copy = {
+            ...article,
+            id: createArticleId(),
+            name: `${article.name} (Kopie)`
+        };
+        setArticles(current => {
+            const articleIndex = current.findIndex(item => item.id === article.id);
+            if (articleIndex < 0) return [...current, copy];
+            return [
+                ...current.slice(0, articleIndex + 1),
+                copy,
+                ...current.slice(articleIndex + 1)
+            ];
+        });
+        setMessage(`„${article.name}“ wurde dupliziert. Zum Abschließen bitte den Katalog speichern.`);
     };
 
     const deleteGroup = id => {
@@ -873,18 +919,39 @@ export default function Purchasing() {
                                         </label>
                                     </div>
 
-                                    {canEdit && (
-                                        <div className="flex gap-2">
-                                            <button type="button" onClick={() => setEditMode(current => !current)} className={`rounded-lg border px-4 py-2 font-medium ${editMode ? "border-amber-500 bg-amber-500/10 text-amber-300" : "border-gray-600 text-gray-300 hover:bg-gray-700"}`}>{editMode ? "Editiermodus aktiv" : "Editieren"}</button>
-                                            {editMode && (
-                                                <>
-                                                    <button type="button" onClick={() => { setEditingArticle(null); setShowArticleModal(true); }} className="rounded-lg border border-gray-600 px-4 py-2 text-gray-200 hover:bg-gray-700">+ Artikel</button>
-                                                    <button type="button" onClick={() => { setEditingGroup(null); setShowGroupModal(true); }} className="rounded-lg border border-gray-600 px-4 py-2 text-gray-200 hover:bg-gray-700">+ Gruppe</button>
-                                                    <button type="button" onClick={saveCatalog} disabled={catalogSaving} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold hover:bg-blue-500 disabled:opacity-50">{catalogSaving ? "Speichert …" : "Katalog speichern"}</button>
-                                                </>
-                                            )}
+                                    <div className="flex flex-wrap items-end gap-3">
+                                        <div>
+                                            <span className="mb-1.5 block text-xs uppercase tracking-wide text-gray-500">Spalten</span>
+                                            <div className="flex rounded-lg border border-gray-600 bg-gray-900 p-1" role="group" aria-label="Shop-Spalten">
+                                                {[4, 3, 2, 1].map(columns => (
+                                                    <button
+                                                        key={columns}
+                                                        type="button"
+                                                        onClick={() => changeShopColumns(columns)}
+                                                        aria-label={columns === 1 ? "1 Spalte (Listenansicht)" : `${columns} Spalten`}
+                                                        aria-pressed={shopColumns === columns}
+                                                        title={columns === 1 ? "Listenansicht" : `${columns} Spalten`}
+                                                        className={`h-8 min-w-8 rounded-md px-2 text-sm font-medium ${shopColumns === columns ? "bg-blue-600 text-white" : "text-gray-400 hover:bg-gray-700 hover:text-white"}`}
+                                                    >
+                                                        {columns}
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </div>
-                                    )}
+
+                                        {canEdit && (
+                                            <div className="flex flex-wrap gap-2">
+                                                <button type="button" onClick={() => setEditMode(current => !current)} className={`rounded-lg border px-4 py-2 font-medium ${editMode ? "border-amber-500 bg-amber-500/10 text-amber-300" : "border-gray-600 text-gray-300 hover:bg-gray-700"}`}>{editMode ? "Editiermodus aktiv" : "Editieren"}</button>
+                                                {editMode && (
+                                                    <>
+                                                        <button type="button" onClick={() => { setEditingArticle(null); setShowArticleModal(true); }} className="rounded-lg border border-gray-600 px-4 py-2 text-gray-200 hover:bg-gray-700">+ Artikel</button>
+                                                        <button type="button" onClick={() => { setEditingGroup(null); setShowGroupModal(true); }} className="rounded-lg border border-gray-600 px-4 py-2 text-gray-200 hover:bg-gray-700">+ Gruppe</button>
+                                                        <button type="button" onClick={saveCatalog} disabled={catalogSaving} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold hover:bg-blue-500 disabled:opacity-50">{catalogSaving ? "Speichert …" : "Katalog speichern"}</button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
 
                                 {loading ? (
@@ -894,13 +961,14 @@ export default function Purchasing() {
                                         {articles.length === 0 && articleGroups.length === 0 ? "Der Shop ist noch leer. Im Editiermodus kann der erste Artikel oder eine Gruppe angelegt werden." : "Keine passenden Artikel oder Gruppen gefunden."}
                                     </div>
                                 ) : (
-                                    <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                                    <div className={`mt-6 grid gap-3 ${SHOP_GRID_CLASSES[shopColumns]}`}>
                                         {shopEntries.groups.map(group => (
                                             <ShopGroup
                                                 key={group.id}
                                                 group={group}
                                                 articleCount={articles.filter(article => article.groupId === group.id).length}
                                                 editMode={editMode}
+                                                listView={shopColumns === 1}
                                                 onOpen={() => setOpenGroupId(group.id)}
                                                 onEdit={item => { setEditingGroup(item); setShowGroupModal(true); }}
                                                 onDelete={deleteGroup}
@@ -910,13 +978,15 @@ export default function Purchasing() {
                                             <ShopArticle
                                                 key={article.id}
                                                 article={article}
-                                                imageUrl={imageUrls[article.imageFileId]}
+                                                imageUrl={article.imageUrl || imageUrls[article.imageFileId]}
                                                 supplierName={suppliers.find(supplier => supplier.id === article.supplierId)?.name}
                                                 projectId={selectedProjectId}
                                                 editMode={editMode}
+                                                listView={shopColumns === 1}
                                                 adding={addingArticleId === article.id}
                                                 onAdd={addToProject}
                                                 onEdit={openArticleEditor}
+                                                onDuplicate={duplicateArticle}
                                                 onDelete={deleteArticle}
                                             />
                                         ))}
@@ -933,7 +1003,7 @@ export default function Purchasing() {
                     article={editingArticle}
                     groups={articleGroups}
                     suppliers={suppliers}
-                    imageUrl={imageUrls[editingArticle?.imageFileId]}
+                    imageUrl={editingArticle?.imageUrl || imageUrls[editingArticle?.imageFileId]}
                     onClose={() => { setShowArticleModal(false); setEditingArticle(null); }}
                     onSave={upsertArticle}
                 />
@@ -977,9 +1047,11 @@ export default function Purchasing() {
                     projectId={selectedProjectId}
                     editMode={editMode}
                     addingArticleId={addingArticleId}
+                    columns={shopColumns}
                     onClose={() => setOpenGroupId(null)}
                     onAdd={addToProject}
                     onEdit={openArticleEditor}
+                    onDuplicate={duplicateArticle}
                     onDelete={deleteArticle}
                 />
             )}

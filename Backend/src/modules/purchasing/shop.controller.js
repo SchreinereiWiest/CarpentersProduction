@@ -12,6 +12,34 @@ const cleanOptionalString = value => {
 
 const isUuidOrEmpty = value => !value || UUID_PATTERN.test(value);
 
+const normalizeCategoryList = value => {
+    const seen = new Set();
+    const categories = String(value ?? "")
+        .split(",")
+        .map(category => category.trim())
+        .filter(category => {
+            if (!category) return false;
+            const normalized = category.toLocaleLowerCase("de");
+            if (seen.has(normalized)) return false;
+            seen.add(normalized);
+            return true;
+        });
+    return categories.length > 0 ? categories.join(", ") : null;
+};
+
+const isHttpUrlOrEmpty = value => {
+    const text = String(value ?? "").trim();
+    if (!text) return true;
+    if (text.length > 2048) return false;
+
+    try {
+        const url = new URL(text);
+        return url.protocol === "http:" || url.protocol === "https:";
+    } catch {
+        return false;
+    }
+};
+
 const serializeArticle = article => ({
     id: article.id,
     name: article.name,
@@ -22,7 +50,8 @@ const serializeArticle = article => ({
     netPrice: Number(article.netPrice),
     supplierId: article.supplierId,
     groupId: article.groupId,
-    imageFileId: article.imageFileId
+    imageFileId: article.imageFileId,
+    imageUrl: article.imageUrl || ""
 });
 
 const serializeList = list => ({
@@ -84,7 +113,8 @@ const readCatalog = async () => {
         groups: groups.map(group => ({
             id: group.id,
             name: group.name,
-            description: group.description || ""
+            description: group.description || "",
+            imageUrl: group.imageUrl || ""
         }))
     };
 };
@@ -153,8 +183,12 @@ export const saveShopCatalog = async (req, res) => {
         return res.status(400).json({ error: "Articles and groups must be arrays" });
     }
 
-    if (groups.some(group => !UUID_PATTERN.test(group?.id || "") || !String(group?.name || "").trim())) {
-        return res.status(400).json({ error: "Every group needs a UUID and a name" });
+    if (groups.some(group => (
+        !UUID_PATTERN.test(group?.id || "") ||
+        !String(group?.name || "").trim() ||
+        !isHttpUrlOrEmpty(group?.imageUrl)
+    ))) {
+        return res.status(400).json({ error: "Invalid group data" });
     }
 
     if (articles.some(article => (
@@ -163,6 +197,7 @@ export const saveShopCatalog = async (req, res) => {
         !isUuidOrEmpty(article?.supplierId) ||
         !isUuidOrEmpty(article?.groupId) ||
         !isUuidOrEmpty(article?.imageFileId) ||
+        !isHttpUrlOrEmpty(article?.imageUrl) ||
         !Number.isFinite(Number(article?.netPrice)) ||
         Number(article.netPrice) < 0
     ))) {
@@ -174,7 +209,8 @@ export const saveShopCatalog = async (req, res) => {
             for (const group of groups) {
                 const data = {
                     name: String(group.name).trim(),
-                    description: cleanOptionalString(group.description)
+                    description: cleanOptionalString(group.description),
+                    imageUrl: cleanOptionalString(group.imageUrl)
                 };
                 await transaction.shopArticleGroup.upsert({
                     where: { id: group.id },
@@ -187,13 +223,14 @@ export const saveShopCatalog = async (req, res) => {
                 const data = {
                     name: String(article.name).trim(),
                     sku: cleanOptionalString(article.sku),
-                    category: cleanOptionalString(article.category),
+                    category: normalizeCategoryList(article.category),
                     description: cleanOptionalString(article.description),
                     unit: cleanOptionalString(article.unit) || "Stk.",
                     netPrice: Number(article.netPrice),
                     supplierId: article.supplierId || null,
                     groupId: article.groupId || null,
-                    imageFileId: article.imageFileId || null
+                    imageFileId: article.imageFileId || null,
+                    imageUrl: cleanOptionalString(article.imageUrl)
                 };
                 await transaction.shopArticle.upsert({
                     where: { id: article.id },

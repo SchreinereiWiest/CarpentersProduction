@@ -71,8 +71,10 @@ export function calculateQuick(input = {}) {
   const hours = nonNegativeNumber(input.hours);
   const hourlyRate = nonNegativeNumber(input.hourlyRate);
   const laborCosts = roundMoney(hours * hourlyRate);
+  const profitPercent = nonNegativeNumber(input.profitPercent);
+  const profitAmount = percentageAmount(materialCosts + laborCosts, profitPercent);
   const selling = calculateSellingPrice({
-    cashSellingPrice: materialCosts + laborCosts,
+    cashSellingPrice: materialCosts + laborCosts + profitAmount,
     cashDiscountPercent: input.cashDiscountPercent,
     customerDiscountPercent: input.customerDiscountPercent,
     vatPercent: input.vatPercent
@@ -86,6 +88,8 @@ export function calculateQuick(input = {}) {
     hours,
     hourlyRate,
     laborCosts,
+    profitPercent,
+    profitAmount,
     ...selling
   };
 }
@@ -120,8 +124,10 @@ export function calculateFull(input = {}) {
     administrationOverheadPercent
   );
   const manufacturingCosts = roundMoney(productionCosts + administrationOverheadAmount);
+  const profitPercent = nonNegativeNumber(input.profitPercent);
+  const profitAmount = percentageAmount(manufacturingCosts, profitPercent);
   const selling = calculateSellingPrice({
-    cashSellingPrice: manufacturingCosts,
+    cashSellingPrice: manufacturingCosts + profitAmount,
     cashDiscountPercent: input.cashDiscountPercent,
     customerDiscountPercent: input.customerDiscountPercent,
     vatPercent: input.vatPercent
@@ -137,6 +143,8 @@ export function calculateFull(input = {}) {
     administrationOverheadPercent,
     administrationOverheadAmount,
     manufacturingCosts,
+    profitPercent,
+    profitAmount,
     ...selling
   };
 }
