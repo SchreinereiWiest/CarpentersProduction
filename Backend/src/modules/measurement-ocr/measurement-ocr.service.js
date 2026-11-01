@@ -62,9 +62,9 @@ export async function enqueueMeasurementScan(scan) {
     mimeType: scanWithFile.file.mimeType,
     downloadUrl,
     resolveUrl: process.env.MEASUREMENT_OCR_RESOLVE_URL ||
-      "http://backendjs:5000/api/internal/measurement-ocr/resolve",
+      "http://carpenters-backend:5000/api/internal/measurement-ocr/resolve",
     callbackUrl: process.env.MEASUREMENT_OCR_CALLBACK_URL ||
-      "http://backendjs:5000/api/internal/measurement-ocr/result"
+      "http://carpenters-backend:5000/api/internal/measurement-ocr/result"
   });
   await prisma.measurementScan.update({
     where: { id: scanWithFile.id },

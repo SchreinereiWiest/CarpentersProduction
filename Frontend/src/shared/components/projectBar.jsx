@@ -2,12 +2,24 @@ import { Link } from "react-router";
 import { useParams } from 'react-router';
 import ProtectedElement from '../../app/routing/ProtectedElement.jsx';
 
-function ProjectBar({selected=0}) {
+function ProjectBar({selected=0, projectId: providedProjectId, onNavigate}) {
 
-    const { projectId } = useParams();
+    const { projectId: routeProjectId } = useParams();
+    const projectId = providedProjectId ?? routeProjectId;
+
+    const handleNavigation = event => {
+        if (!onNavigate) return;
+        const link = event.target.closest("a[href]");
+        if (!link) return;
+
+        const url = new URL(link.href, window.location.origin);
+        if (url.origin !== window.location.origin) return;
+        event.preventDefault();
+        onNavigate(`${url.pathname}${url.search}${url.hash}`);
+    };
 
 return (
-<nav aria-label="Projektnavigation" className="project-bar bg-gray-800 xl:h-20 h-16 w-full overflow-x-auto overflow-y-hidden">
+<nav aria-label="Projektnavigation" data-keybinding-target="project-bar" onClick={handleNavigation} className="project-bar bg-gray-800 xl:h-20 h-16 w-full overflow-x-auto overflow-y-hidden">
     <div className="project-bar__items relative flex w-max min-w-full xl:space-x-3 space-x-2 xl:p-3 p-2"
          >
 

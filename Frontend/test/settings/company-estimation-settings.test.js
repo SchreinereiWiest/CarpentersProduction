@@ -20,14 +20,20 @@ describe("company settings", () => {
         }
       }
     })).toMatchObject({
-      schemaVersion: 6,
+      schemaVersion: 7,
       userInterface: {
         showTips: true,
         lineLockThresholdCm: 5,
         measurementLabelSizePercent: 100,
         measurementLabelOffsetY: -30,
         measurementFormFieldWidthMm: 32,
-        measurementFormFieldHeightMm: 10
+        measurementFormFieldHeightMm: 10,
+        workspaceLayout: "single",
+        keybindings: {
+          sidebar: "Alt+1",
+          projectBar: "Alt+2",
+          apply: "Ctrl+Enter"
+        }
       },
       estimation: {
         candidatePoolSize: 500,
@@ -60,7 +66,13 @@ describe("company settings", () => {
       measurementLabelSizePercent: 100,
       measurementLabelOffsetY: -30,
       measurementFormFieldWidthMm: 32,
-      measurementFormFieldHeightMm: 10
+      measurementFormFieldHeightMm: 10,
+      workspaceLayout: "single",
+      keybindings: {
+        sidebar: "Alt+1",
+        projectBar: "Alt+2",
+        apply: "Ctrl+Enter"
+      }
     });
   });
 
@@ -92,5 +104,25 @@ describe("company settings", () => {
 
     expect(settings.userInterface.measurementFormFieldWidthMm).toBe(20);
     expect(settings.userInterface.measurementFormFieldHeightMm).toBe(14.5);
+  });
+
+  it("normalizes workspace layout and preserves configured keybindings", () => {
+    const settings = normalizeCompanySettings({
+      userInterface: {
+        workspaceLayout: "grid",
+        keybindings: {
+          sidebar: "Ctrl+B",
+          projectBar: "Ctrl+P",
+          apply: "Alt+Enter"
+        }
+      }
+    });
+
+    expect(settings.userInterface.workspaceLayout).toBe("grid");
+    expect(settings.userInterface.keybindings).toEqual({
+      sidebar: "Ctrl+B",
+      projectBar: "Ctrl+P",
+      apply: "Alt+Enter"
+    });
   });
 });

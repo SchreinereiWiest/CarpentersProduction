@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react'
 import { useApp } from '../../app/providers/AppContext.js';
 import { Link } from "react-router";
 import ProtectedElement from '../../app/routing/ProtectedElement.jsx';
+import { isWorkspacePane } from '../workspace/workspace-settings.js';
 
 
 
-function SideBar({selected=0}) {
+function SideBar({selected=0, onNavigate}) {
 
     const {SideBarCollapsed, setSideBarCollapsed} = useApp();
 
@@ -34,9 +35,24 @@ function SideBar({selected=0}) {
         }
     };
 
+    if (isWorkspacePane()) return null;
+
+    const handleNavigation = event => {
+        if (!onNavigate) return;
+        const link = event.target.closest("a[href]");
+        if (!link) return;
+
+        const url = new URL(link.href, window.location.origin);
+        if (url.origin !== window.location.origin) return;
+        event.preventDefault();
+        onNavigate(`${url.pathname}${url.search}${url.hash}`);
+    };
+
 return (
 <nav
     aria-label="Sidebar"
+    data-keybinding-target="sidebar"
+    onClick={handleNavigation}
     className="
         app-sidebar
         h-dvh

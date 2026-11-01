@@ -19,8 +19,8 @@ const context = (instance, payload) => ({
     }
 });
 
-// Diese API bildet die späteren Endpunkte für Partlist, Viewer und Export.
-// Noch kein bestehender Partlist-Aufruf wird automatisch umgeleitet.
+// Diese API bildet die Endpunkte für Partlist, Viewer und Export.
+// Der CNC-Editor nutzt generateCncMachineCode für konfigurierte Maschinenexporte.
 export const translatePartForCncViewer = (instance, payload) =>
     load(instance).translateForViewer(context(instance, payload));
 

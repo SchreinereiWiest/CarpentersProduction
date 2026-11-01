@@ -19,7 +19,17 @@ Postprozessor-Runtime
         └── generateMachineCode()  → geprüfter Maschinen-/G-Code
 ```
 
-Die Runtime-Endpunkte sind vorbereitet. `buildPartList` und CNC Viewer werden in dieser Ausbaustufe noch nicht automatisch umgeleitet.
+Der CNC-Editor nutzt `generateMachineCode()` für konfigurierte Maschinenexporte. `buildPartList` und CNC Viewer werden weiterhin nicht automatisch umgeleitet.
+
+## SCM Xilog 3 / RoutoLink (Wiest)
+
+Der registrierte Adapter `scm-xilog3-routolink` ist ein erster Werkstattentwurf auf Grundlage der vorhandenen Xilog-3-Runtime, realer PGM-Programme, der dort installierten Festzyklen und der deutschen Befehlsreferenz. Er erzeugt das von Xilog importierbare ASCII-Format **XXL** mit CRLF-Zeilen und deklariert Windows-1252 als Zielkodierung. Das proprietäre binäre PGM-Format wird bewusst nicht nachgebaut.
+
+Jedes gültige Programm endet mit einem konfigurierbaren Wegfahrschritt `N=<Position>`. Für das einzelne Feld A ist `1600`, für das volle Feld AD `2800` vorbelegt. Beide Werte gehören zur Maschinenkonfiguration des Plugins und können dort angepasst werden.
+
+Aktuell abgedeckt sind `BO`, `VB`, `VBH`, `LR`, `RNT`/`NUT8`, `XG0` und `XL2P` auf Werkstückseite A. Für horizontale Bohrungen und Rückwandnuten werden die in der Wiest-Runtime vorhandenen Zyklen `VBH` und `RNT` angesprochen. Unbekannte Operationen oder unvollständige Geometrie blockieren den Export vollständig.
+
+Jede erzeugte Datei trägt die Diagnose `XILOG3_IMPORT_VALIDATION_REQUIRED`: XXL in Xilog 3 importieren, grafisch prüfen und erst nach Maschinenfreigabe in PGM übernehmen. Direkter Maschinentransport ist nicht Bestandteil dieses Plugins.
 
 ## Verantwortungsgrenzen
 
@@ -72,6 +82,6 @@ Konfigurationsfelder unterstützen derzeit `text`, `number`, `boolean`, `select`
 
 1. Ein neutrales, versioniertes internes `MachiningIntent`-Schema zwischen Partlist und Runtime definieren.
 2. Den CNC Viewer über `translatePartForCncViewer()` anbinden und Legacy-Operationen parallel vergleichen.
-3. Einen konkreten Maschinenadapter mit Golden Files, Simulation und Freigabestatus implementieren.
-4. Export erst erlauben, wenn Plugin, Konfiguration, Werkzeugzuordnung und alle Bearbeitungen validiert sind.
-5. Optional Transportadapter für Dateiablage, Netzwerkfreigabe oder Hersteller-API ergänzen. Transport und Codeerzeugung sollten getrennte Plugins bleiben.
+3. Den Xilog-Adapter mit Werkstatt-Golden-Files, Simulation und einem dokumentierten Freigabestatus weiter absichern.
+4. Werkzeugzuordnung und weitere Xilog-Befehle ergänzen; unvollständige Programme weiterhin vollständig blockieren.
+5. Optional einen Transportadapter für Dateiablage oder Netzwerkfreigabe ergänzen. Transport und Codeerzeugung sollten getrennte Plugins bleiben.

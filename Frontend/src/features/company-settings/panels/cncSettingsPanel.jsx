@@ -336,7 +336,16 @@ export default function CncSettingsPanel() {
                             );
 
                             const savedPostprocessors = Array.isArray(data.postprocessors)
-                                ? data.postprocessors
+                                ? data.postprocessors.map(instance => {
+                                    const descriptor = AVAILABLE_POSTPROCESSORS.find(item => item.id === instance.pluginId);
+                                    return descriptor ? {
+                                        ...instance,
+                                        configuration: mergeConfig(
+                                            createPluginConfiguration({ manifest: descriptor }),
+                                            instance.configuration ?? {}
+                                        )
+                                    } : instance;
+                                })
                                 : [createLegacyPostprocessorInstance()].filter(Boolean);
                             setPostprocessors(savedPostprocessors);
                             setActivePostprocessorId(
@@ -916,7 +925,7 @@ function PostprocessorSettings({
                                 <Endpoint name="Maschinencode" method="generateMachineCode" description="Erzeugt erst im maschinenspezifischen Plugin ausführbaren G-Code oder Hersteller-Code." />
                                 <Endpoint name="Bearbeitung" method="resolveMachining" description="Prüft Zuordnungen und löst interne Bearbeitungsabsichten in Maschinenstrategien auf." />
                             </div>
-                            <p className="mt-4 text-xs text-gray-500">Die Endpunkte sind vorbereitet, werden aber noch nicht automatisch von buildPartList oder dem CNC Viewer aufgerufen.</p>
+                            <p className="mt-4 text-xs text-gray-500">Der CNC-Editor nutzt den Maschinencode-Endpunkt für den Xilog-XXL-Export. Partlist und Viewer bleiben weiterhin maschinenunabhängig.</p>
                         </SettingsCard>
 
                         <SettingsCard title="Unterstützte Bearbeitungen">

@@ -2,7 +2,12 @@
 import express from "express";
 import { authenticate, authenticateAdmin, requireFeature } from "../../middleware/auth.middleware.js";
 import { createSettingsData, getSettingsData } from "./settings.controller.js";
-import { getCalculationSnapshots } from "../calculation/calculation-snapshot.controller.js";
+import {
+    createManualSnapshot,
+    deleteManualSnapshot,
+    getCalculationSnapshots,
+    updateManualSnapshot
+} from "../calculation/calculation-snapshot.controller.js";
 import {
     deleteAttachmentSearchCredential,
     getAttachmentSearchCredentialStatus,
@@ -29,6 +34,9 @@ router.get("/company", authenticate, (req, res) => {
 });
 
 router.get("/calculation-snapshots", authenticateAdmin, requireFeature("calculation"), getCalculationSnapshots);
+router.post("/calculation-snapshots/manual", authenticateAdmin, requireFeature("calculation"), createManualSnapshot);
+router.put("/calculation-snapshots/manual/:id", authenticateAdmin, requireFeature("calculation"), updateManualSnapshot);
+router.delete("/calculation-snapshots/manual/:id", authenticateAdmin, requireFeature("calculation"), deleteManualSnapshot);
 
 router.get("/hourly-rates", authenticateAdmin, requireFeature("calculation"), getHourlyRates);
 router.put("/hourly-rates", authenticateAdmin, requireFeature("calculation"), saveHourlyRates);

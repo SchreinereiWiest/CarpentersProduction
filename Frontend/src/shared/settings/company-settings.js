@@ -5,7 +5,7 @@ import { normalizeEstimationSettings } from "@Engine/calculation/estimation.mjs"
 export const CUSTOM_WORK_TYPE_ID = "__custom__";
 
 export const DEFAULT_COMPANY_SETTINGS = {
-    schemaVersion: 6,
+    schemaVersion: 7,
     workingHours: {
         start: "07:00",
         end: "16:45"
@@ -38,7 +38,13 @@ export const DEFAULT_COMPANY_SETTINGS = {
         measurementLabelSizePercent: 100,
         measurementLabelOffsetY: -30,
         measurementFormFieldWidthMm: 32,
-        measurementFormFieldHeightMm: 10
+        measurementFormFieldHeightMm: 10,
+        workspaceLayout: "single",
+        keybindings: {
+            sidebar: "Alt+1",
+            projectBar: "Alt+2",
+            apply: "Ctrl+Enter"
+        }
     },
     estimation: {
         ...normalizeEstimationSettings(),
@@ -101,7 +107,7 @@ export function normalizeCompanySettings(data) {
         : [];
 
     return {
-        schemaVersion: 6,
+        schemaVersion: 7,
         workingHours,
         breaks: breaks.map((entry, index) => ({
             id: entry.id || `break-${index + 1}`,
@@ -129,7 +135,9 @@ export function normalizeCompanySettings(data) {
             ),
             measurementFormFieldHeightMm: normalizeMeasurementFormFieldHeightMm(
                 userInterface.measurementFormFieldHeightMm
-            )
+            ),
+            workspaceLayout: normalizeWorkspaceLayout(userInterface.workspaceLayout),
+            keybindings: normalizeKeybindings(userInterface.keybindings)
         },
         estimation: {
             ...estimation,
@@ -202,6 +210,27 @@ export function normalizeMeasurementFormFieldHeightMm(value) {
     }
 
     return Math.min(30, Math.max(8, parsed));
+}
+
+export const WORKSPACE_LAYOUTS = ["single", "split", "grid"];
+
+export function normalizeWorkspaceLayout(value) {
+    return WORKSPACE_LAYOUTS.includes(value) ? value : "single";
+}
+
+export function normalizeKeybinding(value, fallback) {
+    const normalized = String(value || "").trim();
+    return normalized.length > 0 && normalized.length <= 40 ? normalized : fallback;
+}
+
+export function normalizeKeybindings(value) {
+    const defaults = DEFAULT_COMPANY_SETTINGS.userInterface.keybindings;
+
+    return {
+        sidebar: normalizeKeybinding(value?.sidebar, defaults.sidebar),
+        projectBar: normalizeKeybinding(value?.projectBar, defaults.projectBar),
+        apply: normalizeKeybinding(value?.apply, defaults.apply)
+    };
 }
 
 export function createWorkBlocks(settings) {

@@ -39,10 +39,11 @@ import HourlyRatesSettingsPanel
     from "./panels/hourlyRatesSettingsPanel.jsx";
 import { useAuth } from "../../app/providers/AuthContext.js";
 
-const advancedTabs = [
+export const advancedSettingsTabs = [
     { id: "estimation", label: "Stundenschätzung", requiredFeature: "calculation" },
     { id: "hourlyRates", label: "Stundensätze", requiredFeature: "calculation", excludedFeature: "business-management" },
     { id: "ai", label: "AI", requiredFeature: "work-preparation" },
+    { id: "company", label: "Unternehmen" },
     { id: "shop", label: "Shop", requiredFeature: "shop" }
 ];
 
@@ -58,7 +59,7 @@ export default function CompanySettings() {
 
     const [selectedAdvancedSection, setSelectedAdvancedSection] = useState("estimation");
     const features = new Set(user?.features || []);
-    const visibleAdvancedTabs = advancedTabs.filter(tab =>
+    const visibleAdvancedTabs = advancedSettingsTabs.filter(tab =>
         (!tab.requiredFeature || features.has(tab.requiredFeature))
         && (!tab.excludedFeature || !features.has(tab.excludedFeature))
     );

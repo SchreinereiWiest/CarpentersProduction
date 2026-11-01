@@ -22,6 +22,9 @@ import CncPropertiesSidebar
 import {
     groupCncParts
 } from "@Engine/cnc/groupCncParts.js";
+import {
+    generateCncMachineCode
+} from "@Engine/postprocessor/index.js";
 
 import ProjectBar
     from "../../../shared/components/projectBar.jsx";
@@ -30,8 +33,11 @@ import SideBar
     from "../../../shared/components/sideBar.jsx";
 import MobileWorkspaceGuard
     from "../../../shared/components/MobileWorkspaceGuard.jsx";
-    import {getProjectFile} from "../../../shared/cache/project-cache.js";
+import {getProjectFile} from "../../../shared/cache/project-cache.js";
+import {getGlobalFile} from "../../../shared/cache/global-cache.js";
 import {downloadFile, uploadJSONFile} from "../../../shared/api/file-api.js";
+
+const XILOG3_POSTPROCESSOR_ID = "scm-xilog3-routolink";
 
 
 export default function CncEditor() {
@@ -64,6 +70,16 @@ export default function CncEditor() {
     const [
         selectedOperation,
         setSelectedOperation
+    ] = useState(null);
+
+    const [
+        xilogPostprocessor,
+        setXilogPostprocessor
+    ] = useState(null);
+
+    const [
+        exportNotice,
+        setExportNotice
     ] = useState(null);
 
     const operations =
@@ -134,6 +150,10 @@ export default function CncEditor() {
             null
         );
 
+        setExportNotice(
+            null
+        );
+
     };
 
 
@@ -172,6 +192,10 @@ export default function CncEditor() {
 
 
         setSelectedOperation(
+            null
+        );
+
+        setExportNotice(
             null
         );
 
@@ -331,6 +355,139 @@ export default function CncEditor() {
     }, [
         projectId
     ]);
+
+
+    /*
+     * =====================================================
+     * Xilog-Postprozessor laden
+     * =====================================================
+     */
+
+    useEffect(() => {
+
+        const loadXilogPostprocessor = async () => {
+
+            try {
+
+                const settings = await getGlobalFile({
+
+                    file: "settings-cnc.json",
+
+                    loadFromServer: {
+                        download: downloadFile,
+                        path: "/api/settings/cnc"
+                    }
+
+                });
+
+                const instances = Array.isArray(settings?.postprocessors)
+                    ? settings.postprocessors
+                    : [];
+                const active = instances.find(
+                    item => item.id === settings?.activePostprocessorId
+                );
+                const configured = active?.pluginId === XILOG3_POSTPROCESSOR_ID && active.enabled !== false
+                    ? active
+                    : instances.find(item => (
+                        item.pluginId === XILOG3_POSTPROCESSOR_ID &&
+                        item.enabled !== false
+                    ));
+
+                setXilogPostprocessor(configured ?? null);
+
+            } catch (error) {
+
+                console.error(
+                    "Xilog-Postprozessor konnte nicht geladen werden:",
+                    error
+                );
+
+                setXilogPostprocessor(null);
+
+            }
+
+        };
+
+        loadXilogPostprocessor();
+
+    }, []);
+
+
+    /*
+     * =====================================================
+     * Xilog-XXL exportieren
+     * =====================================================
+     */
+
+    const exportXilogProgram = () => {
+
+        if (!selectedPart || !xilogPostprocessor) {
+            return;
+        }
+
+        try {
+
+            const result = generateCncMachineCode(
+                xilogPostprocessor,
+                {
+                    part: selectedPart,
+                    fileName: selectedPart.PID ?? selectedPart.Objektname
+                }
+            );
+
+            if (!result.supported || !result.code) {
+
+                const message = result.diagnostics
+                    ?.filter(entry => entry.level === "error")
+                    .map(entry => entry.message)
+                    .join(" ");
+
+                setExportNotice({
+                    type: "error",
+                    message: message || "Das Bauteil kann noch nicht als Xilog-Programm exportiert werden."
+                });
+
+                return;
+
+            }
+
+            const blob = new Blob(
+                [result.code],
+                {type: "text/plain;charset=windows-1252"}
+            );
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+
+            link.href = url;
+            link.download = result.fileName;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.setTimeout(
+                () => URL.revokeObjectURL(url),
+                0
+            );
+
+            setExportNotice({
+                type: "success",
+                message: `${result.fileName} exportiert. Vor der Produktion in Xilog 3 importieren und grafisch prüfen.`
+            });
+
+        } catch (error) {
+
+            console.error(
+                "Xilog-Export fehlgeschlagen:",
+                error
+            );
+
+            setExportNotice({
+                type: "error",
+                message: "Der Xilog-Export ist fehlgeschlagen."
+            });
+
+        }
+
+    };
 
 
     return (
@@ -574,6 +731,40 @@ export default function CncEditor() {
 
                                         )
                                     }
+
+                                    <div className="ml-auto flex items-center gap-3">
+
+                                        {
+                                            exportNotice && (
+
+                                                <div className={`max-w-xl text-xs ${exportNotice.type === "error"
+                                                    ? "text-red-400"
+                                                    : "text-amber-300"
+                                                }`}>
+
+                                                    {exportNotice.message}
+
+                                                </div>
+
+                                            )
+                                        }
+
+                                        <button
+                                            type="button"
+                                            onClick={exportXilogProgram}
+                                            disabled={!selectedPart || !xilogPostprocessor}
+                                            title={xilogPostprocessor
+                                                ? "Bauteil als Xilog-3-XXL exportieren"
+                                                : "Xilog-3-Postprozessor zuerst in den Firmeneinstellungen hinzufügen und aktivieren"
+                                            }
+                                            className="rounded border border-blue-700 bg-blue-900/40 px-3 py-1.5 text-xs font-medium text-blue-200 transition hover:bg-blue-800/60 disabled:cursor-not-allowed disabled:border-gray-700 disabled:bg-gray-800 disabled:text-gray-500"
+                                        >
+
+                                            Xilog XXL
+
+                                        </button>
+
+                                    </div>
 
                                 </div>
 

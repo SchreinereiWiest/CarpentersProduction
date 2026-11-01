@@ -38,6 +38,7 @@ import ProtectedRoute from "./routing/ProtectedRoute.jsx";
 import PublicRoute from "./routing/PublicRoute.jsx";
 import CalendarPage from "../features/calendar/CalendarPage.jsx";
 import CustomerCrmPage from "../features/customers/pages/CustomerCrmPage.jsx";
+import WorkspaceRoot from "../shared/workspace/WorkspaceRoot.jsx";
 
 function LegacyCadRedirect() {
   const { projectId } = useParams();
@@ -50,7 +51,7 @@ const protectedPage = (element, requiredRole = "user", requiredFeatures = []) =>
 
 export default function AppRouter() {
   return (
-    <>
+    <WorkspaceRoot>
       <OfflineStatusCenter />
       <CacheRefreshBoundary>
         <Routes>
@@ -107,6 +108,6 @@ export default function AppRouter() {
           <Route path="/Offline/Merge/:conflictKey" element={protectedPage(<OfflineMergePage />, "user", ["work-preparation"])} />
         </Routes>
       </CacheRefreshBoundary>
-    </>
+    </WorkspaceRoot>
   );
 }

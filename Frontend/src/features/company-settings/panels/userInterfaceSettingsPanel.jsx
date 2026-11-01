@@ -4,6 +4,8 @@ import { uploadJSONFile } from "../../../shared/api/file-api.js";
 import { uploadGlobalFile } from "../../../shared/cache/global-cache.js";
 import { useTheme } from "../../../app/theme/ThemeContext.js";
 import { THEMES } from "../../../app/theme/theme.js";
+import { eventToKeybinding } from "../../../shared/workspace/keybindings.js";
+import { persistWorkspacePreferences } from "../../../shared/workspace/workspace-settings.js";
 import {
     DEFAULT_COMPANY_SETTINGS,
     loadCompanySettings,
@@ -21,6 +23,7 @@ export default function UserInterfaceSettingsPanel() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState(null);
+    const [activeTab, setActiveTab] = useState("general");
 
     useEffect(() => {
         let active = true;
@@ -77,6 +80,36 @@ export default function UserInterfaceSettingsPanel() {
         }));
     };
 
+    const setUserInterface = patch => {
+        setCompanySettings(previous => ({
+            ...previous,
+            userInterface: {
+                ...previous.userInterface,
+                ...patch
+            }
+        }));
+    };
+
+    const setKeybinding = (action, value) => {
+        const duplicate = Object.entries(companySettings.userInterface.keybindings)
+            .find(([key, binding]) => key !== action && binding.toLowerCase() === value.toLowerCase());
+        if (duplicate) {
+            setMessage({
+                type: "error",
+                text: "Diese Tastenkombination ist bereits vergeben."
+            });
+            return;
+        }
+
+        setMessage(null);
+        setUserInterface({
+            keybindings: {
+                ...companySettings.userInterface.keybindings,
+                [action]: value
+            }
+        });
+    };
+
     const save = async () => {
         setSaving(true);
         setMessage(null);
@@ -92,6 +125,7 @@ export default function UserInterfaceSettingsPanel() {
                 }
             });
             setCompanySettings(normalized);
+            persistWorkspacePreferences(normalized.userInterface);
             setMessage({
                 type: "success",
                 text: "Einstellungen der Benutzeroberfläche wurden gespeichert."
@@ -127,6 +161,7 @@ export default function UserInterfaceSettingsPanel() {
                     </div>
                     <button
                         type="button"
+                        data-keybinding-action="apply"
                         onClick={save}
                         disabled={saving}
                         className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
@@ -145,7 +180,32 @@ export default function UserInterfaceSettingsPanel() {
                     </div>
                 )}
 
-                <section className="rounded-xl border border-gray-700 bg-gray-800 p-5">
+                <nav aria-label="Bereiche der Benutzeroberfläche" className="overflow-x-auto border-b border-gray-700">
+                    <div className="flex min-w-max gap-1">
+                        {[
+                            ["general", "Allgemein"],
+                            ["measurement", "Aufmaß"],
+                            ["keybindings", "Tastatur"],
+                            ["workspace", "Fensterlayout"]
+                        ].map(([id, label]) => (
+                            <button
+                                key={id}
+                                type="button"
+                                onClick={() => setActiveTab(id)}
+                                aria-current={activeTab === id ? "page" : undefined}
+                                className={`border-b-2 px-4 py-3 text-sm font-medium transition ${
+                                    activeTab === id
+                                        ? "border-blue-500 text-blue-400"
+                                        : "border-transparent text-gray-500 hover:text-gray-300"
+                                }`}
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+                </nav>
+
+                {activeTab === "general" && <section className="rounded-xl border border-gray-700 bg-gray-800 p-5">
                     <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-400">Darstellung</p>
                         <h2 className="mt-1 text-base font-semibold text-gray-100">Theme</h2>
@@ -170,8 +230,9 @@ export default function UserInterfaceSettingsPanel() {
                             onSelect={setTheme}
                         />
                     </div>
-                </section>
+                </section>}
 
+                {activeTab === "measurement" && <>
                 <section className="rounded-xl border border-gray-700 bg-gray-800 p-5">
                     <div className="flex items-start justify-between gap-6">
                         <div>
@@ -335,8 +396,127 @@ export default function UserInterfaceSettingsPanel() {
                         </div>
                     </div>
                 </section>
+                </>}
+
+                {activeTab === "keybindings" && (
+                    <section className="rounded-xl border border-gray-700 bg-gray-800 p-5">
+                        <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-400">Navigation</p>
+                            <h2 className="mt-1 text-base font-semibold text-gray-100">Tastenkürzel</h2>
+                            <p className="mt-1 max-w-2xl text-xs leading-5 text-gray-400">
+                                Ein Feld anklicken und anschließend die gewünschte Tastenkombination drücken. Die Kürzel gelten auch in geöffneten Rasterfeldern.
+                            </p>
+                        </div>
+                        <div className="mt-5 divide-y divide-gray-700 rounded-lg border border-gray-700">
+                            <KeybindingRow
+                                label="Sidebar fokussieren"
+                                description="Setzt den Tastaturfokus auf die globale Hauptnavigation."
+                                value={companySettings.userInterface.keybindings.sidebar}
+                                onChange={value => setKeybinding("sidebar", value)}
+                            />
+                            <KeybindingRow
+                                label="Project Bar fokussieren"
+                                description="Setzt den Fokus auf die Navigation des aktuellen Projekts."
+                                value={companySettings.userInterface.keybindings.projectBar}
+                                onChange={value => setKeybinding("projectBar", value)}
+                            />
+                            <KeybindingRow
+                                label="Anwenden / Speichern"
+                                description="Löst die primäre Anwenden- oder Speichern-Aktion im aktiven Feld aus."
+                                value={companySettings.userInterface.keybindings.apply}
+                                onChange={value => setKeybinding("apply", value)}
+                            />
+                        </div>
+                    </section>
+                )}
+
+                {activeTab === "workspace" && (
+                    <section className="rounded-xl border border-gray-700 bg-gray-800 p-5">
+                        <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-400">Große Bildschirme</p>
+                            <h2 className="mt-1 text-base font-semibold text-gray-100">Hauptbereich aufteilen</h2>
+                            <p className="mt-1 max-w-2xl text-xs leading-5 text-gray-400">
+                                Die Sidebar bleibt global und öffnet ihr Ziel im aktiven Feld. Die Project Bar gehört zum jeweiligen Feld und wechselt dessen Projektansicht ohne Neuladen des gesamten Feldes. Verfügbar ab 1280 px Breite.
+                            </p>
+                        </div>
+                        <div className="mt-5 grid gap-4 sm:grid-cols-3" role="radiogroup" aria-label="Fensterlayout auswählen">
+                            <LayoutOption
+                                id="single"
+                                title="Einzelansicht"
+                                description="Ein zusammenhängender Arbeitsbereich."
+                                selected={companySettings.userInterface.workspaceLayout === "single"}
+                                onSelect={workspaceLayout => setUserInterface({ workspaceLayout })}
+                            />
+                            <LayoutOption
+                                id="split"
+                                title="Split View"
+                                description="Zwei Felder nebeneinander."
+                                selected={companySettings.userInterface.workspaceLayout === "split"}
+                                onSelect={workspaceLayout => setUserInterface({ workspaceLayout })}
+                            />
+                            <LayoutOption
+                                id="grid"
+                                title="2 × 2 View"
+                                description="Vier unabhängig belegbare Felder."
+                                selected={companySettings.userInterface.workspaceLayout === "grid"}
+                                onSelect={workspaceLayout => setUserInterface({ workspaceLayout })}
+                            />
+                        </div>
+                    </section>
+                )}
             </div>
         </div>
+    );
+}
+
+function KeybindingRow({ label, description, value, onChange }) {
+    return (
+        <div className="flex flex-wrap items-center justify-between gap-4 p-4">
+            <div>
+                <h3 className="text-sm font-medium text-gray-100">{label}</h3>
+                <p className="mt-1 text-xs text-gray-400">{description}</p>
+            </div>
+            <input
+                value={value}
+                readOnly
+                aria-label={`${label}: Tastenkombination`}
+                onKeyDown={event => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const binding = eventToKeybinding(event);
+                    if (binding) onChange(binding);
+                }}
+                className="w-36 cursor-pointer rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-center font-mono text-sm text-gray-100 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+            />
+        </div>
+    );
+}
+
+function LayoutOption({ id, title, description, selected, onSelect }) {
+    const cells = id === "grid" ? 4 : id === "split" ? 2 : 1;
+
+    return (
+        <button
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            onClick={() => onSelect(id)}
+            className={`rounded-xl border p-4 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+                selected
+                    ? "border-blue-500 bg-blue-950/20 ring-2 ring-blue-500/20"
+                    : "border-gray-700 bg-gray-900/40 hover:border-gray-600"
+            }`}
+        >
+            <span className={`grid h-24 gap-1 rounded-lg border border-gray-600 bg-gray-950 p-2 ${
+                id === "grid" ? "grid-cols-2 grid-rows-2" : id === "split" ? "grid-cols-2" : "grid-cols-1"
+            }`} aria-hidden="true">
+                {Array.from({ length: cells }, (_, index) => (
+                    <span key={index} className={`rounded ${index === 0 ? "bg-blue-600" : "bg-gray-700"}`} />
+                ))}
+            </span>
+            <span className="mt-3 block text-sm font-semibold text-gray-100">{title}</span>
+            <span className="mt-1 block text-xs text-gray-400">{description}</span>
+        </button>
     );
 }
 

@@ -31,10 +31,6 @@ export const primarySettingsTabs = [
         requiredFeature: "work-preparation"
     },
     {
-        id: "company",
-        label: "Unternehmen"
-    },
-    {
         id: "programSettings",
         label: "Programmeinstellungen"
     },
