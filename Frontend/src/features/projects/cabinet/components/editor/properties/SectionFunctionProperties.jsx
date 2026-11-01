@@ -4,7 +4,7 @@ import { getMiddleWallCenter } from "@Engine/cabinet/geometry/middleWall.js";
 import { findSection } from "@Engine/cabinet/sektions/interior/mergeSectionChildren.js";
 import { updateSectionTree } from "@Engine/cabinet/sektions/updateSectionTree.js";
 import { createId } from "@Engine/shared/id.js";
-import { createShelfHoleRowDefaults } from "../../../sectionFunctionDefaults.js";
+import { createShelfHoleRowDefaults, getShelfFrontOffsetDefault } from "../../../sectionFunctionDefaults.js";
 import FormulaNumberInput from "../FormulaNumberInput.jsx";
 
 
@@ -95,6 +95,7 @@ export default function SectionFunctionProperties({
 
     const functions = currentSection.functionConfig ?? [];
     const shelfHoleRowDefaults = createShelfHoleRowDefaults(cncConfig);
+    const shelfFrontOffsetDefault = getShelfFrontOffsetDefault(cncConfig);
 
 
 
@@ -160,7 +161,7 @@ export default function SectionFunctionProperties({
 
                     compartmentCount: 2,
 
-                    shelfFrontOffset: 0,
+                    shelfFrontOffset: shelfFrontOffsetDefault,
 
                     holeRow: shelfHoleRowDefaults
                 };

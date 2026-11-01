@@ -23,6 +23,7 @@ const LEGACY_MANUAL_GLOBAL_FILES = new Set([
     "settings-company.json",
     "settings-cabinet.json",
     "settings-cabinetPreset.json",
+    "settings-functionPreset.json",
     "settings-nesting.json",
     "settings-cnc.json"
 ]);

@@ -24,6 +24,7 @@ const GENERATED_FILE_LABELS = {
 const SETTINGS_LABELS = {
     cabinet: "Schrank-Einstellungen",
     cabinetPreset: "Schrank-Vorlagen",
+    functionPreset: "Funktions-Vorlagen",
     cache: "Offline-Einstellungen",
     cnc: "CNC-Einstellungen",
     company: "Firmeneinstellungen"

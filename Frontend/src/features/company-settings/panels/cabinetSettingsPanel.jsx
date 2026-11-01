@@ -61,6 +61,8 @@ export default function CabinetSettingsPanel() {
 
     const [presets, setPresets] = useState([]);
 
+    const [functionPresets, setFunctionPresets] = useState([]);
+
     const [activeTab, setActiveTab] = useState("standard");
 
     const [editingPreset, setEditingPreset] = useState(null);
@@ -108,12 +110,17 @@ export default function CabinetSettingsPanel() {
 
         try {
 
-            const isPresetTab = activeTab === "presets";
-            if (isPresetTab) {
+            if (activeTab === "presets") {
                 await uploadGlobalFile({
                     file: "settings-cabinetPreset.json",
                     data: presets,
                     uploadFunction: { upload: uploadJSONFile, path: "/api/settings/cabinetPreset" }
+                });
+            } else if (activeTab === "functions") {
+                await uploadGlobalFile({
+                    file: "settings-functionPreset.json",
+                    data: functionPresets,
+                    uploadFunction: { upload: uploadJSONFile, path: "/api/settings/functionPreset" }
                 });
             } else {
                 await Promise.all([
@@ -161,7 +168,7 @@ export default function CabinetSettingsPanel() {
     
                 try {
     
-                    const [data, presetData] = await Promise.all([
+                    const [data, presetData, functionPresetData] = await Promise.all([
                         getGlobalFile({
                             file: "settings-cabinet.json",
                             loadFromServer: {download: downloadFile, path:"/api/settings/cabinet"}
@@ -169,6 +176,10 @@ export default function CabinetSettingsPanel() {
                         getGlobalFile({
                             file: "settings-cabinetPreset.json",
                             loadFromServer: {download: downloadFile, path:"/api/settings/cabinetPreset"}
+                        }),
+                        getGlobalFile({
+                            file: "settings-functionPreset.json",
+                            loadFromServer: {download: downloadFile, path:"/api/settings/functionPreset"}
                         })
                     ]);
     
@@ -193,6 +204,8 @@ export default function CabinetSettingsPanel() {
                                     ? legacyPresets
                                     : []
                     );
+
+                    setFunctionPresets(Array.isArray(functionPresetData) ? functionPresetData : []);
     
     
                 } catch (error) {
@@ -323,7 +336,9 @@ export default function CabinetSettingsPanel() {
                         ">
                             {activeTab === "presets"
                                 ? "Cabinet Presets verwalten"
-                                : "Standardwerte für den CabinetEditor"}
+                                : activeTab === "functions"
+                                    ? "Dimensionsunabhängige Sections und Funktionen verwalten"
+                                    : "Standardwerte für den CabinetEditor"}
                         </p>
 
                     </div>
@@ -347,8 +362,10 @@ export default function CabinetSettingsPanel() {
                         {saving
                             ? "Speichern..."
                             : activeTab === "presets"
-                                ? "Presets speichern"
-                                : "Standardkorpus speichern"}
+                                ? "Cabinet Presets speichern"
+                                : activeTab === "functions"
+                                    ? "Function Presets speichern"
+                                    : "Standardkorpus speichern"}
                     </button>
 
                 </div>
@@ -357,10 +374,13 @@ export default function CabinetSettingsPanel() {
                 <div className="flex gap-2 border-b border-gray-700 pb-3">
                     {[
                         ["standard", "Standardkorpus"],
-                        ["presets", "Cabinet Presets"]
+                        ["presets", "Cabinet Presets"],
+                        ["functions", "Function Presets"]
                     ].map(([tab, label]) => (
                         <button key={tab} type="button" onClick={() => setActiveTab(tab)} className={`rounded-lg px-4 py-2 text-sm ${activeTab === tab ? "bg-blue-700 text-white" : "bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white"}`}>
-                            {label}{tab === "presets" ? ` (${presets.length})` : ""}
+                            {label}{tab === "presets"
+                                ? ` (${presets.length})`
+                                : tab === "functions" ? ` (${functionPresets.length})` : ""}
                         </button>
                     ))}
                 </div>
@@ -1002,7 +1022,7 @@ export default function CabinetSettingsPanel() {
 
                 </section>
                     </>
-                ) : (
+                ) : activeTab === "presets" ? (
                     <section className="rounded-xl border border-gray-700 bg-gray-800 p-5">
                         <div className="mb-4">
                             <h2 className="font-medium">Gespeicherte Cabinet Presets</h2>
@@ -1031,6 +1051,50 @@ export default function CabinetSettingsPanel() {
                             </div>
                         )}
                     </section>
+                ) : (
+                    <section className="rounded-xl border border-gray-700 bg-gray-800 p-5">
+                        <div className="mb-5">
+                            <h2 className="font-medium">Gespeicherte Function Presets</h2>
+                            <p className="mt-1 max-w-3xl text-sm text-gray-500">
+                                Diese Presets enthalten nur Sections und deren Function Config. Beim Anwenden werden sie proportional in die verfügbaren Maße des Zielkorpus eingepasst.
+                            </p>
+                        </div>
+
+                        {functionPresets.length ? (
+                            <div className="space-y-2">
+                                {functionPresets.map(preset => (
+                                    <div key={preset.id} className="flex items-center gap-3 rounded-lg border border-gray-700 bg-gray-900 p-3">
+                                        <div className="min-w-0 flex-1">
+                                            <input
+                                                aria-label="Name des Function Presets"
+                                                value={preset.name ?? ""}
+                                                onChange={event => setFunctionPresets(previous => previous.map(item => item.id === preset.id
+                                                    ? { ...item, name: event.target.value }
+                                                    : item))}
+                                                className="w-full max-w-lg rounded border border-transparent bg-transparent px-2 py-1 text-sm font-medium text-gray-100 outline-none hover:border-gray-700 focus:border-blue-500 focus:bg-gray-950"
+                                            />
+                                            <div className="mt-0.5 px-2 text-xs text-gray-500">
+                                                {preset.data?.sections?.length ?? 0} Hauptsektionen
+                                                <span className="ml-2">· {countFunctions(preset.data?.sections)} Funktionen</span>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setFunctionPresets(previous => previous.filter(item => item.id !== preset.id))}
+                                            className="rounded border border-red-900 px-3 py-1.5 text-sm text-red-300 hover:bg-red-950"
+                                        >
+                                            Löschen
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="rounded-lg border border-dashed border-gray-700 p-8 text-center">
+                                <div className="text-sm text-gray-400">Noch keine Function Presets vorhanden.</div>
+                                <div className="mt-1 text-xs text-gray-600">Erstelle Sections und Funktionen im Cabinet Editor und speichere sie dort über „Als Function Preset“.</div>
+                            </div>
+                        )}
+                    </section>
                 )}
 
             </div>
@@ -1051,6 +1115,12 @@ export default function CabinetSettingsPanel() {
 
         </div>
     );
+}
+
+function countFunctions(sections = []) {
+    return sections.reduce((total, section) => total
+        + (Array.isArray(section.functionConfig) ? section.functionConfig.length : 0)
+        + countFunctions(section.children), 0);
 }
 
 

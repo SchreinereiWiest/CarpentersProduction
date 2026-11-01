@@ -10,6 +10,13 @@ import { getGlobalFile, uploadGlobalFile } from "../../../shared/cache/global-ca
 import { downloadFile, uploadJSONFile } from "../../../shared/api/file-api.js";
 import MaterialSelect from "../../projects/cabinet/components/editor/properties/MaterialSelect.jsx";
 import axios from "axios";
+import {
+    AVAILABLE_POSTPROCESSORS,
+    MACHINING_INTENTS,
+    createPluginConfiguration,
+    getUsedMachiningStrategies
+} from "@Engine/postprocessor/index.js";
+import { createId } from "@Engine/shared/id.js";
 
 const cloneConfig = (value) => {
 
@@ -47,7 +54,30 @@ const mergeConfig = (defaults, saved) => {
     return merged;
 };
 
+const STRATEGY_PANELS = {
+    "connector.drill": { id: "connector.drill", name: "Bohrverbinder" },
+    "connector.clamex": { id: "connector.clamex", name: "Clamex" },
+    "connector.screw": { id: "connector.screw", name: "Spax" },
+    "shelf.row": { id: "shelf.row", name: "Fachboden" },
+    "drawer.legrabox": { id: "drawer.legrabox", name: "Legrabox" },
+    "back.groove": { id: "back.groove", name: "Rückwandnut" },
+    "back.rabbet": { id: "back.rabbet", name: "Rückwandfalz" }
+};
+
+const createLegacyPostprocessorInstance = () => {
+    const descriptor = AVAILABLE_POSTPROCESSORS.find(item => item.id === "legacy-viewer-bridge");
+    return descriptor ? {
+        id: "builtin-legacy-viewer",
+        pluginId: descriptor.id,
+        name: "CNC Viewer",
+        enabled: true,
+        configuration: createPluginConfiguration({ manifest: descriptor })
+    } : null;
+};
+
 export default function CncSettingsPanel() {
+
+    const [activeTab, setActiveTab] = useState("machining");
 
     const [
         config,
@@ -63,7 +93,7 @@ export default function CncSettingsPanel() {
     const [
         selectedSection,
         setSelectedSection
-    ] = useState("spax");
+    ] = useState("assignments");
 
 
     const [
@@ -74,6 +104,15 @@ export default function CncSettingsPanel() {
     const [materials, setMaterials] = useState([]);
     const [loadingMaterials, setLoadingMaterials] = useState(false);
     const [materialError, setMaterialError] = useState(null);
+    const [postprocessors, setPostprocessors] = useState(() => {
+        const legacy = createLegacyPostprocessorInstance();
+        return legacy ? [legacy] : [];
+    });
+    const [activePostprocessorId, setActivePostprocessorId] = useState("builtin-legacy-viewer");
+    const [selectedPluginId, setSelectedPluginId] = useState(AVAILABLE_POSTPROCESSORS[0]?.id ?? "");
+
+    const activePostprocessor = postprocessors.find(item => item.id === activePostprocessorId) ?? postprocessors[0] ?? null;
+    const activePostprocessorDescriptor = AVAILABLE_POSTPROCESSORS.find(item => item.id === activePostprocessor?.pluginId) ?? null;
 
 
     /* =====================================================
@@ -198,10 +237,13 @@ export default function CncSettingsPanel() {
                 const data = {
 
                     schemaVersion:
-                        1,
+                        2,
 
                     cncDefault:
-                        config
+                        config,
+
+                    postprocessors,
+                    activePostprocessorId
 
                 };
 
@@ -249,45 +291,23 @@ export default function CncSettingsPanel() {
         };
 
 
+    const usedStrategies = getUsedMachiningStrategies(
+        config.machiningAssignments,
+        activePostprocessorDescriptor?.supportedMachiningStrategies
+    );
     const sections = [
-
-        {
-            id:
-                "spax",
-
-            name:
-                "Spax / Verbinder"
-
-        },
-
-        {
-            id:
-                "shelf",
-
-            name:
-                "Fachboden"
-
-        },
-
-        {
-            id:
-                "legrabox",
-
-            name:
-                "Legrabox"
-
-        },
-
-        {
-            id:
-                "backPanel",
-
-            name:
-                "Rückwand"
-
-        }
-
+        { id: "assignments", name: "Zuordnungen" },
+        ...usedStrategies
+            .map(strategy => STRATEGY_PANELS[strategy.id])
+            .filter(Boolean)
     ];
+    const visibleSectionKey = sections.map(section => section.id).join("|");
+
+    useEffect(() => {
+        if (!visibleSectionKey.split("|").includes(selectedSection)) {
+            setSelectedSection("assignments");
+        }
+    }, [selectedSection, visibleSectionKey]);
 
         useEffect(() => {
             const loadGeneratedData = async () => {
@@ -314,6 +334,16 @@ export default function CncSettingsPanel() {
                                     data.cncDefault ?? data
                                 )
                             );
+
+                            const savedPostprocessors = Array.isArray(data.postprocessors)
+                                ? data.postprocessors
+                                : [createLegacyPostprocessorInstance()].filter(Boolean);
+                            setPostprocessors(savedPostprocessors);
+                            setActivePostprocessorId(
+                                savedPostprocessors.some(item => item.id === data.activePostprocessorId)
+                                    ? data.activePostprocessorId
+                                    : savedPostprocessors[0]?.id ?? null
+                            );
         
                             return;
                
@@ -332,6 +362,43 @@ export default function CncSettingsPanel() {
     
             loadGeneratedData();
         }, []);
+
+        const addPostprocessor = () => {
+            const descriptor = AVAILABLE_POSTPROCESSORS.find(item => item.id === selectedPluginId);
+            if (!descriptor) return;
+            const plugin = {
+                id: createId(),
+                pluginId: descriptor.id,
+                name: descriptor.name,
+                enabled: true,
+                configuration: createPluginConfiguration({ manifest: descriptor })
+            };
+            setPostprocessors(previous => [...previous, plugin]);
+            setActivePostprocessorId(plugin.id);
+        };
+
+        const updatePostprocessor = changes => {
+            if (!activePostprocessor) return;
+            setPostprocessors(previous => previous.map(item => item.id === activePostprocessor.id
+                ? { ...item, ...changes }
+                : item));
+        };
+
+        const updatePostprocessorConfiguration = (key, value) => {
+            updatePostprocessor({
+                configuration: {
+                    ...(activePostprocessor?.configuration ?? {}),
+                    [key]: value
+                }
+            });
+        };
+
+        const removePostprocessor = () => {
+            if (!activePostprocessor) return;
+            const remaining = postprocessors.filter(item => item.id !== activePostprocessor.id);
+            setPostprocessors(remaining);
+            setActivePostprocessorId(remaining[0]?.id ?? null);
+        };
 
         useEffect(() => {
             const loadMaterials = async () => {
@@ -393,7 +460,7 @@ export default function CncSettingsPanel() {
                         text-xs
                         text-gray-500
                     ">
-                        Bearbeitungsparameter
+                        {activeTab === "machining" ? "Bearbeitungsparameter" : "Maschinenadapter und Schnittstellen"}
                     </div>
 
                 </div>
@@ -405,7 +472,7 @@ export default function CncSettingsPanel() {
                     gap-2
                 ">
 
-                    <button
+                    {activeTab === "machining" && <button
                         type="button"
                         onClick={
                             resetSettings
@@ -422,7 +489,7 @@ export default function CncSettingsPanel() {
                         "
                     >
                         Standardwerte
-                    </button>
+                    </button>}
 
 
                     <button
@@ -454,12 +521,31 @@ export default function CncSettingsPanel() {
 
             </div>
 
+            <nav aria-label="CNC-Einstellungsbereiche" className="shrink-0 border-b border-gray-700 bg-gray-900">
+                <div className="flex h-12 items-end gap-1 overflow-x-auto px-4">
+                    {[["machining", "Bearbeitungsparameter"], ["postprocessors", "Postprozessor"]].map(([id, label]) => (
+                        <button
+                            key={id}
+                            type="button"
+                            aria-current={activeTab === id ? "page" : undefined}
+                            onClick={() => setActiveTab(id)}
+                            className={`h-full whitespace-nowrap border-b-2 px-4 text-sm font-medium transition ${activeTab === id
+                                ? "border-blue-500 text-blue-400"
+                                : "border-transparent text-gray-500 hover:text-gray-300"
+                            }`}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
+            </nav>
+
 
             {/* =================================================
              * Hauptbereich
              * ================================================= */}
 
-            <div className="settings-panel-split
+            {activeTab === "machining" ? <div className="settings-panel-split
                 flex-1
                 min-h-0
                 grid
@@ -567,10 +653,18 @@ export default function CncSettingsPanel() {
                     p-6
                 ">
 
+                    {selectedSection === "assignments" && (
+                        <MachiningAssignments
+                            config={config}
+                            descriptor={activePostprocessorDescriptor}
+                            updateConfig={updateConfig}
+                        />
+                    )}
+
 
                     {
                         selectedSection ===
-                            "spax" && (
+                            "connector.drill" && (
 
                             <SpaxSettings
                                 config={
@@ -590,7 +684,7 @@ export default function CncSettingsPanel() {
 
                     {
                         selectedSection ===
-                            "shelf" && (
+                            "shelf.row" && (
 
                             <ShelfSettings
                                 config={
@@ -607,7 +701,7 @@ export default function CncSettingsPanel() {
 
                     {
                         selectedSection ===
-                            "legrabox" && (
+                            "drawer.legrabox" && (
 
                             <LegraboxSettings
                                 config={
@@ -629,30 +723,304 @@ export default function CncSettingsPanel() {
                     }
 
 
-                    {
-                        selectedSection ===
-                            "backPanel" && (
+                    {selectedSection === "back.groove" && (
+                        <BackPanelSettings mode="groove" config={config} updateNumber={updateNumber} />
+                    )}
 
-                            <BackPanelSettings
-                                config={
-                                    config
-                                }
-                                updateNumber={
-                                    updateNumber
-                                }
-                            />
+                    {selectedSection === "back.rabbet" && (
+                        <BackPanelSettings mode="rabbet" config={config} updateNumber={updateNumber} />
+                    )}
 
-                        )
-                    }
+                    {selectedSection === "connector.clamex" && (
+                        <ClamexSettings config={config} updateConfig={updateConfig} updateNumber={updateNumber} />
+                    )}
+
+                    {selectedSection === "connector.screw" && (
+                        <SpaxSettings config={config} updateNumber={updateNumber} updateBoolean={updateBoolean} screwOnly />
+                    )}
 
                 </main>
 
-            </div>
+            </div> : (
+                <PostprocessorSettings
+                    postprocessors={postprocessors}
+                    activePostprocessor={activePostprocessor}
+                    activePostprocessorId={activePostprocessorId}
+                    descriptor={activePostprocessorDescriptor}
+                    selectedPluginId={selectedPluginId}
+                    setSelectedPluginId={setSelectedPluginId}
+                    setActivePostprocessorId={setActivePostprocessorId}
+                    addPostprocessor={addPostprocessor}
+                    updatePostprocessor={updatePostprocessor}
+                    updateConfiguration={updatePostprocessorConfiguration}
+                    removePostprocessor={removePostprocessor}
+                />
+            )}
 
         </div>
 
     );
 
+}
+
+
+function MachiningAssignments({ config, descriptor, updateConfig }) {
+    const strategies = descriptor?.supportedMachiningStrategies ?? [];
+
+    return (
+        <div className="max-w-5xl space-y-6">
+            <SettingsHeader
+                title="Bearbeitungszuordnungen"
+                description="Ordnet fachliche Bearbeitungen einer vom aktiven Postprozessor unterstützten Maschinenstrategie zu."
+            />
+
+            {!descriptor && (
+                <div className="rounded-lg border border-amber-800 bg-amber-950/30 p-4 text-sm text-amber-200">
+                    Füge zuerst unter „Postprozessor“ einen Maschinenadapter hinzu. Bis dahin bleiben die gespeicherten Standardzuordnungen erhalten.
+                </div>
+            )}
+
+            <div className="space-y-3">
+                {MACHINING_INTENTS.map(intent => {
+                    const value = config.machiningAssignments?.[intent.id]?.strategyId ?? "";
+                    const supported = strategies.some(strategy => strategy.id === value);
+                    return (
+                        <section key={intent.id} className="grid gap-4 rounded-xl border border-gray-700 bg-gray-800 p-5 md:grid-cols-[minmax(0,1fr)_minmax(260px,0.8fr)] md:items-center">
+                            <div>
+                                <h3 className="font-medium text-gray-100">{intent.label}</h3>
+                                <p className="mt-1 text-sm text-gray-500">{intent.description}</p>
+                            </div>
+                            <label>
+                                <span className="mb-1 flex items-center justify-between text-xs text-gray-500">
+                                    Maschinenstrategie
+                                    {value && !supported && <span className="text-amber-400">Nicht unterstützt</span>}
+                                </span>
+                                <select
+                                    value={value}
+                                    onChange={event => updateConfig(["machiningAssignments", intent.id, "strategyId"], event.target.value)}
+                                    className="w-full rounded border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+                                >
+                                    <option value="">Nicht zugeordnet</option>
+                                    {value && !supported && <option value={value}>{value} (nicht verfügbar)</option>}
+                                    {strategies.map(strategy => <option key={strategy.id} value={strategy.id}>{strategy.label}</option>)}
+                                </select>
+                            </label>
+                        </section>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
+
+function PostprocessorSettings({
+    postprocessors,
+    activePostprocessor,
+    activePostprocessorId,
+    descriptor,
+    selectedPluginId,
+    setSelectedPluginId,
+    setActivePostprocessorId,
+    addPostprocessor,
+    updatePostprocessor,
+    updateConfiguration,
+    removePostprocessor
+}) {
+    return (
+        <div className="settings-panel-split grid min-h-0 flex-1 grid-cols-[280px_minmax(0,1fr)]">
+            <aside className="min-h-0 overflow-y-auto border-r border-gray-700 p-3">
+                <div className="mb-3 px-2 text-xs uppercase tracking-wide text-gray-500">Konfigurierte Maschinen</div>
+                <div className="space-y-2">
+                    {postprocessors.map(item => {
+                        const plugin = AVAILABLE_POSTPROCESSORS.find(entry => entry.id === item.pluginId);
+                        return (
+                            <button
+                                key={item.id}
+                                type="button"
+                                onClick={() => setActivePostprocessorId(item.id)}
+                                className={`w-full rounded-lg border p-3 text-left transition ${item.id === activePostprocessorId
+                                    ? "border-blue-700 bg-gray-800"
+                                    : "border-transparent hover:bg-gray-800"
+                                }`}
+                            >
+                                <div className="truncate text-sm font-medium text-gray-100">{item.name}</div>
+                                <div className="mt-1 truncate text-xs text-gray-500">{plugin?.name ?? item.pluginId}</div>
+                            </button>
+                        );
+                    })}
+                    {!postprocessors.length && <div className="rounded-lg border border-dashed border-gray-700 p-4 text-sm text-gray-500">Noch kein Postprozessor konfiguriert.</div>}
+                </div>
+
+                <div className="mt-5 border-t border-gray-700 pt-4">
+                    <label className="block">
+                        <span className="mb-1 block text-xs text-gray-500">Verfügbaren Postprozessor wählen</span>
+                        <select value={selectedPluginId} onChange={event => setSelectedPluginId(event.target.value)} className="w-full rounded border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white">
+                            {AVAILABLE_POSTPROCESSORS.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+                        </select>
+                    </label>
+                    <button type="button" onClick={addPostprocessor} disabled={!selectedPluginId} className="mt-2 w-full rounded border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-gray-200 hover:bg-gray-700 disabled:opacity-50">
+                        Postprozessor hinzufügen
+                    </button>
+                </div>
+            </aside>
+
+            <main className="min-h-0 min-w-0 overflow-y-auto p-6">
+                {!activePostprocessor || !descriptor ? (
+                    <div className="mx-auto max-w-3xl rounded-xl border border-dashed border-gray-700 p-10 text-center">
+                        <h2 className="font-medium text-gray-200">Maschinenadapter hinzufügen</h2>
+                        <p className="mt-2 text-sm text-gray-500">Wähle links einen registrierten Postprozessor. Neue Plugins werden zentral in der Engine-Registry verfügbar gemacht.</p>
+                    </div>
+                ) : (
+                    <div className="max-w-5xl space-y-6">
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                                <h2 className="text-xl font-semibold text-gray-100">{descriptor.name}</h2>
+                                <p className="mt-1 text-sm text-gray-500">{descriptor.description}</p>
+                                <div className="mt-3 flex flex-wrap gap-2">
+                                    <Capability label="Viewer" enabled={descriptor.capabilities?.viewer} />
+                                    <Capability label="Maschinencode" enabled={descriptor.capabilities?.machineCode} />
+                                    <Capability label="Bearbeitungsauflösung" enabled={descriptor.capabilities?.machiningResolution} />
+                                    <span className="rounded-full border border-gray-700 px-2 py-1 text-xs text-gray-500">API {descriptor.apiVersion} · v{descriptor.version}</span>
+                                </div>
+                            </div>
+                            <button type="button" onClick={removePostprocessor} className="rounded border border-red-900 px-3 py-2 text-sm text-red-300 hover:bg-red-950">Entfernen</button>
+                        </div>
+
+                        <SettingsCard title="Instanz">
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <label>
+                                    <span className="mb-1 block text-xs text-gray-500">Bezeichnung</span>
+                                    <input value={activePostprocessor.name ?? ""} onChange={event => updatePostprocessor({ name: event.target.value })} className="w-full rounded border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none focus:border-blue-500" />
+                                </label>
+                                <ToggleField label="Aktiv" value={activePostprocessor.enabled} onChange={value => updatePostprocessor({ enabled: value })} />
+                            </div>
+                        </SettingsCard>
+
+                        <SettingsCard title="Maschinenkonfiguration">
+                            <div className="grid gap-4 md:grid-cols-2">
+                                {descriptor.configuration.map(field => (
+                                    <PostprocessorConfigurationField
+                                        key={field.key}
+                                        field={field}
+                                        value={activePostprocessor.configuration?.[field.key]}
+                                        onChange={value => updateConfiguration(field.key, value)}
+                                    />
+                                ))}
+                            </div>
+                        </SettingsCard>
+
+                        <SettingsCard title="Integrationsendpunkte">
+                            <div className="grid gap-3 lg:grid-cols-3">
+                                <Endpoint name="Viewer" method="translateForViewer" description="Übersetzt Bauteil- und Function-Config in darstellbare Viewer-Operationen." />
+                                <Endpoint name="Maschinencode" method="generateMachineCode" description="Erzeugt erst im maschinenspezifischen Plugin ausführbaren G-Code oder Hersteller-Code." />
+                                <Endpoint name="Bearbeitung" method="resolveMachining" description="Prüft Zuordnungen und löst interne Bearbeitungsabsichten in Maschinenstrategien auf." />
+                            </div>
+                            <p className="mt-4 text-xs text-gray-500">Die Endpunkte sind vorbereitet, werden aber noch nicht automatisch von buildPartList oder dem CNC Viewer aufgerufen.</p>
+                        </SettingsCard>
+
+                        <SettingsCard title="Unterstützte Bearbeitungen">
+                            <div className="grid gap-3 md:grid-cols-2">
+                                {descriptor.supportedMachiningStrategies.map(strategy => (
+                                    <div key={strategy.id} className="rounded-lg border border-gray-700 bg-gray-900 p-3">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <span className="text-sm font-medium text-gray-200">{strategy.label}</span>
+                                            <code className="text-xs text-blue-300">{strategy.id}</code>
+                                        </div>
+                                        <p className="mt-1 text-xs text-gray-500">{strategy.description}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </SettingsCard>
+                    </div>
+                )}
+            </main>
+        </div>
+    );
+}
+
+function Capability({ label, enabled }) {
+    return <span className={`rounded-full border px-2 py-1 text-xs ${enabled ? "border-emerald-800 bg-emerald-950/40 text-emerald-300" : "border-gray-700 text-gray-500"}`}>{label}: {enabled ? "bereit" : "Adapter nötig"}</span>;
+}
+
+function Endpoint({ name, method, description }) {
+    return (
+        <div className="rounded-lg border border-gray-700 bg-gray-900 p-4">
+            <div className="text-sm font-medium text-gray-200">{name}</div>
+            <code className="mt-1 block text-xs text-blue-300">{method}()</code>
+            <p className="mt-2 text-xs leading-relaxed text-gray-500">{description}</p>
+        </div>
+    );
+}
+
+
+function PostprocessorConfigurationField({ field, value, onChange }) {
+    if (field.type === "boolean") {
+        return <ToggleField label={field.label} value={value} onChange={onChange} />;
+    }
+
+    if (field.type === "select") {
+        return (
+            <label>
+                <span className="mb-1 block text-xs text-gray-500">{field.label}</span>
+                <select value={value ?? ""} onChange={event => onChange(event.target.value)} className="w-full rounded border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white">
+                    {(field.options ?? []).map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+            </label>
+        );
+    }
+
+    if (field.type === "json") {
+        return <JsonConfigurationField field={field} value={value} onChange={onChange} />;
+    }
+
+    return (
+        <label>
+            <span className="mb-1 block text-xs text-gray-500">{field.label}</span>
+            <div className="flex items-center gap-2">
+                <input
+                    type={field.type === "number" ? "number" : "text"}
+                    min={field.min}
+                    value={value ?? ""}
+                    onChange={event => onChange(field.type === "number" ? Number(event.target.value) : event.target.value)}
+                    className="w-full rounded border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+                />
+                {field.unit && <span className="text-xs text-gray-500">{field.unit}</span>}
+            </div>
+        </label>
+    );
+}
+
+
+function JsonConfigurationField({ field, value, onChange }) {
+    const [text, setText] = useState(() => JSON.stringify(value ?? {}, null, 2));
+    const [error, setError] = useState("");
+
+    useEffect(() => {
+        setText(JSON.stringify(value ?? {}, null, 2));
+        setError("");
+    }, [value]);
+
+    return (
+        <label className="md:col-span-2">
+            <span className="mb-1 flex justify-between text-xs text-gray-500"><span>{field.label}</span>{error && <span className="text-red-400">Ungültiges JSON</span>}</span>
+            <textarea
+                rows={5}
+                value={text}
+                onChange={event => {
+                    const next = event.target.value;
+                    setText(next);
+                    try {
+                        onChange(JSON.parse(next));
+                        setError("");
+                    } catch {
+                        setError("invalid");
+                    }
+                }}
+                className={`w-full rounded border bg-gray-900 px-3 py-2 font-mono text-xs text-white outline-none ${error ? "border-red-700" : "border-gray-700 focus:border-blue-500"}`}
+            />
+        </label>
+    );
 }
 
 
@@ -674,9 +1042,9 @@ function SpaxSettings({
 
 
             <SettingsHeader
-                title="Spax / Verbinder"
+                title="Bohrverbinder"
                 description="
-                    Einstellungen für VB, VBH und Spax-Bohrungen
+                    Einstellungen für VB, VBH und Spax-Bohrbilder
                 "
             />
 
@@ -1090,6 +1458,24 @@ function ShelfSettings({
                     />
 
                     <NumberField
+                        label="Fachrückstand"
+                        value={
+                            config.shelf
+                                .shelfFrontOffset
+                        }
+                        onChange={
+                            value =>
+                                updateNumber(
+                                    [
+                                        "shelf",
+                                        "shelfFrontOffset"
+                                    ],
+                                    value
+                                )
+                        }
+                    />
+
+                    <NumberField
                         label="Vorne"
                         value={
                             config.shelf
@@ -1126,6 +1512,10 @@ function ShelfSettings({
                     />
 
                 </div>
+
+                <p className="mt-3 text-xs text-gray-500">
+                    Fachrückstand setzt <code>shelfFrontOffset</code> der Fachboden-Function-Config. „Vorne“ setzt separat <code>frontOffset</code> der Lochreihe.
+                </p>
 
             </SettingsCard>
 
@@ -1381,13 +1771,147 @@ function LegraboxSettings({
 
 
 /* =========================================================
+ * CLAMEX
+ * ========================================================= */
+
+function ClamexSettings({ config, updateConfig, updateNumber }) {
+    const clamex = config.clamex;
+
+    const updateAxisMode = (orientation, axisMode) => {
+        updateConfig(["clamex", orientation, "axisMode"], axisMode);
+        if (orientation === "surface") {
+            updateConfig(["clamex", orientation, "cutterType"], axisMode === "3-axis" ? "router" : "disc");
+        } else if (axisMode === "3-axis") {
+            updateConfig(["clamex", orientation, "cutterType"], "disc");
+        }
+    };
+
+    return (
+        <div className="max-w-5xl space-y-6">
+            <SettingsHeader title="Clamex" description="Maschinenunabhängige Definition der Clamex-Bearbeitung. Werkzeugdaten werden vom Postprozessor ergänzt." />
+
+            <SettingsCard title="Flächige Bearbeitung">
+                <div className="grid gap-4 md:grid-cols-2">
+                    <ChoiceField
+                        label="Kinematik"
+                        value={clamex.surface.axisMode}
+                        options={[["3-axis", "3-Achs"], ["5-axis", "5-Achs"]]}
+                        onChange={value => updateAxisMode("surface", value)}
+                    />
+                    <ChoiceField
+                        label="Bearbeitungswerkzeug"
+                        value={clamex.surface.cutterType}
+                        options={clamex.surface.axisMode === "3-axis"
+                            ? [["router", "Fräser"]]
+                            : [["disc", "Frässcheibe"]]}
+                        onChange={value => updateConfig(["clamex", "surface", "cutterType"], value)}
+                    />
+                </div>
+                <p className="mt-3 text-xs text-gray-500">Flächig: 3-Achs mit Fräser oder 5-Achs mit Frässcheibe.</p>
+            </SettingsCard>
+
+            <SettingsCard title="Horizontale Bearbeitung">
+                <div className="grid gap-4 md:grid-cols-2">
+                    <ChoiceField
+                        label="Kinematik"
+                        value={clamex.horizontal.axisMode}
+                        options={[["3-axis", "3-Achs"], ["5-axis", "5-Achs"]]}
+                        onChange={value => updateAxisMode("horizontal", value)}
+                    />
+                    <ChoiceField
+                        label="Bearbeitungswerkzeug"
+                        value={clamex.horizontal.cutterType}
+                        options={clamex.horizontal.axisMode === "3-axis"
+                            ? [["disc", "Frässcheibe"]]
+                            : [["disc", "Frässcheibe"], ["router", "Fräser"]]}
+                        onChange={value => updateConfig(["clamex", "horizontal", "cutterType"], value)}
+                    />
+                </div>
+                <p className="mt-3 text-xs text-gray-500">Horizontal: 3-Achs nur mit Frässcheibe; 5-Achs mit Frässcheibe oder Fräser.</p>
+            </SettingsCard>
+
+            <SettingsCard title="Verbinderverteilung">
+                <div className="grid gap-4 md:grid-cols-3">
+                    <NumberField label="Randentfernung" value={clamex.edgeDistance} onChange={value => updateNumber(["clamex", "edgeDistance"], value)} />
+                    <NumberField label="Abstand von außen" value={clamex.outsideOffset} onChange={value => updateNumber(["clamex", "outsideOffset"], value)} />
+                    <NumberField label="Schwellenwert für weniger Verbinder" value={clamex.reducedConnectorThreshold} onChange={value => updateNumber(["clamex", "reducedConnectorThreshold"], value)} />
+                </div>
+            </SettingsCard>
+        </div>
+    );
+}
+
+
+/* =========================================================
  * RÜCKWAND
  * ========================================================= */
 
 function BackPanelSettings({
+    mode,
     config,
     updateNumber
 }) {
+
+    if (mode === "groove") {
+        const groove = config.backPanel.groove;
+        return (
+            <div className="max-w-5xl space-y-6">
+                <SettingsHeader title="Rückwandnut" description="Parameter für durchgehende und eingesetzte Nuten. Werkzeugdaten verknüpft der aktive Postprozessor." />
+
+                <SettingsCard title="Durchgehende Nut">
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <NumberField label="Start" value={groove.continuous.startOffset} onChange={value => updateNumber(["backPanel", "groove", "continuous", "startOffset"], value)} />
+                        <NumberField label="Ende" value={groove.continuous.endOffset} onChange={value => updateNumber(["backPanel", "groove", "continuous", "endOffset"], value)} />
+                    </div>
+                </SettingsCard>
+
+                <SettingsCard title="Eingesetzte Nut">
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <NumberField label="Start" value={groove.inserted.startOffset} onChange={value => updateNumber(["backPanel", "groove", "inserted", "startOffset"], value)} />
+                        <NumberField label="Ende" value={groove.inserted.endOffset} onChange={value => updateNumber(["backPanel", "groove", "inserted", "endOffset"], value)} />
+                    </div>
+                </SettingsCard>
+
+                <SettingsCard title="Allgemein für alle Nuten">
+                    <div className="grid gap-4 md:grid-cols-3">
+                        <NumberField label="Abstand von hinten" value={groove.distanceFromBack} onChange={value => updateNumber(["backPanel", "groove", "distanceFromBack"], value)} />
+                        <NumberField label="Tiefe Z" value={groove.zDepth} onChange={value => updateNumber(["backPanel", "groove", "zDepth"], value)} />
+                        <NumberField label="Breite" value={groove.width} onChange={value => updateNumber(["backPanel", "groove", "width"], value)} />
+                    </div>
+                </SettingsCard>
+            </div>
+        );
+    }
+
+    if (mode === "rabbet") {
+        const rabbet = config.backPanel.rabbet;
+        return (
+            <div className="max-w-5xl space-y-6">
+                <SettingsHeader title="Rückwandfalz" description="Parameter für durchgehende und eingesetzte Falze. Werkzeugdaten verknüpft der aktive Postprozessor." />
+
+                <SettingsCard title="Durchgehender Falz">
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <NumberField label="Start links" value={rabbet.continuous.startLeft} onChange={value => updateNumber(["backPanel", "rabbet", "continuous", "startLeft"], value)} />
+                        <NumberField label="Ende rechts" value={rabbet.continuous.endRight} onChange={value => updateNumber(["backPanel", "rabbet", "continuous", "endRight"], value)} />
+                    </div>
+                </SettingsCard>
+
+                <SettingsCard title="Eingesetzter Falz">
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <NumberField label="Start links" value={rabbet.inserted.startLeft} onChange={value => updateNumber(["backPanel", "rabbet", "inserted", "startLeft"], value)} />
+                        <NumberField label="Ende rechts" value={rabbet.inserted.endRight} onChange={value => updateNumber(["backPanel", "rabbet", "inserted", "endRight"], value)} />
+                    </div>
+                </SettingsCard>
+
+                <SettingsCard title="Allgemein für alle Falze">
+                    <div className="grid gap-4 md:grid-cols-2">
+                        <NumberField label="Tiefe" value={rabbet.depth} onChange={value => updateNumber(["backPanel", "rabbet", "depth"], value)} />
+                        <NumberField label="Abstand von oben" value={rabbet.topOffset} onChange={value => updateNumber(["backPanel", "rabbet", "topOffset"], value)} />
+                    </div>
+                </SettingsCard>
+            </div>
+        );
+    }
 
     return (
 
@@ -1939,6 +2463,18 @@ function NumberField({
 
     );
 
+}
+
+
+function ChoiceField({ label, value, options, onChange }) {
+    return (
+        <label className="block">
+            <span className="mb-1 block text-xs text-gray-500">{label}</span>
+            <select value={value ?? ""} onChange={event => onChange(event.target.value)} className="w-full rounded border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none focus:border-blue-500">
+                {options.map(([optionValue, optionLabel]) => <option key={optionValue} value={optionValue}>{optionLabel}</option>)}
+            </select>
+        </label>
+    );
 }
 
 

@@ -1,7 +1,9 @@
-
+import { DEFAULT_MACHINING_ASSIGNMENTS } from "../../postprocessor/defaults.js";
 
 
 export const DEFAULT_CNC = {
+
+    machiningAssignments: DEFAULT_MACHINING_ASSIGNMENTS,
 
     spax: {
 
@@ -34,8 +36,23 @@ export const DEFAULT_CNC = {
     shelf: {
         diameter: 5,
         depth: 16,
+        shelfFrontOffset: 10,
         frontOffset: 37,
         backOffset: 37
+    },
+
+    clamex: {
+        surface: {
+            axisMode: "3-axis",
+            cutterType: "router"
+        },
+        horizontal: {
+            axisMode: "3-axis",
+            cutterType: "disc"
+        },
+        edgeDistance: 80,
+        outsideOffset: 20,
+        reducedConnectorThreshold: 300
     },
 
     legrabox: {
@@ -72,6 +89,20 @@ export const DEFAULT_CNC = {
 
         groove: {
 
+            continuous: {
+                startOffset: -20,
+                endOffset: -20
+            },
+
+            inserted: {
+                startOffset: 3,
+                endOffset: 3
+            },
+
+            distanceFromBack: 20,
+            zDepth: 9,
+            width: 8.3,
+
             frontOffset: 42,
             backOffset: 42,
 
@@ -95,8 +126,17 @@ export const DEFAULT_CNC = {
         },
 
         rabbet: {
-            startOffset: 16,
-            depth: 16
+            continuous: {
+                startLeft: -20,
+                endRight: -20
+            },
+            inserted: {
+                startLeft: 3,
+                endRight: 3
+            },
+            depth: 16,
+            topOffset: 7,
+            startOffset: 16
         },
 
         insertedRabbet: {

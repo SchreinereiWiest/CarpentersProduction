@@ -11,3 +11,8 @@ export const createShelfHoleRowDefaults = (cncConfig = DEFAULT_CNC) => {
         endFromTop: 150
     };
 };
+
+export const getShelfFrontOffsetDefault = (cncConfig = DEFAULT_CNC) => {
+    const config = cncConfig?.cncDefault ?? cncConfig;
+    return config?.shelf?.shelfFrontOffset ?? config?.shelf?.setback ?? DEFAULT_CNC.shelf.shelfFrontOffset;
+};

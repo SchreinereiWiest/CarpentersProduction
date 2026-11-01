@@ -37,19 +37,45 @@ import StorageSettingsPanel
     from "./panels/storageSettingsPanel.jsx";
 import HourlyRatesSettingsPanel
     from "./panels/hourlyRatesSettingsPanel.jsx";
+import { useAuth } from "../../app/providers/AuthContext.js";
+
+const advancedTabs = [
+    { id: "estimation", label: "Stundenschätzung", requiredFeature: "calculation" },
+    { id: "hourlyRates", label: "Stundensätze", requiredFeature: "calculation", excludedFeature: "business-management" },
+    { id: "ai", label: "AI", requiredFeature: "work-preparation" },
+    { id: "shop", label: "Shop", requiredFeature: "shop" }
+];
 
 
 export default function CompanySettings() {
 
+    const { user } = useAuth();
+
     const [
         selectedSection,
         setSelectedSection
-    ] = useState("company");
+    ] = useState("userInterface");
+
+    const [selectedAdvancedSection, setSelectedAdvancedSection] = useState("estimation");
+    const features = new Set(user?.features || []);
+    const visibleAdvancedTabs = advancedTabs.filter(tab =>
+        (!tab.requiredFeature || features.has(tab.requiredFeature))
+        && (!tab.excludedFeature || !features.has(tab.excludedFeature))
+    );
+
+    const selectPrimarySection = section => {
+        setSelectedSection(section);
+        if (section === "advanced" && !visibleAdvancedTabs.some(tab => tab.id === selectedAdvancedSection)) {
+            setSelectedAdvancedSection(visibleAdvancedTabs[0]?.id ?? "estimation");
+        }
+    };
 
 
     const renderSection = () => {
 
-        switch (selectedSection) {
+        const section = selectedSection === "advanced" ? selectedAdvancedSection : selectedSection;
+
+        switch (section) {
 
             case "users":
 
@@ -164,11 +190,35 @@ export default function CompanySettings() {
                             selectedSection
                         }
                         onSelect={
-                            setSelectedSection
+                            selectPrimarySection
                         }
                     />
 
                 </div>
+
+                {selectedSection === "advanced" && (
+                    <nav aria-label="Advanced Settings" className="shrink-0 border-b border-gray-700 bg-gray-900">
+                        <div className="flex h-12 items-end gap-1 overflow-x-auto px-4">
+                            {visibleAdvancedTabs.map(tab => {
+                                const active = selectedAdvancedSection === tab.id;
+                                return (
+                                    <button
+                                        key={tab.id}
+                                        type="button"
+                                        aria-current={active ? "page" : undefined}
+                                        onClick={() => setSelectedAdvancedSection(tab.id)}
+                                        className={`h-full whitespace-nowrap border-b-2 px-4 text-sm font-medium transition ${active
+                                            ? "border-blue-500 text-blue-400"
+                                            : "border-transparent text-gray-500 hover:text-gray-300"
+                                        }`}
+                                    >
+                                        {tab.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </nav>
+                )}
 
 
                 {/* Content */}

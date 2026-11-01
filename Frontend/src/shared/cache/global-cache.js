@@ -25,6 +25,7 @@ const settingsPaths = new Map([
     ["settings-company.json", "/api/settings/company"],
     ["settings-cabinet.json", "/api/settings/cabinet"],
     ["settings-cabinetPreset.json", "/api/settings/cabinetPreset"],
+    ["settings-functionPreset.json", "/api/settings/functionPreset"],
     ["settings-nesting.json", "/api/settings/nesting"],
     ["settings-cnc.json", "/api/settings/cnc"],
     ["settings-cache.json", "/api/settings/cache"]
