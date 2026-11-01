@@ -21,7 +21,7 @@ const COLOR_LABELS = {
 const PROCUREMENT_TYPES = [
     { value: "", label: "Kein Fetch-Plugin" },
     { value: "datanorm", label: "DATANORM" },
-    { value: "haefele-browser-extension", label: "Häfele (Firefox-Erweiterung)" }
+    { value: "av-firefox-extension", label: "AV Product Fetch (Firefox)" }
 ];
 
 export default function ShopSettingsPanel() {
@@ -69,7 +69,7 @@ export default function ShopSettingsPanel() {
     const addSupplier = () => {
         setConfig(current => ({
             ...current,
-            suppliers: [...current.suppliers, { id: createSupplierId(), name: "", externalId: "" }]
+            suppliers: [...current.suppliers, { id: createSupplierId(), name: "", externalId: "", shopUrl: "", procurementType: null }]
         }));
         setMessage(null);
     };
@@ -121,6 +121,7 @@ export default function ShopSettingsPanel() {
                 id: supplier.id,
                 name: supplier.name.trim(),
                 externalId: supplier.externalId.trim(),
+                shopUrl: supplier.shopUrl.trim(),
                 procurementType: supplier.procurementType || null
             }))
             .filter(supplier => supplier.name);
@@ -307,10 +308,21 @@ export default function ShopSettingsPanel() {
                                         </div>
                                     )}
 
-                                    {supplier.procurementType === "haefele-browser-extension" && (
+                                    {supplier.procurementType === "av-firefox-extension" && (
                                         <div className="rounded-lg border border-gray-700 bg-gray-900/60 p-4">
-                                            <p className="text-sm font-semibold text-gray-200">Häfele Firefox-Erweiterung</p>
-                                            <p className="mt-1 max-w-3xl text-xs leading-5 text-gray-500">Die Erweiterung aus <code>Plugins/haefele-firefox-extension</code> wird einmal in Firefox geladen. Beim Shop-Fetch öffnet sie Häfele im normalen Browserprofil. Login, Cookies und eine mögliche Cloudflare-Prüfung bleiben dort und werden nie an CarpentersProduction übertragen.</p>
+                                            <p className="text-sm font-semibold text-gray-200">AV Product Fetch</p>
+                                            <p className="mt-1 max-w-3xl text-xs leading-5 text-gray-500">Die Erweiterung aus <code>Plugins/av-firefox-extension</code> öffnet diesen Händler im normalen Firefox-Profil. Login, Cookies und Sicherheitsprüfungen bleiben im Browser und werden nie an CarpentersProduction übertragen.</p>
+                                            <label className="mt-4 block">
+                                                <span className="mb-1.5 block text-xs uppercase tracking-wide text-gray-500">Shop-Startadresse</span>
+                                                <input
+                                                    type="url"
+                                                    required
+                                                    value={supplier.shopUrl || ""}
+                                                    onChange={event => updateSupplier(supplier.id, "shopUrl", event.target.value)}
+                                                    placeholder="https://www.haefele.de/de/ oder https://eshop.wuerth.de/"
+                                                    className="w-full rounded-lg border border-gray-600 bg-gray-950 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+                                                />
+                                            </label>
                                         </div>
                                     )}
                                 </div>

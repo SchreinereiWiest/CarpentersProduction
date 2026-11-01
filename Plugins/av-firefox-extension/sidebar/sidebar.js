@@ -28,12 +28,15 @@ const elements = {
     submitHint: byId("submit-hint"),
     cancelJob: byId("cancel-job"),
     mappingCount: byId("mapping-count"),
-    mappingList: byId("mapping-list")
+    mappingList: byId("mapping-list"),
+    currentShopName: byId("current-shop-name"),
+    compareCurrentPage: byId("compare-current-page"),
+    clearPanel: byId("clear-panel")
 };
 elements.capturePage = byId("capture-page");
 elements.saveManual = byId("save-manual");
 
-let state = { job: null, mappings: {}, settings: { reviewBeforeSubmit: true } };
+let state = { job: null, mappings: {}, knownShops: [], currentShop: null, settings: { reviewBeforeSubmit: true } };
 let editorEntryId = null;
 
 const statusLabels = {
@@ -111,7 +114,7 @@ const renderEditorOptions = job => {
     for (const entry of job.entries) {
         const option = document.createElement("option");
         option.value = entry.entryId;
-        option.textContent = `${entry.sku} · ${entry.name || "Ohne Bezeichnung"}`;
+        option.textContent = `${entry.supplierName || "Shop"} · ${entry.sku} · ${entry.name || "Ohne Bezeichnung"}`;
         elements.entrySelect.append(option);
     }
     const fallback = job.entries[job.index]?.entryId || job.entries[0]?.entryId || null;
@@ -153,8 +156,8 @@ const renderResults = job => {
         title.append(dot, document.createTextNode(entry.sku));
         const detail = document.createElement("span");
         detail.textContent = result
-            ? result.ok ? `${result.data?.name || entry.name}${result.manual ? " · manuell" : ""}` : result.error
-            : entry.entryId === job.entries[job.index]?.entryId ? "Wird verarbeitet …" : "Ausstehend";
+            ? result.ok ? `${entry.supplierName || "Shop"} · ${result.data?.name || entry.name}${result.manual ? " · manuell" : ""}` : `${entry.supplierName || "Shop"} · ${result.error}`
+            : `${entry.supplierName || "Shop"} · ${entry.entryId === job.entries[job.index]?.entryId ? "Wird verarbeitet …" : "Ausstehend"}`;
         copy.append(title, detail);
         const actions = document.createElement("div");
         actions.className = "result-actions";
@@ -187,7 +190,7 @@ const renderMappings = () => {
         const title = document.createElement("strong");
         title.textContent = `${mapping.sourceSku} → ${mapping.targetSku || mapping.sourceSku}`;
         const detail = document.createElement("span");
-        detail.textContent = mapping.label || mapping.productUrl || "Häfele-Produkt";
+        detail.textContent = `${mapping.supplierName || "Shop"} · ${mapping.label || mapping.productUrl || "Produkt"}`;
         copy.append(title, detail);
         row.append(copy, button("Löschen", () => void send("DELETE_MAPPING", { entryId: mapping.entryId })));
         elements.mappingList.append(row);
@@ -200,11 +203,19 @@ const render = () => {
     elements.empty.hidden = Boolean(job);
     elements.jobPanel.hidden = !job;
     renderMappings();
-    if (!job) return;
+    if (!job) {
+        elements.currentShopName.textContent = state.currentShop?.supplierName || "Kein bekannter Shop aktiv";
+        elements.compareCurrentPage.disabled = !state.currentShop;
+        return;
+    }
 
     const done = job.results.length;
     const total = job.entries.length;
     const current = job.entries[job.index] || null;
+    const activeJob = ["running", "paused", "review"].includes(job.status);
+    elements.currentShopName.textContent = activeJob
+        ? current?.supplierName || job.currentShopName || state.currentShop?.supplierName || "Kein Shop aktiv"
+        : state.currentShop?.supplierName || "Kein bekannter Shop aktiv";
     elements.status.textContent = statusLabels[job.status] || job.status || "Bereit";
     elements.status.dataset.status = job.status || "";
     elements.count.textContent = `${done} / ${total}`;
@@ -229,6 +240,7 @@ const render = () => {
         ? "Die Daten wurden an CarpentersProduction übertragen."
         : complete ? "Alle Ergebnisse sind vollständig und können übertragen werden." : `${total - done} Artikel benötigen noch ein Ergebnis.`;
     elements.cancelJob.disabled = !["running", "paused", "review"].includes(job.status);
+    elements.compareCurrentPage.disabled = !editable && !state.currentShop;
 };
 
 const loadState = async () => {
@@ -236,8 +248,8 @@ const loadState = async () => {
     render();
 };
 
-byId("open-shop").addEventListener("click", () => void send("OPEN_HAEFELE"));
-byId("empty-open-shop").addEventListener("click", () => void send("OPEN_HAEFELE"));
+byId("open-shop").addEventListener("click", () => void send("OPEN_SHOP"));
+byId("empty-open-shop").addEventListener("click", () => void send("OPEN_SHOP"));
 elements.reviewSetting.addEventListener("change", event => void send("SET_REVIEW_SETTING", { value: event.target.checked }));
 elements.pauseResume.addEventListener("click", () => void send(state.job?.status === "paused" ? "RESUME_JOB" : "PAUSE_JOB"));
 elements.skipCurrent.addEventListener("click", () => void send("SKIP_ENTRY", { entryId: state.job?.entries?.[state.job.index]?.entryId }));
@@ -254,7 +266,7 @@ elements.capturePage.addEventListener("click", async () => {
         elements.price.value = data.netPrice ?? "";
         elements.unit.value = data.unit || "Stk.";
         elements.image.value = data.imageUrl || "";
-        showNotice("Produktdaten aus der geöffneten Häfele-Seite übernommen.", "success");
+        showNotice("Produktdaten aus der geöffneten Shopseite übernommen.", "success");
     } catch {}
 });
 
@@ -285,7 +297,23 @@ elements.saveManual.addEventListener("click", async () => {
 
 elements.submitJob.addEventListener("click", () => void send("SUBMIT_JOB"));
 elements.cancelJob.addEventListener("click", () => {
-    if (confirm("Den laufenden Häfele-Abruf wirklich abbrechen?")) void send("CANCEL_JOB");
+    if (confirm("Den laufenden Product-Fetch-Abruf wirklich abbrechen?")) void send("CANCEL_JOB");
+});
+
+elements.compareCurrentPage.addEventListener("click", async () => {
+    try {
+        const response = await send("COMPARE_CURRENT_PAGE");
+        if (response?.comparedEntryId) loadEditor(response.comparedEntryId);
+        showNotice(response?.added
+            ? "Artikel wurde aus der aktuellen Seite neu in die Prüfliste aufgenommen."
+            : "Aktuelle Seite wurde mit dem vorhandenen Prüflistenartikel abgeglichen.", "success");
+    } catch {}
+});
+
+elements.clearPanel.addEventListener("click", () => {
+    if (state.job && !confirm("Prüfliste und aktuellen Abruf wirklich aus dem Panel entfernen? Gespeicherte Verknüpfungen bleiben erhalten.")) return;
+    editorEntryId = null;
+    void send("CLEAR_PANEL");
 });
 
 browser.runtime.onMessage.addListener(message => {
@@ -295,7 +323,7 @@ browser.runtime.onMessage.addListener(message => {
 });
 
 browser.storage.onChanged.addListener(changes => {
-    if (changes.carpentersHaefeleJob || changes.carpentersHaefeleMappings || changes.carpentersHaefeleSettings) {
+    if (changes.carpentersProductFetchJob || changes.carpentersProductFetchMappings || changes.carpentersProductFetchSettings || changes.carpentersProductFetchShops) {
         void loadState();
     }
 });

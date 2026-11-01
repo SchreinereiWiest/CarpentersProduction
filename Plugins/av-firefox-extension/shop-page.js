@@ -1,11 +1,23 @@
 (() => {
     "use strict";
 
+    if (globalThis.__carpentersProductFetchShopPageLoaded) return;
+    globalThis.__carpentersProductFetchShopPageLoaded = true;
+
     const normalizeSku = value => String(value || "").replace(/[^\p{L}\p{N}]/gu, "").toLocaleLowerCase("de");
+    const cleanArticleNumber = value => {
+        const text = String(value || "")
+            .replace(/\u00a0/g, " ")
+            .replace(/^\s*(?:Art(?:ikel)?\.?\s*[-–—]?\s*Nr\.?|Artikelnummer)\s*:?\s*/i, "")
+            .replace(/\s*(?:Artikelnummer\s+)?kopiert\b[\s\S]*$/i, "")
+            .trim();
+        const token = text.match(/[\p{L}\p{N}]+(?:[.\-/][\p{L}\p{N}]+)+|[\p{L}\p{N}]{4,}/u)?.[0];
+        return token || text.split(/\s+/)[0] || "";
+    };
     const sleep = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
     const visible = element => Boolean(element && (element.offsetWidth || element.offsetHeight || element.getClientRects().length));
     const visiblePasswordField = () => [...document.querySelectorAll("input[type='password'], input[autocomplete='current-password']")].some(visible);
-    const visibleLoginLink = () => [...document.querySelectorAll("a[href*='account/login' i], a[href*='/login/' i]")]
+    const visibleLoginLink = () => [...document.querySelectorAll("a[href*='account/login' i], a[href*='/login/' i], a[href*='signin' i], a[href*='anmelden' i]")]
         .find(link => visible(link) && /anmelden|login|konto/i.test(link.textContent || link.getAttribute("aria-label") || ""));
 
     const pageHasChallenge = () => (
@@ -15,7 +27,7 @@
 
     const waitForChallenge = async () => {
         for (let attempt = 0; attempt < 180 && pageHasChallenge(); attempt += 1) await sleep(500);
-        if (pageHasChallenge()) throw new Error("Cloudflare-Prüfung wurde nicht innerhalb von 90 Sekunden abgeschlossen");
+        if (pageHasChallenge()) throw new Error("Die Sicherheitsprüfung wurde nicht innerhalb von 90 Sekunden abgeschlossen");
     };
 
     const productObjects = () => [...document.querySelectorAll('script[type="application/ld+json"]')]
@@ -113,7 +125,7 @@
     const pageArticleIdentifiers = products => {
         const identifiers = [];
         const add = (value, source) => {
-            const raw = String(value || "").trim();
+            const raw = cleanArticleNumber(value);
             const normalized = normalizeSku(raw);
             if (normalized && !identifiers.some(item => item.normalized === normalized)) {
                 identifiers.push({ raw, normalized, source });
@@ -132,9 +144,10 @@
         for (const match of url.pathname.matchAll(/\/(\d{6,})(?:\/|$)/g)) add(match[1], "url-article-number");
 
         const bodyText = document.body?.innerText || document.body?.textContent || "";
-        const articlePattern = /(?:Art(?:ikel)?\.?\s*-?\s*Nr\.?|Artikelnummer)\s*:?\s*([A-Z0-9][A-Z0-9.\-/]{2,})/i;
-        const visibleArticle = bodyText.match(articlePattern);
-        if (visibleArticle) add(visibleArticle[1], "visible-article-number");
+        const explicitArticlePattern = /Art(?:ikel)?\.?\s*[-–—]?\s*Nr\.?\s*:?\s*([A-Z0-9][A-Z0-9.\-/]{2,})/gi;
+        const genericArticlePattern = /Artikelnummer\s*:?\s*([A-Z0-9][A-Z0-9.\-/]{2,})/gi;
+        for (const match of bodyText.matchAll(explicitArticlePattern)) add(cleanArticleNumber(match[1]), "visible-article-number");
+        for (const match of bodyText.matchAll(genericArticlePattern)) add(cleanArticleNumber(match[1]), "visible-generic-number");
         const articleElement = document.querySelector([
             '[itemprop="sku"]',
             '[data-testid*="article-number" i]',
@@ -142,7 +155,7 @@
             '[class*="article-number" i]',
             '[class*="articleNumber" i]'
         ].join(","));
-        if (articleElement) add(articleElement.getAttribute("content") || articleElement.textContent, "article-element");
+        if (articleElement) add(cleanArticleNumber(articleElement.getAttribute("content") || articleElement.textContent), "article-element");
         return identifiers;
     };
 
@@ -161,8 +174,11 @@
             [item.sku, item.productID, item.mpn].map(normalizeSku).filter(Boolean).some(value => pageIdentifiers.has(value))
         )) || products[0];
         const offers = Array.isArray(product?.offers) ? product.offers[0] : product?.offers;
-        const visibleIdentifier = identifiers.find(item => ["visible-article-number", "article-element"].includes(item.source));
-        const sku = String(visibleIdentifier?.raw || product?.sku || product?.productID || product?.mpn || identifiers[0]?.raw || "").trim();
+        const urlArticleIdentifier = identifiers.filter(item => item.source === "url-article-number").at(-1);
+        const visibleIdentifier = identifiers.find(item => item.source === "visible-article-number" && !/^p[-.]?\d/i.test(item.raw)) ||
+            identifiers.find(item => item.source === "article-element" && !/^p[-.]?\d/i.test(item.raw));
+        const structuredIdentifier = identifiers.find(item => item.source.startsWith("structured-"));
+        const sku = String(urlArticleIdentifier?.raw || visibleIdentifier?.raw || structuredIdentifier?.raw || identifiers[0]?.raw || product?.sku || product?.productID || product?.mpn || "").trim();
         if (!allowMismatch && (!likelyProductPage() || !identifiers.some(item => item.normalized === expected))) return null;
         if (allowMismatch && !product && identifiers.length === 0) return null;
         const name = String(product?.name || content('meta[property="og:title"]') || text(["h1", '[itemprop="name"]']) || "").trim();
@@ -189,6 +205,8 @@
 
     const likelyProductPage = () => (
         /\/(?:produkt|product)\//i.test(window.location.pathname) ||
+        productObjects().length > 0 ||
+        Boolean(document.querySelector("h1") && /(?:Art(?:ikel)?\.?\s*-?\s*Nr\.?|Artikelnummer)\s*:?\s*[A-Z0-9]/i.test(document.body?.innerText || "")) ||
         Boolean(document.querySelector('[itemtype*="schema.org/Product"], [data-testid*="product-detail" i], [class*="product-detail" i]'))
     );
 
@@ -197,6 +215,7 @@
         let best = null;
         let stablePrice = null;
         let stableSince = 0;
+        const requiresVisiblePrice = /(^|\.)haefele\.de$/i.test(window.location.hostname);
         while (Date.now() - startedAt < timeout) {
             const current = extractProduct(expectedSku, { allowMismatch });
             if (current) {
@@ -207,7 +226,7 @@
                     priceConfidence: best.priceConfidence,
                     priceSource: best.priceSource
                 };
-                if (current.netPrice !== null && current.priceConfidence >= 40) {
+                if (current.netPrice !== null && (current.priceConfidence >= 40 || !requiresVisiblePrice)) {
                     if (stablePrice !== current.netPrice) {
                         stablePrice = current.netPrice;
                         stableSince = Date.now();
@@ -229,7 +248,7 @@
 
     const exactProductLink = sku => {
         const expected = normalizeSku(sku);
-        return [...document.querySelectorAll("main a[href], a[href*='/de/product/'], a[href*='/de/produkt/']")].find(link => {
+        return [...document.querySelectorAll("main a[href], a[href*='/product/'], a[href*='/produkt/']")].find(link => {
             const candidate = normalizeSku(`${link.textContent || ""} ${link.getAttribute("href") || ""}`);
             return candidate.includes(expected) && visible(link);
         });
@@ -249,7 +268,7 @@
                 await browser.runtime.sendMessage({ type: "LOGIN_REQUIRED" });
                 for (let attempt = 0; attempt < 600 && visiblePasswordField(); attempt += 1) await sleep(1000);
                 if (visiblePasswordField()) {
-                    await sendItemResult(entry, { ok: false, error: "Häfele-Anmeldung wurde nicht innerhalb von zehn Minuten abgeschlossen" });
+                    await sendItemResult(entry, { ok: false, error: "Die Shop-Anmeldung wurde nicht innerhalb von zehn Minuten abgeschlossen" });
                     return;
                 }
                 await processItem({ entry, phase: "home" });
@@ -274,7 +293,7 @@
                 return;
             }
             if (phase === "product") {
-                await sendItemResult(entry, { ok: false, error: "Die Häfele-Produktseite enthält keine eindeutigen Artikeldaten" });
+                await sendItemResult(entry, { ok: false, error: "Die Produktseite enthält keine eindeutigen Artikeldaten" });
                 return;
             }
             let link = exactProductLink(lookupSku);
@@ -301,12 +320,12 @@
                 return;
             }
             if (phase === "search-results") {
-                await sendItemResult(entry, { ok: false, error: "Kein eindeutiger Häfele-Artikel zur Artikelnummer gefunden" });
+                await sendItemResult(entry, { ok: false, error: "Kein eindeutiger Shop-Artikel zur Artikelnummer gefunden" });
                 return;
             }
             const input = searchInput();
             if (!input) {
-                await sendItemResult(entry, { ok: false, error: "Häfele-Suchfeld wurde nicht gefunden" });
+                await sendItemResult(entry, { ok: false, error: "Shop-Suchfeld wurde nicht gefunden" });
                 return;
             }
             input.focus();
@@ -320,7 +339,7 @@
             await sleep(1500);
             await processItem({ entry, phase: "search-results" });
         } catch (error) {
-            await sendItemResult(entry, { ok: false, error: error.message || "Häfele-Seite konnte nicht verarbeitet werden" });
+            await sendItemResult(entry, { ok: false, error: error.message || "Shopseite konnte nicht verarbeitet werden" });
         }
     };
 

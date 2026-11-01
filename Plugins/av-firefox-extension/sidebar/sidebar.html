@@ -3,21 +3,26 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Carpenters · Häfele</title>
+    <title>Carpenters · Product Fetch</title>
     <link rel="stylesheet" href="sidebar.css">
 </head>
 <body>
     <header class="app-header">
-        <div class="brand-mark" aria-hidden="true">H</div>
+        <div class="brand-mark" aria-hidden="true">AV</div>
         <div class="brand-copy">
-            <strong>Häfele Fetch</strong>
-            <span>CarpentersProduction</span>
+            <strong>Product Fetch</strong>
+            <span id="current-shop-name">Kein Shop aktiv</span>
         </div>
-        <button id="open-shop" class="icon-button" type="button" title="Häfele-Tab öffnen" aria-label="Häfele-Tab öffnen">↗</button>
+        <button id="open-shop" class="icon-button" type="button" title="Aktuellen Shop-Tab öffnen" aria-label="Aktuellen Shop-Tab öffnen">↗</button>
     </header>
 
     <main>
         <div id="notice" class="notice" hidden></div>
+
+        <div class="top-actions">
+            <button id="compare-current-page" class="capture-button" type="button">Aktuelle Seite prüfen + aufnehmen</button>
+            <button id="clear-panel" class="secondary-button" type="button">Panel leeren</button>
+        </div>
 
         <section class="panel settings-panel" aria-labelledby="workflow-title">
             <div class="section-heading compact">
@@ -37,7 +42,7 @@
             <div class="empty-icon" aria-hidden="true">⌕</div>
             <h1>Noch kein Abruf</h1>
             <p>Öffne in CarpentersProduction den Katalog und starte „Shop-Daten fetchen“.</p>
-            <button id="empty-open-shop" class="secondary-button" type="button">Häfele öffnen</button>
+            <button id="empty-open-shop" class="secondary-button" type="button">Aktuellen Shop öffnen</button>
         </section>
 
         <section id="job-panel" hidden>
@@ -81,16 +86,16 @@
                     <select id="editor-entry"></select>
                 </label>
                 <div class="button-grid single">
-                    <button id="capture-page" class="capture-button" type="button">Aktuelle Häfele-Seite einlesen</button>
+                    <button id="capture-page" class="capture-button" type="button">Aktuelle Shop-Seite einlesen</button>
                 </div>
 
                 <label class="field">
-                    <span>Verknüpfte Häfele-Artikelnummer</span>
-                    <input id="editor-target-sku" type="text" maxlength="120" placeholder="Artikelnummer auf der Häfele-Seite">
+                    <span>Verknüpfte Shop-Artikelnummer</span>
+                    <input id="editor-target-sku" type="text" maxlength="120" placeholder="Artikelnummer auf der Shopseite">
                 </label>
                 <label class="field">
                     <span>Produkt-URL</span>
-                    <input id="editor-product-url" type="url" maxlength="2048" placeholder="https://www.haefele.de/…">
+                    <input id="editor-product-url" type="url" maxlength="2048" placeholder="https://shop.example/produkt/…">
                 </label>
                 <label class="field">
                     <span>Name</span>
@@ -140,7 +145,7 @@
         </section>
     </main>
 
-    <footer>Erweiterung 1.1.2 · Zugangsdaten und Cookies bleiben in Firefox</footer>
+    <footer>AV Product Fetch 2.0.2 · Zugangsdaten und Cookies bleiben in Firefox</footer>
     <script src="sidebar.js"></script>
 </body>
 </html>

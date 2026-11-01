@@ -19,6 +19,7 @@ const serializeSupplier = supplier => ({
     id: supplier.id,
     name: supplier.name,
     externalId: supplier.externalId || "",
+    shopUrl: supplier.shopUrl || "",
     procurementType: supplier.procurementType || null
 });
 
@@ -197,17 +198,48 @@ export const persistBrowserArticleCatalogResults = async results => {
         include: { supplier: true }
     });
     const byId = new Map(entries.map(entry => [entry.id, entry]));
-    const verified = results.map(result => {
-        const entry = byId.get(result.entryId);
-        if (!entry || entry.supplier?.procurementType !== "haefele-browser-extension") {
-            return { ...result, ok: false, error: "Katalogeintrag gehört nicht zur Häfele-Erweiterung" };
+    const supplierIds = [...new Set(results.map(result => result.supplierId).filter(Boolean))];
+    const suppliers = supplierIds.length > 0
+        ? await prisma.supplier.findMany({ where: { id: { in: supplierIds } } })
+        : [];
+    const suppliersById = new Map(suppliers.map(supplier => [supplier.id, supplier]));
+    const verified = [];
+
+    for (const result of results) {
+        let entry = byId.get(result.entryId);
+        if (!entry && result.newEntry) {
+            const supplier = suppliersById.get(result.supplierId);
+            if (supplier?.procurementType === "av-firefox-extension" && result.sku && result.data?.name) {
+                entry = await prisma.shopCatalogEntry.findFirst({
+                    where: {
+                        supplierId: supplier.id,
+                        sku: { equals: result.sku, mode: "insensitive" }
+                    },
+                    include: { supplier: true }
+                });
+                entry ||= await prisma.shopCatalogEntry.create({
+                    data: {
+                        id: result.entryId,
+                        sku: result.sku,
+                        name: result.data.name,
+                        supplierId: supplier.id,
+                        origin: "extension"
+                    },
+                    include: { supplier: true }
+                });
+                byId.set(entry.id, entry);
+            }
         }
-        return { ...result, supplierId: entry.supplierId, sku: entry.sku };
-    });
-    return summarizeResults(await persistFetchResults(verified, "haefele-browser-extension"));
+        if (!entry || entry.supplier?.procurementType !== "av-firefox-extension") {
+            verified.push({ ...result, ok: false, error: "Katalogeintrag gehört nicht zur AV Firefox-Erweiterung" });
+            continue;
+        }
+        verified.push({ ...result, entryId: entry.id, supplierId: entry.supplierId, sku: entry.sku });
+    }
+    return summarizeResults(await persistFetchResults(verified, "av-firefox-extension"));
 };
 
-export const fetchArticleCatalogData = async () => {
+export const fetchArticleCatalogData = async ({ supplierIds = null, entryIds = null } = {}) => {
     const { entries, suppliers } = await prisma.$transaction(async transaction => {
         await syncInternalShopArticles(transaction);
         const [catalogEntries, configuredSuppliers] = await Promise.all([
@@ -219,10 +251,16 @@ export const fetchArticleCatalogData = async () => {
             suppliers: configuredSuppliers.map(serializeSupplier)
         };
     });
+    const selectedSupplierIds = Array.isArray(supplierIds) ? new Set(supplierIds) : null;
+    const selectedEntryIds = Array.isArray(entryIds) ? new Set(entryIds) : null;
+    const selectedEntries = entries.filter(entry => (
+        (!selectedSupplierIds || selectedSupplierIds.has(entry.supplierId)) &&
+        (!selectedEntryIds || selectedEntryIds.has(entry.id))
+    ));
     const browserSupplierIds = new Set(
-        suppliers.filter(supplier => supplier.procurementType === "haefele-browser-extension").map(supplier => supplier.id)
+        suppliers.filter(supplier => supplier.procurementType === "av-firefox-extension").map(supplier => supplier.id)
     );
-    const serverEntries = entries.filter(entry => !browserSupplierIds.has(entry.supplierId));
+    const serverEntries = selectedEntries.filter(entry => !browserSupplierIds.has(entry.supplierId));
     const datanormSuppliers = suppliers.filter(supplier => supplier.procurementType === "datanorm");
     const datanormArticles = datanormSuppliers.length === 0 ? [] : await prisma.supplierCatalogArticle.findMany({
         where: {
@@ -244,7 +282,7 @@ export const fetchArticleCatalogData = async () => {
     const completed = await persistFetchResults(execution.results);
     return {
         ...summarizeResults(completed, execution.groups),
-        browserExtensionEntries: entries.filter(entry => browserSupplierIds.has(entry.supplierId)).length
+        browserExtensionEntries: selectedEntries.filter(entry => browserSupplierIds.has(entry.supplierId)).length
     };
 };
 

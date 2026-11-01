@@ -354,6 +354,7 @@ async function replaceTenantDatabase(database, req, backupType, { validateOnly =
                          ON CONFLICT ("id") DO UPDATE SET
                            "name" = EXCLUDED."name",
                            "external_id" = EXCLUDED."external_id",
+                           "shop_url" = EXCLUDED."shop_url",
                            "procurement_type" = EXCLUDED."procurement_type",
                            "updated_at" = EXCLUDED."updated_at"`,
                         JSON.stringify(rows)

@@ -50,8 +50,13 @@ import {
     PurchaseListsView
 } from "./purchasingExtensions.jsx";
 import ArticleCatalogView from "./articleCatalog.jsx";
+import ShopFetchSelectionModal from "./shopFetchSelectionModal.jsx";
 import { formatShopFetchFailures } from "./shopFetchReport.js";
-import { fetchWithHaefeleFirefoxExtension } from "./haefeleFirefoxExtension.js";
+import {
+    configureAvFirefoxExtension,
+    fetchWithAvFirefoxExtension,
+    subscribeToAvFirefoxStandaloneResults
+} from "./avFirefoxExtension.js";
 
 const money = new Intl.NumberFormat("de-DE", {
     style: "currency",
@@ -348,6 +353,7 @@ export default function Purchasing() {
     const [catalogSaving, setCatalogSaving] = useState(false);
     const [articleCatalogSaving, setArticleCatalogSaving] = useState(false);
     const [fetchingShopData, setFetchingShopData] = useState(false);
+    const [showShopFetchModal, setShowShopFetchModal] = useState(false);
     const [addingArticleId, setAddingArticleId] = useState(null);
     const [selectedReleaseKeys, setSelectedReleaseKeys] = useState(() => new Set());
     const [processingAction, setProcessingAction] = useState(null);
@@ -439,6 +445,33 @@ export default function Purchasing() {
         load();
         return () => { active = false; };
     }, []);
+
+    useEffect(() => {
+        if (!loading) configureAvFirefoxExtension(suppliers);
+    }, [loading, suppliers]);
+
+    useEffect(() => subscribeToAvFirefoxStandaloneResults(async results => {
+        setFetchingShopData(true);
+        setError("");
+        try {
+            const report = await saveBrowserExtensionResults(results);
+            const [catalogResponse, articleCatalogResponse] = await Promise.all([
+                loadProcurementCatalog(),
+                loadArticleCatalog()
+            ]);
+            const normalizedCatalog = normalizeCatalog(catalogResponse);
+            setArticles(normalizedCatalog.articles);
+            setArticleGroups(normalizedCatalog.groups);
+            setArticleCatalogEntries(Array.isArray(articleCatalogResponse?.entries) ? articleCatalogResponse.entries : []);
+            setMessage(`${report.updated} Artikel aktualisiert, ${report.created} neu im internen Shop und Katalog angelegt.`);
+            setError(report.failed > 0 ? formatShopFetchFailures(report, suppliers) : "");
+        } catch (importError) {
+            console.error("Sidebar-Artikel konnte nicht übernommen werden", importError);
+            setError("Der Artikel aus der Firefox-Sidebar konnte nicht übernommen werden.");
+        } finally {
+            setFetchingShopData(false);
+        }
+    }, () => configureAvFirefoxExtension(suppliers)), [suppliers]);
 
     const shopEntries = useMemo(() => {
         const needle = search.trim().toLocaleLowerCase("de");
@@ -577,28 +610,33 @@ export default function Purchasing() {
         }
     };
 
-    const fetchShopData = async () => {
+    const fetchShopData = async selection => {
         if (fetchingShopData) return;
+        setShowShopFetchModal(false);
         setFetchingShopData(true);
         setMessage("");
         setError("");
         try {
             const saved = await persistArticleCatalog({ quiet: true });
             if (!saved) return;
-            const serverReport = await fetchArticleCatalogShopData();
-            const haefeleSupplierIds = new Set(
+            const selectedEntryIds = new Set(selection.entryIds);
+            const selectedSupplierIds = new Set(selection.supplierIds);
+            const selectedEntries = saved.filter(entry => selectedEntryIds.has(entry.id) && selectedSupplierIds.has(entry.supplierId));
+            const serverReport = await fetchArticleCatalogShopData(selection);
+            const extensionSupplierIds = new Set(
                 suppliers
-                    .filter(supplier => supplier.procurementType === "haefele-browser-extension")
+                    .filter(supplier => supplier.procurementType === "av-firefox-extension" && selectedSupplierIds.has(supplier.id))
                     .map(supplier => supplier.id)
             );
-            const haefeleEntries = saved.filter(entry => haefeleSupplierIds.has(entry.supplierId));
+            const extensionEntries = selectedEntries.filter(entry => extensionSupplierIds.has(entry.supplierId));
             let browserReport = { updated: 0, created: 0, failed: 0, results: [] };
             let browserError = "";
-            if (haefeleEntries.length > 0) {
+            if (extensionEntries.length > 0) {
                 try {
-                    setMessage(`Häfele: 0 von ${haefeleEntries.length} Artikeln verarbeitet. Bitte im geöffneten Firefox-Tab anmelden, falls erforderlich.`);
-                    const browserResults = await fetchWithHaefeleFirefoxExtension(
-                        haefeleEntries,
+                    setMessage(`Product Fetch: 0 von ${extensionEntries.length} Artikeln verarbeitet. Bitte in den geöffneten Shop-Tabs anmelden, falls erforderlich.`);
+                    const browserResults = await fetchWithAvFirefoxExtension(
+                        extensionEntries,
+                        suppliers,
                         progress => setMessage(progress)
                     );
                     browserReport = await saveBrowserExtensionResults(browserResults);
@@ -622,7 +660,7 @@ export default function Purchasing() {
             setArticleCatalogEntries(Array.isArray(articleCatalogResponse?.entries) ? articleCatalogResponse.entries : []);
             setMessage(`${report.updated} Artikel aktualisiert, ${report.created} neu im internen Shop angelegt.`);
             const fetchFailure = report.failed > 0 ? formatShopFetchFailures(report, suppliers) : "";
-            setError([fetchFailure, browserError && `Häfele: ${browserError}`].filter(Boolean).join(" · "));
+            setError([fetchFailure, browserError && `Firefox-Erweiterung: ${browserError}`].filter(Boolean).join(" · "));
         } catch (fetchError) {
             console.error("Shop-Daten konnten nicht geladen werden", fetchError);
             setError("Die Shop-Daten konnten nicht geladen werden.");
@@ -933,7 +971,7 @@ export default function Purchasing() {
                         {canEdit && (
                             <button
                                 type="button"
-                                onClick={fetchShopData}
+                                onClick={() => setShowShopFetchModal(true)}
                                 disabled={fetchingShopData || articleCatalogSaving || loading}
                                 className="shrink-0 whitespace-nowrap border-b-2 border-transparent px-5 py-3 font-semibold text-blue-300 hover:bg-blue-950/30 hover:text-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
                             >
@@ -1160,6 +1198,17 @@ export default function Purchasing() {
                     imageUrl={editingArticle?.imageUrl || imageUrls[editingArticle?.imageFileId]}
                     onClose={() => { setShowArticleModal(false); setEditingArticle(null); }}
                     onSave={upsertArticle}
+                />
+            )}
+
+            {showShopFetchModal && (
+                <ShopFetchSelectionModal
+                    entries={articleCatalogEntries}
+                    suppliers={suppliers}
+                    articles={articles}
+                    groups={articleGroups}
+                    onClose={() => setShowShopFetchModal(false)}
+                    onStart={fetchShopData}
                 />
             )}
 

@@ -18,3 +18,12 @@ PaletteCAD10_Plugin.cmd
 Nur diese Datei muss auf den Zielrechner kopiert und dort per Doppelklick
 ausgefuehrt werden.
 
+## AV Product Fetch für Firefox
+
+Die lieferantenübergreifende Browser-Erweiterung liegt unter
+`Plugins/av-firefox-extension`. Zum lokalen Laden in Firefox wird unter
+`about:debugging#/runtime/this-firefox` deren `manifest.json` ausgewählt.
+
+Lieferanten, Shop-Startadressen und der Abrufweg werden in
+CarpentersProduction unter **Einstellungen → Shop** konfiguriert.
+

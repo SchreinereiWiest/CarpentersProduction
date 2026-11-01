@@ -1,18 +1,18 @@
 {
   "manifest_version": 3,
-  "name": "CarpentersProduction Häfele Fetch",
-  "version": "1.1.2",
-  "description": "Prüft, verknüpft und bearbeitet Häfele-Artikel im angemeldeten Firefox-Profil für CarpentersProduction.",
+  "name": "CarpentersProduction Product Fetch",
+  "version": "2.0.2",
+  "description": "Prüft, verknüpft und bearbeitet Händlerartikel im angemeldeten Firefox-Profil für CarpentersProduction.",
   "permissions": ["tabs", "storage", "activeTab", "scripting"],
-  "host_permissions": ["https://www.haefele.de/*"],
+  "host_permissions": ["https://*/*"],
   "background": {
     "scripts": ["background.js"]
   },
   "action": {
-    "default_title": "Häfele-Sidebar öffnen"
+    "default_title": "Product-Fetch-Sidebar öffnen"
   },
   "sidebar_action": {
-    "default_title": "Carpenters · Häfele",
+    "default_title": "Carpenters · Product Fetch",
     "default_panel": "sidebar/sidebar.html",
     "open_at_install": false
   },
@@ -28,16 +28,11 @@
       "matches": ["*://*/Purchasing*"],
       "js": ["app-bridge.js"],
       "run_at": "document_start"
-    },
-    {
-      "matches": ["https://www.haefele.de/*"],
-      "js": ["haefele-page.js"],
-      "run_at": "document_idle"
     }
   ],
   "browser_specific_settings": {
     "gecko": {
-      "id": "haefele-fetch@carpenters-production.local",
+      "id": "av-product-fetch@carpenters-production.local",
       "strict_min_version": "128.0"
     }
   }

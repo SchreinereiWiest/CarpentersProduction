@@ -44,9 +44,18 @@ export const saveArticleCatalog = async (req, res) => {
     }
 };
 
-export const fetchArticleCatalog = async (_req, res) => {
+const validateIdSelection = value => {
+    if (value === undefined || value === null) return null;
+    if (!Array.isArray(value) || value.length > 10000 || value.some(id => !UUID_PATTERN.test(String(id)))) return false;
+    return [...new Set(value.map(String))];
+};
+
+export const fetchArticleCatalog = async (req, res) => {
+    const supplierIds = validateIdSelection(req.body?.supplierIds);
+    const entryIds = validateIdSelection(req.body?.entryIds);
+    if (supplierIds === false || entryIds === false) return res.status(400).json({ error: "Invalid shop fetch selection" });
     try {
-        res.json(await fetchArticleCatalogData());
+        res.json(await fetchArticleCatalogData({ supplierIds, entryIds }));
     } catch (error) {
         console.error("Shop-Daten konnten nicht geladen werden:", error);
         res.status(502).json({ error: "Supplier shop data could not be fetched" });
@@ -57,7 +66,9 @@ const validateBrowserResults = value => {
     if (!Array.isArray(value) || value.length > 10000) return null;
     const results = value.map(result => ({
         entryId: String(result?.entryId || ""),
+        supplierId: result?.supplierId ? String(result.supplierId) : null,
         sku: String(result?.sku || "").slice(0, 120),
+        newEntry: Boolean(result?.newEntry),
         ok: Boolean(result?.ok),
         error: result?.error ? String(result.error).slice(0, 1000) : null,
         data: result?.ok ? {
@@ -72,6 +83,7 @@ const validateBrowserResults = value => {
     }));
     if (results.some(result => (
         !UUID_PATTERN.test(result.entryId) ||
+        result.newEntry && (!UUID_PATTERN.test(result.supplierId || "") || !result.sku) ||
         result.ok && (!result.data.name || (
             result.data.netPrice !== null && (!Number.isFinite(result.data.netPrice) || result.data.netPrice < 0)
         ))

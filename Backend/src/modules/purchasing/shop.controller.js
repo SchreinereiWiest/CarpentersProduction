@@ -41,6 +41,15 @@ const isHttpUrlOrEmpty = value => {
     }
 };
 
+const isHttpsUrl = value => {
+    const text = String(value ?? "").trim();
+    if (!text || text.length > 2048) return false;
+    try {
+        const url = new URL(text);
+        return url.protocol === "https:" && !url.username && !url.password;
+    } catch { return false; }
+};
+
 const serializeArticle = article => ({
     id: article.id,
     name: article.name,
@@ -148,6 +157,7 @@ const readSettings = async () => {
             id: supplier.id,
             name: supplier.name,
             externalId: supplier.externalId || "",
+            shopUrl: supplier.shopUrl || "",
             procurementType: supplier.procurementType || null,
             datanormArticleCount: supplier._count.datanormArticles
         })),
@@ -285,9 +295,10 @@ export const saveShopSettings = async (req, res) => {
     if (suppliers.some(supplier => (
         !UUID_PATTERN.test(supplier?.id || "") ||
         !String(supplier?.name || "").trim() ||
-        supplier?.procurementType && !SHOP_FETCH_TYPES.has(supplier.procurementType)
+        supplier?.procurementType && !SHOP_FETCH_TYPES.has(supplier.procurementType) ||
+        supplier?.procurementType === "av-firefox-extension" && !isHttpsUrl(supplier?.shopUrl)
     ))) {
-        return res.status(400).json({ error: "Every supplier needs a UUID and a name" });
+        return res.status(400).json({ error: "Every supplier needs a UUID, a name and a valid HTTPS shop URL for browser fetches" });
     }
 
     const mappingEntries = LEGRABOX_VARIANTS.flatMap(variant => (
@@ -313,6 +324,7 @@ export const saveShopSettings = async (req, res) => {
                 const data = {
                     name: String(supplier.name).trim(),
                     externalId: cleanOptionalString(supplier.externalId),
+                    shopUrl: cleanOptionalString(supplier.shopUrl),
                     procurementType: cleanOptionalString(supplier.procurementType)
                 };
                 await transaction.supplier.upsert({

@@ -60,9 +60,10 @@ model Supplier {
 
   name       String
   externalId String? @map("external_id")
+  shopUrl    String? @map("shop_url")
 
-  // Die Plugin-Auswahl ist nicht geheim. Sämtliche Fetch-Konfigurationen und
-  // Zugangsdaten liegen verschlüsselt und write-only in TenantSecret.
+  // Die Plugin-Auswahl und die öffentliche Shop-Startadresse sind nicht geheim.
+  // Anmeldung und Cookies bleiben bei Browser-Abrufen ausschließlich in Firefox.
   procurementType String? @map("procurement_type")
 
   articles               ShopArticle[]

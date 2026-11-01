@@ -8,7 +8,7 @@ import {
 
 const suppliers = [
     { id: "wuerth", name: "Würth", procurementType: "datanorm" },
-    { id: "haefele", name: "Häfele", procurementType: "haefele-browser-extension" }
+    { id: "haefele", name: "Häfele", procurementType: "av-firefox-extension" }
 ];
 
 test("Katalogeinträge werden nach Lieferant und numerischer Artikelnummer gruppiert", () => {

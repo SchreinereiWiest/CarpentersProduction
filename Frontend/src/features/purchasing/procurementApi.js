@@ -55,8 +55,8 @@ export const saveArticleCatalog = async entries => {
     return response.data;
 };
 
-export const fetchArticleCatalogShopData = async () => {
-    const response = await axios.post("/api/shop/article-catalog/fetch");
+export const fetchArticleCatalogShopData = async selection => {
+    const response = await axios.post("/api/shop/article-catalog/fetch", selection || {});
     return response.data;
 };
 

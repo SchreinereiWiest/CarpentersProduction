@@ -1,9 +1,9 @@
 (() => {
     "use strict";
 
-    if (globalThis.__carpentersHaefeleBridgeLoaded) return;
-    globalThis.__carpentersHaefeleBridgeLoaded = true;
-    const CHANNEL = "carpenters:haefele";
+    if (globalThis.__carpentersProductFetchBridgeLoaded) return;
+    globalThis.__carpentersProductFetchBridgeLoaded = true;
+    const CHANNEL = "carpenters:product-fetch";
 
     const sendToApplication = message => window.postMessage({
         channel: CHANNEL,
@@ -18,6 +18,13 @@
         if (!message || typeof message !== "object") return;
         if (message.type === "ping") {
             sendToApplication({ type: "ready", requestId: message.requestId });
+            return;
+        }
+        if (message.type === "configure") {
+            browser.runtime.sendMessage({
+                type: "CONFIGURE_SHOPS",
+                shops: Array.isArray(message.shops) ? message.shops : []
+            }).catch(() => {});
             return;
         }
         if (message.type !== "start") return;
@@ -36,4 +43,6 @@
         if (message?.type !== "APP_EVENT") return;
         sendToApplication(message.payload || {});
     });
+
+    sendToApplication({ type: "configuration-request" });
 })();

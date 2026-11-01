@@ -27,6 +27,7 @@ export const normalizeShopSettings = data => {
             id: String(supplier.id),
             name: String(supplier.name),
             externalId: String(supplier.externalId || ""),
+            shopUrl: String(supplier.shopUrl || ""),
             procurementType: supplier.procurementType || null,
             datanormArticleCount: Math.max(0, Number(supplier.datanormArticleCount) || 0)
         }));

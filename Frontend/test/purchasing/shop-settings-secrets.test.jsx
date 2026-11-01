@@ -23,6 +23,7 @@ const settings = {
         id: supplierId,
         name: "Würth",
         externalId: "",
+        shopUrl: "",
         procurementType: "datanorm",
         datanormArticleCount: 128
     }],
@@ -48,6 +49,26 @@ describe("DATANORM-Lieferantendaten", () => {
         fireEvent.click(screen.getByRole("button", { name: "Einstellungen speichern" }));
 
         await waitFor(() => expect(uploadSupplierDatanorm).toHaveBeenCalledWith(supplierId, [file]));
+    });
+
+    it("kann Würth auf die allgemeine Firefox-Erweiterung mit Shopadresse umstellen", async () => {
+        render(<ShopSettingsPanel />);
+
+        fireEvent.change(await screen.findByLabelText("Shop-Fetch-Plugin"), {
+            target: { value: "av-firefox-extension" }
+        });
+        fireEvent.change(screen.getByLabelText("Shop-Startadresse"), {
+            target: { value: "https://eshop.wuerth.de/" }
+        });
+        fireEvent.click(screen.getByRole("button", { name: "Einstellungen speichern" }));
+
+        await waitFor(() => expect(saveShopSettings).toHaveBeenCalledWith(expect.objectContaining({
+            suppliers: [expect.objectContaining({
+                id: supplierId,
+                procurementType: "av-firefox-extension",
+                shopUrl: "https://eshop.wuerth.de/"
+            })]
+        })));
     });
 });
 
