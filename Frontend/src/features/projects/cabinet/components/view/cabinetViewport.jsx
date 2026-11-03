@@ -969,10 +969,13 @@ export default function CabinetViewport({
                     {(mode === "front" || mode === "combined") && (
                         <FrontLayer
                             cabinet={cabinet}
+                            cncConfig={cncConfig}
                             selectedElement={selectedElement}
                             onSelect={onSelect}
                             opacity={mode === "combined" ? 0.35 : 1}
                             showBackground={mode !== "combined"}
+                            showMachining={mode === "combined"}
+                            machiningOpacity={0.65}
                         />
                     )}
 

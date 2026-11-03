@@ -3,8 +3,32 @@ import { describe, expect, it } from "vitest";
 import {
     AVAILABLE_POSTPROCESSORS,
     createPluginConfiguration,
-    generateCncMachineCode
+    DEFAULT_MACHINING_ASSIGNMENTS,
+    MACHINING_INTENT_IDS,
+    MACHINING_KINDS,
+    generateCncMachineCode as generateMachineCode
 } from "@Engine/postprocessor/index.js";
+
+const withNeutralCnc = part => ({
+    ...part,
+    CNC: {
+        version: 2,
+        coordinateSystem: {
+            unit: "mm",
+            origin: "top-left",
+            xAxis: "right",
+            yAxis: "down",
+            depthDirection: "into-material"
+        },
+        ...(part?.CNC ?? {})
+    }
+});
+
+const generateCncMachineCode = (postprocessor, payload) => generateMachineCode(postprocessor, {
+    assignments: DEFAULT_MACHINING_ASSIGNMENTS,
+    ...payload,
+    part: withNeutralCnc(payload.part)
+});
 
 const descriptor = AVAILABLE_POSTPROCESSORS.find(item => item.id === "scm-xilog3-routolink");
 const instance = {
@@ -17,7 +41,7 @@ const instance = {
 describe("SCM Xilog 3 postprocessor", () => {
     it("publishes the workshop-specific XXL adapter", () => {
         expect(descriptor).toMatchObject({
-            version: "0.2.0",
+            version: "0.3.0",
             sourceFormat: "Xilog 3 XXL (ASCII, CRLF)",
             capabilities: {
                 viewer: true,
@@ -32,6 +56,7 @@ describe("SCM Xilog 3 postprocessor", () => {
             toolSetup: "W",
             flipYAxis: true,
             grooveTool: 81,
+            grooveCorrection: 3,
             millingTool: 114
         });
     });
@@ -46,11 +71,11 @@ describe("SCM Xilog 3 postprocessor", () => {
                 T: 20,
                 CNC: {
                     operations: [
-                        { id: "drill", type: "BO", face: "A", x: 100, y: 100, depth: 8, diameter: 5, R: 2, XOffset: 32 },
-                        { id: "shelf", type: "LR", face: "A", start: 20, end: 116, spacing: 32, frontOffset: 37, backOffset: 658, depth: 12, diameter: 5 },
-                        { id: "groove", type: "RNT", face: "A", x: -20, endX: 470, y: 685, z: 9, width: 8.3 },
-                        { id: "mill-start", type: "XG0", face: "A", x: -20, y: 688, z: 15, toolDepth: 114 },
-                        { id: "mill-line", type: "XL2P", face: "A", endX: 470, endY: 688, z: 15 }
+                        { id: "drill", kind: MACHINING_KINDS.DRILL_PATTERN, intentId: MACHINING_INTENT_IDS.JOINT_CONNECTOR, face: "A", x: 100, y: 100, depth: 8, diameter: 5, count: 2, stepX: 32, stepY: 0 },
+                        { id: "shelf", kind: MACHINING_KINDS.DRILL_ROW, intentId: MACHINING_INTENT_IDS.SHELF_PIN_ROW, face: "A", start: 20, end: 116, spacing: 32, crossPositions: [37, 658], depth: 12, diameter: 5 },
+                        { id: "groove", kind: MACHINING_KINDS.MILL_GROOVE, intentId: MACHINING_INTENT_IDS.BACK_GROOVE, face: "A", start: { x: -20, y: 685, z: 9 }, end: { x: 470, y: 685, z: 9 }, width: 8.3 },
+                        { id: "mill-start", kind: MACHINING_KINDS.MILL_PATH, intentId: MACHINING_INTENT_IDS.BACK_RABBET, motion: "rapid", face: "A", target: { x: -20, y: 688, z: 15 } },
+                        { id: "mill-line", kind: MACHINING_KINDS.MILL_PATH, intentId: MACHINING_INTENT_IDS.BACK_RABBET, motion: "linear", face: "A", target: { x: 470, y: 688, z: 15 } }
                     ]
                 }
             }
@@ -64,7 +89,7 @@ describe("SCM Xilog 3 postprocessor", () => {
             'XBO X=100 Y=595 Z=8 R=2 x=32 D=5 N="P"',
             'XBO X=20 Y=658 Z=12 R=4 x=32 D=5 N="P"',
             'XBO X=20 Y=37 Z=12 R=4 x=32 D=5 N="P"',
-            'RNT X=-20 Y=10 Z=9 x=470 B=8.3 T=81 C=0',
+            'RNT X=-20 Y=10 Z=9 x=470 B=8.3 T=81 C=3',
             'XG0 X=-20 Y=7 Z=15 T=114',
             'XL2P X=470 Y=7 Z=15',
             'N=2800',
@@ -134,9 +159,10 @@ describe("SCM Xilog 3 postprocessor", () => {
                 CNC: {
                     operations: [{
                         id: "horizontal",
-                        type: "VBH",
+                        kind: MACHINING_KINDS.DRILL_EDGE_PATTERN,
+                        intentId: MACHINING_INTENT_IDS.JOINT_CONNECTOR,
                         face: "A",
-                        side: "right",
+                        edge: "right",
                         positions: [50, 248, 446, 645],
                         spacing: 198,
                         depth: 28,
@@ -159,10 +185,11 @@ describe("SCM Xilog 3 postprocessor", () => {
                 CNC: {
                     operations: [{
                         id: "vertical-row",
-                        type: "VB",
+                        kind: MACHINING_KINDS.DRILL_LINEAR_PATTERN,
+                        intentId: MACHINING_INTENT_IDS.JOINT_CONNECTOR,
                         face: "A",
-                        position: 120,
-                        rowStart: 50,
+                        x: 120,
+                        y: 50,
                         count: 4,
                         spacing: 198,
                         depth: 15,
@@ -190,8 +217,8 @@ describe("SCM Xilog 3 postprocessor", () => {
                 T: 20,
                 CNC: {
                     operations: [
-                        { id: "start", type: "XG0", face: "A", x: 0, y: 12, z: 9 },
-                        { id: "line", type: "XL2P", face: "A", endX: 450, z: 9 }
+                        { id: "start", kind: MACHINING_KINDS.MILL_PATH, intentId: MACHINING_INTENT_IDS.BACK_RABBET, motion: "rapid", face: "A", target: { x: 0, y: 12, z: 9 } },
+                        { id: "line", kind: MACHINING_KINDS.MILL_PATH, intentId: MACHINING_INTENT_IDS.BACK_RABBET, motion: "linear", face: "A", target: { x: 450, z: 9 } }
                     ]
                 }
             }
@@ -200,14 +227,29 @@ describe("SCM Xilog 3 postprocessor", () => {
         expect(result.code).toContain("XG0 X=0 Y=12 Z=9 T=114\r\nXL2P X=450 Y=12 Z=9");
     });
 
-    it("blocks incomplete exports instead of silently dropping operations", () => {
+    it("exports a configured hinge cup endpoint as an XBO single drill", () => {
+        const result = generateCncMachineCode(instance, {
+            part: {
+                PID: "hinge-cup",
+                L: 450,
+                B: 695,
+                T: 20,
+                CNC: { operations: [{ id: "hinge-cup", kind: MACHINING_KINDS.DRILL_POINT, intentId: MACHINING_INTENT_IDS.FRONT_HINGE_CUP, face: "A", x: 100, y: 22.5, diameter: 35, depth: 13 }] }
+            }
+        });
+
+        expect(result.supported).toBe(true);
+        expect(result.code).toContain('XBO X=100 Y=672.5 Z=13 D=35 N="P"');
+    });
+
+    it("blocks an operation kind that does not match the assigned endpoint", () => {
         const result = generateCncMachineCode(instance, {
             part: {
                 PID: "unsafe",
                 L: 450,
                 B: 695,
                 T: 20,
-                CNC: { operations: [{ id: "unknown", type: "CLAMEX", face: "A" }] }
+                CNC: { operations: [{ id: "unknown", kind: MACHINING_KINDS.MILL_GROOVE, intentId: MACHINING_INTENT_IDS.FRONT_HINGE_CUP, face: "A", start: { x: 0, y: 0, z: 13 }, end: { x: 10, y: 0, z: 13 }, width: 35 }] }
             }
         });
 
@@ -215,7 +257,7 @@ describe("SCM Xilog 3 postprocessor", () => {
         expect(result.code).toBeNull();
         expect(result.diagnostics).toContainEqual(expect.objectContaining({
             level: "error",
-            code: "UNSUPPORTED_XILOG_OPERATION",
+            code: "UNSUPPORTED_MACHINING_ENDPOINT",
             operationId: "unknown"
         }));
     });

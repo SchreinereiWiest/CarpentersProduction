@@ -14,6 +14,18 @@ export const DEFAULT_CABINET = {
     frontGapTop: 0,
     frontGapBottom: 0,
     frontGrainDirection: "vertical",
+    insetFront: {
+        widthClearance: 5,
+        heightAddition: 10,
+        bottomClearance: 2.5
+    },
+    functionDefaults: {
+        shelf: {
+            holeRow: {
+                centered: true
+            }
+        }
+    },
     backPanel: {
         construction: "butt",
         continuous: "side"

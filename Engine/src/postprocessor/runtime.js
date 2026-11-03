@@ -1,7 +1,11 @@
 import { getPostprocessorPlugin } from "./availablePostprocessors.js";
 import { PostprocessorContractError } from "./contract.js";
+import { MACHINING_SCHEMA_VERSION } from "./machiningModel.js";
 
 const load = instance => {
+    if (instance?.enabled === false) {
+        throw new PostprocessorContractError(`Postprozessor ${instance?.pluginId ?? "unbekannt"} ist deaktiviert.`);
+    }
     const plugin = getPostprocessorPlugin(instance?.pluginId);
     if (!plugin) {
         throw new PostprocessorContractError(`Postprozessor ${instance?.pluginId ?? "unbekannt"} ist nicht registriert.`);
@@ -11,6 +15,7 @@ const load = instance => {
 
 const context = (instance, payload) => ({
     ...payload,
+    machiningSchemaVersion: MACHINING_SCHEMA_VERSION,
     postprocessor: {
         instanceId: instance.id,
         pluginId: instance.pluginId,
@@ -24,8 +29,42 @@ const context = (instance, payload) => ({
 export const translatePartForCncViewer = (instance, payload) =>
     load(instance).translateForViewer(context(instance, payload));
 
-export const generateCncMachineCode = (instance, payload) =>
-    load(instance).generateMachineCode(context(instance, payload));
+export const generateCncMachineCode = (instance, payload) => {
+    const plugin = load(instance);
+    const pluginContext = context(instance, payload);
+    const intents = [...new Set(
+        (payload?.part?.CNC?.operations ?? [])
+            .map(operation => operation.intentId)
+            .filter(Boolean)
+    )];
+    const resolvedMachining = Object.fromEntries(intents.map(intent => [
+        intent,
+        plugin.resolveMachining({ ...pluginContext, intent })
+    ]));
+    const operations = payload?.part?.CNC?.operations ?? [];
+    const diagnostics = Object.entries(resolvedMachining)
+        .flatMap(([intentId, resolution]) => {
+            const affectedOperations = operations.filter(operation => operation.intentId === intentId);
+            return (resolution.diagnostics ?? []).map(entry => ({
+                ...entry,
+                intentId,
+                operationId: affectedOperations.length === 1
+                    ? affectedOperations[0].id ?? null
+                    : null,
+                operationIds: affectedOperations.map(operation => operation.id).filter(Boolean)
+            }));
+        })
+        .filter(entry => entry.level === "error");
+
+    if (diagnostics.length > 0) {
+        return { supported: false, code: null, diagnostics, resolvedMachining };
+    }
+
+    return plugin.generateMachineCode({
+        ...pluginContext,
+        resolvedMachining
+    });
+};
 
 export const resolveCncMachining = (instance, payload) =>
     load(instance).resolveMachining(context(instance, payload));

@@ -15,7 +15,8 @@ describe("SectionFunctionProperties", () => {
                 id: "shelf-1",
                 type: "shelf",
                 compartmentCount: 4,
-                shelfFrontOffset: 0
+                shelfFrontOffset: 0,
+                holeRow: { centered: false }
             }],
             children: []
         };
@@ -26,6 +27,11 @@ describe("SectionFunctionProperties", () => {
                 activeCabinet={{
                     depth: 600,
                     thickness: 19,
+                    functionDefaults: {
+                        shelf: {
+                            holeRow: { centered: true }
+                        }
+                    },
                     sections: [section]
                 }}
                 updateActiveCabinet={updateActiveCabinet}
@@ -44,6 +50,17 @@ describe("SectionFunctionProperties", () => {
             sections: [expect.objectContaining({
                 functionConfig: [expect.objectContaining({
                     compartmentCount: 6
+                })]
+            })]
+        });
+
+        fireEvent.click(screen.getByRole("checkbox", { name: "Lochreihe mittig" }));
+
+        expect(updateActiveCabinet).toHaveBeenLastCalledWith({
+            sections: [expect.objectContaining({
+                functionConfig: [expect.objectContaining({
+                    id: "shelf-1",
+                    holeRow: expect.objectContaining({ centered: true })
                 })]
             })]
         });

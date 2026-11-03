@@ -1,6 +1,10 @@
 import {
     addOperation
 } from "../../cncHelpers.js";
+import {
+    MACHINING_INTENT_IDS,
+    MACHINING_KINDS
+} from "../../../../../postprocessor/machiningModel.js";
 
 
 export const compileLegrabox = ({
@@ -145,8 +149,11 @@ export const compileLegrabox = ({
                 boundary.part,
                 {
 
-                    type:
-                        "BO",
+                    kind:
+                        MACHINING_KINDS.DRILL_PATTERN,
+
+                    intentId:
+                        MACHINING_INTENT_IDS.DRAWER_LEGRABOX,
 
                     face:
                         boundary.face ??
@@ -177,13 +184,13 @@ export const compileLegrabox = ({
                      * Wiederholungsparameter
                      */
 
-                    R:
+                    count:
                         group.count,
 
-                    XOffset:
+                    stepX:
                         group.xOffset,
 
-                    YOffset:
+                    stepY:
                         group.yOffset,
 
                     source: {

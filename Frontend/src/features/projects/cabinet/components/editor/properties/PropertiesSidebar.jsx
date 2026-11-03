@@ -6,6 +6,7 @@ import FrontProperties from "./FrontProperties.jsx";
 import SectionProperties from "./SectionProperties.jsx";
 import SectionFunctionProperties from "./SectionFunctionProperties.jsx";
 import CabinetProperties from "./CabinetProperties.jsx";
+import FrontAttachmentProperties from "./FrontAttachmentProperties.jsx";
 
 
 export default function PropertiesSidebar({
@@ -371,6 +372,17 @@ export default function PropertiesSidebar({
                                 }
                             />
 
+                        ) : selectedElement?.type === "front" && ["front", "combined"].includes(viewMode) ? (
+
+                            <FrontAttachmentProperties
+                                selectedElement={selectedElement}
+                                activeCabinet={activeCabinet}
+                                updateActiveCabinet={updateActiveCabinet}
+                                setSelectedElement={setSelectedElement}
+                                cncConfig={cncConfig}
+                                viewMode={viewMode}
+                            />
+
                         ) : (
 
                             <div className="
@@ -378,7 +390,7 @@ export default function PropertiesSidebar({
                                 text-sm
                                 text-gray-500
                             ">
-                                Wähle eine Sektion aus,
+                                Wähle eine Sektion oder Front aus,
                                 um deren Funktion zu konfigurieren.
                             </div>
 

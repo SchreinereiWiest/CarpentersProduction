@@ -1,4 +1,6 @@
-export const POSTPROCESSOR_API_VERSION = 1;
+import { MACHINING_KINDS } from "./machiningModel.js";
+
+export const POSTPROCESSOR_API_VERSION = 2;
 
 export const POSTPROCESSOR_CAPABILITIES = Object.freeze({
     VIEWER: "viewer",
@@ -30,6 +32,20 @@ export const validatePostprocessorPlugin = plugin => {
         if (typeof plugin[method] !== "function") {
             throw new PostprocessorContractError(`Postprozessor ${plugin.manifest.id} implementiert ${method} nicht.`);
         }
+    });
+    const strategies = plugin.manifest.supportedMachiningStrategies ?? [];
+    const strategyIds = new Set();
+    const supportedKinds = new Set(Object.values(MACHINING_KINDS));
+    strategies.forEach(strategy => {
+        if (!strategy?.id || strategyIds.has(strategy.id)) {
+            throw new PostprocessorContractError(`Postprozessor ${plugin.manifest.id} enthält eine fehlende oder doppelte Strategie-ID.`);
+        }
+        strategyIds.add(strategy.id);
+        (strategy.operationKinds ?? []).forEach(kind => {
+            if (!supportedKinds.has(kind)) {
+                throw new PostprocessorContractError(`Strategie ${strategy.id} verwendet die unbekannte Bearbeitungsart ${kind}.`);
+            }
+        });
     });
     return plugin;
 };

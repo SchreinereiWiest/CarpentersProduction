@@ -8,7 +8,7 @@ Das interne Datenmodell beschreibt **was** gefertigt werden soll. Ein Postprozes
 Cabinet functionConfig
         │
         ▼
-buildPartList / internes CNC-Modell
+buildPartList / neutrales CNC-Schema 2
         │
         ├── Bearbeitungszuordnung (z. B. Eckverbindung → Clamex)
         │
@@ -19,7 +19,16 @@ Postprozessor-Runtime
         └── generateMachineCode()  → geprüfter Maschinen-/G-Code
 ```
 
-Der CNC-Editor nutzt `generateMachineCode()` für konfigurierte Maschinenexporte. `buildPartList` und CNC Viewer werden weiterhin nicht automatisch umgeleitet.
+Der CNC-Editor lädt den aktiven Postprozessor. Seine Darstellung läuft ausschließlich über `translateForViewer()`; Maschinenexporte ausschließlich über `generateMachineCode()`.
+
+## Neutrale Bearbeitungsendpunkte
+
+Jede gespeicherte Bearbeitung besitzt zwei stabile Kennungen:
+
+- `kind` beschreibt ausschließlich die Geometrie, beispielsweise `drill.point`, `drill.row`, `mill.groove` oder `mill.path`.
+- `intentId` beschreibt den fachlichen Zweck, beispielsweise `shelf.pinRow`, `front.hingeCup` oder `back.groove`.
+
+Herstellerbefehle wie `RNT`, `VBH`, `XG0` oder `XL2P`, Werkzeugnummern und Maschinenzyklen dürfen nur innerhalb eines konkreten Postprozessors entstehen. Viewer-Operationen sind ein separates Darstellungsformat und werden nicht in der Stückliste gespeichert.
 
 ## SCM Xilog 3 / RoutoLink (Wiest)
 
@@ -27,7 +36,7 @@ Der registrierte Adapter `scm-xilog3-routolink` ist ein erster Werkstattentwurf 
 
 Jedes gültige Programm endet mit einem konfigurierbaren Wegfahrschritt `N=<Position>`. Für das einzelne Feld A ist `1600`, für das volle Feld AD `2800` vorbelegt. Beide Werte gehören zur Maschinenkonfiguration des Plugins und können dort angepasst werden.
 
-Aktuell abgedeckt sind `BO`, `VB`, `VBH`, `LR`, `RNT`/`NUT8`, `XG0` und `XL2P` auf Werkstückseite A. Für horizontale Bohrungen und Rückwandnuten werden die in der Wiest-Runtime vorhandenen Zyklen `VBH` und `RNT` angesprochen. Unbekannte Operationen oder unvollständige Geometrie blockieren den Export vollständig.
+Aktuell übersetzt der Adapter neutrale Bohr-, Lochreihen-, Nut- und Pfadoperationen auf Werkstückseite A in die benötigten Xilog-Befehle. Für horizontale Bohrungen und Rückwandnuten werden die in der Wiest-Runtime vorhandenen Zyklen `VBH` und `RNT` angesprochen. Unbekannte Endpunkte, fehlende Strategiezuordnungen oder unvollständige Geometrie blockieren den Export vollständig.
 
 Jede erzeugte Datei trägt die Diagnose `XILOG3_IMPORT_VALIDATION_REQUIRED`: XXL in Xilog 3 importieren, grafisch prüfen und erst nach Maschinenfreigabe in PGM übernehmen. Direkter Maschinentransport ist nicht Bestandteil dieses Plugins.
 
@@ -61,7 +70,7 @@ export const examplePlugin = {
     id: "vendor-machine-model",
     name: "Vendor Machine Model",
     version: "1.0.0",
-    apiVersion: 1,
+    apiVersion: 2,
     capabilities: {
       viewer: true,
       machineCode: true,
@@ -80,8 +89,6 @@ Konfigurationsfelder unterstützen derzeit `text`, `number`, `boolean`, `select`
 
 ## Empfohlene nächste Ausbaustufen
 
-1. Ein neutrales, versioniertes internes `MachiningIntent`-Schema zwischen Partlist und Runtime definieren.
-2. Den CNC Viewer über `translatePartForCncViewer()` anbinden und Legacy-Operationen parallel vergleichen.
-3. Den Xilog-Adapter mit Werkstatt-Golden-Files, Simulation und einem dokumentierten Freigabestatus weiter absichern.
-4. Werkzeugzuordnung und weitere Xilog-Befehle ergänzen; unvollständige Programme weiterhin vollständig blockieren.
-5. Optional einen Transportadapter für Dateiablage oder Netzwerkfreigabe ergänzen. Transport und Codeerzeugung sollten getrennte Plugins bleiben.
+1. Den Xilog-Adapter mit Werkstatt-Golden-Files, Simulation und einem dokumentierten Freigabestatus weiter absichern.
+2. Werkzeugzuordnung und weitere Xilog-Befehle ergänzen; unvollständige Programme weiterhin vollständig blockieren.
+3. Optional einen Transportadapter für Dateiablage oder Netzwerkfreigabe ergänzen. Transport und Codeerzeugung sollten getrennte Plugins bleiben.

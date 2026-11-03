@@ -1,12 +1,10 @@
-import React, {
+import {
     useEffect,
+    useMemo,
     useState
 } from "react";
 
-import axios from "axios";
-
 import {
-    useLocation,
     useParams
 } from "react-router";
 
@@ -23,7 +21,10 @@ import {
     groupCncParts
 } from "@Engine/cnc/groupCncParts.js";
 import {
-    generateCncMachineCode
+    AVAILABLE_POSTPROCESSORS,
+    DEFAULT_MACHINING_ASSIGNMENTS,
+    generateCncMachineCode,
+    translatePartForCncViewer
 } from "@Engine/postprocessor/index.js";
 
 import ProjectBar
@@ -35,9 +36,15 @@ import MobileWorkspaceGuard
     from "../../../shared/components/MobileWorkspaceGuard.jsx";
 import {getProjectFile} from "../../../shared/cache/project-cache.js";
 import {getGlobalFile} from "../../../shared/cache/global-cache.js";
-import {downloadFile, uploadJSONFile} from "../../../shared/api/file-api.js";
+import {downloadFile} from "../../../shared/api/file-api.js";
 
-const XILOG3_POSTPROCESSOR_ID = "scm-xilog3-routolink";
+const createViewerFallback = () => ({
+    id: "builtin-legacy-viewer",
+    pluginId: "legacy-viewer-bridge",
+    name: "CNC Viewer",
+    enabled: true,
+    configuration: {}
+});
 
 
 export default function CncEditor() {
@@ -45,10 +52,6 @@ export default function CncEditor() {
     const {
         projectId
     } = useParams();
-
-
-    const [partList, setPartList] =
-        useState([]);
 
 
     const [groups, setGroups] =
@@ -73,21 +76,52 @@ export default function CncEditor() {
     ] = useState(null);
 
     const [
-        xilogPostprocessor,
-        setXilogPostprocessor
-    ] = useState(null);
+        activePostprocessor,
+        setActivePostprocessor
+    ] = useState(createViewerFallback);
+
+    const [machiningAssignments, setMachiningAssignments] = useState(DEFAULT_MACHINING_ASSIGNMENTS);
 
     const [
         exportNotice,
         setExportNotice
     ] = useState(null);
 
-    const operations =
-        Array.isArray(
-            selectedPart?.CNC?.operations
-        )
-            ? selectedPart.CNC.operations
-            : [];
+    const viewerResult = useMemo(() => {
+        if (!selectedPart || !activePostprocessor) {
+            return { operations: [], diagnostics: [] };
+        }
+        try {
+            return translatePartForCncViewer(activePostprocessor, {
+                part: selectedPart,
+                assignments: machiningAssignments
+            });
+        } catch (error) {
+            return {
+                operations: [],
+                diagnostics: [{ level: "error", code: "VIEWER_TRANSLATION_FAILED", message: error.message }]
+            };
+        }
+    }, [activePostprocessor, machiningAssignments, selectedPart]);
+
+    const operations = useMemo(
+        () => Array.isArray(viewerResult.operations) ? viewerResult.operations : [],
+        [viewerResult]
+    );
+
+    const viewerPart = useMemo(() => selectedPart
+        ? {
+            ...selectedPart,
+            CNC: {
+                ...(selectedPart.CNC ?? {}),
+                operations
+            }
+        }
+        : null, [operations, selectedPart]);
+
+    const activePostprocessorDescriptor = AVAILABLE_POSTPROCESSORS.find(
+        item => item.id === activePostprocessor?.pluginId
+    ) ?? null;
 
 
     const faceAOperations =
@@ -264,11 +298,6 @@ export default function CncEditor() {
                         return;
                     }
 
-                    setPartList(
-                            data
-                        );
-
-
                     const grouped =
                         groupCncParts(
                             data
@@ -359,13 +388,13 @@ export default function CncEditor() {
 
     /*
      * =====================================================
-     * Xilog-Postprozessor laden
+     * Aktiven Postprozessor laden
      * =====================================================
      */
 
     useEffect(() => {
 
-        const loadXilogPostprocessor = async () => {
+        const loadActivePostprocessor = async () => {
 
             try {
 
@@ -386,56 +415,58 @@ export default function CncEditor() {
                 const active = instances.find(
                     item => item.id === settings?.activePostprocessorId
                 );
-                const configured = active?.pluginId === XILOG3_POSTPROCESSOR_ID && active.enabled !== false
+                const configured = active?.enabled !== false
                     ? active
-                    : instances.find(item => (
-                        item.pluginId === XILOG3_POSTPROCESSOR_ID &&
-                        item.enabled !== false
-                    ));
+                    : instances.find(item => item.enabled !== false);
 
-                setXilogPostprocessor(configured ?? null);
+                setActivePostprocessor(configured ?? createViewerFallback());
+                setMachiningAssignments({
+                    ...DEFAULT_MACHINING_ASSIGNMENTS,
+                    ...(settings?.cncDefault?.machiningAssignments ?? settings?.machiningAssignments ?? {})
+                });
 
             } catch (error) {
 
                 console.error(
-                    "Xilog-Postprozessor konnte nicht geladen werden:",
+                    "Aktiver Postprozessor konnte nicht geladen werden:",
                     error
                 );
 
-                setXilogPostprocessor(null);
+                setActivePostprocessor(createViewerFallback());
 
             }
 
         };
 
-        loadXilogPostprocessor();
+        loadActivePostprocessor();
 
     }, []);
 
 
     /*
      * =====================================================
-     * Xilog-XXL exportieren
+     * Maschinencode über den aktiven Postprozessor exportieren
      * =====================================================
      */
 
-    const exportXilogProgram = () => {
+    const exportMachineProgram = () => {
 
-        if (!selectedPart || !xilogPostprocessor) {
+        if (!selectedPart || !activePostprocessor || !activePostprocessorDescriptor?.capabilities?.machineCode) {
             return;
         }
 
         try {
 
             const result = generateCncMachineCode(
-                xilogPostprocessor,
+                activePostprocessor,
                 {
                     part: selectedPart,
-                    fileName: selectedPart.PID ?? selectedPart.Objektname
+                    fileName: selectedPart.PID ?? selectedPart.Objektname,
+                    assignments: machiningAssignments
                 }
             );
 
-            if (!result.supported || !result.code) {
+            if (!result.supported || (result.content == null && result.code == null)) {
 
                 const message = result.diagnostics
                     ?.filter(entry => entry.level === "error")
@@ -444,16 +475,17 @@ export default function CncEditor() {
 
                 setExportNotice({
                     type: "error",
-                    message: message || "Das Bauteil kann noch nicht als Xilog-Programm exportiert werden."
+                    message: message || "Das Bauteil kann mit dem aktiven Postprozessor nicht exportiert werden."
                 });
 
                 return;
 
             }
 
+            const artifact = result.content ?? result.code;
             const blob = new Blob(
-                [result.code],
-                {type: "text/plain;charset=windows-1252"}
+                [artifact],
+                {type: result.mimeType ?? "application/octet-stream"}
             );
             const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
@@ -470,19 +502,19 @@ export default function CncEditor() {
 
             setExportNotice({
                 type: "success",
-                message: `${result.fileName} exportiert. Vor der Produktion in Xilog 3 importieren und grafisch prüfen.`
+                message: `${result.fileName} mit ${activePostprocessor.name} exportiert.`
             });
 
         } catch (error) {
 
             console.error(
-                "Xilog-Export fehlgeschlagen:",
+                "Maschinencode-Export fehlgeschlagen:",
                 error
             );
 
             setExportNotice({
                 type: "error",
-                message: "Der Xilog-Export ist fehlgeschlagen."
+                message: "Der Export über den aktiven Postprozessor ist fehlgeschlagen."
             });
 
         }
@@ -751,16 +783,16 @@ export default function CncEditor() {
 
                                         <button
                                             type="button"
-                                            onClick={exportXilogProgram}
-                                            disabled={!selectedPart || !xilogPostprocessor}
-                                            title={xilogPostprocessor
-                                                ? "Bauteil als Xilog-3-XXL exportieren"
-                                                : "Xilog-3-Postprozessor zuerst in den Firmeneinstellungen hinzufügen und aktivieren"
+                                            onClick={exportMachineProgram}
+                                            disabled={!selectedPart || !activePostprocessorDescriptor?.capabilities?.machineCode}
+                                            title={activePostprocessorDescriptor?.capabilities?.machineCode
+                                                ? `Bauteil mit ${activePostprocessor.name} exportieren`
+                                                : "Der aktive Postprozessor stellt keinen Maschinencode-Export bereit"
                                             }
                                             className="rounded border border-blue-700 bg-blue-900/40 px-3 py-1.5 text-xs font-medium text-blue-200 transition hover:bg-blue-800/60 disabled:cursor-not-allowed disabled:border-gray-700 disabled:bg-gray-800 disabled:text-gray-500"
                                         >
 
-                                            Xilog XXL
+                                            {activePostprocessorDescriptor?.sourceFormat ?? "Maschinencode exportieren"}
 
                                         </button>
 
@@ -784,7 +816,7 @@ export default function CncEditor() {
                                         <CncViewport
 
                                             part={
-                                                selectedPart
+                                                viewerPart
                                             }
 
                                             selectedOperationId={
@@ -792,7 +824,7 @@ export default function CncEditor() {
                                             }
 
                                             onSelectPart={
-                                                handleSelectPart
+                                                () => handleSelectPart(selectedPart)
                                             }
 
                                             onSelectOperation={
@@ -829,7 +861,7 @@ export default function CncEditor() {
                                 <CncPropertiesSidebar
 
                                     part={
-                                        selectedPart
+                                        viewerPart
                                     }
 
                                     group={

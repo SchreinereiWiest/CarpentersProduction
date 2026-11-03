@@ -43,7 +43,13 @@ const groupEquivalentParts = (
       ERID: part.ERID ?? "",
       ETID: part.ETID ?? "",
       EBID: part.EBID ?? "",
-      Kante: part.Kante ?? ""
+      Kante: part.Kante ?? "",
+      cnc: (part.CNC?.operations ?? []).map(operation => {
+        const geometry = { ...operation };
+        delete geometry.id;
+        delete geometry.source;
+        return geometry;
+      })
     });
 
     const existingPart = groupedPartsByKey.get(key);
@@ -345,7 +351,9 @@ const createGroupRoot = (name, children = [], hardware = []) => {
           ...presetPart,
           PID: part.PID,
           _generatedId: part._generatedId,
-          _cabinetId: cabinet.id
+          _cabinetId: cabinet.id,
+          CNC: part.CNC,
+          Source: part.Source
         }];
       });
 

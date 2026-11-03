@@ -1,7 +1,8 @@
 import {
     DEFAULT_COMPANY_SETTINGS,
     normalizeKeybindings,
-    normalizeWorkspaceLayout
+    normalizeWorkspaceLayout,
+    normalizeWorkspaceScalePercent
 } from "../settings/company-settings.js";
 
 export const WORKSPACE_PREFERENCES_STORAGE_KEY = "carpenters-workspace-preferences";
@@ -10,6 +11,7 @@ export const WORKSPACE_PREFERENCES_EVENT = "carpenters-workspace-preferences-cha
 export function normalizeWorkspacePreferences(value) {
     return {
         workspaceLayout: normalizeWorkspaceLayout(value?.workspaceLayout),
+        workspaceScalePercent: normalizeWorkspaceScalePercent(value?.workspaceScalePercent),
         keybindings: normalizeKeybindings(value?.keybindings)
     };
 }

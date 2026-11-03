@@ -1,9 +1,14 @@
 import { POSTPROCESSOR_API_VERSION } from "../contract.js";
+import {
+  MACHINING_KINDS,
+  assertNeutralPartCnc,
+  translateNeutralPartForViewer
+} from "../machiningModel.js";
 
-const strategy = (id, label, operationTypes, description) => ({
+const strategy = (id, label, operationKinds, description) => ({
   id,
   label,
-  operationTypes,
+  operationKinds,
   description
 });
 
@@ -26,15 +31,16 @@ const diagnostic = (level, code, message, operation = null) => ({
   ...(operation
     ? {
         operationId: operation.id ?? null,
-        operationType: operation.type ?? null
+        operationKind: operation.kind ?? null,
+        intentId: operation.intentId ?? null
       }
     : {})
 });
 
 const partDimensions = (part) => ({
-  x: finiteNumber(part?.L ?? part?.length ?? part?.width),
-  y: finiteNumber(part?.B ?? part?.width ?? part?.height),
-  z: finiteNumber(part?.T ?? part?.thickness ?? part?.depth)
+  x: finiteNumber(part?.L),
+  y: finiteNumber(part?.B),
+  z: finiteNumber(part?.T)
 });
 
 const programName = (value) => {
@@ -112,19 +118,13 @@ const xboLine = ({
 };
 
 const translateDrill = (operation, dimensions, configuration) => {
-  const x = finiteNumber(operation.x ?? operation.position);
-  const y = transformY(
-    operation.y ?? operation.rowStart,
-    dimensions,
-    configuration
-  );
+  const x = finiteNumber(operation.x);
+  const y = transformY(operation.y, dimensions, configuration);
   const z = finiteNumber(operation.depth ?? operation.z);
   const diameter = finiteNumber(operation.diameter);
-  const count = operation.R ?? operation.r ?? operation.count ?? 1;
-  const xOffset = finiteNumber(operation.XOffset ?? operation.xOffset ?? 0);
-  const sourceYOffset = finiteNumber(
-    operation.YOffset ?? operation.yOffset ?? operation.spacing ?? 0
-  );
+  const count = operation.count ?? 1;
+  const xOffset = finiteNumber(operation.stepX ?? 0);
+  const sourceYOffset = finiteNumber(operation.stepY ?? operation.spacing ?? 0);
   const yOffset =
     configuration.flipYAxis === false ? sourceYOffset : -sourceYOffset;
 
@@ -148,7 +148,7 @@ const translateShelfRow = (operation, dimensions, configuration) => {
   }
 
   const count = Math.floor((end - start) / spacing + 0.0001) + 1;
-  const rows = [operation.frontOffset ?? operation.y, operation.backOffset]
+  const rows = operation.crossPositions
     .map((value) => transformY(value, dimensions, configuration))
     .filter((value) => value !== null);
   if (rows.length === 0) return null;
@@ -180,7 +180,7 @@ const translateHorizontalBore = (operation, dimensions, configuration) => {
       ? (finiteNumber(operation.spacing) ?? sorted[1] - sorted[0])
       : (finiteNumber(operation.spacing) ?? 32);
   const endOffset = Math.max(0, dimensions.y - sorted.at(-1));
-  const face = operation.side === "right" ? 2 : 3;
+  const face = operation.edge === "right" ? 2 : 3;
   const height = finiteNumber(operation.height) ?? dimensions.z / 2;
 
   return [
@@ -199,17 +199,13 @@ const translateHorizontalBore = (operation, dimensions, configuration) => {
 };
 
 const translateGroove = (operation, dimensions, configuration) => {
-  const x = finiteNumber(operation.x ?? operation.startX ?? 0);
-  const endX = finiteNumber(operation.endX ?? dimensions.x);
-  const y = transformY(operation.y, dimensions, configuration);
-  const z = finiteNumber(operation.z ?? operation.depth);
-  const width = finiteNumber(operation.width ?? operation.b);
-  const tool = finiteNumber(
-    operation.tool ?? operation.T ?? configuration.grooveTool
-  );
-  const correction = finiteNumber(
-    operation.c ?? operation.C ?? configuration.grooveCorrection ?? 0
-  );
+  const x = finiteNumber(operation.start?.x);
+  const endX = finiteNumber(operation.end?.x);
+  const y = transformY(operation.start?.y, dimensions, configuration);
+  const z = finiteNumber(operation.start?.z ?? operation.depth);
+  const width = finiteNumber(operation.width);
+  const tool = finiteNumber(configuration.grooveTool);
+  const correction = finiteNumber(configuration.grooveCorrection ?? 0);
   if ([x, endX, y, z, width, tool, correction].some((value) => value === null))
     return null;
 
@@ -228,16 +224,12 @@ const translateGroove = (operation, dimensions, configuration) => {
 };
 
 const translateMilling = (operation, dimensions, configuration, state) => {
-  const type = operation.type;
-  const targetX = finiteNumber(
-    operation.endX ?? operation.x ?? operation.startX ?? state.x
-  );
-  const sourceY = finiteNumber(
-    operation.endY ?? operation.y ?? operation.startY
-  );
+  const type = operation.motion === "rapid" ? "XG0" : "XL2P";
+  const targetX = finiteNumber(operation.target?.x ?? state.x);
+  const sourceY = finiteNumber(operation.target?.y);
   const targetY =
     sourceY === null ? state.y : transformY(sourceY, dimensions, configuration);
-  const targetZ = finiteNumber(operation.z ?? state.z);
+  const targetZ = finiteNumber(operation.target?.z ?? state.z);
   if ([targetX, targetY, targetZ].some((value) => value === null)) return null;
 
   state.x = targetX;
@@ -252,10 +244,7 @@ const translateMilling = (operation, dimensions, configuration, state) => {
   ];
   if (type === "XG0") {
     const tool = finiteNumber(
-      operation.tool ??
-        operation.T ??
-        operation.toolDepth ??
-        configuration.millingTool
+      configuration.millingTool
     );
     if (tool === null) return null;
     words.push(`T=${formatNumber(tool)}`);
@@ -272,27 +261,26 @@ const translateOperation = (operation, dimensions, configuration, state) => {
         "Nur Bearbeitungen auf Werkstueckseite A sind im Erstentwurf freigegeben."
     };
 
-  switch (operation.type) {
-    case "BO":
-    case "VB":
+  switch (operation.kind) {
+    case MACHINING_KINDS.DRILL_POINT:
+    case MACHINING_KINDS.DRILL_PATTERN:
+    case MACHINING_KINDS.DRILL_LINEAR_PATTERN:
       return { lines: translateDrill(operation, dimensions, configuration) };
-    case "LR":
+    case MACHINING_KINDS.DRILL_ROW:
       return { lines: translateShelfRow(operation, dimensions, configuration) };
-    case "VBH":
+    case MACHINING_KINDS.DRILL_EDGE_PATTERN:
       return {
         lines: translateHorizontalBore(operation, dimensions, configuration)
       };
-    case "RNT":
-    case "NUT8":
+    case MACHINING_KINDS.MILL_GROOVE:
       return { lines: translateGroove(operation, dimensions, configuration) };
-    case "XG0":
-    case "XL2P":
+    case MACHINING_KINDS.MILL_PATH:
       return {
         lines: translateMilling(operation, dimensions, configuration, state)
       };
     default:
       return {
-        error: `Operation ${operation.type || "ohne Typ"} wird vom Xilog-3-Erstentwurf nicht unterstuetzt.`
+        error: `Bearbeitungsart ${operation.kind || "ohne Kennung"} wird vom Xilog-3-Erstentwurf nicht unterstuetzt.`
       };
   }
 };
@@ -301,7 +289,7 @@ export const xilog3Routolink = {
   manifest: {
     id: "scm-xilog3-routolink",
     name: "SCM Xilog 3 · RoutoLink",
-    version: "0.2.0",
+    version: "0.3.0",
     apiVersion: POSTPROCESSOR_API_VERSION,
     description:
       "Erzeugt importierbare Xilog-3-XXL-Programme auf Basis der Wiest-Runtime und ihrer installierten Festzyklen.",
@@ -316,37 +304,61 @@ export const xilog3Routolink = {
       strategy(
         "connector.drill",
         "Bohrverbinder",
-        ["BO", "VB", "VBH"],
+        [MACHINING_KINDS.DRILL_POINT, MACHINING_KINDS.DRILL_PATTERN, MACHINING_KINDS.DRILL_LINEAR_PATTERN, MACHINING_KINDS.DRILL_EDGE_PATTERN],
         "Optimierte XBO-Bohrungen und der installierte VBH-Festzyklus."
       ),
       strategy(
         "connector.screw",
         "Spax",
-        ["BO", "VB", "VBH"],
+        [MACHINING_KINDS.DRILL_POINT, MACHINING_KINDS.DRILL_LINEAR_PATTERN, MACHINING_KINDS.DRILL_EDGE_PATTERN],
         "Vertikale und horizontale Schraubbohrungen."
       ),
       strategy(
         "shelf.row",
         "Fachboden-Lochreihe",
-        ["LR", "XBO"],
+        [MACHINING_KINDS.DRILL_ROW],
         "Eine oder zwei optimierte XBO-Lochreihen."
       ),
       strategy(
         "drawer.legrabox",
         "Legrabox",
-        ["BO", "XBO"],
+        [MACHINING_KINDS.DRILL_POINT, MACHINING_KINDS.DRILL_PATTERN],
         "Bohrgruppen aus dem internen Legrabox-Muster."
+      ),
+      strategy(
+        "front.drawerMount",
+        "Schubkastenfront",
+        [MACHINING_KINDS.DRILL_POINT],
+        "Befestigungsbohrungen an Schubkastenfronten."
+      ),
+      strategy(
+        "front.hingeCup",
+        "Topfbandbohrung",
+        [MACHINING_KINDS.DRILL_POINT],
+        "Topfbohrungen in Türfronten als XBO-Einzelbohrung."
+      ),
+      strategy(
+        "front.hingeAuxiliary",
+        "Topfband-Nebenbohrung",
+        [MACHINING_KINDS.DRILL_POINT],
+        "Nebenbohrungen an Topfbandfronten."
+      ),
+      strategy(
+        "cabinet.hingePlate",
+        "Topfband-Montageplatte",
+        [MACHINING_KINDS.DRILL_POINT],
+        "Montageplattenbohrungen in der Korpusseite."
       ),
       strategy(
         "back.groove",
         "Rueckwandnut",
-        ["RNT"],
+        [MACHINING_KINDS.MILL_GROOVE],
         "Installierter Wiest-Festzyklus RNT mit Nutbreite und Werkzeug 81."
       ),
       strategy(
         "back.rabbet",
         "Rueckwandfalz",
-        ["XG0", "XL2P"],
+        [MACHINING_KINDS.MILL_PATH],
         "Fraesstart und lineare Fraesbewegungen mit XG0/XL2P."
       )
     ],
@@ -413,7 +425,7 @@ export const xilog3Routolink = {
         label: "Korrektur Rueckwandnut",
         type: "number",
         min: 0,
-        defaultValue: 0
+        defaultValue: 3
       },
       {
         key: "millingTool",
@@ -426,18 +438,22 @@ export const xilog3Routolink = {
   },
 
   translateForViewer({ part }) {
-    return {
-      operations: Array.isArray(part?.CNC?.operations)
-        ? part.CNC.operations
-        : [],
-      diagnostics: []
-    };
+    return translateNeutralPartForViewer(part);
   },
 
-  generateMachineCode({ part, fileName, postprocessor }) {
+  generateMachineCode({ part, fileName, postprocessor, resolvedMachining = {} }) {
     const configuration = postprocessor?.configuration ?? {};
     const dimensions = partDimensions(part);
     const diagnostics = [];
+    try {
+      assertNeutralPartCnc(part);
+    } catch (error) {
+      return {
+        supported: false,
+        code: null,
+        diagnostics: [diagnostic("error", "INVALID_NEUTRAL_CNC_SCHEMA", error.message)]
+      };
+    }
     if (
       [dimensions.x, dimensions.y, dimensions.z].some(
         (value) => value === null || value <= 0
@@ -479,6 +495,19 @@ export const xilog3Routolink = {
     const state = { x: null, y: null, z: null };
 
     operations.forEach((operation) => {
+      const assignment = resolvedMachining[operation.intentId]?.assignment;
+      const strategy = this.manifest.supportedMachiningStrategies.find(
+        item => item.id === assignment?.strategyId
+      );
+      if (!strategy || !strategy.operationKinds.includes(operation.kind)) {
+        diagnostics.push(diagnostic(
+          "error",
+          "UNSUPPORTED_MACHINING_ENDPOINT",
+          `Der Endpunkt ${operation.intentId ?? "ohne Kennung"} ist keiner passenden Xilog-Strategie zugeordnet.`,
+          operation
+        ));
+        return;
+      }
       const result = translateOperation(
         operation,
         dimensions,
@@ -493,7 +522,7 @@ export const xilog3Routolink = {
               ? "UNSUPPORTED_XILOG_OPERATION"
               : "INVALID_XILOG_OPERATION",
             result.error ??
-              `Operation ${operation.type} enthaelt unvollstaendige oder ungueltige Geometriedaten.`,
+              `Bearbeitung ${operation.kind} enthaelt unvollstaendige oder ungueltige Geometriedaten.`,
             operation
           )
         );

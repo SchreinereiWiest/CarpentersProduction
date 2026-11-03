@@ -1,5 +1,3 @@
-import React from "react";
-
 import Drill from "./operations/drill.jsx";
 import Shelf from "./operations/shelf.jsx";
 import VB from "./operations/vb.jsx";
@@ -15,6 +13,7 @@ import {
 
 export default function CncOperationsLayer({
     part,
+    operations = [],
     selectedOperationId,
     onSelectOperation,
     selectedFace = "A"
@@ -25,18 +24,13 @@ export default function CncOperationsLayer({
     }
 
 
-    const operations =
-        Array.isArray(
-            part.CNC?.operations
-        )
-            ? part.CNC.operations
-            : [];
+    const viewerOperations = Array.isArray(operations) ? operations : [];
 
 
     return (
         <g>
 
-            {operations.map(
+            {viewerOperations.map(
                 (
                     operation,
                     index

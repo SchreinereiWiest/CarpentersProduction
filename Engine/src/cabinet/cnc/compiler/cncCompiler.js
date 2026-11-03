@@ -10,6 +10,11 @@ import {
 
 import { compileSectionFunctions } from "./sections/compileSectionFunctions.js";
 import { compileSpax } from "./sections/operations/compileSpax.js";
+import { compileFrontAttachments } from "./fronts/compileFrontAttachments.js";
+import {
+    MACHINING_INTENT_IDS,
+    MACHINING_KINDS
+} from "../../../postprocessor/machiningModel.js";
 /* =========================================================
  * Rückwand
  * ========================================================= */
@@ -80,62 +85,6 @@ const compileBackPanel = ({
 
     }
 
-
-    /*
-     * Nut
-     */
-
-    // if (
-    //     construction === "groove" ||
-    //     construction === "nut8" ||
-    //     construction === "nut"
-    // ) {
-
-    //     targets.forEach(
-    //         part => {
-
-    //             addOperation(
-    //                 part,
-    //                 {
-
-    //                     type: "NUT8",
-
-    //                     face: "A",
-
-    //                     frontOffset:
-    //                         config.backPanel
-    //                             .groove
-    //                             .frontOffset,
-
-    //                     backOffset:
-    //                         config.backPanel
-    //                             .groove
-    //                             .backOffset,
-
-    //                     depth:
-    //                         config.backPanel
-    //                             .groove
-    //                             .depth,
-
-    //                     source: {
-
-    //                         type: "backPanel",
-
-    //                         role: "groove",
-
-    //                         construction
-
-    //                     }
-
-    //                 }
-    //             );
-
-    //         }
-    //     );
-
-    // }
-
-
     /*
      * Falz
      */
@@ -153,15 +102,13 @@ const compileBackPanel = ({
                     part,
                     {
 
-                        type: "XG0",
+                        kind: MACHINING_KINDS.MILL_PATH,
+                        intentId: MACHINING_INTENT_IDS.BACK_RABBET,
+                        motion: "rapid",
 
                         face: "A",
 
-                        x: -20,
-                        y: part.B - 7,
-                        z: 13,
-
-                        toolDepth: 114,
+                        target: { x: -20, y: part.B - 7, z: 13 },
 
                         source: {
 
@@ -182,21 +129,14 @@ const compileBackPanel = ({
                     part,
                     {
 
-                        type: "XL2P",
+                        kind: MACHINING_KINDS.MILL_PATH,
+                        intentId: MACHINING_INTENT_IDS.BACK_RABBET,
+                        motion: "linear",
 
                         face: "A",
 
-                        startX: -20,
-
-                        endX:
-                            Number(
-                                part.L
-                            ) + 20,
-
-                        y: part.B - 7,
-                        z: 13,
-
-                        toolDepth: 114,
+                        start: { x: -20, y: part.B - 7, z: 13 },
+                        target: { x: Number(part.L) + 20, y: part.B - 7, z: 13 },
 
                         source: {
 
@@ -235,15 +175,13 @@ const compileBackPanel = ({
                     part,
                     {
 
-                        type: "XG0",
+                        kind: MACHINING_KINDS.MILL_PATH,
+                        intentId: MACHINING_INTENT_IDS.BACK_RABBET,
+                        motion: "rapid",
 
                         face: "A",
 
-                        x: 16,
-                        y: -20,
-                        z: 16,
-
-                        toolDepth: 114,
+                        target: { x: 16, y: -20, z: 16 },
 
                         source: {
 
@@ -262,12 +200,14 @@ const compileBackPanel = ({
                     part,
                     {
 
-                        type: "XL2P",
+                        kind: MACHINING_KINDS.MILL_PATH,
+                        intentId: MACHINING_INTENT_IDS.BACK_RABBET,
+                        motion: "linear",
 
                         face: "A",
 
-                        x: 16,
-                        y: part.B - 9,
+                        start: { x: 16, y: -20, z: 16 },
+                        target: { x: 16, y: part.B - 9, z: 16 },
 
                         source: {
 
@@ -286,16 +226,14 @@ const compileBackPanel = ({
                     part,
                     {
 
-                        type: "XL2P",
+                        kind: MACHINING_KINDS.MILL_PATH,
+                        intentId: MACHINING_INTENT_IDS.BACK_RABBET,
+                        motion: "linear",
 
                         face: "A",
 
-                        x:
-                            Number(
-                                part.L
-                            ) + 20,
-
-                        y: 9,
+                        start: { x: 16, y: part.B - 9, z: 16 },
+                        target: { x: Number(part.L) + 20, y: 9, z: 16 },
 
                         source: {
 
@@ -314,16 +252,14 @@ const compileBackPanel = ({
                     part,
                     {
 
-                        type: "XL2P",
+                        kind: MACHINING_KINDS.MILL_PATH,
+                        intentId: MACHINING_INTENT_IDS.BACK_RABBET,
+                        motion: "linear",
 
                         face: "A",
 
-                        x:
-                            Number(
-                                part.L
-                            ) + 20,
-
-                        y: part.B - 20,
+                        start: { x: Number(part.L) + 20, y: 9, z: 16 },
+                        target: { x: Number(part.L) + 20, y: part.B - 20, z: 16 },
 
                         source: {
 
@@ -393,7 +329,7 @@ const compileBackPanelGroove = ({
 
 
     const grooveConfig =
-        config.backPanel.groove.rnt;
+        config.backPanel.groove.path;
 
 
     /*
@@ -468,8 +404,11 @@ const compileBackPanelGroove = ({
                         part,
                         {
 
-                            type:
-                                "RNT",
+                            kind:
+                                MACHINING_KINDS.MILL_GROOVE,
+
+                            intentId:
+                                MACHINING_INTENT_IDS.BACK_GROOVE,
 
                             face:
                                 "A",
@@ -479,16 +418,11 @@ const compileBackPanelGroove = ({
                              */
 
                             axis:
-                                "X",
-
-                            x:
-                                startX,
-
-                            endX,
+                                "x",
 
                             /*
                              * Werte aus deinem
-                             * Original-RNT:
+                             * Neutrale Nutgeometrie:
                              *
                              * Y=20
                              * Z=9
@@ -497,20 +431,20 @@ const compileBackPanelGroove = ({
                              * C=0
                              */
 
-                            y:
-                                part.B - grooveConfig.y,
+                            start: {
+                                x: startX,
+                                y: part.B - grooveConfig.y,
+                                z: grooveConfig.z
+                            },
 
-                            z:
-                                grooveConfig.z,
+                            end: {
+                                x: endX,
+                                y: part.B - grooveConfig.y,
+                                z: grooveConfig.z
+                            },
 
                             width:
                                 grooveConfig.width,
-
-                            tool:
-                                grooveConfig.tool,
-
-                            c:
-                                grooveConfig.c,
 
                             /*
                              * Die Nut liegt 42 mm
@@ -527,9 +461,6 @@ const compileBackPanelGroove = ({
                                 config.backPanel
                                     .groove
                                     .backOffset,
-
-                            condition:
-                                "NUT8=1",
 
                             source: {
 
@@ -603,34 +534,32 @@ const compileBackPanelGroove = ({
                         part,
                         {
 
-                            type:
-                                "RNT",
+                            kind:
+                                MACHINING_KINDS.MILL_GROOVE,
+
+                            intentId:
+                                MACHINING_INTENT_IDS.BACK_GROOVE,
 
                             face:
                                 "A",
 
                             axis:
-                                "X",
+                                "x",
 
-                            x:
-                                startX,
+                            start: {
+                                x: startX,
+                                y: part.B - grooveConfig.y,
+                                z: grooveConfig.z
+                            },
 
-                            endX,
-
-                            y:
-                                part.B - grooveConfig.y,
-
-                            z:
-                                grooveConfig.z,
+                            end: {
+                                x: endX,
+                                y: part.B - grooveConfig.y,
+                                z: grooveConfig.z
+                            },
 
                             width:
                                 grooveConfig.width,
-
-                            tool:
-                                grooveConfig.tool,
-
-                            c:
-                                grooveConfig.c,
 
                             frontOffset:
                                 config.backPanel
@@ -641,9 +570,6 @@ const compileBackPanelGroove = ({
                                 config.backPanel
                                     .groove
                                     .backOffset,
-
-                            condition:
-                                "NUT8=1",
 
                             source: {
 
@@ -725,34 +651,32 @@ const compileBackPanelGroove = ({
                         part,
                         {
 
-                            type:
-                                "RNT",
+                            kind:
+                                MACHINING_KINDS.MILL_GROOVE,
+
+                            intentId:
+                                MACHINING_INTENT_IDS.BACK_GROOVE,
 
                             face:
                                 "A",
 
                             axis:
-                                "X",
+                                "x",
 
-                            x:
-                                startX,
+                            start: {
+                                x: startX,
+                                y: part.B - grooveConfig.y,
+                                z: grooveConfig.z
+                            },
 
-                            endX,
-
-                            y:
-                                part.W - grooveConfig.y,
-
-                            z:
-                                grooveConfig.z,
+                            end: {
+                                x: endX,
+                                y: part.B - grooveConfig.y,
+                                z: grooveConfig.z
+                            },
 
                             width:
                                 grooveConfig.width,
-
-                            tool:
-                                grooveConfig.tool,
-
-                            c:
-                                grooveConfig.c,
 
                             frontOffset:
                                 config.backPanel
@@ -763,9 +687,6 @@ const compileBackPanelGroove = ({
                                 config.backPanel
                                     .groove
                                     .backOffset,
-
-                            condition:
-                                "NUT8=1",
 
                             source: {
 
@@ -878,6 +799,12 @@ export const compileCnc = (
 
         config
 
+    });
+
+    compileFrontAttachments({
+        cabinet,
+        parts,
+        config
     });
 
     /*

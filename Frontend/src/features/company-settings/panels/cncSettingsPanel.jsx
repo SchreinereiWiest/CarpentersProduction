@@ -1,4 +1,4 @@
-import React, {
+import {
     useState,
     useEffect
 } from "react";
@@ -6,6 +6,11 @@ import React, {
 import {
     DEFAULT_CNC
 } from "@Engine/cabinet/cnc/cncDefaults.js";
+import {
+    createDrawerProgramsFromLegacy,
+    getDrawerFrontGroups,
+    getDrawerProgramKeys
+} from "@Engine/cabinet/sektions/front/frontAttachments.js";
 import { getGlobalFile, uploadGlobalFile } from "../../../shared/cache/global-cache.js";
 import { downloadFile, uploadJSONFile } from "../../../shared/api/file-api.js";
 import MaterialSelect from "../../projects/cabinet/components/editor/properties/MaterialSelect.jsx";
@@ -17,6 +22,7 @@ import {
     getUsedMachiningStrategies
 } from "@Engine/postprocessor/index.js";
 import { createId } from "@Engine/shared/id.js";
+import { getMachiningParameterSections } from "./cncSettingsSections.js";
 
 const cloneConfig = (value) => {
 
@@ -52,16 +58,6 @@ const mergeConfig = (defaults, saved) => {
     }
 
     return merged;
-};
-
-const STRATEGY_PANELS = {
-    "connector.drill": { id: "connector.drill", name: "Bohrverbinder" },
-    "connector.clamex": { id: "connector.clamex", name: "Clamex" },
-    "connector.screw": { id: "connector.screw", name: "Spax" },
-    "shelf.row": { id: "shelf.row", name: "Fachboden" },
-    "drawer.legrabox": { id: "drawer.legrabox", name: "Legrabox" },
-    "back.groove": { id: "back.groove", name: "Rückwandnut" },
-    "back.rabbet": { id: "back.rabbet", name: "Rückwandfalz" }
 };
 
 const createLegacyPostprocessorInstance = () => {
@@ -237,7 +233,7 @@ export default function CncSettingsPanel() {
                 const data = {
 
                     schemaVersion:
-                        2,
+                        3,
 
                     cncDefault:
                         config,
@@ -254,7 +250,7 @@ export default function CncSettingsPanel() {
                 );
 
 
-                const response = await uploadGlobalFile({
+                await uploadGlobalFile({
                                 
                     file: "settings-cnc.json",
         
@@ -295,19 +291,10 @@ export default function CncSettingsPanel() {
         config.machiningAssignments,
         activePostprocessorDescriptor?.supportedMachiningStrategies
     );
-    const sections = [
-        { id: "assignments", name: "Zuordnungen" },
-        ...usedStrategies
-            .map(strategy => STRATEGY_PANELS[strategy.id])
-            .filter(Boolean)
-    ];
-    const visibleSectionKey = sections.map(section => section.id).join("|");
-
-    useEffect(() => {
-        if (!visibleSectionKey.split("|").includes(selectedSection)) {
-            setSelectedSection("assignments");
-        }
-    }, [selectedSection, visibleSectionKey]);
+    const sections = getMachiningParameterSections(usedStrategies);
+    const activeSection = sections.some(section => section.id === selectedSection)
+        ? selectedSection
+        : "assignments";
 
         useEffect(() => {
             const loadGeneratedData = async () => {
@@ -327,13 +314,26 @@ export default function CncSettingsPanel() {
             
                         // Datei existiert bereits
                         if (data) {
-                                   
-                            setConfig(
-                                mergeConfig(
-                                    DEFAULT_CNC,
-                                    data.cncDefault ?? data
+                            const savedConfig = data.cncDefault ?? data;
+                            const mergedConfig = mergeConfig(DEFAULT_CNC, savedConfig);
+                            const savedDrawer = savedConfig.fronts?.drawer;
+
+                            if (
+                                savedDrawer &&
+                                !Array.isArray(savedDrawer.programs) &&
+                                (
+                                    Array.isArray(savedDrawer.groups) ||
+                                    Array.isArray(savedDrawer.holes) ||
+                                    Array.isArray(savedDrawer.cAdditionalGroups)
                                 )
-                            );
+                            ) {
+                                mergedConfig.fronts.drawer.programs = createDrawerProgramsFromLegacy(savedDrawer);
+                                delete mergedConfig.fronts.drawer.groups;
+                                delete mergedConfig.fronts.drawer.cAdditionalGroups;
+                                delete mergedConfig.fronts.drawer.holes;
+                            }
+
+                            setConfig(mergedConfig);
 
                             const savedPostprocessors = Array.isArray(data.postprocessors)
                                 ? data.postprocessors.map(instance => {
@@ -595,7 +595,7 @@ export default function CncSettingsPanel() {
                                 section => {
 
                                     const selected =
-                                        selectedSection ===
+                                        activeSection ===
                                         section.id;
 
 
@@ -662,7 +662,7 @@ export default function CncSettingsPanel() {
                     p-6
                 ">
 
-                    {selectedSection === "assignments" && (
+                    {activeSection === "assignments" && (
                         <MachiningAssignments
                             config={config}
                             descriptor={activePostprocessorDescriptor}
@@ -670,12 +670,21 @@ export default function CncSettingsPanel() {
                         />
                     )}
 
+                    {activeSection === "fronts" && (
+                        <FrontMachiningSettings
+                            config={config}
+                            updateConfig={updateConfig}
+                            updateNumber={updateNumber}
+                            updateBoolean={updateBoolean}
+                        />
+                    )}
+
 
                     {
-                        selectedSection ===
+                        activeSection ===
                             "connector.drill" && (
 
-                            <SpaxSettings
+                            <DrillConnectorSettings
                                 config={
                                     config
                                 }
@@ -692,7 +701,7 @@ export default function CncSettingsPanel() {
 
 
                     {
-                        selectedSection ===
+                        activeSection ===
                             "shelf.row" && (
 
                             <ShelfSettings
@@ -709,7 +718,7 @@ export default function CncSettingsPanel() {
 
 
                     {
-                        selectedSection ===
+                        activeSection ===
                             "drawer.legrabox" && (
 
                             <LegraboxSettings
@@ -732,20 +741,16 @@ export default function CncSettingsPanel() {
                     }
 
 
-                    {selectedSection === "back.groove" && (
+                    {activeSection === "back.groove" && (
                         <BackPanelSettings mode="groove" config={config} updateNumber={updateNumber} />
                     )}
 
-                    {selectedSection === "back.rabbet" && (
+                    {activeSection === "back.rabbet" && (
                         <BackPanelSettings mode="rabbet" config={config} updateNumber={updateNumber} />
                     )}
 
-                    {selectedSection === "connector.clamex" && (
+                    {activeSection === "connector.clamex" && (
                         <ClamexSettings config={config} updateConfig={updateConfig} updateNumber={updateNumber} />
-                    )}
-
-                    {selectedSection === "connector.screw" && (
-                        <SpaxSettings config={config} updateNumber={updateNumber} updateBoolean={updateBoolean} screwOnly />
                     )}
 
                 </main>
@@ -910,7 +915,7 @@ function PostprocessorSettings({
                             <div className="grid gap-4 md:grid-cols-2">
                                 {descriptor.configuration.map(field => (
                                     <PostprocessorConfigurationField
-                                        key={field.key}
+                                        key={`${activePostprocessor.id}:${field.key}`}
                                         field={field}
                                         value={activePostprocessor.configuration?.[field.key]}
                                         onChange={value => updateConfiguration(field.key, value)}
@@ -921,11 +926,11 @@ function PostprocessorSettings({
 
                         <SettingsCard title="Integrationsendpunkte">
                             <div className="grid gap-3 lg:grid-cols-3">
-                                <Endpoint name="Viewer" method="translateForViewer" description="Übersetzt Bauteil- und Function-Config in darstellbare Viewer-Operationen." />
-                                <Endpoint name="Maschinencode" method="generateMachineCode" description="Erzeugt erst im maschinenspezifischen Plugin ausführbaren G-Code oder Hersteller-Code." />
-                                <Endpoint name="Bearbeitung" method="resolveMachining" description="Prüft Zuordnungen und löst interne Bearbeitungsabsichten in Maschinenstrategien auf." />
+                                <Endpoint name="Viewer" method="translateForViewer" description="Übersetzt das neutrale CNC-Schema in reine Viewer-Operationen." />
+                                <Endpoint name="Maschinencode" method="generateMachineCode" description="Ergänzt Maschinenparameter und erzeugt G-Code oder Hersteller-Code." />
+                                <Endpoint name="Bearbeitung" method="resolveMachining" description="Koppelt eindeutige intentId-Endpunkte an unterstützte Maschinenstrategien." />
                             </div>
-                            <p className="mt-4 text-xs text-gray-500">Der CNC-Editor nutzt den Maschinencode-Endpunkt für den Xilog-XXL-Export. Partlist und Viewer bleiben weiterhin maschinenunabhängig.</p>
+                            <p className="mt-4 text-xs text-gray-500">Der CNC-Editor bezieht Darstellung und Export ausschließlich über den aktiven Postprozessor. Die Stückliste speichert nur das neutrale Schema.</p>
                         </SettingsCard>
 
                         <SettingsCard title="Unterstützte Bearbeitungen">
@@ -1005,11 +1010,6 @@ function JsonConfigurationField({ field, value, onChange }) {
     const [text, setText] = useState(() => JSON.stringify(value ?? {}, null, 2));
     const [error, setError] = useState("");
 
-    useEffect(() => {
-        setText(JSON.stringify(value ?? {}, null, 2));
-        setError("");
-    }, [value]);
-
     return (
         <label className="md:col-span-2">
             <span className="mb-1 flex justify-between text-xs text-gray-500"><span>{field.label}</span>{error && <span className="text-red-400">Ungültiges JSON</span>}</span>
@@ -1037,7 +1037,7 @@ function JsonConfigurationField({ field, value, onChange }) {
  * SPAX
  * ========================================================= */
 
-function SpaxSettings({
+function DrillConnectorSettings({
     config,
     updateNumber,
     updateBoolean
@@ -1053,7 +1053,7 @@ function SpaxSettings({
             <SettingsHeader
                 title="Bohrverbinder"
                 description="
-                    Einstellungen für VB, VBH und Spax-Bohrbilder
+                    Prozessorunabhängige Geometrie für Verbinder- und Schraubbohrbilder
                 "
             />
 
@@ -2014,11 +2014,11 @@ function BackPanelSettings({
 
 
             {/* =================================================
-             * RNT
+             * Prozessorunabhängige Nutgeometrie
              * ================================================= */}
 
             <SettingsCard
-                title="RNT"
+                title="Nutgeometrie"
             >
 
                 <div className="
@@ -2030,7 +2030,7 @@ function BackPanelSettings({
                     <NumberField
                         label="Start"
                         value={
-                            config.backPanel.groove.rnt
+                            config.backPanel.groove.path
                                 .startOffset
                         }
                         onChange={
@@ -2039,7 +2039,7 @@ function BackPanelSettings({
                                     [
                                         "backPanel",
                                         "groove",
-                                        "rnt",
+                                        "path",
                                         "startOffset"
                                     ],
                                     value
@@ -2050,7 +2050,7 @@ function BackPanelSettings({
                     <NumberField
                         label="Ende"
                         value={
-                            config.backPanel.groove.rnt
+                            config.backPanel.groove.path
                                 .endOffset
                         }
                         onChange={
@@ -2059,7 +2059,7 @@ function BackPanelSettings({
                                     [
                                         "backPanel",
                                         "groove",
-                                        "rnt",
+                                        "path",
                                         "endOffset"
                                     ],
                                     value
@@ -2070,7 +2070,7 @@ function BackPanelSettings({
                     <NumberField
                         label="Offen Start"
                         value={
-                            config.backPanel.groove.rnt
+                            config.backPanel.groove.path
                                 .openStartOffset
                         }
                         onChange={
@@ -2079,7 +2079,7 @@ function BackPanelSettings({
                                     [
                                         "backPanel",
                                         "groove",
-                                        "rnt",
+                                        "path",
                                         "openStartOffset"
                                     ],
                                     value
@@ -2090,7 +2090,7 @@ function BackPanelSettings({
                     <NumberField
                         label="Zwischen Start"
                         value={
-                            config.backPanel.groove.rnt
+                            config.backPanel.groove.path
                                 .intermediateStartOffset
                         }
                         onChange={
@@ -2099,7 +2099,7 @@ function BackPanelSettings({
                                     [
                                         "backPanel",
                                         "groove",
-                                        "rnt",
+                                        "path",
                                         "intermediateStartOffset"
                                     ],
                                     value
@@ -2110,7 +2110,7 @@ function BackPanelSettings({
                     <NumberField
                         label="Zwischen Ende"
                         value={
-                            config.backPanel.groove.rnt
+                            config.backPanel.groove.path
                                 .intermediateEndOffset
                         }
                         onChange={
@@ -2119,7 +2119,7 @@ function BackPanelSettings({
                                     [
                                         "backPanel",
                                         "groove",
-                                        "rnt",
+                                        "path",
                                         "intermediateEndOffset"
                                     ],
                                     value
@@ -2130,7 +2130,7 @@ function BackPanelSettings({
                     <NumberField
                         label="Y"
                         value={
-                            config.backPanel.groove.rnt
+                            config.backPanel.groove.path
                                 .y
                         }
                         onChange={
@@ -2139,7 +2139,7 @@ function BackPanelSettings({
                                     [
                                         "backPanel",
                                         "groove",
-                                        "rnt",
+                                        "path",
                                         "y"
                                     ],
                                     value
@@ -2150,7 +2150,7 @@ function BackPanelSettings({
                     <NumberField
                         label="Z"
                         value={
-                            config.backPanel.groove.rnt
+                            config.backPanel.groove.path
                                 .z
                         }
                         onChange={
@@ -2159,7 +2159,7 @@ function BackPanelSettings({
                                     [
                                         "backPanel",
                                         "groove",
-                                        "rnt",
+                                        "path",
                                         "z"
                                     ],
                                     value
@@ -2170,7 +2170,7 @@ function BackPanelSettings({
                     <NumberField
                         label="Breite"
                         value={
-                            config.backPanel.groove.rnt
+                            config.backPanel.groove.path
                                 .width
                         }
                         onChange={
@@ -2179,48 +2179,8 @@ function BackPanelSettings({
                                     [
                                         "backPanel",
                                         "groove",
-                                        "rnt",
+                                        "path",
                                         "width"
-                                    ],
-                                    value
-                                )
-                        }
-                    />
-
-                    <NumberField
-                        label="Werkzeug"
-                        value={
-                            config.backPanel.groove.rnt
-                                .tool
-                        }
-                        onChange={
-                            value =>
-                                updateNumber(
-                                    [
-                                        "backPanel",
-                                        "groove",
-                                        "rnt",
-                                        "tool"
-                                    ],
-                                    value
-                                )
-                        }
-                    />
-
-                    <NumberField
-                        label="C"
-                        value={
-                            config.backPanel.groove.rnt
-                                .c
-                        }
-                        onChange={
-                            value =>
-                                updateNumber(
-                                    [
-                                        "backPanel",
-                                        "groove",
-                                        "rnt",
-                                        "c"
                                     ],
                                     value
                                 )
@@ -2355,6 +2315,456 @@ function BackPanelSettings({
 
 
 /* =========================================================
+ * FRONTEN
+ * ========================================================= */
+
+function FrontMachiningSettings({
+    config,
+    updateConfig,
+    updateNumber,
+    updateBoolean
+}) {
+    const drawer = config.fronts.drawer;
+    const door = config.fronts.door;
+    const [drawerPreviewVariant, setDrawerPreviewVariant] = useState("M");
+    const drawerProgramKeys = getDrawerProgramKeys(drawer);
+    const previewVariant = drawerProgramKeys.includes(drawerPreviewVariant)
+        ? drawerPreviewVariant
+        : drawerProgramKeys[0] ?? "M";
+
+    const updateAuxiliaryHole = (index, key, value) => {
+        const holes = [...(door.auxiliaryHoles ?? [])];
+        holes[index] = {
+            ...holes[index],
+            [key]: Number(value) || 0
+        };
+        updateConfig(["fronts", "door", "auxiliaryHoles"], holes);
+    };
+
+    const removePoint = (path, points, index) => {
+        updateConfig(path, points.filter((_, pointIndex) => pointIndex !== index));
+    };
+
+    return (
+        <div className="max-w-6xl space-y-6">
+            <SettingsHeader
+                title="Fronten"
+                description="Interaktive Bohrbilder für Schubladenfronten, Topfbänder und die Korpus-Anschlagseite. Änderungen werden direkt in die CNC-Erzeugung übernommen."
+            />
+
+            <SettingsCard title="Legrabox-Frontbohrprogramm">
+                <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
+                    <div className="space-y-3">
+                        <div className="grid grid-cols-2 gap-2" role="group" aria-label="Legrabox Vorschauvariante">
+                            {drawerProgramKeys.map(variant => (
+                                <button
+                                    key={variant}
+                                    type="button"
+                                    aria-pressed={previewVariant === variant}
+                                    onClick={() => setDrawerPreviewVariant(variant)}
+                                    className={`rounded border px-3 py-2 text-sm ${previewVariant === variant
+                                        ? "border-blue-600 bg-blue-900 text-blue-200"
+                                        : "border-gray-700 bg-gray-900 text-gray-400"
+                                    }`}
+                                >
+                                    {variant}
+                                </button>
+                            ))}
+                        </div>
+                        <FrontPatternPreview mode="drawer" config={config} drawerVariant={previewVariant} />
+                    </div>
+                    <div className="space-y-4">
+                        <NumberField
+                            label="Fallback Legrabox ab Frontunterkante"
+                            value={drawer.fallbackBoxPositionFromBottom}
+                            onChange={value => updateNumber(["fronts", "drawer", "fallbackBoxPositionFromBottom"], value)}
+                        />
+
+                        <DrawerProgramEditor
+                            programs={drawer.programs ?? []}
+                            onChange={programs => updateConfig(["fronts", "drawer", "programs"], programs)}
+                        />
+
+                        <p className="text-xs text-gray-500">
+                            Kennungen werden kommasepariert eingetragen. Ein Zusatzprogramm kann auf einem Basisprogramm aufbauen; seine Bohrgruppen werden anschließend ergänzt. Damit ist der Aufbau auch für weitere Kennungen und Bohrsysteme frei erweiterbar.
+                        </p>
+                    </div>
+                </div>
+            </SettingsCard>
+
+            <SettingsCard title="Topfband in der Front">
+                <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
+                    <FrontPatternPreview mode="door" config={config} />
+                    <div className="space-y-5">
+                        <ToggleField
+                            label="Topfbohrungen erzeugen"
+                            value={door.cup.enabled}
+                            onChange={value => updateBoolean(["fronts", "door", "cup", "enabled"], value)}
+                        />
+                        <div className="grid gap-3 md:grid-cols-3">
+                            <NumberField label="Topfmitte ab Anschlagkante" value={door.cup.edgeOffset} onChange={value => updateNumber(["fronts", "door", "cup", "edgeOffset"], value)} />
+                            <NumberField label="Oberer Endpunkt" value={door.cup.topOffset} onChange={value => updateNumber(["fronts", "door", "cup", "topOffset"], value)} />
+                            <NumberField label="Unterer Endpunkt" value={door.cup.bottomOffset} onChange={value => updateNumber(["fronts", "door", "cup", "bottomOffset"], value)} />
+                            <NumberField label="Topfdurchmesser" value={door.cup.diameter} onChange={value => updateNumber(["fronts", "door", "cup", "diameter"], value)} />
+                            <NumberField label="Topftiefe" value={door.cup.depth} onChange={value => updateNumber(["fronts", "door", "cup", "depth"], value)} />
+                        </div>
+
+                        <div>
+                            <div className="mb-2 text-sm text-gray-300">Nebenbohrungen relativ zur Topfmitte</div>
+                            <div className="space-y-3">
+                                {(door.auxiliaryHoles ?? []).map((hole, index) => (
+                                    <div key={hole.id ?? index} className="rounded-lg border border-gray-700 bg-gray-900 p-4">
+                                        <div className="mb-3 flex justify-end">
+                                            <button
+                                                type="button"
+                                                onClick={() => removePoint(["fronts", "door", "auxiliaryHoles"], door.auxiliaryHoles ?? [], index)}
+                                                className="rounded border border-red-900 px-2 py-1 text-xs text-red-300 hover:bg-red-950"
+                                            >
+                                                Entfernen
+                                            </button>
+                                        </div>
+                                        <div className="grid gap-3 md:grid-cols-4">
+                                            <NumberField label="DY zur Korpusmitte" value={hole.horizontalOffset} onChange={value => updateAuxiliaryHole(index, "horizontalOffset", value)} />
+                                            <NumberField label="DX zur Topfmitte" value={hole.verticalOffset} onChange={value => updateAuxiliaryHole(index, "verticalOffset", value)} />
+                                            <NumberField label="Durchmesser" value={hole.diameter} onChange={value => updateAuxiliaryHole(index, "diameter", value)} />
+                                            <NumberField label="Tiefe Z" value={hole.depth} onChange={value => updateAuxiliaryHole(index, "depth", value)} />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => updateConfig(["fronts", "door", "auxiliaryHoles"], [
+                                    ...(door.auxiliaryHoles ?? []),
+                                    { id: createId(), horizontalOffset: 0, verticalOffset: 0, diameter: 8, depth: 12 }
+                                ])}
+                                className="mt-3 rounded border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-700"
+                            >
+                                Nebenbohrung hinzufügen
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </SettingsCard>
+
+            <SettingsCard title="Orientierungsbohrungen in der Korpusseite">
+                <div className="space-y-5">
+                    <ToggleField
+                        label="Korpusbohrungen erzeugen"
+                        value={door.corpus.enabled}
+                        onChange={value => updateBoolean(["fronts", "door", "corpus", "enabled"], value)}
+                    />
+                    <div className="grid gap-3 md:grid-cols-3">
+                        <NumberField label="Abstand von Frontkante" value={door.corpus.frontOffset} onChange={value => updateNumber(["fronts", "door", "corpus", "frontOffset"], value)} />
+                        <NumberField label="Durchmesser" value={door.corpus.diameter} onChange={value => updateNumber(["fronts", "door", "corpus", "diameter"], value)} />
+                        <NumberField label="Tiefe" value={door.corpus.depth} onChange={value => updateNumber(["fronts", "door", "corpus", "depth"], value)} />
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                        {(door.corpus.centerOffsets ?? [-32, 32]).map((offset, index) => (
+                            <NumberField
+                                key={index}
+                                label={index === 0 ? "Oberhalb Topfmitte" : "Unterhalb Topfmitte"}
+                                value={offset}
+                                onChange={value => {
+                                    const offsets = [...(door.corpus.centerOffsets ?? [-32, 32])];
+                                    offsets[index] = Number(value) || 0;
+                                    updateConfig(["fronts", "door", "corpus", "centerOffsets"], offsets);
+                                }}
+                            />
+                        ))}
+                    </div>
+                    <p className="text-xs text-gray-500">
+                        Standard: je eine Bohrung 32 mm ober- und unterhalb der Topfmitte, 37 mm von der Frontkante, D5 und 15 mm tief.
+                    </p>
+                </div>
+            </SettingsCard>
+        </div>
+    );
+}
+
+function DrawerProgramEditor({ programs, onChange }) {
+    const updateProgram = (programIndex, changes) => {
+        onChange(programs.map((program, index) => index === programIndex
+            ? { ...program, ...changes }
+            : program));
+    };
+
+    return (
+        <div className="space-y-4">
+            {programs.map((program, programIndex) => (
+                <div key={program.id ?? programIndex} className="rounded-xl border border-blue-950 bg-gray-950 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="grid min-w-0 flex-1 gap-3 md:grid-cols-2">
+                            <label className="block">
+                                <span className="mb-1 block text-xs text-gray-500">Programmname</span>
+                                <input
+                                    value={program.name ?? ""}
+                                    onChange={event => updateProgram(programIndex, { name: event.target.value })}
+                                    className="w-full rounded border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+                                />
+                            </label>
+                            <label className="block">
+                                <span className="mb-1 block text-xs text-gray-500">Kennung, z. B. M,K</span>
+                                <input
+                                    aria-label={`${program.name ?? "Bohrprogramm"} Kennung`}
+                                    value={Array.isArray(program.matchKeys) ? program.matchKeys.join(",") : program.matchKeys ?? ""}
+                                    onChange={event => updateProgram(programIndex, { matchKeys: event.target.value })}
+                                    placeholder="M,K"
+                                    className="w-full rounded border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+                                />
+                            </label>
+                            <label className="block md:col-span-2">
+                                <span className="mb-1 block text-xs text-gray-500">Basisprogramm</span>
+                                <select
+                                    value={program.extendsProgramId ?? ""}
+                                    onChange={event => updateProgram(programIndex, { extendsProgramId: event.target.value })}
+                                    className="w-full rounded border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+                                >
+                                    <option value="">Keines</option>
+                                    {programs
+                                        .filter(candidate => candidate.id !== program.id)
+                                        .map(candidate => (
+                                            <option key={candidate.id} value={candidate.id}>
+                                                {candidate.name || candidate.id}
+                                            </option>
+                                        ))}
+                                </select>
+                            </label>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => onChange(programs.filter((_, index) => index !== programIndex))}
+                            className="rounded border border-red-900 px-2 py-1 text-xs text-red-300 hover:bg-red-950"
+                        >
+                            Programm entfernen
+                        </button>
+                    </div>
+
+                    <div className="mt-4">
+                        <DrawerGroupEditor
+                            title="Bohrgruppen"
+                            description="Alle Gruppen dieses Programms werden bei passender Kennung ausgeführt."
+                            groups={program.groups ?? []}
+                            onChange={groups => updateProgram(programIndex, { groups })}
+                        />
+                    </div>
+                </div>
+            ))}
+
+            <button
+                type="button"
+                onClick={() => onChange([
+                    ...programs,
+                    {
+                        id: createId(),
+                        name: `Zusatzprogramm ${programs.length}`,
+                        matchKeys: "",
+                        extendsProgramId: programs[0]?.id ?? "",
+                        groups: []
+                    }
+                ])}
+                className="rounded border border-blue-700 bg-blue-950/40 px-4 py-2 text-sm text-blue-200 hover:bg-blue-950"
+            >
+                Zusatzprogramm hinzufügen
+            </button>
+        </div>
+    );
+}
+
+function DrawerGroupEditor({
+    title,
+    description,
+    groups,
+    onChange,
+    defaultGroupOffset = 0
+}) {
+    const updateGroup = (groupIndex, changes) => {
+        onChange(groups.map((group, index) => index === groupIndex
+            ? { ...group, ...changes }
+            : group));
+    };
+
+    const updateHole = (groupIndex, holeIndex, key, value) => {
+        const group = groups[groupIndex];
+        const holes = (group.holes ?? []).map((hole, index) => index === holeIndex
+            ? { ...hole, [key]: Number(value) || 0 }
+            : hole);
+        updateGroup(groupIndex, { holes });
+    };
+
+    return (
+        <div className="rounded-lg border border-gray-700 bg-gray-950 p-4">
+            <div className="text-sm font-medium text-gray-200">{title}</div>
+            <p className="mt-1 text-xs text-gray-500">{description}</p>
+
+            <div className="mt-4 space-y-4">
+                {groups.map((group, groupIndex) => (
+                    <div key={group.id ?? groupIndex} className="rounded-lg border border-gray-700 bg-gray-900 p-4">
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                                <input
+                                    aria-label={`${title} Gruppenname ${groupIndex + 1}`}
+                                    value={group.name ?? `Bohrgruppe ${groupIndex + 1}`}
+                                    onChange={event => updateGroup(groupIndex, { name: event.target.value })}
+                                    className="w-full rounded border border-transparent bg-transparent px-2 py-1 text-sm text-gray-200 outline-none hover:border-gray-700 focus:border-blue-500"
+                                />
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => onChange(groups.filter((_, index) => index !== groupIndex))}
+                                className="rounded border border-red-900 px-2 py-1 text-xs text-red-300 hover:bg-red-950"
+                            >
+                                Gruppe entfernen
+                            </button>
+                        </div>
+
+                        <div className="mt-3 max-w-xs">
+                            <NumberField
+                                label="Gruppenversatz nach oben"
+                                value={group.verticalOffset ?? 0}
+                                onChange={value => updateGroup(groupIndex, { verticalOffset: Number(value) || 0 })}
+                            />
+                        </div>
+
+                        <div className="mt-4 space-y-3">
+                            {(group.holes ?? []).map((hole, holeIndex) => (
+                                <div key={hole.id ?? holeIndex} className="rounded border border-gray-700 p-3">
+                                    <div className="mb-3 flex items-center justify-between">
+                                        <span className="text-xs font-medium text-gray-400">Haltepunkt {holeIndex + 1}</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => updateGroup(groupIndex, {
+                                                holes: group.holes.filter((_, index) => index !== holeIndex)
+                                            })}
+                                            className="text-xs text-red-300 hover:text-red-200"
+                                        >
+                                            Entfernen
+                                        </button>
+                                    </div>
+                                    <div className="grid gap-3 md:grid-cols-4">
+                                        <NumberField label="Versatz nach oben" value={hole.verticalOffset} onChange={value => updateHole(groupIndex, holeIndex, "verticalOffset", value)} />
+                                        <NumberField label="Von Seitenkante" value={hole.sideOffset} onChange={value => updateHole(groupIndex, holeIndex, "sideOffset", value)} />
+                                        <NumberField label="Durchmesser" value={hole.diameter} onChange={value => updateHole(groupIndex, holeIndex, "diameter", value)} />
+                                        <NumberField label="Tiefe Z" value={hole.depth} onChange={value => updateHole(groupIndex, holeIndex, "depth", value)} />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={() => updateGroup(groupIndex, {
+                                holes: [
+                                    ...(group.holes ?? []),
+                                    { id: createId(), verticalOffset: 13, sideOffset: 33, diameter: 5, depth: 1 }
+                                ]
+                            })}
+                            className="mt-3 rounded border border-gray-700 px-3 py-2 text-xs text-gray-300 hover:bg-gray-800"
+                        >
+                            Haltepunkt hinzufügen
+                        </button>
+                    </div>
+                ))}
+            </div>
+
+            <button
+                type="button"
+                onClick={() => onChange([
+                    ...groups,
+                    {
+                        id: createId(),
+                        name: `Bohrgruppe ${groups.length + 1}`,
+                        verticalOffset: defaultGroupOffset,
+                        holes: [{ id: createId(), verticalOffset: 13, sideOffset: 33, diameter: 5, depth: 1 }]
+                    }
+                ])}
+                className="mt-4 rounded border border-blue-800 px-3 py-2 text-xs text-blue-300 hover:bg-blue-950"
+            >
+                Bohrgruppe hinzufügen
+            </button>
+        </div>
+    );
+}
+
+export function FrontPatternPreview({ mode, config, drawerVariant = "MK" }) {
+    const drawer = config.fronts.drawer;
+    const door = config.fronts.door;
+    const dimensions = mode === "door"
+        ? { dx: 720, dy: 600 }
+        : { dx: 600, dy: 200 };
+    const drawingArea = { x: 48, y: 16, width: 246, height: 188 };
+    const scale = Math.min(
+        drawingArea.width / dimensions.dx,
+        drawingArea.height / dimensions.dy
+    );
+    const frame = {
+        width: dimensions.dx * scale,
+        height: dimensions.dy * scale
+    };
+    frame.x = drawingArea.x + (drawingArea.width - frame.width) / 2;
+    frame.y = drawingArea.y + (drawingArea.height - frame.height) / 2;
+
+    const drawerGroups = getDrawerFrontGroups(drawer, drawerVariant);
+    const drawerPoints = drawerGroups.flatMap((group, groupIndex) => (group.holes ?? []).flatMap((hole, holeIndex) => {
+        const y = frame.y + (
+            dimensions.dy -
+            Number(drawer.fallbackBoxPositionFromBottom) -
+            Number(group.verticalOffset ?? 0) -
+            Number(hole.verticalOffset)
+        ) * scale;
+        const sideOffset = Number(hole.sideOffset) * scale;
+        return [
+            { key: `${groupIndex}-${holeIndex}-left`, x: frame.x + sideOffset, y, diameter: hole.diameter },
+            { key: `${groupIndex}-${holeIndex}-right`, x: frame.x + frame.width - sideOffset, y, diameter: hole.diameter }
+        ];
+    }));
+    const doorCenters = [
+        frame.x + Number(door.cup.topOffset) * scale,
+        frame.x + (dimensions.dx - Number(door.cup.bottomOffset)) * scale
+    ];
+    const cupY = frame.y + Number(door.cup.edgeOffset) * scale;
+    const radius = diameter => Math.max(2, Number(diameter) * scale / 2);
+
+    return (
+        <div className="rounded-lg border border-gray-700 bg-gray-950 p-3">
+            <div className="mb-2 text-xs uppercase tracking-wide text-gray-500">Vorschau</div>
+            <svg viewBox="0 0 320 240" className="h-auto w-full" role="img" aria-label={mode === "drawer" ? "Vorschau Legrabox-Frontbohrung" : "Vorschau Topfbandbohrung maßstäblich mit Länge auf DX"}>
+                <rect x={frame.x} y={frame.y} width={frame.width} height={frame.height} rx="3" fill="#111827" stroke="#64748b" strokeWidth="2" />
+                {mode === "drawer" ? drawerPoints.map(point => (
+                    <circle key={point.key} cx={point.x} cy={point.y} r={radius(point.diameter)} fill="#60a5fa" />
+                )) : doorCenters.map((centerX, hingeIndex) => (
+                    <g key={hingeIndex}>
+                        <circle cx={centerX} cy={cupY} r={radius(door.cup.diameter)} fill="#1e3a8a" stroke="#60a5fa" strokeWidth="2" />
+                        {(door.auxiliaryHoles ?? []).map((hole, index) => (
+                            <circle
+                                key={index}
+                                cx={centerX + Number(hole.verticalOffset) * scale}
+                                cy={cupY + Number(hole.horizontalOffset) * scale}
+                                r={radius(hole.diameter)}
+                                fill="#f59e0b"
+                            />
+                        ))}
+                    </g>
+                ))}
+                <line x1={frame.x} y1="218" x2={frame.x + frame.width} y2="218" stroke="#94a3b8" strokeWidth="1" />
+                <line x1={frame.x} y1="213" x2={frame.x} y2="223" stroke="#94a3b8" strokeWidth="1" />
+                <line x1={frame.x + frame.width} y1="213" x2={frame.x + frame.width} y2="223" stroke="#94a3b8" strokeWidth="1" />
+                <text x={frame.x + frame.width / 2} y="234" textAnchor="middle" fill="#94a3b8" fontSize="10">
+                    DX · {mode === "drawer" ? "Frontbreite" : "Länge"} {dimensions.dx} mm
+                </text>
+                <text x="13" y="110" textAnchor="middle" fill="#94a3b8" fontSize="10" transform="rotate(-90 13 110)">
+                    DY · {mode === "drawer" ? "Fronthöhe" : "Breite"} {dimensions.dy} mm
+                </text>
+            </svg>
+            <p className="mt-2 text-center text-[11px] text-gray-600">
+                Maßstäbliche Referenz {dimensions.dx} × {dimensions.dy} mm
+            </p>
+        </div>
+    );
+}
+
+
+/* =========================================================
  * UI-Helfer
  * ========================================================= */
 
@@ -2423,11 +2833,50 @@ function SettingsCard({
 }
 
 
-function NumberField({
+export function NumberField({
     label,
     value,
     onChange
 }) {
+    const numericValue = Number.isFinite(Number(value)) ? Number(value) : 0;
+    const [inputState, setInputState] = useState({
+        draft: String(numericValue),
+        sourceValue: numericValue
+    });
+    const draft = inputState.sourceValue === numericValue
+        ? inputState.draft
+        : String(numericValue);
+
+    const handleChange = nextDraft => {
+        if (!/^-?\d*(?:[.,]\d*)?$/.test(nextDraft)) {
+            return;
+        }
+
+        const normalized = nextDraft.replace(",", ".");
+
+        if (
+            normalized === "" ||
+            normalized === "-" ||
+            normalized === "." ||
+            normalized === "-."
+        ) {
+            setInputState({
+                draft: nextDraft,
+                sourceValue: numericValue
+            });
+            return;
+        }
+
+        const nextValue = Number(normalized);
+
+        if (Number.isFinite(nextValue)) {
+            setInputState({
+                draft: nextDraft,
+                sourceValue: nextValue
+            });
+            onChange(nextValue);
+        }
+    };
 
     return (
 
@@ -2443,16 +2892,30 @@ function NumberField({
             </span>
 
             <input
-                type="number"
-                step="any"
-                value={
-                    value ?? 0
-                }
-                onChange={event =>
-                    onChange(
-                        event.target.value
-                    )
-                }
+                type="text"
+                inputMode="decimal"
+                value={draft}
+                onChange={event => handleChange(event.target.value)}
+                onBlur={() => {
+                    const normalized = draft.replace(",", ".");
+                    const nextValue = Number(normalized);
+
+                    if (draft !== "" && draft !== "-" && Number.isFinite(nextValue)) {
+                        setInputState({
+                            draft: String(nextValue),
+                            sourceValue: nextValue
+                        });
+                        if (nextValue !== numericValue) {
+                            onChange(nextValue);
+                        }
+                        return;
+                    }
+
+                    setInputState({
+                        draft: String(numericValue),
+                        sourceValue: numericValue
+                    });
+                }}
                 className="
                     w-full
                     rounded

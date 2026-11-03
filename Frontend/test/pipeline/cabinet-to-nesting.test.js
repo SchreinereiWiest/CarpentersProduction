@@ -136,8 +136,14 @@ describe('Projektpipeline Korpus → Stückliste → CNC → Nesting', () => {
     );
 
     expect(cncParts.length).toBeGreaterThan(0);
+    expect(cncParts.every(part => part.CNC.version === 2)).toBe(true);
+    expect(cncParts.flatMap(part => part.CNC.operations).every(operation => (
+      typeof operation.kind === 'string' &&
+      typeof operation.intentId === 'string' &&
+      operation.type === undefined
+    ))).toBe(true);
     expect(cncParts.some((part) => (
-      part.CNC.operations.some((operation) => operation.type === 'RNT')
+      part.CNC.operations.some((operation) => operation.kind === 'mill.groove')
     ))).toBe(true);
 
     const cncGroups = groupCncParts(partList);

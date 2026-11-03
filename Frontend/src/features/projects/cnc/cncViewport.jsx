@@ -1,7 +1,3 @@
-import React, {
-    useState
-} from "react";
-
 import CncPartsLayer
     from "./view/cncPartsLayer.jsx";
 
@@ -238,6 +234,10 @@ export default function CncViewport({
                 <CncOperationsLayer
                     part={
                         part
+                    }
+
+                    operations={
+                        operations
                     }
 
                     selectedOperationId={

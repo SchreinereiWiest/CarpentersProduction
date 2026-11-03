@@ -8,7 +8,8 @@ import {
     getStoredWorkspacePreferences,
     isWorkspacePane,
     persistWorkspacePreferences,
-    WORKSPACE_PREFERENCES_EVENT
+    WORKSPACE_PREFERENCES_EVENT,
+    WORKSPACE_PREFERENCES_STORAGE_KEY
 } from "./workspace-settings.js";
 
 const LARGE_WORKSPACE_QUERY = "(min-width: 1280px)";
@@ -54,6 +55,33 @@ function useLargeWorkspace() {
     return matches;
 }
 
+export function ScaledWorkspace({ children, scalePercent }) {
+    if (scalePercent === 100) return children;
+
+    const scaleStyle = getWorkspaceScaleStyle(scalePercent);
+
+    return (
+        <div className="workspace-scale-viewport">
+            <div className="workspace-scale-content" style={scaleStyle}>
+                {children}
+            </div>
+        </div>
+    );
+}
+
+export function getWorkspaceScaleStyle(scalePercent) {
+    const scale = scalePercent / 100;
+    const inverseScale = 1 / scale;
+
+    return {
+        "--workspace-scale": scale,
+        "--workspace-scaled-viewport-height": `${100 * inverseScale}dvh`,
+        width: `${100 * inverseScale}%`,
+        height: `${100 * inverseScale}%`,
+        transform: `scale(${scale})`
+    };
+}
+
 export default function WorkspaceRoot({ children }) {
     const location = useLocation();
     const navigate = useNavigate();
@@ -74,8 +102,7 @@ export default function WorkspaceRoot({ children }) {
     const activeFrameRef = useRef(null);
 
     useEffect(() => {
-        const update = event => {
-            const next = event.detail || getStoredWorkspacePreferences();
+        const applyPreferences = next => {
             const count = paneCount(next.workspaceLayout);
             setPreferences(next);
             setPanes(previous => Array.from({ length: count }, (_, index) =>
@@ -86,8 +113,20 @@ export default function WorkspaceRoot({ children }) {
             ));
             setActivePane(previous => Math.min(previous, count - 1));
         };
+        const update = event => applyPreferences(
+            event.detail || getStoredWorkspacePreferences()
+        );
+        const updateFromStorage = event => {
+            if (event.key === WORKSPACE_PREFERENCES_STORAGE_KEY) {
+                applyPreferences(getStoredWorkspacePreferences());
+            }
+        };
         window.addEventListener(WORKSPACE_PREFERENCES_EVENT, update);
-        return () => window.removeEventListener(WORKSPACE_PREFERENCES_EVENT, update);
+        window.addEventListener("storage", updateFromStorage);
+        return () => {
+            window.removeEventListener(WORKSPACE_PREFERENCES_EVENT, update);
+            window.removeEventListener("storage", updateFromStorage);
+        };
     }, [currentRoute]);
 
     useEffect(() => {
@@ -173,11 +212,24 @@ export default function WorkspaceRoot({ children }) {
         navigate(path);
     };
 
-    if (paneMode || preferences.workspaceLayout === "single"
-        || !largeWorkspace || location.pathname === "/login") {
+    if (paneMode) {
         return (
             <GlobalKeybindings keybindings={preferences.keybindings}>
                 {children}
+            </GlobalKeybindings>
+        );
+    }
+
+    if (preferences.workspaceLayout === "single"
+        || !largeWorkspace || location.pathname === "/login") {
+        const scaleContent = largeWorkspace && location.pathname !== "/login";
+        return (
+            <GlobalKeybindings keybindings={preferences.keybindings}>
+                {scaleContent ? (
+                    <ScaledWorkspace scalePercent={preferences.workspaceScalePercent}>
+                        {children}
+                    </ScaledWorkspace>
+                ) : children}
             </GlobalKeybindings>
         );
     }
@@ -219,6 +271,10 @@ export default function WorkspaceRoot({ children }) {
                                             src={paneSource(path)}
                                             title={`Arbeitsfeld ${index + 1}`}
                                             className="workspace-pane__frame"
+                                            style={preferences.workspaceScalePercent === 100
+                                                ? undefined
+                                                : getWorkspaceScaleStyle(preferences.workspaceScalePercent)
+                                            }
                                         />
                                     ) : (
                                         <button

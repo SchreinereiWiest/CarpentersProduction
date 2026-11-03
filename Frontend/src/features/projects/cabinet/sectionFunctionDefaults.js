@@ -1,6 +1,10 @@
 import { DEFAULT_CNC } from "@Engine/cabinet/cnc/cncDefaults.js";
+import { DEFAULT_CABINET } from "@Engine/cabinet/cabinetDefaults.js";
 
-export const createShelfHoleRowDefaults = (cncConfig = DEFAULT_CNC) => {
+export const createShelfHoleRowDefaults = (
+    cncConfig = DEFAULT_CNC,
+    cabinetConfig = DEFAULT_CABINET
+) => {
     const config = cncConfig?.cncDefault ?? cncConfig;
 
     return {
@@ -8,7 +12,8 @@ export const createShelfHoleRowDefaults = (cncConfig = DEFAULT_CNC) => {
         frontOffset: config?.shelf?.frontOffset ?? DEFAULT_CNC.shelf.frontOffset,
         backOffset: config?.shelf?.backOffset ?? DEFAULT_CNC.shelf.backOffset,
         startFromBottom: 150,
-        endFromTop: 150
+        endFromTop: 150,
+        centered: cabinetConfig.functionDefaults.shelf.holeRow.centered
     };
 };
 

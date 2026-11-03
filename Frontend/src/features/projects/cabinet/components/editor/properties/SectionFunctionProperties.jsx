@@ -94,7 +94,7 @@ export default function SectionFunctionProperties({
      */
 
     const functions = currentSection.functionConfig ?? [];
-    const shelfHoleRowDefaults = createShelfHoleRowDefaults(cncConfig);
+    const shelfHoleRowDefaults = createShelfHoleRowDefaults(cncConfig, activeCabinet);
     const shelfFrontOffsetDefault = getShelfFrontOffsetDefault(cncConfig);
 
 
@@ -814,6 +814,20 @@ export default function SectionFunctionProperties({
                                                 (value, current) => ({ holeRow: { ...(current.holeRow ?? {}), endFromTop: value } })
                                             )}
                                         />
+
+                                        <label className="flex items-center gap-2 text-sm text-gray-300">
+                                            <input
+                                                type="checkbox"
+                                                checked={func.holeRow?.centered === true}
+                                                onChange={event => updateFunctionNested(
+                                                    func.id,
+                                                    "holeRow",
+                                                    { centered: event.target.checked }
+                                                )}
+                                                className="h-4 w-4 rounded border-gray-600 bg-gray-900 text-blue-600"
+                                            />
+                                            Lochreihe mittig
+                                        </label>
 
                                     </div>
 

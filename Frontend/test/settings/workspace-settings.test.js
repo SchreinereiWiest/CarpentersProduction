@@ -13,11 +13,12 @@ describe("workspace settings", () => {
   it("stores the layout and keybindings for immediate use", () => {
     persistWorkspacePreferences({
       workspaceLayout: "split",
+      workspaceScalePercent: 75,
       keybindings: { sidebar: "Ctrl+B", projectBar: "Ctrl+P", apply: "Alt+Enter" }
     });
 
     expect(JSON.parse(window.localStorage.getItem(WORKSPACE_PREFERENCES_STORAGE_KEY)))
-      .toMatchObject({ workspaceLayout: "split" });
+      .toMatchObject({ workspaceLayout: "split", workspaceScalePercent: 75 });
     expect(getStoredWorkspacePreferences().keybindings.apply).toBe("Alt+Enter");
   });
 

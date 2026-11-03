@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CNC } from "@Engine/cabinet/cnc/cncDefaults.js";
+import { DEFAULT_CABINET } from "@Engine/cabinet/cabinetDefaults.js";
 import { createShelfHoleRowDefaults, getShelfFrontOffsetDefault } from "../../src/features/projects/cabinet/sectionFunctionDefaults.js";
 
 describe("cabinet section function defaults", () => {
     it("uses a separate 10 mm shelf setback for new hole-row function configs", () => {
         expect(DEFAULT_CNC.shelf.shelfFrontOffset).toBe(10);
+        expect(DEFAULT_CABINET.functionDefaults.shelf.holeRow.centered).toBe(true);
         expect(getShelfFrontOffsetDefault()).toBe(10);
         expect(createShelfHoleRowDefaults()).toMatchObject({
             frontOffset: DEFAULT_CNC.shelf.frontOffset,
@@ -66,7 +68,8 @@ describe("cabinet section function defaults", () => {
             frontOffset: 48,
             backOffset: DEFAULT_CNC.shelf.backOffset,
             startFromBottom: 150,
-            endFromTop: 150
+            endFromTop: 150,
+            centered: true
         });
     });
 });

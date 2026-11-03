@@ -5,7 +5,7 @@ import { normalizeEstimationSettings } from "@Engine/calculation/estimation.mjs"
 export const CUSTOM_WORK_TYPE_ID = "__custom__";
 
 export const DEFAULT_COMPANY_SETTINGS = {
-    schemaVersion: 7,
+    schemaVersion: 8,
     workingHours: {
         start: "07:00",
         end: "16:45"
@@ -40,6 +40,7 @@ export const DEFAULT_COMPANY_SETTINGS = {
         measurementFormFieldWidthMm: 32,
         measurementFormFieldHeightMm: 10,
         workspaceLayout: "single",
+        workspaceScalePercent: 100,
         keybindings: {
             sidebar: "Alt+1",
             projectBar: "Alt+2",
@@ -107,7 +108,7 @@ export function normalizeCompanySettings(data) {
         : [];
 
     return {
-        schemaVersion: 7,
+        schemaVersion: 8,
         workingHours,
         breaks: breaks.map((entry, index) => ({
             id: entry.id || `break-${index + 1}`,
@@ -137,6 +138,9 @@ export function normalizeCompanySettings(data) {
                 userInterface.measurementFormFieldHeightMm
             ),
             workspaceLayout: normalizeWorkspaceLayout(userInterface.workspaceLayout),
+            workspaceScalePercent: normalizeWorkspaceScalePercent(
+                userInterface.workspaceScalePercent
+            ),
             keybindings: normalizeKeybindings(userInterface.keybindings)
         },
         estimation: {
@@ -216,6 +220,15 @@ export const WORKSPACE_LAYOUTS = ["single", "split", "grid"];
 
 export function normalizeWorkspaceLayout(value) {
     return WORKSPACE_LAYOUTS.includes(value) ? value : "single";
+}
+
+export function normalizeWorkspaceScalePercent(value) {
+    const parsed = Number.parseFloat(String(value ?? "").replace(",", "."));
+    if (!Number.isFinite(parsed)) {
+        return DEFAULT_COMPANY_SETTINGS.userInterface.workspaceScalePercent;
+    }
+
+    return Math.min(125, Math.max(50, Math.round(parsed)));
 }
 
 export function normalizeKeybinding(value, fallback) {

@@ -1,12 +1,13 @@
 import { POSTPROCESSOR_API_VERSION } from "../contract.js";
+import { MACHINING_KINDS, translateNeutralPartForViewer } from "../machiningModel.js";
 
-const strategy = (id, label, operationTypes, description) => ({ id, label, operationTypes, description });
+const strategy = (id, label, operationKinds, description) => ({ id, label, operationKinds, description });
 
 export const legacyViewerBridge = {
     manifest: {
         id: "legacy-viewer-bridge",
         name: "CNC Viewer · Legacy Bridge",
-        version: "1.0.0",
+        version: "2.0.0",
         apiVersion: POSTPROCESSOR_API_VERSION,
         description: "Bindet die vorhandenen CNC-Operationen an das neue Postprozessor-System an.",
         vendor: "CarpentersProduction",
@@ -16,32 +17,23 @@ export const legacyViewerBridge = {
             machiningResolution: true
         },
         supportedMachiningStrategies: [
-            strategy("connector.drill", "Bohrverbinder", ["BO", "VB", "VBH"], "Klassische horizontale und vertikale Verbinderbohrungen."),
-            strategy("connector.clamex", "Clamex", ["CLAMEX"], "Semantischer Endpunkt; benötigt einen Maschinenadapter mit Clamex-Unterstützung."),
-            strategy("connector.screw", "Spax", ["BO"], "Bohrbild für geschraubte Korpusverbindungen."),
-            strategy("shelf.row", "Fachboden-Lochreihe", ["BO"], "Bohrungen oder Lochreihen für Fachböden."),
-            strategy("drawer.legrabox", "Legrabox", ["BO", "VBH"], "Bearbeitungen für Legrabox-Auszüge."),
-            strategy("back.groove", "Rückwandnut", ["RNT", "NUT8"], "Nutbearbeitung für Rückwände."),
-            strategy("back.rabbet", "Rückwandfalz", ["XG0", "XL2P"], "Falzbearbeitung für Rückwände.")
+            strategy("connector.drill", "Bohrverbinder", [MACHINING_KINDS.DRILL_POINT, MACHINING_KINDS.DRILL_PATTERN, MACHINING_KINDS.DRILL_LINEAR_PATTERN, MACHINING_KINDS.DRILL_EDGE_PATTERN], "Klassische horizontale und vertikale Verbinderbohrungen."),
+            strategy("connector.clamex", "Clamex", [MACHINING_KINDS.MILL_PATH], "Semantischer Endpunkt; benötigt einen Maschinenadapter mit Clamex-Unterstützung."),
+            strategy("connector.screw", "Spax", [MACHINING_KINDS.DRILL_POINT, MACHINING_KINDS.DRILL_LINEAR_PATTERN], "Bohrbild für geschraubte Korpusverbindungen."),
+            strategy("shelf.row", "Fachboden-Lochreihe", [MACHINING_KINDS.DRILL_ROW], "Bohrungen oder Lochreihen für Fachböden."),
+            strategy("drawer.legrabox", "Legrabox", [MACHINING_KINDS.DRILL_POINT, MACHINING_KINDS.DRILL_PATTERN], "Bearbeitungen für Legrabox-Auszüge."),
+            strategy("front.drawerMount", "Schubkastenfront", [MACHINING_KINDS.DRILL_POINT], "Befestigungsbohrungen an Schubkastenfronten."),
+            strategy("front.hingeCup", "Topfband", [MACHINING_KINDS.DRILL_POINT], "Topfbohrungen in Türfronten."),
+            strategy("front.hingeAuxiliary", "Topfband-Nebenbohrung", [MACHINING_KINDS.DRILL_POINT], "Nebenbohrungen in Türfronten."),
+            strategy("cabinet.hingePlate", "Topfband-Montageplatte", [MACHINING_KINDS.DRILL_POINT], "Montageplattenbohrungen im Korpus."),
+            strategy("back.groove", "Rückwandnut", [MACHINING_KINDS.MILL_GROOVE], "Nutbearbeitung für Rückwände."),
+            strategy("back.rabbet", "Rückwandfalz", [MACHINING_KINDS.MILL_PATH], "Falzbearbeitung für Rückwände.")
         ],
-        configuration: [
-            { key: "machineName", label: "Maschinenname", type: "text", defaultValue: "CNC 1", required: true },
-            { key: "coordinateOrigin", label: "Werkstücknullpunkt", type: "select", defaultValue: "bottom-left", options: [
-                { value: "bottom-left", label: "Unten links" },
-                { value: "top-left", label: "Oben links" },
-                { value: "center", label: "Mitte" }
-            ] },
-            { key: "flipYAxis", label: "Y-Achse spiegeln", type: "boolean", defaultValue: false },
-            { key: "safeHeight", label: "Sicherheitshöhe", type: "number", unit: "mm", min: 0, defaultValue: 20 },
-            { key: "operationAliases", label: "Operations-Aliase", type: "json", defaultValue: {} }
-        ]
+        configuration: []
     },
 
     translateForViewer({ part }) {
-        return {
-            operations: Array.isArray(part?.CNC?.operations) ? part.CNC.operations : [],
-            diagnostics: []
-        };
+        return translateNeutralPartForViewer(part);
     },
 
     generateMachineCode() {

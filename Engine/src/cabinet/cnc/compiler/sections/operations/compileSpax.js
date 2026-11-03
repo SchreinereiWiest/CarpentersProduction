@@ -7,6 +7,10 @@ import {
     getPartPosition,
     getConnectorHoleCount
 } from "../../cncHelpers.js";
+import {
+    MACHINING_INTENT_IDS,
+    MACHINING_KINDS
+} from "../../../../../postprocessor/machiningModel.js";
 
 /* =========================================================
  * Bohrmuster
@@ -1286,16 +1290,19 @@ const compileHorizontalJoint = ({
             verticalPart,
             {
 
-                type:
-                    "VB",
+                kind:
+                    MACHINING_KINDS.DRILL_LINEAR_PATTERN,
+
+                intentId:
+                    MACHINING_INTENT_IDS.JOINT_CONNECTOR,
 
                 face:
                     boundary.face,
 
-                position:
+                x:
                     verticalJointPosition,
 
-                rowStart:
+                y:
                     config.spax.connector
                         .startOffset,
 
@@ -1398,16 +1405,19 @@ const compileHorizontalJoint = ({
                 verticalPart,
                 {
 
-                    type:
-                        "VB",
+                    kind:
+                        MACHINING_KINDS.DRILL_LINEAR_PATTERN,
+
+                    intentId:
+                        MACHINING_INTENT_IDS.JOINT_SCREW,
 
                     face:
                         boundary.face,
 
-                    position:
+                    x:
                         verticalJointPosition,
 
-                    rowStart:
+                    y:
                         config.spax.screw
                             .startOffset,
 
@@ -1520,13 +1530,16 @@ const compileHorizontalJoint = ({
             horizontalPart,
             {
 
-                type:
-                    "VBH",
+                kind:
+                    MACHINING_KINDS.DRILL_EDGE_PATTERN,
+
+                intentId:
+                    MACHINING_INTENT_IDS.JOINT_CONNECTOR,
 
                 face:
                     "A",
 
-                side:
+                edge:
                     boundary.horizontalSide,
 
                 position:
@@ -1695,16 +1708,19 @@ const compileHorizontalJoint = ({
         horizontalPart,
         {
 
-            type:
-                "VB",
+            kind:
+                MACHINING_KINDS.DRILL_LINEAR_PATTERN,
+
+            intentId:
+                MACHINING_INTENT_IDS.JOINT_CONNECTOR,
 
             face:
                 "A",
 
-            position:
+            x:
                 continuousPosition,
 
-            rowStart:
+            y:
                 config.spax.connector
                     .startOffset,
 
@@ -1807,16 +1823,19 @@ const compileHorizontalJoint = ({
             horizontalPart,
             {
 
-                type:
-                    "VB",
+                kind:
+                    MACHINING_KINDS.DRILL_LINEAR_PATTERN,
+
+                intentId:
+                    MACHINING_INTENT_IDS.JOINT_SCREW,
 
                 face:
                     "A",
 
-                position:
+                x:
                     continuousPosition,
 
-                rowStart:
+                y:
                     config.spax.screw
                         .startOffset,
 
@@ -1927,13 +1946,16 @@ const compileHorizontalJoint = ({
         verticalPart,
         {
 
-            type:
-                "VBH",
+            kind:
+                MACHINING_KINDS.DRILL_EDGE_PATTERN,
+
+            intentId:
+                MACHINING_INTENT_IDS.JOINT_CONNECTOR,
 
             face:
                 boundary.face,
 
-            side: boundary.horizontalSide !== "middle" ? boundary.horizontalSide :panel.type === "top" ? "left" : panel.type === "bottom" ? "right" : boundary.horizontalSide,
+            edge: boundary.horizontalSide !== "middle" ? boundary.horizontalSide :panel.type === "top" ? "left" : panel.type === "bottom" ? "right" : boundary.horizontalSide,
 
             position:
                 verticalJointPosition,

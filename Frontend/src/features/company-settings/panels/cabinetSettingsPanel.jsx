@@ -33,6 +33,20 @@ const DEFAULT_CABINET = {
     frontGapBottom: 0,
     frontGrainDirection: "vertical",
 
+    insetFront: {
+        widthClearance: 5,
+        heightAddition: 10,
+        bottomClearance: 2.5
+    },
+
+    functionDefaults: {
+        shelf: {
+            holeRow: {
+                centered: true
+            }
+        }
+    },
+
     backPanel: {
         construction: "butt",
         continuous: "side"
@@ -102,6 +116,33 @@ export default function CabinetSettingsPanel() {
                 })
             );
         };
+
+    const updateInsetFront = changes => {
+        setCabinet(previous => ({
+            ...previous,
+            insetFront: {
+                ...DEFAULT_CABINET.insetFront,
+                ...(previous.insetFront ?? {}),
+                ...changes
+            }
+        }));
+    };
+
+    const updateShelfHoleRowDefaults = changes => {
+        setCabinet(previous => ({
+            ...previous,
+            functionDefaults: {
+                ...previous.functionDefaults,
+                shelf: {
+                    ...previous.functionDefaults.shelf,
+                    holeRow: {
+                        ...previous.functionDefaults.shelf.holeRow,
+                        ...changes
+                    }
+                }
+            }
+        }));
+    };
 
 
     const savePreset = async () => {
@@ -189,7 +230,11 @@ export default function CabinetSettingsPanel() {
                     if (data) {
                         setCabinet({
                             ...DEFAULT_CABINET,
-                            ...cabinetSettings
+                            ...cabinetSettings,
+                            insetFront: {
+                                ...DEFAULT_CABINET.insetFront,
+                                ...(cabinetSettings.insetFront ?? {})
+                            }
                         });
                     } else {
                         setCabinet(DEFAULT_CABINET);
@@ -457,6 +502,47 @@ export default function CabinetSettingsPanel() {
 
                     </div>
 
+                    <div className="mt-5 rounded-lg border border-gray-700 bg-gray-900 p-4">
+                        <div className="mb-1 text-sm font-medium text-gray-300">
+                            Innenliegende Schubladenfront
+                        </div>
+                        <p className="mb-4 text-xs text-gray-500">
+                            Die Front wird aus der lichten Sektion und der verknüpften Legrabox berechnet.
+                        </p>
+                        <div className="grid grid-cols-3 gap-3">
+                            <NumberField
+                                label="Abzug lichte Breite"
+                                value={cabinet.insetFront?.widthClearance ?? 5}
+                                onChange={value => updateInsetFront({ widthClearance: value })}
+                            />
+                            <NumberField
+                                label="Zugabe Legraboxhöhe"
+                                value={cabinet.insetFront?.heightAddition ?? 10}
+                                onChange={value => updateInsetFront({ heightAddition: value })}
+                            />
+                            <NumberField
+                                label="Abstand unten"
+                                value={cabinet.insetFront?.bottomClearance ?? 2.5}
+                                onChange={value => updateInsetFront({ bottomClearance: value })}
+                            />
+                        </div>
+                        <p className="mt-3 text-xs text-gray-500">
+                            Standard: lichte Breite − 5 mm, Legraboxhöhe + 10 mm und 2,5 mm Abstand zur unteren lichten Kante.
+                        </p>
+                    </div>
+
+                </section>
+
+                <section className="rounded-xl border border-gray-700 bg-gray-800 p-5">
+                    <h2 className="mb-4 font-medium">Funktionsvorgaben</h2>
+                    <Checkbox
+                        checked={cabinet.functionDefaults.shelf.holeRow.centered}
+                        label="Lochreihe mittig"
+                        onChange={value => updateShelfHoleRowDefaults({ centered: value })}
+                    />
+                    <p className="mt-3 text-xs text-gray-500">
+                        Wird für neu angelegte Funktionen „Einlegeböden + Lochreihe“ übernommen.
+                    </p>
                 </section>
 
 

@@ -36,7 +36,11 @@ export const generateSideParts = ({
         );
 
 
-    return createPart({
+    const sideHeight = bottomIsContinuous ? height - 2 * thickness : height;
+    const createSide = side => {
+        const isRight = side === "right";
+
+        return createPart({
 
             PID:
                 nextPID(),
@@ -48,10 +52,10 @@ export const generateSideParts = ({
                 "Seite",
 
             quantity:
-                2,
+                1,
 
             L:
-                bottomIsContinuous ? height - 2 * thickness : height,
+                sideHeight,
 
             B:
                 depth  ,
@@ -76,41 +80,19 @@ export const generateSideParts = ({
 
             continuous: !bottomIsContinuous,
 
-            instances: [
-                {
-                    id: "left",
-                    side: "left",
-
-                    mirrorX: false,
-
-                    x: 0,
-                    y: 0,
-
-                    width: thickness,
-                    height: bottomIsContinuous ? height - 2 * thickness : height,
-
-                    continuous: !bottomIsContinuous
-
-                },
-
-                {
-                    id: "right",
-                    side: "right",
-
-                    mirrorX: true,
-
-                    x:
-                        width -
-                        thickness,
-
-                    y: 0,
-
-                    width: thickness,
-                    height: bottomIsContinuous ? height - 2 * thickness : height,
-
-                    continuous: !bottomIsContinuous
-                }
-            ]
+            instances: [{
+                id: side,
+                side,
+                mirrorX: isRight,
+                x: isRight ? width - thickness : 0,
+                y: 0,
+                width: thickness,
+                height: sideHeight,
+                continuous: !bottomIsContinuous
+            }]
         }
         });
+    };
+
+    return [createSide("left"), createSide("right")];
 };

@@ -85,6 +85,68 @@ export const DEFAULT_CNC = {
         ]
     },
 
+    fronts: {
+        drawer: {
+            fallbackBoxPositionFromBottom: 59,
+            programs: [
+                {
+                    id: "legra-base",
+                    name: "Grundprogramm",
+                    matchKeys: "M,K",
+                    extendsProgramId: "",
+                    groups: [{
+                        id: "mk-primary",
+                        name: "Grundgruppe",
+                        verticalOffset: 0,
+                        holes: [{
+                            id: "primary",
+                            verticalOffset: 13,
+                            sideOffset: 33,
+                            diameter: 5,
+                            depth: 1
+                        }]
+                    }]
+                },
+                {
+                    id: "legra-c",
+                    name: "Zusatzprogramm C",
+                    matchKeys: "C",
+                    extendsProgramId: "legra-base",
+                    groups: [{
+                        id: "c-secondary",
+                        name: "C Zusatzgruppe 1",
+                        verticalOffset: 92,
+                        holes: [{
+                            id: "c-secondary-primary",
+                            verticalOffset: 13,
+                            sideOffset: 33,
+                            diameter: 5,
+                            depth: 1
+                        }]
+                    }]
+                }
+            ]
+        },
+        door: {
+            cup: {
+                enabled: true,
+                edgeOffset: 22.5,
+                topOffset: 100,
+                bottomOffset: 100,
+                diameter: 35,
+                depth: 13
+            },
+            auxiliaryHoles: [],
+            corpus: {
+                enabled: true,
+                frontOffset: 37,
+                centerOffsets: [-32, 32],
+                diameter: 5,
+                depth: 15
+            }
+        }
+    },
+
     backPanel: {
 
         groove: {
@@ -108,7 +170,7 @@ export const DEFAULT_CNC = {
 
             depth: 9,
 
-            rnt: {
+            path: {
                 startOffset: 3,
                 endOffset: 3,
                 openStartOffset: -20,
@@ -118,9 +180,7 @@ export const DEFAULT_CNC = {
 
                 y: 20,
                 z: 9,
-                width: 8.3,
-                tool: 81,
-                c: 3
+                width: 8.3
             }
 
         },

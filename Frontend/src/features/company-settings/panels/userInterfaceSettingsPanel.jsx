@@ -14,6 +14,7 @@ import {
     normalizeMeasurementFormFieldWidthMm,
     normalizeMeasurementLabelOffsetY,
     normalizeMeasurementLabelSizePercent,
+    normalizeWorkspaceScalePercent,
     normalizeCompanySettings
 } from "../../../shared/settings/company-settings.js";
 
@@ -461,6 +462,53 @@ export default function UserInterfaceSettingsPanel() {
                                 selected={companySettings.userInterface.workspaceLayout === "grid"}
                                 onSelect={workspaceLayout => setUserInterface({ workspaceLayout })}
                             />
+                        </div>
+
+                        <div className="mt-6 border-t border-gray-700 pt-5">
+                            <div>
+                                <h3 className="text-sm font-semibold text-gray-100">Allgemeine Skalierung</h3>
+                                <p className="mt-1 max-w-2xl text-xs leading-5 text-gray-400">
+                                    In der Einzelansicht wird die gesamte Oberfläche skaliert. In Split View und 2 × 2 View gilt die Skalierung nur innerhalb der einzelnen Felder; die globale Sidebar behält ihre Größe.
+                                </p>
+                            </div>
+                            <div className="mt-4 flex max-w-2xl flex-wrap items-center gap-4">
+                                <input
+                                    type="range"
+                                    min="50"
+                                    max="125"
+                                    step="5"
+                                    aria-label="Allgemeine Skalierung"
+                                    value={companySettings.userInterface.workspaceScalePercent}
+                                    onChange={event => setUserInterface({
+                                        workspaceScalePercent: event.target.value
+                                    })}
+                                    className="min-w-56 flex-1 accent-blue-500"
+                                />
+                                <label className="flex items-center gap-2 text-sm text-gray-200">
+                                    <input
+                                        type="number"
+                                        min="50"
+                                        max="125"
+                                        step="5"
+                                        value={companySettings.userInterface.workspaceScalePercent}
+                                        onChange={event => setUserInterface({
+                                            workspaceScalePercent: event.target.value
+                                        })}
+                                        onBlur={() => setUserInterface({
+                                            workspaceScalePercent: normalizeWorkspaceScalePercent(
+                                                companySettings.userInterface.workspaceScalePercent
+                                            )
+                                        })}
+                                        className="w-24 rounded border border-gray-600 bg-gray-900 px-3 py-2 text-right text-gray-100 outline-none focus:border-blue-500"
+                                    />
+                                    <span className="text-gray-400">%</span>
+                                </label>
+                            </div>
+                            <div className="mt-2 flex justify-between text-xs text-gray-500 sm:max-w-[32rem]">
+                                <span>50 % · mehr Inhalt</span>
+                                <span>100 % · Standard</span>
+                                <span>125 % · größer</span>
+                            </div>
                         </div>
                     </section>
                 )}

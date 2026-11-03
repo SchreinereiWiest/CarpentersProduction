@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
     AVAILABLE_POSTPROCESSORS,
+    MACHINING_INTENT_IDS,
+    MACHINING_KINDS,
     createPluginConfiguration,
     generateCncMachineCode,
     getUsedMachiningStrategies,
@@ -20,25 +22,45 @@ describe("modular CNC postprocessor system", () => {
 
     it("publishes serializable plugin metadata and default configuration", () => {
         expect(descriptor).toMatchObject({
-            apiVersion: 1,
+            apiVersion: 2,
             capabilities: {
                 viewer: true,
                 machineCode: false,
                 machiningResolution: true
             }
         });
-        expect(instance.configuration).toMatchObject({
-            machineName: "CNC 1",
-            coordinateOrigin: "bottom-left",
-            safeHeight: 20
-        });
+        expect(instance.configuration).toEqual({});
     });
 
     it("exposes the existing viewer operations through the new endpoint", () => {
-        const operations = [{ id: "op-1", type: "BO", x: 20, y: 40 }];
+        const operations = [{
+            id: "op-1",
+            kind: MACHINING_KINDS.DRILL_POINT,
+            intentId: MACHINING_INTENT_IDS.JOINT_CONNECTOR,
+            face: "A",
+            x: 20,
+            y: 40,
+            diameter: 5,
+            depth: 10
+        }];
         expect(translatePartForCncViewer(instance, {
-            part: { CNC: { operations } }
-        })).toEqual({ operations, diagnostics: [] });
+            part: {
+                CNC: {
+                    version: 2,
+                    coordinateSystem: {
+                        unit: "mm",
+                        origin: "top-left",
+                        xAxis: "right",
+                        yAxis: "down",
+                        depthDirection: "into-material"
+                    },
+                    operations
+                }
+            }
+        })).toEqual({
+            operations: [expect.objectContaining({ id: "op-1", type: "BO" })],
+            diagnostics: []
+        });
     });
 
     it("does not claim to create executable code without a machine adapter", () => {
@@ -50,20 +72,20 @@ describe("modular CNC postprocessor system", () => {
 
     it("validates machining assignments against plugin capabilities", () => {
         expect(resolveCncMachining(instance, {
-            intent: "cornerJoint",
-            assignments: { cornerJoint: { strategyId: "connector.clamex" } }
+            intent: MACHINING_INTENT_IDS.JOINT_CONNECTOR,
+            assignments: { [MACHINING_INTENT_IDS.JOINT_CONNECTOR]: { strategyId: "connector.clamex" } }
         })).toMatchObject({ supported: true, assignment: { strategyId: "connector.clamex" } });
 
         expect(resolveCncMachining(instance, {
-            intent: "cornerJoint",
-            assignments: { cornerJoint: { strategyId: "proprietary.unknown" } }
+            intent: MACHINING_INTENT_IDS.JOINT_CONNECTOR,
+            assignments: { [MACHINING_INTENT_IDS.JOINT_CONNECTOR]: { strategyId: "proprietary.unknown" } }
         })).toMatchObject({ supported: false, assignment: null });
     });
 
     it("shows only supported strategies that are actually assigned", () => {
         expect(getUsedMachiningStrategies({
-            cornerJoint: { strategyId: "connector.clamex" },
-            shelfSupport: { strategyId: "shelf.row" },
+            [MACHINING_INTENT_IDS.JOINT_CONNECTOR]: { strategyId: "connector.clamex" },
+            [MACHINING_INTENT_IDS.SHELF_PIN_ROW]: { strategyId: "shelf.row" },
             unused: { strategyId: "not.available" }
         }, descriptor.supportedMachiningStrategies).map(strategy => strategy.id)).toEqual([
             "connector.clamex",
@@ -73,7 +95,7 @@ describe("modular CNC postprocessor system", () => {
 
     it("rejects incomplete plugins at registration time", () => {
         expect(() => validatePostprocessorPlugin({
-            manifest: { id: "broken", name: "Broken", apiVersion: 1 }
+            manifest: { id: "broken", name: "Broken", apiVersion: 2 }
         })).toThrow(/translateForViewer/);
     });
 });

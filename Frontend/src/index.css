@@ -87,6 +87,7 @@ textarea {
     height: 100%;
     border: 0;
     background: var(--theme-canvas, #111827);
+    transform-origin: top left;
 }
 
 .workspace-pane__empty {
@@ -112,6 +113,26 @@ textarea {
     border-radius: 0.75rem;
     color: var(--theme-text-muted, #9ca3af);
     font-size: 1.5rem;
+}
+
+.workspace-scale-viewport {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--theme-canvas, #111827);
+}
+
+.workspace-scale-content {
+    transform-origin: top left;
+}
+
+.workspace-scale-content .h-screen,
+.workspace-scale-content .h-dvh {
+    height: var(--workspace-scaled-viewport-height);
+}
+
+.workspace-scale-content .min-h-screen {
+    min-height: var(--workspace-scaled-viewport-height);
 }
 
 /* iPad and comparable touch tablets: preserve the desktop composition while

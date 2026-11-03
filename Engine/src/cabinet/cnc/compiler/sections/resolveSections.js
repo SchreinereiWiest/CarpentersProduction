@@ -407,11 +407,9 @@ export const getBoundary = ({
         )
     ) {
 
-        const part =
-            parts.find(
-                part =>
-                    isSidePart(part)
-            );
+        const part = parts.find(part => isSidePart(part) && (
+            getSource(part).instances ?? []
+        ).some(instance => instance.side === "left")) ?? parts.find(isSidePart);
 
         if (!part) {
             return null;
@@ -437,11 +435,9 @@ export const getBoundary = ({
         )
     ) {
 
-        const part =
-            parts.find(
-                part =>
-                    isSidePart(part)
-            );
+        const part = parts.find(part => isSidePart(part) && (
+            getSource(part).instances ?? []
+        ).some(instance => instance.side === "right")) ?? parts.find(isSidePart);
 
         if (!part) {
             return null;

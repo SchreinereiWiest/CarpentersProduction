@@ -20,7 +20,7 @@ describe("company settings", () => {
         }
       }
     })).toMatchObject({
-      schemaVersion: 7,
+      schemaVersion: 8,
       userInterface: {
         showTips: true,
         lineLockThresholdCm: 5,
@@ -29,6 +29,7 @@ describe("company settings", () => {
         measurementFormFieldWidthMm: 32,
         measurementFormFieldHeightMm: 10,
         workspaceLayout: "single",
+        workspaceScalePercent: 100,
         keybindings: {
           sidebar: "Alt+1",
           projectBar: "Alt+2",
@@ -68,6 +69,7 @@ describe("company settings", () => {
       measurementFormFieldWidthMm: 32,
       measurementFormFieldHeightMm: 10,
       workspaceLayout: "single",
+      workspaceScalePercent: 100,
       keybindings: {
         sidebar: "Alt+1",
         projectBar: "Alt+2",
@@ -110,6 +112,7 @@ describe("company settings", () => {
     const settings = normalizeCompanySettings({
       userInterface: {
         workspaceLayout: "grid",
+        workspaceScalePercent: 65,
         keybindings: {
           sidebar: "Ctrl+B",
           projectBar: "Ctrl+P",
@@ -119,10 +122,20 @@ describe("company settings", () => {
     });
 
     expect(settings.userInterface.workspaceLayout).toBe("grid");
+    expect(settings.userInterface.workspaceScalePercent).toBe(65);
     expect(settings.userInterface.keybindings).toEqual({
       sidebar: "Ctrl+B",
       projectBar: "Ctrl+P",
       apply: "Alt+Enter"
     });
+  });
+
+  it("limits the workspace scale to the supported range", () => {
+    expect(normalizeCompanySettings({
+      userInterface: { workspaceScalePercent: 20 }
+    }).userInterface.workspaceScalePercent).toBe(50);
+    expect(normalizeCompanySettings({
+      userInterface: { workspaceScalePercent: "140" }
+    }).userInterface.workspaceScalePercent).toBe(125);
   });
 });
