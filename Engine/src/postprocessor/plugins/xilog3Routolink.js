@@ -89,6 +89,92 @@ const transformY = (value, dimensions, configuration) => {
   return configuration.flipYAxis === false ? y : dimensions.y - y;
 };
 
+const configuredTool = (operation, configuration, fallbackNumber) => {
+  const tools = Array.isArray(configuration.toolDatabase)
+    ? configuration.toolDatabase
+    : [];
+  const tool = tools.find(item => item.id === operation.toolId);
+  return {
+    number: finiteNumber(tool?.toolNumber ?? fallbackNumber),
+    diameter: finiteNumber(tool?.diameter)
+  };
+};
+
+const compensatedLine = (operation, toolDiameter) => {
+  const start = operation.start;
+  const target = operation.target;
+  const compensation = operation.compensation ?? "center";
+  if (!start || !target || compensation === "center" || !(toolDiameter > 0)) {
+    return { start, target };
+  }
+  const startX = finiteNumber(start.x);
+  const startY = finiteNumber(start.y);
+  const targetX = finiteNumber(target.x);
+  const targetY = finiteNumber(target.y);
+  if ([startX, startY, targetX, targetY].some(value => value === null)) {
+    return { start, target };
+  }
+  const dx = targetX - startX;
+  const dy = targetY - startY;
+  const length = Math.hypot(dx, dy);
+  if (!(length > 0)) return { start, target };
+  const direction = compensation === "left" ? 1 : -1;
+  const offset = toolDiameter / 2;
+  // Das neutrale Koordinatensystem hat eine nach unten laufende Y-Achse.
+  const ox = direction * (dy / length) * offset;
+  const oy = direction * (-dx / length) * offset;
+  return {
+    start: { ...start, x: startX + ox, y: startY + oy },
+    target: { ...target, x: targetX + ox, y: targetY + oy }
+  };
+};
+
+const arcPoints = (operation, toolDiameter, configuration) => {
+  const start = operation.start;
+  const target = operation.target;
+  const center = operation.center;
+  if (!start || !target || !center) return null;
+  const centerX = finiteNumber(center.x);
+  const centerY = finiteNumber(center.y);
+  const startX = finiteNumber(start.x);
+  const startY = finiteNumber(start.y);
+  const targetX = finiteNumber(target.x);
+  const targetY = finiteNumber(target.y);
+  if ([centerX, centerY, startX, startY, targetX, targetY].some(value => value === null)) return null;
+
+  const programmedRadius = finiteNumber(operation.radius) ?? Math.hypot(startX - centerX, startY - centerY);
+  const clockwise = operation.direction !== "counterclockwise";
+  const compensation = operation.compensation ?? "center";
+  const radiusOffset = compensation === "center" || !(toolDiameter > 0)
+    ? 0
+    : toolDiameter / 2 * (
+      compensation === "left"
+        ? (clockwise ? 1 : -1)
+        : (clockwise ? -1 : 1)
+    );
+  const radius = programmedRadius + radiusOffset;
+  if (!(radius > 0)) return null;
+
+  const startAngle = Math.atan2(startY - centerY, startX - centerX);
+  const targetAngle = Math.atan2(targetY - centerY, targetX - centerX);
+  let sweep = targetAngle - startAngle;
+  if (clockwise) {
+    while (sweep <= 0) sweep += Math.PI * 2;
+  } else {
+    while (sweep >= 0) sweep -= Math.PI * 2;
+  }
+  const segmentLength = Math.max(0.5, finiteNumber(configuration.arcSegmentLength) ?? 5);
+  const count = Math.max(2, Math.ceil(Math.abs(sweep) * radius / segmentLength));
+  return Array.from({ length: count + 1 }, (_, index) => {
+    const angle = startAngle + sweep * index / count;
+    return {
+      x: centerX + Math.cos(angle) * radius,
+      y: centerY + Math.sin(angle) * radius,
+      z: finiteNumber(target.z ?? start.z)
+    };
+  });
+};
+
 const operationFaceSupported = (operation) =>
   String(operation?.face || "A").toUpperCase() === "A";
 
@@ -130,6 +216,21 @@ const translateDrill = (operation, dimensions, configuration) => {
 
   if ([x, y, z, diameter, xOffset, yOffset].some((value) => value === null))
     return null;
+  if (operation.columns !== undefined || operation.rows !== undefined) {
+    const columns = Math.max(1, Math.floor(finiteNumber(operation.columns) ?? 1));
+    const rows = Math.max(1, Math.floor(finiteNumber(operation.rows) ?? 1));
+    const sourceY = finiteNumber(operation.y);
+    if (sourceY === null) return null;
+    return Array.from({ length: rows }, (_, row) => xboLine({
+      x,
+      y: transformY(sourceY + row * sourceYOffset, dimensions, configuration),
+      z,
+      diameter,
+      count: columns,
+      xOffset,
+      yOffset: 0
+    }));
+  }
   return [xboLine({ x, y, z, diameter, count, xOffset, yOffset })];
 };
 
@@ -148,7 +249,7 @@ const translateShelfRow = (operation, dimensions, configuration) => {
   }
 
   const count = Math.floor((end - start) / spacing + 0.0001) + 1;
-  const rows = operation.crossPositions
+  const rows = (Array.isArray(operation.crossPositions) ? operation.crossPositions : [])
     .map((value) => transformY(value, dimensions, configuration))
     .filter((value) => value !== null);
   if (rows.length === 0) return null;
@@ -204,7 +305,7 @@ const translateGroove = (operation, dimensions, configuration) => {
   const y = transformY(operation.start?.y, dimensions, configuration);
   const z = finiteNumber(operation.start?.z ?? operation.depth);
   const width = finiteNumber(operation.width);
-  const tool = finiteNumber(configuration.grooveTool);
+  const tool = configuredTool(operation, configuration, configuration.grooveTool).number;
   const correction = finiteNumber(configuration.grooveCorrection ?? 0);
   if ([x, endX, y, z, width, tool, correction].some((value) => value === null))
     return null;
@@ -224,34 +325,61 @@ const translateGroove = (operation, dimensions, configuration) => {
 };
 
 const translateMilling = (operation, dimensions, configuration, state) => {
-  const type = operation.motion === "rapid" ? "XG0" : "XL2P";
-  const targetX = finiteNumber(operation.target?.x ?? state.x);
-  const sourceY = finiteNumber(operation.target?.y);
-  const targetY =
-    sourceY === null ? state.y : transformY(sourceY, dimensions, configuration);
-  const targetZ = finiteNumber(operation.target?.z ?? state.z);
-  if ([targetX, targetY, targetZ].some((value) => value === null)) return null;
+  const machineTool = configuredTool(operation, configuration, configuration.millingTool);
+  if (machineTool.number === null) return null;
+  const feed = finiteNumber(operation.feed);
+  const line = (type, point, includeTool = false) => {
+    const pointX = finiteNumber(point?.x);
+    const pointY = finiteNumber(point?.y);
+    const pointZ = finiteNumber(point?.z);
+    const x = pointX ?? state.x;
+    const y = pointY === null ? state.y : transformY(pointY, dimensions, configuration);
+    const z = pointZ ?? state.z;
+    if ([x, y, z].some(value => value === null)) return null;
+    const words = [type, `X=${formatNumber(x)}`, `Y=${formatNumber(y)}`, `Z=${formatNumber(z)}`];
+    if (includeTool) words.push(`T=${formatNumber(machineTool.number)}`);
+    if (feed !== null && type !== "XG0") words.push(`V=${formatNumber(feed)}`);
+    state.x = x;
+    state.y = y;
+    state.z = z;
+    return words.join(" ");
+  };
 
-  state.x = targetX;
-  state.y = targetY;
-  state.z = targetZ;
-
-  const words = [
-    type,
-    `X=${formatNumber(targetX)}`,
-    `Y=${formatNumber(targetY)}`,
-    `Z=${formatNumber(targetZ)}`
-  ];
-  if (type === "XG0") {
-    const tool = finiteNumber(
-      configuration.millingTool
-    );
-    if (tool === null) return null;
-    words.push(`T=${formatNumber(tool)}`);
+  if (operation.motion === "rapid") {
+    const rapid = line("XG0", operation.target, true);
+    return rapid ? [rapid] : null;
   }
-  const feed = finiteNumber(operation.feed ?? operation.V);
-  if (feed !== null) words.push(`V=${formatNumber(feed)}`);
-  return [words.join(" ")];
+
+  if (operation.motion === "arc") {
+    const points = arcPoints(operation, machineTool.diameter, configuration);
+    if (!points?.length) return null;
+    const start = line("XG0", points[0], true);
+    const segments = points.slice(1).map(point => line("XL2P", point)).filter(Boolean);
+    return start && segments.length === points.length - 1 ? [start, ...segments] : null;
+  }
+
+  const compensated = compensatedLine(operation, machineTool.diameter);
+  const lines = [];
+  const programmedStart = compensated.start ?? operation.start;
+  const startX = finiteNumber(programmedStart?.x);
+  const startY = transformY(programmedStart?.y, dimensions, configuration);
+  const startZ = finiteNumber(programmedStart?.z);
+  const startDiffersFromMachine = programmedStart && (
+    state.x === null || state.y === null || state.z === null ||
+    [startX, startY, startZ].some(value => value === null) ||
+    Math.abs(state.x - startX) > 0.0001 ||
+    Math.abs(state.y - startY) > 0.0001 ||
+    Math.abs(state.z - startZ) > 0.0001
+  );
+  if (startDiffersFromMachine) {
+    const start = line("XG0", compensated.start, true);
+    if (!start) return null;
+    lines.push(start);
+  }
+  const target = line("XL2P", compensated.target ?? operation.target);
+  if (!target) return null;
+  lines.push(target);
+  return lines;
 };
 
 const translateOperation = (operation, dimensions, configuration, state) => {
@@ -360,6 +488,24 @@ export const xilog3Routolink = {
         "Rueckwandfalz",
         [MACHINING_KINDS.MILL_PATH],
         "Fraesstart und lineare Fraesbewegungen mit XG0/XL2P."
+      ),
+      strategy(
+        "manual.drilling",
+        "Manuelles Bohren",
+        [MACHINING_KINDS.DRILL_POINT, MACHINING_KINDS.DRILL_PATTERN, MACHINING_KINDS.DRILL_LINEAR_PATTERN, MACHINING_KINDS.DRILL_EDGE_PATTERN, MACHINING_KINDS.DRILL_ROW],
+        "Manuell programmierte Bohrungen und Bohrmuster."
+      ),
+      strategy(
+        "manual.groove",
+        "Manuelle Nut",
+        [MACHINING_KINDS.MILL_GROOVE],
+        "Manuell programmierte Nut als RNT-Zyklus."
+      ),
+      strategy(
+        "manual.milling",
+        "Manuelles Fraesen",
+        [MACHINING_KINDS.MILL_PATH],
+        "G0, Geraden und linearisierte Radiusbahnen."
       )
     ],
     configuration: [
@@ -433,6 +579,24 @@ export const xilog3Routolink = {
         type: "number",
         min: 1,
         defaultValue: 114
+      },
+      {
+        key: "arcSegmentLength",
+        label: "Segmentlaenge Radiusbahn",
+        type: "number",
+        min: 0.5,
+        unit: "mm",
+        defaultValue: 5
+      },
+      {
+        key: "toolDatabase",
+        label: "Werkzeugdatenbank",
+        type: "toolDatabase",
+        defaultValue: [
+          { id: "drill-5", name: "Bohrer 5 mm", category: "drilling", diameter: 5, toolNumber: 5 },
+          { id: "router-8", name: "Schaftfraeser 8 mm", category: "milling", diameter: 8, toolNumber: 114 },
+          { id: "groove-8", name: "Nutwerkzeug 8,3 mm", category: "milling", diameter: 8.3, toolNumber: 81 }
+        ]
       }
     ]
   },

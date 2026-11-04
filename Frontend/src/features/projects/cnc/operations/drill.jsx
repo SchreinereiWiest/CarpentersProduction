@@ -1,7 +1,4 @@
-import React from "react";
-
 import {
-    getPartWidth,
     isFiniteNumber,
     getSelectedFill,
     getSelectedStroke
@@ -10,15 +7,10 @@ import {
 
 export default function Drill({
     operation,
-    part,
     operationId,
     selected,
     onSelect
 }) {
-
-    const partWidth =
-        getPartWidth(part);
-
 
     /*
      * =====================================================
@@ -94,6 +86,10 @@ export default function Drill({
             )
         );
 
+    const hasGrid = operation.columns !== undefined || operation.rows !== undefined;
+    const columns = Math.max(1, Math.floor(Number(operation.columns ?? 1)));
+    const rows = Math.max(1, Math.floor(Number(operation.rows ?? 1)));
+
 
     const xOffset =
         Number(
@@ -130,26 +126,17 @@ export default function Drill({
      * Alle berechneten Bohrungen erzeugen
      * ===================================================== */
 
-    const holes =
-        Array.from(
-            {
-                length:
-                    repeatCount
-            },
-            (_, index) => ({
-
-                x:
-                    x +
-                    index *
-                    xOffset,
-
-                y:
-                    y +
-                    index *
-                    yOffset
-
-            })
-        );
+    const holes = hasGrid
+        ? Array.from({ length: rows }, (_, row) =>
+            Array.from({ length: columns }, (_, column) => ({
+                x: x + column * xOffset,
+                y: y + row * yOffset
+            }))
+        ).flat()
+        : Array.from({ length: repeatCount }, (_, index) => ({
+            x: x + index * xOffset,
+            y: y + index * yOffset
+        }));
 
 
     return (

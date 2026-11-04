@@ -7,6 +7,7 @@ import SectionProperties from "./SectionProperties.jsx";
 import SectionFunctionProperties from "./SectionFunctionProperties.jsx";
 import CabinetProperties from "./CabinetProperties.jsx";
 import FrontAttachmentProperties from "./FrontAttachmentProperties.jsx";
+import CncFunctionConfigProperties from "./CncFunctionConfigProperties.jsx";
 
 
 export default function PropertiesSidebar({
@@ -77,6 +78,7 @@ export default function PropertiesSidebar({
 
     cncConfig,
     measurementVariables = [],
+    projectId,
 
     updateCabinetLayout
 
@@ -348,6 +350,7 @@ export default function PropertiesSidebar({
 
                         {selectedElement?.type === "section" ? (
 
+                            <>
                             <SectionFunctionProperties
                                 selectedElement={
                                     selectedElement
@@ -371,9 +374,17 @@ export default function PropertiesSidebar({
                                     measurementVariables
                                 }
                             />
+                            <CncFunctionConfigProperties
+                                activeCabinet={activeCabinet}
+                                updateActiveCabinet={updateActiveCabinet}
+                                projectId={projectId}
+                                sectionId={selectedElement.id}
+                            />
+                            </>
 
                         ) : selectedElement?.type === "front" && ["front", "combined"].includes(viewMode) ? (
 
+                            <>
                             <FrontAttachmentProperties
                                 selectedElement={selectedElement}
                                 activeCabinet={activeCabinet}
@@ -382,17 +393,24 @@ export default function PropertiesSidebar({
                                 cncConfig={cncConfig}
                                 viewMode={viewMode}
                             />
+                            <CncFunctionConfigProperties
+                                activeCabinet={activeCabinet}
+                                updateActiveCabinet={updateActiveCabinet}
+                                projectId={projectId}
+                            />
+                            </>
+
+                        ) : activeCabinet ? (
+
+                            <CncFunctionConfigProperties
+                                activeCabinet={activeCabinet}
+                                updateActiveCabinet={updateActiveCabinet}
+                                projectId={projectId}
+                            />
 
                         ) : (
 
-                            <div className="
-                                mt-6
-                                text-sm
-                                text-gray-500
-                            ">
-                                Wähle eine Sektion oder Front aus,
-                                um deren Funktion zu konfigurieren.
-                            </div>
+                            <div className="mt-6 text-sm text-gray-500">Kein Korpus ausgewählt.</div>
 
                         )}
 

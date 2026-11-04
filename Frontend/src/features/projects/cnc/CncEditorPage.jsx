@@ -5,6 +5,7 @@ import {
 } from "react";
 
 import {
+    useNavigate,
     useParams
 } from "react-router";
 
@@ -52,6 +53,8 @@ export default function CncEditor() {
     const {
         projectId
     } = useParams();
+
+    const navigate = useNavigate();
 
 
     const [groups, setGroups] =
@@ -780,6 +783,15 @@ export default function CncEditor() {
 
                                             )
                                         }
+
+                                        <button
+                                            type="button"
+                                            onClick={() => selectedPart?.PID && navigate(`/Projects/Cnc/${projectId}/Edit/${encodeURIComponent(selectedPart.PID)}`)}
+                                            disabled={!selectedPart?.PID}
+                                            className="rounded border border-violet-700 bg-violet-950/40 px-3 py-1.5 text-xs font-medium text-violet-200 transition hover:bg-violet-900/60 disabled:cursor-not-allowed disabled:border-gray-700 disabled:bg-gray-800 disabled:text-gray-500"
+                                        >
+                                            Bauteil bearbeiten
+                                        </button>
 
                                         <button
                                             type="button"

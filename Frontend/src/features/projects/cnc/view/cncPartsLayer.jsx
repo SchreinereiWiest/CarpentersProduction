@@ -1,7 +1,8 @@
 export default function CncPartsLayer({
     part,
     selected = true,
-    onSelect
+    onSelect,
+    allowCanvasClick = false
 }) {
 
     if (!part) {
@@ -45,9 +46,13 @@ export default function CncPartsLayer({
                 strokeWidth={2}
                 onClick={(event) => {
 
-                    event.stopPropagation();
+                    if (!allowCanvasClick) {
+                        event.stopPropagation();
+                    }
 
-                    onSelect?.(part);
+                    if (!allowCanvasClick) {
+                        onSelect?.(part);
+                    }
 
                 }}
             />

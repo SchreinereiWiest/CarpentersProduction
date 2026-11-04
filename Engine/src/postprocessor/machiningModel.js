@@ -20,7 +20,10 @@ export const MACHINING_INTENT_IDS = Object.freeze({
     FRONT_HINGE_AUXILIARY: "front.hingeAuxiliary",
     CABINET_HINGE_PLATE: "cabinet.hingePlate",
     BACK_GROOVE: "back.groove",
-    BACK_RABBET: "back.rabbet"
+    BACK_RABBET: "back.rabbet",
+    MANUAL_DRILLING: "manual.drilling",
+    MANUAL_GROOVE: "manual.groove",
+    MANUAL_MILLING: "manual.milling"
 });
 
 const kinds = new Set(Object.values(MACHINING_KINDS));
@@ -71,7 +74,9 @@ const viewerType = operation => {
         case MACHINING_KINDS.MILL_GROOVE:
             return "RNT";
         case MACHINING_KINDS.MILL_PATH:
-            return operation.motion === "rapid" ? "XG0" : "XL2P";
+            if (operation.motion === "rapid") return "XG0";
+            if (operation.motion === "arc") return "ARC";
+            return "XL2P";
         default:
             return null;
     }
@@ -132,6 +137,18 @@ export const neutralOperationToViewer = operation => {
     }
 
     if (operation.kind === MACHINING_KINDS.MILL_PATH) {
+        if (operation.motion === "arc") {
+            return {
+                ...operation,
+                type,
+                startX: operation.start?.x,
+                startY: operation.start?.y,
+                endX: operation.target?.x,
+                endY: operation.target?.y,
+                centerX: operation.center?.x,
+                centerY: operation.center?.y
+            };
+        }
         return operation.motion === "rapid"
             ? {
                 ...operation,

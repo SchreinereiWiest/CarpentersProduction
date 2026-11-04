@@ -19,6 +19,7 @@ import LegacyProjectEditorPage from "../features/projects/legacy-editor/LegacyPr
 import ProjectSettingsPage from "../features/projects/settings/ProjectSettingsPage.jsx";
 import CabinetEditorPage from "../features/projects/cabinet/CabinetEditorPage.jsx";
 import CncEditorPage from "../features/projects/cnc/CncEditorPage.jsx";
+import CncPartEditorPage from "../features/projects/cnc/CncPartEditorPage.jsx";
 import ProjectPurchasingPage from "../features/projects/purchasing/ProjectPurchasingPage.jsx";
 import ProjectAttachmentsPage from "../features/projects/attachments/ProjectAttachmentsPage.jsx";
 import CalculationPage from "../features/projects/calculation/CalculationPage.jsx";
@@ -88,6 +89,7 @@ export default function AppRouter() {
           <Route path="/Projects/Settings/:projectId" element={protectedPage(<ProjectSettingsPage />, "user", ["work-preparation"])} />
           <Route path="/Projects/Cabinet/:projectId" element={protectedPage(<CabinetEditorPage />, "user", ["work-preparation"])} />
           <Route path="/Projects/Cnc/:projectId" element={protectedPage(<CncEditorPage />, "user", ["work-preparation"])} />
+          <Route path="/Projects/Cnc/:projectId/Edit/:partId" element={protectedPage(<CncPartEditorPage />, "user", ["work-preparation"])} />
           <Route path="/Projects/Purchasing/:projectId" element={protectedPage(<ProjectPurchasingPage />, "user", ["work-preparation", "shop"])} />
           <Route path="/Projects/Attachments/:projectId" element={protectedPage(<ProjectAttachmentsPage />, "user", ["work-preparation"])} />
           <Route path="/Projects/Calculation/:projectId" element={protectedPage(<CalculationPage />, "user", ["work-preparation", "calculation"])} />

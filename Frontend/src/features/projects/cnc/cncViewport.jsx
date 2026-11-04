@@ -6,6 +6,8 @@ import CncOperationsLayer
 
 import CncDimensionLayer
     from "./view/cncDimensionLayer.jsx";
+import CncCompensationLayer
+    from "./view/cncCompensationLayer.jsx";
 
 
 export default function CncViewport({
@@ -14,7 +16,11 @@ export default function CncViewport({
     onSelectOperation,
     onSelectPart,
     operations,
-    selectedFace
+    selectedFace,
+    selectedOperationIds,
+    compensationPaths = [],
+    onCanvasPoint,
+    pointPicking = false
 }) {
 
 
@@ -129,6 +135,18 @@ export default function CncViewport({
                 preserveAspectRatio="
                     xMidYMid meet
                 "
+                onClick={event => {
+                    if (!pointPicking || !onCanvasPoint) return;
+                    const svg = event.currentTarget;
+                    const point = svg.createSVGPoint();
+                    point.x = event.clientX;
+                    point.y = event.clientY;
+                    const matrix = svg.getScreenCTM();
+                    if (!matrix) return;
+                    const local = point.matrixTransform(matrix.inverse());
+                    onCanvasPoint({ x: Number(local.x.toFixed(3)), y: Number(local.y.toFixed(3)) });
+                }}
+                style={{ cursor: pointPicking ? "crosshair" : undefined }}
             >
 
 
@@ -224,6 +242,10 @@ export default function CncViewport({
                         onSelectPart
                     }
 
+                    allowCanvasClick={
+                        pointPicking
+                    }
+
                 />
 
 
@@ -244,6 +266,10 @@ export default function CncViewport({
                         selectedOperationId
                     }
 
+                    selectedOperationIds={
+                        selectedOperationIds
+                    }
+
                     onSelectOperation={
                         onSelectOperation
                     }
@@ -252,6 +278,11 @@ export default function CncViewport({
                         selectedFace
                     }
 
+                />
+
+                <CncCompensationLayer
+                    paths={compensationPaths}
+                    selectedFace={selectedFace}
                 />
 
 

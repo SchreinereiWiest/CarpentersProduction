@@ -988,6 +988,10 @@ function PostprocessorConfigurationField({ field, value, onChange }) {
         return <JsonConfigurationField field={field} value={value} onChange={onChange} />;
     }
 
+    if (field.type === "toolDatabase") {
+        return <ToolDatabaseField field={field} value={value} onChange={onChange} />;
+    }
+
     return (
         <label>
             <span className="mb-1 block text-xs text-gray-500">{field.label}</span>
@@ -1001,6 +1005,69 @@ function PostprocessorConfigurationField({ field, value, onChange }) {
                 />
                 {field.unit && <span className="text-xs text-gray-500">{field.unit}</span>}
             </div>
+        </label>
+    );
+}
+
+
+export function ToolDatabaseField({ field, value, onChange }) {
+    const tools = Array.isArray(value) ? value : [];
+    const updateTool = (index, key, nextValue) => {
+        onChange(tools.map((tool, toolIndex) => toolIndex === index
+            ? { ...tool, [key]: nextValue }
+            : tool));
+    };
+
+    return (
+        <fieldset className="md:col-span-2 rounded-lg border border-gray-700 bg-gray-900/60 p-4">
+            <legend className="px-1 text-xs font-medium text-gray-400">{field.label}</legend>
+            <div className="space-y-3">
+                {tools.map((tool, index) => (
+                    <div key={index} className="grid gap-2 rounded border border-gray-700 bg-gray-950 p-3 md:grid-cols-[1fr_1fr_140px_110px_110px_auto]">
+                        <ConfigurationInput label="Kennung" value={tool.id ?? ""} onChange={next => updateTool(index, "id", next)} />
+                        <ConfigurationInput label="Bezeichnung" value={tool.name ?? ""} onChange={next => updateTool(index, "name", next)} />
+                        <label>
+                            <span className="mb-1 block text-[11px] text-gray-500">Bereich</span>
+                            <select value={tool.category ?? "milling"} onChange={event => updateTool(index, "category", event.target.value)} className="w-full rounded border border-gray-700 bg-gray-900 px-2 py-2 text-xs text-white">
+                                <option value="drilling">Bohren</option>
+                                <option value="milling">Fräsen</option>
+                            </select>
+                        </label>
+                        <ConfigurationInput label="Durchmesser" type="number" value={tool.diameter ?? ""} onChange={next => updateTool(index, "diameter", next === "" ? "" : Number(next))} />
+                        <ConfigurationInput label="Werkzeug-Nr." type="number" value={tool.toolNumber ?? ""} onChange={next => updateTool(index, "toolNumber", next === "" ? "" : Number(next))} />
+                        <button type="button" onClick={() => onChange(tools.filter((_, toolIndex) => toolIndex !== index))} className="self-end rounded border border-red-900 px-3 py-2 text-xs text-red-300 hover:bg-red-950/60">Entfernen</button>
+                    </div>
+                ))}
+                {!tools.length && <p className="text-xs text-gray-500">Noch keine Werkzeuge angelegt.</p>}
+                <button
+                    type="button"
+                    onClick={() => onChange([...tools, {
+                        id: `tool-${tools.length + 1}`,
+                        name: "Neues Werkzeug",
+                        category: "milling",
+                        diameter: 8,
+                        toolNumber: tools.length + 1
+                    }])}
+                    className="rounded border border-blue-800 bg-blue-950/40 px-3 py-2 text-xs text-blue-200 hover:bg-blue-900/50"
+                >
+                    Werkzeug hinzufügen
+                </button>
+            </div>
+        </fieldset>
+    );
+}
+
+
+function ConfigurationInput({ label, type = "text", value, onChange }) {
+    return (
+        <label>
+            <span className="mb-1 block text-[11px] text-gray-500">{label}</span>
+            <input
+                type={type}
+                value={value}
+                onChange={event => onChange(event.target.value)}
+                className="w-full rounded border border-gray-700 bg-gray-900 px-2 py-2 text-xs text-white outline-none focus:border-blue-500"
+            />
         </label>
     );
 }

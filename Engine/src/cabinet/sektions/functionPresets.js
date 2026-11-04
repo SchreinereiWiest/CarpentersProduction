@@ -46,16 +46,21 @@ export const createFunctionPreset = cabinet => {
     const area = getAvailableCabinetArea(cabinet);
     return {
         sections: (cabinet?.sections ?? []).map(section => normalizeSection(section, area)),
-        sectionLayout: cabinet?.sectionLayout ?? null
+        sectionLayout: cabinet?.sectionLayout ?? null,
+        functionConfig: cabinet?.functionConfig ?? []
     };
 };
 
 export const applyFunctionPreset = (cabinet, preset) => {
-    const cloned = cloneCabinetWithFreshIds({ sections: preset?.sections ?? [] });
+    const cloned = cloneCabinetWithFreshIds({
+        sections: preset?.sections ?? [],
+        functionConfig: preset?.functionConfig ?? []
+    });
     const area = getAvailableCabinetArea(cabinet);
 
     return {
         sections: cloned.sections.map(section => materializeSection(section, area)),
-        sectionLayout: preset?.sectionLayout ?? null
+        sectionLayout: preset?.sectionLayout ?? null,
+        functionConfig: cloned.functionConfig
     };
 };

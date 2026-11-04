@@ -31,6 +31,7 @@ export const DEFAULT_CABINET = {
         continuous: "side"
     },
     spax: true,
+    functionConfig: [],
     partListSettings: {
         grouping: "cabinet",
         separate: {

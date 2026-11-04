@@ -27,7 +27,10 @@ export const legacyViewerBridge = {
             strategy("front.hingeAuxiliary", "Topfband-Nebenbohrung", [MACHINING_KINDS.DRILL_POINT], "Nebenbohrungen in Türfronten."),
             strategy("cabinet.hingePlate", "Topfband-Montageplatte", [MACHINING_KINDS.DRILL_POINT], "Montageplattenbohrungen im Korpus."),
             strategy("back.groove", "Rückwandnut", [MACHINING_KINDS.MILL_GROOVE], "Nutbearbeitung für Rückwände."),
-            strategy("back.rabbet", "Rückwandfalz", [MACHINING_KINDS.MILL_PATH], "Falzbearbeitung für Rückwände.")
+            strategy("back.rabbet", "Rückwandfalz", [MACHINING_KINDS.MILL_PATH], "Falzbearbeitung für Rückwände."),
+            strategy("manual.drilling", "Manuelles Bohren", [MACHINING_KINDS.DRILL_POINT, MACHINING_KINDS.DRILL_PATTERN, MACHINING_KINDS.DRILL_LINEAR_PATTERN, MACHINING_KINDS.DRILL_EDGE_PATTERN, MACHINING_KINDS.DRILL_ROW], "Manuell eingefügte Bohrbearbeitungen."),
+            strategy("manual.groove", "Manuelle Nut", [MACHINING_KINDS.MILL_GROOVE], "Manuell eingefügte Nutbearbeitungen."),
+            strategy("manual.milling", "Manuelles Fräsen", [MACHINING_KINDS.MILL_PATH], "Manuell eingefügte Fräsbewegungen.")
         ],
         configuration: []
     },

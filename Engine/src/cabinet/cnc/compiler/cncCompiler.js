@@ -11,6 +11,7 @@ import {
 import { compileSectionFunctions } from "./sections/compileSectionFunctions.js";
 import { compileSpax } from "./sections/operations/compileSpax.js";
 import { compileFrontAttachments } from "./fronts/compileFrontAttachments.js";
+import { applyStoredCncPrograms } from "../manualPrograms.js";
 import {
     MACHINING_INTENT_IDS,
     MACHINING_KINDS
@@ -824,6 +825,8 @@ export const compileCnc = (
         parts
 
     });
+
+    applyStoredCncPrograms(cabinet, parts);
 
 
     return parts;

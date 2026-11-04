@@ -5,7 +5,8 @@ import { DEFAULT_CNC } from "@Engine/cabinet/cnc/cncDefaults.js";
 import { getDrawerFrontGroups } from "@Engine/cabinet/sektions/front/frontAttachments.js";
 import {
     FrontPatternPreview,
-    NumberField
+    NumberField,
+    ToolDatabaseField
 } from "../../src/features/company-settings/panels/cncSettingsPanel.jsx";
 import { getMachiningParameterSections } from "../../src/features/company-settings/panels/cncSettingsSections.js";
 
@@ -55,6 +56,20 @@ describe("CNC-Fronteneinstellungen", () => {
         fireEvent.change(input, { target: { value: "-12,5" } });
         expect(input).toHaveValue("-12,5");
         expect(changed).toHaveBeenLastCalledWith(-12.5);
+    });
+
+    it("behält beim Ändern einer Werkzeugkennung den Fokus im Kennungsfeld", () => {
+        function Harness() {
+            const [tools, setTools] = useState([{ id: "router-8", name: "Fräser", category: "milling", diameter: 8, toolNumber: 114 }]);
+            return <ToolDatabaseField field={{ label: "Werkzeugdatenbank" }} value={tools} onChange={setTools} />;
+        }
+
+        render(<Harness />);
+        const identifier = screen.getByLabelText("Kennung");
+        identifier.focus();
+        fireEvent.change(identifier, { target: { value: "router-10" } });
+        expect(identifier).toHaveValue("router-10");
+        expect(document.activeElement).toBe(identifier);
     });
 
     it("zeigt die Legrabox-Front ungedreht und C mit beiden Bohrgruppen", () => {

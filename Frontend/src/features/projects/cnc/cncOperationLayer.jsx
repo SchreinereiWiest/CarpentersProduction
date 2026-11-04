@@ -15,6 +15,7 @@ export default function CncOperationsLayer({
     part,
     operations = [],
     selectedOperationId,
+    selectedOperationIds,
     onSelectOperation,
     selectedFace = "A"
 }) {
@@ -66,9 +67,9 @@ export default function CncOperationsLayer({
                     }
 
 
-                    const selected =
-                        selectedOperationId ===
-                        operationId;
+                    const selected = Array.isArray(selectedOperationIds)
+                        ? selectedOperationIds.some(id => String(id) === String(operationId))
+                        : String(selectedOperationId) === String(operationId);
 
 
                     /*
@@ -248,7 +249,9 @@ export default function CncOperationsLayer({
                         operation.type ===
                             "XG0" ||
                         operation.type ===
-                            "XL2P"
+                            "XL2P" ||
+                        operation.type ===
+                            "ARC"
                     ) {
 
                         return (

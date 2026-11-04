@@ -309,15 +309,16 @@ const createGroupRoot = (name, children = [], hardware = []) => {
     // CNC auf ALLE Korpus-Teile anwenden
     // ----------------------------------------------------------
 
+    allChildren.forEach(part => {
+      part._generatedId = `${cabinet.id}:part:${Number(part.PID) - cabinetStartPid}`;
+      part._cabinetId = cabinet.id;
+    });
+
     let compiledChildren = compileCnc(
       cabinet,
       allChildren,
       defaultConfig
     );
-
-    compiledChildren.forEach(part => {
-      part._generatedId = `${cabinet.id}:part:${Number(part.PID) - cabinetStartPid}`;
-    });
 
     // Presets can store an edited snapshot of the generated part rows.
     // Match rows by their cabinet independent part index so cloned cabinets

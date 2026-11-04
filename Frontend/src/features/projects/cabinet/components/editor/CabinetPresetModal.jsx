@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { buildPartList } from "@Engine/cabinet/partList/buildPartList.js";
 
 const createRowKey = () => `row:${Date.now()}:${Math.random()}`;
@@ -29,13 +29,14 @@ export default function CabinetPresetModal({
     const [previewError, setPreviewError] = useState("");
     const [saveError, setSaveError] = useState("");
     const [saving, setSaving] = useState(false);
+    const cncProgramHeader = (cabinet?.functionConfig ?? []).find(entry => entry?.type === "cncPrograms");
+    const cncProgramCount = (cncProgramHeader?.recognizedProfiles?.length ?? 0) + (cncProgramHeader?.customPrograms?.length ?? 0);
+    const hasFunctionPresetContent = Boolean(cabinet?.sections?.length || cncProgramCount);
 
     useEffect(() => {
         let cancelled = false;
 
         if (presetType === "function") {
-            setLoading(false);
-            setPreviewError("");
             return () => { cancelled = true; };
         }
 
@@ -100,7 +101,11 @@ export default function CabinetPresetModal({
         const cabinetBlocked = presetType === "cabinet" && (loading || previewError);
         if (!name.trim() || saving || cabinetBlocked) return;
 
-        const partListPreset = rows.map(({ _editorRowKey, ...part }) => part);
+        const partListPreset = rows.map(row => {
+            const part = { ...row };
+            delete part._editorRowKey;
+            return part;
+        });
         setSaving(true);
         setSaveError("");
         try {
@@ -181,7 +186,7 @@ export default function CabinetPresetModal({
 
                     {presetType === "function" ? (
                         <div className="rounded-lg border border-blue-900/70 bg-blue-950/30 p-4 text-sm text-blue-200">
-                            Gespeichert werden {cabinet?.sections?.length ?? 0} Hauptsektionen einschließlich aller Untersektionen und Funktionen. Beim Einfügen werden sie an die Maße des Zielkorpus angepasst.
+                            Gespeichert werden {cabinet?.sections?.length ?? 0} Hauptsektionen und {cncProgramCount} CNC-Konfigurationen einschließlich Custom-Programme. Beim Einfügen werden sie an den Zielkorpus übertragen.
                         </div>
                     ) : <>
                     <div className="flex items-center justify-between">
@@ -265,7 +270,7 @@ export default function CabinetPresetModal({
                     <button type="button" onClick={onCancel} className="rounded border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800">
                         Abbrechen
                     </button>
-                    <button type="button" onClick={save} disabled={!name.trim() || saving || (presetType === "cabinet" && (loading || Boolean(previewError))) || (presetType === "function" && !cabinet?.sections?.length)} className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+                    <button type="button" onClick={save} disabled={!name.trim() || saving || (presetType === "cabinet" && (loading || Boolean(previewError))) || (presetType === "function" && !hasFunctionPresetContent)} className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
                         {saving ? "Speichern …" : presetType === "function" ? "Function Preset speichern" : saveLabel}
                     </button>
                 </footer>

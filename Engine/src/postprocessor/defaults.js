@@ -10,7 +10,10 @@ export const DEFAULT_MACHINING_ASSIGNMENTS = Object.freeze({
     [MACHINING_INTENT_IDS.FRONT_HINGE_AUXILIARY]: { strategyId: "front.hingeAuxiliary" },
     [MACHINING_INTENT_IDS.CABINET_HINGE_PLATE]: { strategyId: "cabinet.hingePlate" },
     [MACHINING_INTENT_IDS.BACK_GROOVE]: { strategyId: "back.groove" },
-    [MACHINING_INTENT_IDS.BACK_RABBET]: { strategyId: "back.rabbet" }
+    [MACHINING_INTENT_IDS.BACK_RABBET]: { strategyId: "back.rabbet" },
+    [MACHINING_INTENT_IDS.MANUAL_DRILLING]: { strategyId: "manual.drilling" },
+    [MACHINING_INTENT_IDS.MANUAL_GROOVE]: { strategyId: "manual.groove" },
+    [MACHINING_INTENT_IDS.MANUAL_MILLING]: { strategyId: "manual.milling" }
 });
 
 export const MACHINING_INTENTS = Object.freeze([
@@ -23,7 +26,10 @@ export const MACHINING_INTENTS = Object.freeze([
     { id: MACHINING_INTENT_IDS.FRONT_HINGE_AUXILIARY, label: "Topfband-Nebenbohrung", description: "Nebenbohrungen des Topfbands in der Türfront." },
     { id: MACHINING_INTENT_IDS.CABINET_HINGE_PLATE, label: "Topfband-Korpusbohrung", description: "Bohrungen der Montageplatte in der Korpusseite." },
     { id: MACHINING_INTENT_IDS.BACK_GROOVE, label: "Rückwandnut", description: "Nut für eingeschobene Rückwände." },
-    { id: MACHINING_INTENT_IDS.BACK_RABBET, label: "Rückwandfalz", description: "Falz für auf- oder eingesetzte Rückwände." }
+    { id: MACHINING_INTENT_IDS.BACK_RABBET, label: "Rückwandfalz", description: "Falz für auf- oder eingesetzte Rückwände." },
+    { id: MACHINING_INTENT_IDS.MANUAL_DRILLING, label: "Manuelles Bohren", description: "Manuell programmierte Bohrungen und Bohrmuster." },
+    { id: MACHINING_INTENT_IDS.MANUAL_GROOVE, label: "Manuelle Nut", description: "Manuell programmierte Nutgeometrie." },
+    { id: MACHINING_INTENT_IDS.MANUAL_MILLING, label: "Manuelles Fräsen", description: "Manuell programmierte Start-, Linien- und Radiusbewegungen." }
 ]);
 
 export const getUsedMachiningStrategies = (assignments = {}, supportedStrategies = []) => {

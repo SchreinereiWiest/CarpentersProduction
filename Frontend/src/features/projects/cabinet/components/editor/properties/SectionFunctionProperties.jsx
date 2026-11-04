@@ -6,6 +6,7 @@ import { updateSectionTree } from "@Engine/cabinet/sektions/updateSectionTree.js
 import { createId } from "@Engine/shared/id.js";
 import { createShelfHoleRowDefaults, getShelfFrontOffsetDefault } from "../../../sectionFunctionDefaults.js";
 import FormulaNumberInput from "../FormulaNumberInput.jsx";
+import { removeCncProfilesForFunction } from "@Engine/cabinet/cnc/manualPrograms.js";
 
 
 
@@ -266,6 +267,9 @@ export default function SectionFunctionProperties({
             func => func.id !== functionId
         );
 
+        updateActiveCabinet(cabinet => ({
+            functionConfig: removeCncProfilesForFunction(cabinet, functionId).functionConfig
+        }));
         updateSection({
             functionConfig:
                 newFunctions
@@ -298,6 +302,9 @@ export default function SectionFunctionProperties({
             };
         });
 
+        updateActiveCabinet(cabinet => ({
+            functionConfig: removeCncProfilesForFunction(cabinet, functionId).functionConfig
+        }));
         updateSection({
             functionConfig:
                 newFunctions

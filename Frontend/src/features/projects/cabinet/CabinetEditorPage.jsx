@@ -268,7 +268,11 @@ export default function CabinetEditor() {
     };
 
     const handleSaveFunctionPreset = async ({ name, cabinet }) => {
-        if (!isAdmin || !cabinet?.sections?.length || !name.trim()) return;
+        const hasCncPrograms = cabinet?.functionConfig?.some(entry =>
+            entry?.type === "cncPrograms" &&
+            ((entry.recognizedProfiles?.length ?? 0) > 0 || (entry.customPrograms?.length ?? 0) > 0)
+        );
+        if (!isAdmin || (!cabinet?.sections?.length && !hasCncPrograms) || !name.trim()) return;
 
         await saveFunctionPresets([...functionPresets, {
             id: createId(),
@@ -1274,6 +1278,7 @@ export default function CabinetEditor() {
 
     cncConfig={defaultConfig}
     measurementVariables={measurementVariables}
+    projectId={projectId}
 
     updateCabinetLayout={updateCabinetLayout}
 />

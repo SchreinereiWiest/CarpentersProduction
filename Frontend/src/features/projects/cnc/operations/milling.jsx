@@ -1,6 +1,5 @@
 
 
-import React from "react";
 import {
     getPartWidth
 } from "./operationUtils.js";
@@ -15,6 +14,41 @@ export default function Milling({
 
     const partWidth =
         getPartWidth(part);
+
+    if (operation.type === "ARC") {
+        const x1 = Number(operation.startX);
+        const y1 = Number(operation.startY);
+        const x2 = Number(operation.endX);
+        const y2 = Number(operation.endY);
+        const centerX = Number(operation.centerX);
+        const centerY = Number(operation.centerY);
+        const radius = Number(operation.radius) || Math.hypot(x1 - centerX, y1 - centerY);
+        if ([x1, y1, x2, y2, centerX, centerY, radius].some(value => !Number.isFinite(value)) || radius <= 0) {
+            return null;
+        }
+        const startAngle = Math.atan2(y1 - centerY, x1 - centerX);
+        const endAngle = Math.atan2(y2 - centerY, x2 - centerX);
+        const clockwise = operation.direction !== "counterclockwise";
+        let sweep = endAngle - startAngle;
+        if (clockwise) while (sweep <= 0) sweep += Math.PI * 2;
+        else while (sweep >= 0) sweep -= Math.PI * 2;
+        const largeArc = Math.abs(sweep) > Math.PI ? 1 : 0;
+        const path = `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} ${clockwise ? 1 : 0} ${x2} ${y2}`;
+
+        return (
+            <path
+                d={path}
+                fill="none"
+                stroke={selected ? "#f97316" : "#c084fc"}
+                strokeWidth={selected ? 4 : 3}
+                className="cursor-pointer"
+                onClick={event => {
+                    event.stopPropagation();
+                    onSelect?.(operationId);
+                }}
+            />
+        );
+    }
 
 
     /*

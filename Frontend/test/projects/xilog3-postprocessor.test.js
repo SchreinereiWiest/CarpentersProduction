@@ -202,6 +202,37 @@ describe("SCM Xilog 3 postprocessor", () => {
         expect(result.code).toContain('XBO X=120 Y=645 Z=15 R=4 y=-198 D=8 N="P"');
     });
 
+    it("exports a two-dimensional manual drilling grid as one XBO row per grid row", () => {
+        const result = generateCncMachineCode({
+            ...instance,
+            configuration: { ...instance.configuration, flipYAxis: false }
+        }, {
+            part: {
+                PID: "GRID-1",
+                L: 450,
+                B: 695,
+                T: 20,
+                CNC: { operations: [{
+                    id: "grid",
+                    kind: MACHINING_KINDS.DRILL_PATTERN,
+                    intentId: MACHINING_INTENT_IDS.MANUAL_DRILLING,
+                    face: "A",
+                    x: 40,
+                    y: 50,
+                    columns: 3,
+                    rows: 2,
+                    stepX: 32,
+                    stepY: 64,
+                    depth: 12,
+                    diameter: 5
+                }] }
+            }
+        });
+
+        expect(result.code).toContain('XBO X=40 Y=50 Z=12 R=3 x=32 D=5 N="P"');
+        expect(result.code).toContain('XBO X=40 Y=114 Z=12 R=3 x=32 D=5 N="P"');
+    });
+
     it("keeps the current milling coordinate when Y mirroring is disabled", () => {
         const result = generateCncMachineCode({
             ...instance,
@@ -240,6 +271,98 @@ describe("SCM Xilog 3 postprocessor", () => {
 
         expect(result.supported).toBe(true);
         expect(result.code).toContain('XBO X=100 Y=672.5 Z=13 D=35 N="P"');
+    });
+
+    it("uses the tool database and offsets a manual line by half the cutter diameter", () => {
+        const result = generateCncMachineCode({
+            ...instance,
+            configuration: {
+                ...instance.configuration,
+                flipYAxis: false,
+                toolDatabase: [{ id: "router-12", name: "Router", category: "milling", diameter: 12, toolNumber: 77 }]
+            }
+        }, {
+            part: {
+                PID: "MANUAL-COMP",
+                L: 300,
+                B: 200,
+                T: 19,
+                CNC: { operations: [{
+                    id: "manual-line",
+                    kind: MACHINING_KINDS.MILL_PATH,
+                    intentId: MACHINING_INTENT_IDS.MANUAL_MILLING,
+                    motion: "linear",
+                    face: "A",
+                    start: { x: 10, y: 20, z: 8 },
+                    target: { x: 110, y: 20, z: 8 },
+                    compensation: "left",
+                    toolId: "router-12"
+                }] }
+            }
+        });
+
+        expect(result.supported).toBe(true);
+        expect(result.code).toContain("XG0 X=10 Y=14 Z=8 T=77\r\nXL2P X=110 Y=14 Z=8");
+    });
+
+    it("approaches the explicitly programmed start of an isolated milling line with G0", () => {
+        const result = generateCncMachineCode({
+            ...instance,
+            configuration: { ...instance.configuration, flipYAxis: false }
+        }, {
+            part: {
+                PID: "MANUAL-START",
+                L: 300,
+                B: 200,
+                T: 19,
+                CNC: { operations: [{
+                    id: "manual-line",
+                    kind: MACHINING_KINDS.MILL_PATH,
+                    intentId: MACHINING_INTENT_IDS.MANUAL_MILLING,
+                    motion: "linear",
+                    face: "A",
+                    start: { x: 25, y: 30, z: 8 },
+                    target: { x: 125, y: 30, z: 8 },
+                    compensation: "center",
+                    toolId: "router-8"
+                }] }
+            }
+        });
+
+        expect(result.code).toContain("XG0 X=25 Y=30 Z=8 T=114\r\nXL2P X=125 Y=30 Z=8");
+    });
+
+    it("linearizes a manual radius for Xilog while retaining the configured tool", () => {
+        const result = generateCncMachineCode({
+            ...instance,
+            configuration: { ...instance.configuration, flipYAxis: false, arcSegmentLength: 5 }
+        }, {
+            part: {
+                PID: "MANUAL-ARC",
+                L: 300,
+                B: 200,
+                T: 19,
+                CNC: { operations: [{
+                    id: "manual-arc",
+                    kind: MACHINING_KINDS.MILL_PATH,
+                    intentId: MACHINING_INTENT_IDS.MANUAL_MILLING,
+                    motion: "arc",
+                    face: "A",
+                    start: { x: 90, y: 100, z: 8 },
+                    target: { x: 100, y: 110, z: 8 },
+                    center: { x: 90, y: 110, z: 8 },
+                    radius: 10,
+                    direction: "clockwise",
+                    compensation: "center",
+                    toolId: "router-8"
+                }] }
+            }
+        });
+
+        expect(result.supported).toBe(true);
+        expect(result.code).toContain("XG0 X=90 Y=100 Z=8 T=114");
+        expect(result.code.match(/XL2P/g)?.length).toBeGreaterThanOrEqual(3);
+        expect(result.code).toContain("XL2P X=100 Y=110 Z=8");
     });
 
     it("blocks an operation kind that does not match the assigned endpoint", () => {
