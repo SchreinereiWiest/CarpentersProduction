@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # =========================================
 # Build Stage
 # =========================================
@@ -21,17 +22,62 @@ COPY . .
 
 RUN pnpm approve-builds core-js
 RUN pnpm run build
+=======
+>>>>>>> bffc5fb (dockerfile change)
 
 # =========================================
-# Production Stage
+# Stage 1: Documentation Builder
 # =========================================
 
-FROM nginx:stable AS production
+FROM python:3.12-slim AS builder
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+WORKDIR /documentation
 
-COPY --from=build /app/dist /usr/share/nginx/html
+# Python dependencies
+COPY requirements-docs.txt ./
 
-EXPOSE 80
+RUN python -m pip install \
+    --no-cache-dir \
+    -r requirements-docs.txt
 
+<<<<<<< HEAD
 CMD ["nginx", "-g", "daemon off;"]
+=======
+# MkDocs configuration
+COPY mkdocs.yml ./
+COPY docs ./docs
+
+# Generate static documentation
+RUN mkdocs build --strict
+
+# =========================================
+# Stage 2: Non-Root Nginx
+# =========================================
+
+FROM nginxinc/nginx-unprivileged:alpine
+
+# Nginx configuration
+COPY --chown=33:33 docs-nginx.conf \
+    /etc/nginx/conf.d/default.conf
+
+# Built documentation
+COPY --from=builder --chown=33:33 \
+    /documentation/site/ \
+    /usr/share/nginx/html/
+
+# =========================================
+# Security
+# =========================================
+
+USER 33:33
+
+# =========================================
+# Runtime
+# =========================================
+
+EXPOSE 8080
+
+# Direkter Nginx-Start ohne Entrypoint-Skripte,
+# die Konfigurationsdateien verändern könnten
+ENTRYPOINT ["nginx", "-g", "daemon off;"]
+>>>>>>> bffc5fb (dockerfile change)
