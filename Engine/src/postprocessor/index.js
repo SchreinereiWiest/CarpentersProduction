@@ -1,7 +1,8 @@
 export { AVAILABLE_POSTPROCESSORS, getPostprocessorPlugin } from "./availablePostprocessors.js";
 export { createPluginConfiguration, POSTPROCESSOR_API_VERSION, validatePostprocessorPlugin } from "./contract.js";
 export { DEFAULT_MACHINING_ASSIGNMENTS, MACHINING_INTENTS, getUsedMachiningStrategies } from "./defaults.js";
-export { generateCncMachineCode, resolveCncMachining, translatePartForCncViewer } from "./runtime.js";
+export { generateCncMachineCode, resolveCncMachining, resolveCncProgramHeader, translatePartForCncViewer } from "./runtime.js";
+export { DEFAULT_MACHINING_LOCATIONS, resolveProgramHeader } from "./programHeader.js";
 export {
     MACHINING_INTENT_IDS,
     MACHINING_KINDS,

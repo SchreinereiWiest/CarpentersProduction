@@ -1,7 +1,7 @@
 import { createContext, useContext, useState } from "react";
 import { MACHINING_KINDS } from "@Engine/postprocessor/index.js";
-import FormulaNumberInput from "../cabinet/components/editor/FormulaNumberInput.jsx";
-import { evaluateMeasurementExpression } from "../cabinet/measurementExpressions.js";
+import FormulaNumberInput from "../../cabinet/components/editor/FormulaNumberInput.jsx";
+import { evaluateMeasurementExpression } from "../../cabinet/measurementExpressions.js";
 import { operationTitle } from "./manualCncModel.js";
 
 const FormulaVariablesContext = createContext([]);

@@ -3,7 +3,6 @@
 import React from "react";
 import {
     getPartWidth,
-    isFiniteNumber,
     getSelectedFill,
     getSelectedStroke
 } from "./operationUtils.js";

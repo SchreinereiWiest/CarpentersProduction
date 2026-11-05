@@ -140,6 +140,25 @@ test("removed recognized operations stay suppressed after cabinet regeneration",
     assert.equal(getCncProgramConfig(storedAgain).recognizedProfiles[0].suppressed, true);
 });
 
+test("part program headers are stored with the cabinet and restored during compilation", () => {
+    const part = {
+        PID: "000002",
+        _generatedId: "cabinet-1:part:1",
+        _cabinetId: "cabinet-1",
+        L: 720,
+        B: 560,
+        T: 19,
+        CNC: { version: 2, coordinateSystem, operations: [] }
+    };
+    const header = { stopId: "DA", edgeAtStop: "back", sx: true, sy: false, comment: "Linke Seite" };
+    const stored = storePartCncInCabinet(cabinet, part, [], { header });
+    assert.deepEqual(getCncProgramConfig(stored).partHeaders[0].header, header);
+
+    const regenerated = { ...part, CNC: { version: 2, coordinateSystem, operations: [] } };
+    applyStoredCncPrograms(stored, [regenerated]);
+    assert.deepEqual(regenerated.CNC.header, header);
+});
+
 test("function presets preserve CNC program headers and remap section references", () => {
     const part = {
         PID: "000002",

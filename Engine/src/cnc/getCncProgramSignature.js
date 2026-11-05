@@ -87,7 +87,7 @@ export const getCncProgramSignature = (part) => {
     L: normalize(part.L),
     B: normalize(part.B),
     T: normalize(part.T),
-
+    header: normalize(part.CNC?.header ?? {}),
     functionConfig: normalize(operationsWithoutIds)
   };
 

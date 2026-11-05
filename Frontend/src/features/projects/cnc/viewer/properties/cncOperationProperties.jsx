@@ -1,6 +1,6 @@
 
 
-function OperationProperties({
+export default function OperationProperties({
     operation
 }) {
 

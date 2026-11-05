@@ -13,7 +13,7 @@ import CncPartSidebar
     from "./cncPartsSidebar.jsx";
 
 import CncViewport
-    from "./cncViewport.jsx";
+    from "../shared/cncViewport.jsx";
 
 import CncPropertiesSidebar
     from "./cncPropertiesSidebar.jsx";
@@ -25,19 +25,22 @@ import {
     AVAILABLE_POSTPROCESSORS,
     DEFAULT_MACHINING_ASSIGNMENTS,
     generateCncMachineCode,
+    resolveCncProgramHeader,
     translatePartForCncViewer
 } from "@Engine/postprocessor/index.js";
+import CncCodeDialog from "./CncCodeDialog.jsx";
+import { createZipArchive } from "../shared/cncArchive.js";
 
 import ProjectBar
-    from "../../../shared/components/projectBar.jsx";
+    from "../../../../shared/components/projectBar.jsx";
 
 import SideBar
-    from "../../../shared/components/sideBar.jsx";
+    from "../../../../shared/components/sideBar.jsx";
 import MobileWorkspaceGuard
-    from "../../../shared/components/MobileWorkspaceGuard.jsx";
-import {getProjectFile} from "../../../shared/cache/project-cache.js";
-import {getGlobalFile} from "../../../shared/cache/global-cache.js";
-import {downloadFile} from "../../../shared/api/file-api.js";
+    from "../../../../shared/components/MobileWorkspaceGuard.jsx";
+import {getProjectFile} from "../../../../shared/cache/project-cache.js";
+import {getGlobalFile} from "../../../../shared/cache/global-cache.js";
+import {downloadFile} from "../../../../shared/api/file-api.js";
 
 const createViewerFallback = () => ({
     id: "builtin-legacy-viewer",
@@ -89,6 +92,7 @@ export default function CncEditor() {
         exportNotice,
         setExportNotice
     ] = useState(null);
+    const [codeResult, setCodeResult] = useState(null);
 
     const viewerResult = useMemo(() => {
         if (!selectedPart || !activePostprocessor) {
@@ -125,6 +129,15 @@ export default function CncEditor() {
     const activePostprocessorDescriptor = AVAILABLE_POSTPROCESSORS.find(
         item => item.id === activePostprocessor?.pluginId
     ) ?? null;
+    const resolvedProgramHeader = useMemo(() => {
+        if (!selectedPart || !activePostprocessor) return null;
+        try {
+            return resolveCncProgramHeader(activePostprocessor, { part: selectedPart });
+        } catch {
+            return null;
+        }
+    }, [activePostprocessor, selectedPart]);
+    const allParts = useMemo(() => groups.flatMap(group => group.parts ?? []), [groups]);
 
 
     const faceAOperations =
@@ -190,6 +203,7 @@ export default function CncEditor() {
         setExportNotice(
             null
         );
+        setCodeResult(null);
 
     };
 
@@ -235,6 +249,7 @@ export default function CncEditor() {
         setExportNotice(
             null
         );
+        setCodeResult(null);
 
 
         const group =
@@ -452,49 +467,77 @@ export default function CncEditor() {
      * =====================================================
      */
 
+    const generatePartCode = part => generateCncMachineCode(
+        activePostprocessor,
+        {
+            part,
+            fileName: part.PID ?? part.Objektname,
+            assignments: machiningAssignments
+        }
+    );
+
+    const showSelectedPartCode = () => {
+        if (!selectedPart || !activePostprocessorDescriptor?.capabilities?.machineCode) return;
+        try {
+            const result = generatePartCode(selectedPart);
+            if (!result.supported || (result.content == null && result.code == null)) {
+                const message = result.diagnostics?.filter(entry => entry.level === "error").map(entry => entry.message).join(" ");
+                setExportNotice({ type: "error", message: message || "Der Postprozessor konnte keinen Code für dieses Bauteil erzeugen." });
+                return;
+            }
+            setCodeResult(result);
+        } catch (error) {
+            console.error("Codeansicht konnte nicht erzeugt werden:", error);
+            setExportNotice({ type: "error", message: "Die Codeansicht konnte nicht erzeugt werden." });
+        }
+    };
+
     const exportMachineProgram = () => {
 
-        if (!selectedPart || !activePostprocessor || !activePostprocessorDescriptor?.capabilities?.machineCode) {
+        if (!allParts.length || !activePostprocessor || !activePostprocessorDescriptor?.capabilities?.machineCode) {
             return;
         }
 
         try {
 
-            const result = generateCncMachineCode(
-                activePostprocessor,
-                {
-                    part: selectedPart,
-                    fileName: selectedPart.PID ?? selectedPart.Objektname,
-                    assignments: machiningAssignments
-                }
-            );
+            const generated = allParts.map(part => ({ part, result: generatePartCode(part) }));
+            const failed = generated.filter(({ result }) => !result.supported || (result.content == null && result.code == null));
 
-            if (!result.supported || (result.content == null && result.code == null)) {
-
-                const message = result.diagnostics
+            if (failed.length) {
+                const message = failed.flatMap(({ part, result }) => result.diagnostics
                     ?.filter(entry => entry.level === "error")
-                    .map(entry => entry.message)
-                    .join(" ");
+                    .map(entry => `${part.PID ?? part.Objektname}: ${entry.message}`) ?? []).join(" ");
 
                 setExportNotice({
                     type: "error",
-                    message: message || "Das Bauteil kann mit dem aktiven Postprozessor nicht exportiert werden."
+                    message: message || `${failed.length} Bauteile können mit dem aktiven Postprozessor nicht exportiert werden.`
                 });
 
                 return;
 
             }
 
-            const artifact = result.content ?? result.code;
-            const blob = new Blob(
-                [artifact],
-                {type: result.mimeType ?? "application/octet-stream"}
-            );
+            const usedNames = new Set();
+            const files = generated.map(({ result }) => {
+                const originalName = result.fileName ?? "PROGRAM.DAT";
+                const dot = originalName.lastIndexOf(".");
+                const base = dot > 0 ? originalName.slice(0, dot) : originalName;
+                const extension = dot > 0 ? originalName.slice(dot) : "";
+                let name = originalName;
+                let suffix = 2;
+                while (usedNames.has(name.toLowerCase())) {
+                    name = `${base}_${suffix}${extension}`;
+                    suffix += 1;
+                }
+                usedNames.add(name.toLowerCase());
+                return { name, data: result.content ?? result.code, encoding: result.encoding };
+            });
+            const blob = createZipArchive(files);
             const url = URL.createObjectURL(blob);
             const link = document.createElement("a");
 
             link.href = url;
-            link.download = result.fileName;
+            link.download = `cnc-${String(projectId ?? "projekt").replace(/[^A-Za-z0-9_-]/g, "_")}.zip`;
             document.body.appendChild(link);
             link.click();
             link.remove();
@@ -505,7 +548,7 @@ export default function CncEditor() {
 
             setExportNotice({
                 type: "success",
-                message: `${result.fileName} mit ${activePostprocessor.name} exportiert.`
+                message: `${files.length} CNC-Programmdateien mit ${activePostprocessor.name} als ZIP exportiert.`
             });
 
         } catch (error) {
@@ -786,6 +829,15 @@ export default function CncEditor() {
 
                                         <button
                                             type="button"
+                                            onClick={showSelectedPartCode}
+                                            disabled={!selectedPart || !activePostprocessorDescriptor?.capabilities?.machineCode}
+                                            className="rounded border border-emerald-800 bg-emerald-950/30 px-3 py-1.5 text-xs font-medium text-emerald-200 transition hover:bg-emerald-900/50 disabled:cursor-not-allowed disabled:border-gray-700 disabled:bg-gray-800 disabled:text-gray-500"
+                                        >
+                                            Code ansehen
+                                        </button>
+
+                                        <button
+                                            type="button"
                                             onClick={() => selectedPart?.PID && navigate(`/Projects/Cnc/${projectId}/Edit/${encodeURIComponent(selectedPart.PID)}`)}
                                             disabled={!selectedPart?.PID}
                                             className="rounded border border-violet-700 bg-violet-950/40 px-3 py-1.5 text-xs font-medium text-violet-200 transition hover:bg-violet-900/60 disabled:cursor-not-allowed disabled:border-gray-700 disabled:bg-gray-800 disabled:text-gray-500"
@@ -796,15 +848,15 @@ export default function CncEditor() {
                                         <button
                                             type="button"
                                             onClick={exportMachineProgram}
-                                            disabled={!selectedPart || !activePostprocessorDescriptor?.capabilities?.machineCode}
+                                            disabled={!allParts.length || !activePostprocessorDescriptor?.capabilities?.machineCode}
                                             title={activePostprocessorDescriptor?.capabilities?.machineCode
-                                                ? `Bauteil mit ${activePostprocessor.name} exportieren`
+                                                ? `Alle ${allParts.length} Bauteile mit ${activePostprocessor.name} als ZIP exportieren`
                                                 : "Der aktive Postprozessor stellt keinen Maschinencode-Export bereit"
                                             }
                                             className="rounded border border-blue-700 bg-blue-900/40 px-3 py-1.5 text-xs font-medium text-blue-200 transition hover:bg-blue-800/60 disabled:cursor-not-allowed disabled:border-gray-700 disabled:bg-gray-800 disabled:text-gray-500"
                                         >
 
-                                            {activePostprocessorDescriptor?.sourceFormat ?? "Maschinencode exportieren"}
+                                            Alle Programme als ZIP
 
                                         </button>
 
@@ -849,6 +901,8 @@ export default function CncEditor() {
                                             selectedFace={
                                                 selectedFace
                                             }
+
+                                            programHeader={resolvedProgramHeader}
 
 
                                         />
@@ -900,6 +954,13 @@ export default function CncEditor() {
                 </div>
 
             </main>
+
+            {codeResult && <CncCodeDialog
+                part={selectedPart}
+                postprocessor={activePostprocessor}
+                result={codeResult}
+                onClose={() => setCodeResult(null)}
+            />}
 
         </div>
 

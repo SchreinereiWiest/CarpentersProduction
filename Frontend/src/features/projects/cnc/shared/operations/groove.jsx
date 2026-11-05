@@ -1,6 +1,5 @@
 
 
-import React from "react";
 import {
     getPartWidth
 } from "./operationUtils.js";

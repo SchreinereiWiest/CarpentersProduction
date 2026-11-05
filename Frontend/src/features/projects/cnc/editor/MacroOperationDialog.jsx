@@ -1,7 +1,7 @@
 import { useState } from "react";
 
-import FormulaNumberInput from "../cabinet/components/editor/FormulaNumberInput.jsx";
-import { evaluateMeasurementExpression } from "../cabinet/measurementExpressions.js";
+import FormulaNumberInput from "../../cabinet/components/editor/FormulaNumberInput.jsx";
+import { evaluateMeasurementExpression } from "../../cabinet/measurementExpressions.js";
 
 const clone = value => JSON.parse(JSON.stringify(value));
 

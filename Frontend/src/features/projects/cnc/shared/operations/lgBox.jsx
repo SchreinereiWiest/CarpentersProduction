@@ -1,4 +1,3 @@
-import React from "react";
 import Drill from "./drill.jsx";
 
 export default function LgBox({

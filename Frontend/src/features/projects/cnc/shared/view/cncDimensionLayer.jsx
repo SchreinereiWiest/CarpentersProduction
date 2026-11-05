@@ -1,8 +1,5 @@
 
 
-import React from "react";
-
-
 const getOperationX = ({
     operation,
     partWidth
@@ -220,12 +217,6 @@ export default function CncDimensionLayer({
         ) || 0;
 
 
-    const height =
-        Number(
-            part.B
-        ) || 0;
-
-
     const x =
         getOperationX({
 
@@ -237,9 +228,6 @@ export default function CncDimensionLayer({
         });
 
     const x2 = operation.type === "LR" ? operation.end : null;
-
-    console.log(x2 ? x2 : x);
-
 
     const y =
         getOperationY(

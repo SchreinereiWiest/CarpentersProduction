@@ -52,7 +52,7 @@ Jede erzeugte Datei trägt die Diagnose `XILOG3_IMPORT_VALIDATION_REQUIRED`: XXL
 ## Neues Plugin hinzufügen
 
 1. Eine Datei unter `plugins/` anlegen.
-2. `manifest` und die drei Vertragsmethoden aus `contract.js` implementieren.
+2. `manifest` und die vier Vertragsmethoden aus `contract.js` implementieren.
 3. Das Plugin ausschließlich in `availablePostprocessors.js` importieren und registrieren.
 4. Vertrags-, Geometrie- und Golden-File-Tests für den erzeugten Maschinencode ergänzen.
 
@@ -70,16 +70,20 @@ export const examplePlugin = {
     id: "vendor-machine-model",
     name: "Vendor Machine Model",
     version: "1.0.0",
-    apiVersion: 2,
+    apiVersion: 3,
     capabilities: {
       viewer: true,
       machineCode: true,
       machiningResolution: true
     },
+    machiningLocations: [
+      { id: "A", anchorCorner: "top-left", outputCode: "A", mirrorAxes: { x: false, y: false } }
+    ],
     supportedMachiningStrategies: [],
     configuration: []
   },
   translateForViewer(context) {},
+  resolveProgramHeader(context) {},
   resolveMachining(context) {},
   generateMachineCode(context) {}
 };

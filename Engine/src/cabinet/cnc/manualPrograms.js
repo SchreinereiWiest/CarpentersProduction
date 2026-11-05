@@ -25,7 +25,8 @@ const emptyConfig = () => ({
     schemaVersion: CNC_PROGRAM_CONFIG_VERSION,
     recognizedProfiles: [],
     customPrograms: [],
-    partOrders: []
+    partOrders: [],
+    partHeaders: []
 });
 
 export const replaceCncProgramConfig = (cabinet, config) => ({
@@ -275,7 +276,7 @@ const entryBase = (part, group = {}) => ({
     functionId: group.functionId ?? null
 });
 
-export const storePartCncInCabinet = (cabinet, part, operations, { tools = [] } = {}) => {
+export const storePartCncInCabinet = (cabinet, part, operations, { tools = [], header } = {}) => {
     const synchronized = syncRecognizedSectionFunctions(cabinet, part, operations);
     const partKey = getCncPartKey(part);
     const recognizedGroups = groupRecognized(operations);
@@ -341,7 +342,13 @@ export const storePartCncInCabinet = (cabinet, part, operations, { tools = [] } 
                     partKey,
                     operationIds: asArray(operations).map(operation => operation.id)
                 }
-            ]
+            ],
+            partHeaders: header === undefined
+                ? asArray(config.partHeaders)
+                : [
+                    ...asArray(config.partHeaders).filter(entry => entry.partKey !== partKey),
+                    ...(header == null ? [] : [{ partKey, partId: part.PID ?? null, header: clone(header) }])
+                ]
         };
     });
 };
@@ -359,6 +366,7 @@ export const applyStoredCncPrograms = (cabinet, parts) => {
     const profiles = asArray(config.recognizedProfiles);
     const customs = asArray(config.customPrograms);
     const partOrders = asArray(config.partOrders);
+    const partHeaders = asArray(config.partHeaders);
     parts.forEach(part => {
         const partKey = getCncPartKey(part);
         const matchingProfiles = profiles.filter(entry => entry.partKey === partKey);
@@ -379,6 +387,8 @@ export const applyStoredCncPrograms = (cabinet, parts) => {
             operations.sort((left, right) => orderById.get(keyOf(left.id)) - orderById.get(keyOf(right.id)));
         }
         if (part.CNC) part.CNC.operations = operations;
+        const storedHeader = partHeaders.find(entry => entry.partKey === partKey)?.header;
+        if (part.CNC && storedHeader) part.CNC.header = clone(storedHeader);
     });
     return parts;
 };

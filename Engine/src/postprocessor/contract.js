@@ -1,6 +1,6 @@
 import { MACHINING_KINDS } from "./machiningModel.js";
 
-export const POSTPROCESSOR_API_VERSION = 2;
+export const POSTPROCESSOR_API_VERSION = 3;
 
 export const POSTPROCESSOR_CAPABILITIES = Object.freeze({
     VIEWER: "viewer",
@@ -16,7 +16,7 @@ export class PostprocessorContractError extends Error {
     }
 }
 
-const requiredMethods = ["translateForViewer", "generateMachineCode", "resolveMachining"];
+const requiredMethods = ["translateForViewer", "generateMachineCode", "resolveMachining", "resolveProgramHeader"];
 
 export const validatePostprocessorPlugin = plugin => {
     if (!plugin?.manifest?.id || !plugin?.manifest?.name) {
@@ -46,6 +46,23 @@ export const validatePostprocessorPlugin = plugin => {
                 throw new PostprocessorContractError(`Strategie ${strategy.id} verwendet die unbekannte Bearbeitungsart ${kind}.`);
             }
         });
+    });
+    const locations = plugin.manifest.machiningLocations ?? [];
+    if (!Array.isArray(locations) || locations.length === 0) {
+        throw new PostprocessorContractError(`Postprozessor ${plugin.manifest.id} benötigt mindestens einen Bearbeitungsstandort.`);
+    }
+    const locationIds = new Set();
+    locations.forEach(location => {
+        if (!location?.id || locationIds.has(location.id)) {
+            throw new PostprocessorContractError(`Postprozessor ${plugin.manifest.id} enthält einen fehlenden oder doppelten Bearbeitungsstandort.`);
+        }
+        locationIds.add(location.id);
+        if (!["top-left", "top-right"].includes(location.anchorCorner)) {
+            throw new PostprocessorContractError(`Bearbeitungsstandort ${location.id} benötigt eine gültige Anschlagecke.`);
+        }
+        if (typeof location.mirrorAxes?.x !== "boolean" || typeof location.mirrorAxes?.y !== "boolean") {
+            throw new PostprocessorContractError(`Bearbeitungsstandort ${location.id} benötigt feste X/Y-Spiegelachsen.`);
+        }
     });
     return plugin;
 };

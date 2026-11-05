@@ -6,6 +6,7 @@ import {
     createPluginConfiguration,
     generateCncMachineCode,
     getUsedMachiningStrategies,
+    resolveCncProgramHeader,
     resolveCncMachining,
     translatePartForCncViewer,
     validatePostprocessorPlugin
@@ -22,7 +23,7 @@ describe("modular CNC postprocessor system", () => {
 
     it("publishes serializable plugin metadata and default configuration", () => {
         expect(descriptor).toMatchObject({
-            apiVersion: 2,
+            apiVersion: 3,
             capabilities: {
                 viewer: true,
                 machineCode: false,
@@ -30,6 +31,10 @@ describe("modular CNC postprocessor system", () => {
             }
         });
         expect(instance.configuration).toEqual({});
+        expect(descriptor.machiningLocations).toEqual(expect.arrayContaining([
+            expect.objectContaining({ id: "A", anchorCorner: "top-left", mirrorAxes: { x: false, y: false } }),
+            expect.objectContaining({ id: "D", anchorCorner: "top-right", mirrorAxes: { x: true, y: false } })
+        ]));
     });
 
     it("exposes the existing viewer operations through the new endpoint", () => {
@@ -70,6 +75,21 @@ describe("modular CNC postprocessor system", () => {
         expect(result.diagnostics[0].code).toBe("MACHINE_ADAPTER_REQUIRED");
     });
 
+    it("resolves fixed stop mirrors separately from additional SX and SY mirrors", () => {
+        expect(resolveCncProgramHeader(instance, {
+            part: { CNC: { header: { stopId: "D", edgeAtStop: "back", sx: true, sy: false } } }
+        })).toMatchObject({
+            stopId: "D",
+            anchorCorner: "top-right",
+            machineMirrorX: true,
+            machineMirrorY: true,
+            displayMirrorX: false,
+            displayMirrorY: true,
+            sx: true,
+            sy: false
+        });
+    });
+
     it("validates machining assignments against plugin capabilities", () => {
         expect(resolveCncMachining(instance, {
             intent: MACHINING_INTENT_IDS.JOINT_CONNECTOR,
@@ -95,7 +115,7 @@ describe("modular CNC postprocessor system", () => {
 
     it("rejects incomplete plugins at registration time", () => {
         expect(() => validatePostprocessorPlugin({
-            manifest: { id: "broken", name: "Broken", apiVersion: 2 }
+            manifest: { id: "broken", name: "Broken", apiVersion: 3 }
         })).toThrow(/translateForViewer/);
     });
 });

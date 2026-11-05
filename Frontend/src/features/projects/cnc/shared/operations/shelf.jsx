@@ -1,8 +1,6 @@
 
 
-import React from "react";
 import {
-    isFiniteNumber,
     getSelectedFill,
     getSelectedStroke
 } from "./operationUtils.js";

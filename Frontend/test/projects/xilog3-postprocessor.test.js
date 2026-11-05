@@ -49,6 +49,7 @@ describe("SCM Xilog 3 postprocessor", () => {
                 machiningResolution: true
             }
         });
+        expect(descriptor.machiningLocations.map(location => location.id)).toEqual(["A", "AB", "AD", "DA", "DB", "D"]);
         expect(instance.configuration).toMatchObject({
             workingFields: "AD",
             departurePositionA: 1600,
@@ -126,6 +127,34 @@ describe("SCM Xilog 3 postprocessor", () => {
             ""
         ].join("\r\n"));
         expect(result.metadata.departure).toEqual({ field: "A", position: 1600 });
+    });
+
+    it("writes only additional SX and SY mirrors after the header", () => {
+        const result = generateCncMachineCode(instance, {
+            part: {
+                PID: "MIRROR",
+                L: 450,
+                B: 695,
+                T: 20,
+                CNC: {
+                    header: { stopId: "D", edgeAtStop: "back", sx: true, sy: true, comment: "Rueckseite" },
+                    operations: []
+                }
+            }
+        });
+
+        expect(result.code.split("\r\n").slice(0, 3)).toEqual([
+            expect.stringContaining("-D"),
+            "SX=1",
+            "SY=1"
+        ]);
+        expect(result.code).toContain("Rueckseite");
+        expect(result.metadata.header).toMatchObject({
+            machineMirrorX: true,
+            machineMirrorY: true,
+            displayMirrorX: false,
+            displayMirrorY: false
+        });
     });
 
     it("uses an administrator-defined departure position", () => {

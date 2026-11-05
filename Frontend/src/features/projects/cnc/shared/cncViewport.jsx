@@ -8,6 +8,8 @@ import CncDimensionLayer
     from "./view/cncDimensionLayer.jsx";
 import CncCompensationLayer
     from "./view/cncCompensationLayer.jsx";
+import CncStopLayer
+    from "./view/cncStopLayer.jsx";
 
 
 export default function CncViewport({
@@ -19,6 +21,7 @@ export default function CncViewport({
     selectedFace,
     selectedOperationIds,
     compensationPaths = [],
+    programHeader = null,
     onCanvasPoint,
     pointPicking = false
 }) {
@@ -65,6 +68,9 @@ export default function CncViewport({
 
     const padding =
         100;
+    const mirrorX = programHeader?.displayMirrorX === true;
+    const mirrorY = programHeader?.displayMirrorY === true;
+    const machiningTransform = `translate(${mirrorX ? width : 0} ${mirrorY ? height : 0}) scale(${mirrorX ? -1 : 1} ${mirrorY ? -1 : 1})`;
 
 
 
@@ -144,7 +150,10 @@ export default function CncViewport({
                     const matrix = svg.getScreenCTM();
                     if (!matrix) return;
                     const local = point.matrixTransform(matrix.inverse());
-                    onCanvasPoint({ x: Number(local.x.toFixed(3)), y: Number(local.y.toFixed(3)) });
+                    onCanvasPoint({
+                        x: Number((mirrorX ? width - local.x : local.x).toFixed(3)),
+                        y: Number((mirrorY ? height - local.y : local.y).toFixed(3))
+                    });
                 }}
                 style={{ cursor: pointPicking ? "crosshair" : undefined }}
             >
@@ -248,11 +257,14 @@ export default function CncViewport({
 
                 />
 
+                <CncStopLayer partWidth={width} header={programHeader} />
+
 
                 {/* =================================================
                  * CNC Bearbeitungen
                  * ================================================= */}
 
+                <g transform={machiningTransform}>
                 <CncOperationsLayer
                     part={
                         part
@@ -284,6 +296,7 @@ export default function CncViewport({
                     paths={compensationPaths}
                     selectedFace={selectedFace}
                 />
+                </g>
 
 
                 {/* =================================================

@@ -14,7 +14,7 @@ import {
     insertOperationsAfter,
     updatePartById,
     updatePartByKey
-} from "../../src/features/projects/cnc/manualCncModel.js";
+} from "../../src/features/projects/cnc/editor/manualCncModel.js";
 
 const line = (id, start, target) => ({
     id,

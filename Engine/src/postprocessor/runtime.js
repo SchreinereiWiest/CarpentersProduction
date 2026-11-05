@@ -29,6 +29,9 @@ const context = (instance, payload) => ({
 export const translatePartForCncViewer = (instance, payload) =>
     load(instance).translateForViewer(context(instance, payload));
 
+export const resolveCncProgramHeader = (instance, payload) =>
+    load(instance).resolveProgramHeader(context(instance, payload));
+
 export const generateCncMachineCode = (instance, payload) => {
     const plugin = load(instance);
     const pluginContext = context(instance, payload);

@@ -4,21 +4,23 @@ import { useNavigate, useParams, useSearchParams } from "react-router";
 import {
     AVAILABLE_POSTPROCESSORS,
     DEFAULT_MACHINING_ASSIGNMENTS,
+    resolveCncProgramHeader,
     translatePartForCncViewer
 } from "@Engine/postprocessor/index.js";
 import { createStringId } from "@Engine/shared/id.js";
 import { DEFAULT_CNC } from "@Engine/cabinet/cnc/cncDefaults.js";
 import { getCncPartKey, storePartCncInCabinet } from "@Engine/cabinet/cnc/manualPrograms.js";
 
-import SideBar from "../../../shared/components/sideBar.jsx";
-import ProjectBar from "../../../shared/components/projectBar.jsx";
-import MobileWorkspaceGuard from "../../../shared/components/MobileWorkspaceGuard.jsx";
-import { getProjectFile, uploadProjectFile } from "../../../shared/cache/project-cache.js";
-import { getGlobalFile } from "../../../shared/cache/global-cache.js";
-import { downloadFile, uploadJSONFile } from "../../../shared/api/file-api.js";
-import CncViewport from "./cncViewport.jsx";
+import SideBar from "../../../../shared/components/sideBar.jsx";
+import ProjectBar from "../../../../shared/components/projectBar.jsx";
+import MobileWorkspaceGuard from "../../../../shared/components/MobileWorkspaceGuard.jsx";
+import { getProjectFile, uploadProjectFile } from "../../../../shared/cache/project-cache.js";
+import { getGlobalFile } from "../../../../shared/cache/global-cache.js";
+import { downloadFile, uploadJSONFile } from "../../../../shared/api/file-api.js";
+import CncViewport from "../shared/cncViewport.jsx";
 import ManualOperationDialog, { FilletDialog } from "./ManualOperationDialog.jsx";
 import MacroOperationDialog from "./MacroOperationDialog.jsx";
+import ProgramHeaderDialog from "./ProgramHeaderDialog.jsx";
 import {
     CNC_MACRO_DEFINITIONS,
     MANUAL_TOOL_GROUPS,
@@ -85,6 +87,8 @@ export default function CncPartEditorPage() {
     const [selectedOperationIds, setSelectedOperationIds] = useState([]);
     const [primaryOperationId, setPrimaryOperationId] = useState(null);
     const [selectedFace, setSelectedFace] = useState("A");
+    const [programHeader, setProgramHeader] = useState({});
+    const [headerDraft, setHeaderDraft] = useState(null);
     const [draft, setDraft] = useState(null);
     const [dialogMode, setDialogMode] = useState(null);
     const [macroDraft, setMacroDraft] = useState(null);
@@ -127,6 +131,19 @@ export default function CncPartEditorPage() {
         () => createCompensatedMillingPaths(operations, tools),
         [operations, tools]
     );
+    const resolvedProgramHeader = useMemo(() => {
+        if (!part || !activePostprocessor) return null;
+        try {
+            return resolveCncProgramHeader(activePostprocessor, {
+                part: {
+                    ...part,
+                    CNC: { ...(part.CNC ?? createEmptyCnc()), header: programHeader, operations }
+                }
+            });
+        } catch {
+            return null;
+        }
+    }, [activePostprocessor, operations, part, programHeader]);
 
     const selectOnly = id => {
         setSelectedOperationIds(id == null ? [] : [id]);
@@ -196,6 +213,13 @@ export default function CncPartEditorPage() {
                 setMachiningAssignments({
                     ...DEFAULT_MACHINING_ASSIGNMENTS,
                     ...(settings?.cncDefault?.machiningAssignments ?? settings?.machiningAssignments ?? {})
+                });
+                setProgramHeader(selected.CNC?.header ?? {
+                    stopId: configured.configuration?.workingFields ?? "A",
+                    edgeAtStop: "front",
+                    sx: false,
+                    sy: false,
+                    comment: ""
                 });
                 dispatch({ type: "load", operations: Array.isArray(selected.CNC?.operations) ? selected.CNC.operations : [] });
                 selectOnly(null);
@@ -307,14 +331,14 @@ export default function CncPartEditorPage() {
             if (!parentCabinet) {
                 throw new Error("Der Elternkorpus des Bauteils konnte nicht ermittelt werden.");
             }
-            const cnc = { ...(part.CNC ?? {}), ...createEmptyCnc(), operations };
+            const cnc = { ...(part.CNC ?? {}), ...createEmptyCnc(), header: programHeader, operations };
             const updatedList = updatePartByKey(partList, requestedPartKey ?? getCncPartKey(part), parentCabinetId, current => {
                 const generatedPart = { ...current };
                 delete generatedPart.manual;
                 delete generatedPart._manualOrigin;
                 return { ...generatedPart, CNC: cnc };
             });
-            const updatedCabinet = storePartCncInCabinet(parentCabinet, part, operations, { tools });
+            const updatedCabinet = storePartCncInCabinet(parentCabinet, part, operations, { tools, header: programHeader });
             const updatedCabinets = cabinets.map(cabinet => String(cabinet.id) === String(parentCabinetId) ? updatedCabinet : cabinet);
             const [result] = await Promise.all([
                 uploadProjectFile({
@@ -478,8 +502,15 @@ export default function CncPartEditorPage() {
                     </aside>
 
                     <section className="flex min-h-0 min-w-0 flex-col bg-gray-950">
-                        <div className="flex h-12 shrink-0 items-center gap-2 border-b border-gray-700 px-3">
+                        <div className="flex h-12 shrink-0 items-center gap-2 overflow-x-auto border-b border-gray-700 px-3">
                             {['A', 'B'].map(face => <button key={face} type="button" onClick={() => setSelectedFace(face)} className={`rounded px-3 py-1.5 text-xs ${selectedFace === face ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-400"}`}>Seite {face} ({faceCount(face)})</button>)}
+                            {resolvedProgramHeader && <>
+                                <span className="ml-2 whitespace-nowrap text-[11px] text-gray-400">Anschlag <span className="font-semibold text-emerald-300">{resolvedProgramHeader.stopLabel}</span> · {resolvedProgramHeader.cornerLabel} · {resolvedProgramHeader.edgeAtStop === "back" ? "Rücken" : "Frontkante"}</span>
+                                <button type="button" onClick={() => setProgramHeader(current => ({ ...current, sx: current.sx !== true }))} className={`rounded border px-2 py-1 text-[11px] font-semibold ${programHeader.sx ? "border-emerald-500 bg-emerald-900/50 text-emerald-300" : "border-gray-700 bg-gray-900 text-gray-500"}`}>SX</button>
+                                <button type="button" onClick={() => setProgramHeader(current => ({ ...current, sy: current.sy !== true }))} className={`rounded border px-2 py-1 text-[11px] font-semibold ${programHeader.sy ? "border-emerald-500 bg-emerald-900/50 text-emerald-300" : "border-gray-700 bg-gray-900 text-gray-500"}`}>SY</button>
+                                <button type="button" onClick={() => setHeaderDraft({ ...programHeader })} className="rounded border border-emerald-900 px-2 py-1 text-[11px] text-emerald-300 hover:bg-emerald-950/50">Header ändern</button>
+                                {resolvedProgramHeader.comment && <span className="max-w-40 truncate text-[10px] text-gray-600" title={resolvedProgramHeader.comment}>{resolvedProgramHeader.comment}</span>}
+                            </>}
                             {!!compensationPaths.length && <span className="flex items-center gap-1.5 text-[11px] text-sky-300"><span className="h-0.5 w-5 bg-sky-400" />Korrigierte Werkzeugspur</span>}
                             <span className="ml-auto text-[11px] text-gray-500">{pickingPath ? "Punkt in der Zeichnung wählen" : "Koordinatenursprung oben links · mm"}</span>
                         </div>
@@ -491,6 +522,7 @@ export default function CncPartEditorPage() {
                                 selectedOperationIds={effectiveSelectedOperationIds}
                                 onSelectOperation={selectOnly}
                                 compensationPaths={compensationPaths}
+                                programHeader={resolvedProgramHeader}
                                 onSelectPart={() => null}
                                 selectedFace={selectedFace}
                                 pointPicking={Boolean(pickingPath)}
@@ -547,6 +579,16 @@ export default function CncPartEditorPage() {
                 onChange={setMacroDraft}
                 onCancel={() => setMacroDraft(null)}
                 onSave={saveMacro}
+            />}
+            {headerDraft && <ProgramHeaderDialog
+                header={headerDraft}
+                locations={activeDescriptor?.machiningLocations ?? []}
+                onChange={setHeaderDraft}
+                onCancel={() => setHeaderDraft(null)}
+                onSave={() => {
+                    setProgramHeader({ ...headerDraft });
+                    setHeaderDraft(null);
+                }}
             />}
             {filletOpen && <FilletDialog onCancel={() => setFilletOpen(false)} onSave={addFillet} />}
         </div>

@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { useState } from "react";
 import { MACHINING_INTENT_IDS, MACHINING_KINDS } from "@Engine/postprocessor/index.js";
-import ManualOperationDialog from "../../src/features/projects/cnc/ManualOperationDialog.jsx";
+import ManualOperationDialog from "../../src/features/projects/cnc/editor/ManualOperationDialog.jsx";
 
 describe("manual CNC operation dialog", () => {
     it("calculates numeric parameters with DX, DY and DZ variables", () => {

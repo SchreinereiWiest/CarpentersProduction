@@ -1,5 +1,6 @@
 import { POSTPROCESSOR_API_VERSION } from "../contract.js";
 import { MACHINING_KINDS, translateNeutralPartForViewer } from "../machiningModel.js";
+import { DEFAULT_MACHINING_LOCATIONS, resolveProgramHeader } from "../programHeader.js";
 
 const strategy = (id, label, operationKinds, description) => ({ id, label, operationKinds, description });
 
@@ -16,6 +17,7 @@ export const legacyViewerBridge = {
             machineCode: false,
             machiningResolution: true
         },
+        machiningLocations: DEFAULT_MACHINING_LOCATIONS,
         supportedMachiningStrategies: [
             strategy("connector.drill", "Bohrverbinder", [MACHINING_KINDS.DRILL_POINT, MACHINING_KINDS.DRILL_PATTERN, MACHINING_KINDS.DRILL_LINEAR_PATTERN, MACHINING_KINDS.DRILL_EDGE_PATTERN], "Klassische horizontale und vertikale Verbinderbohrungen."),
             strategy("connector.clamex", "Clamex", [MACHINING_KINDS.MILL_PATH], "Semantischer Endpunkt; benötigt einen Maschinenadapter mit Clamex-Unterstützung."),
@@ -37,6 +39,10 @@ export const legacyViewerBridge = {
 
     translateForViewer({ part }) {
         return translateNeutralPartForViewer(part);
+    },
+
+    resolveProgramHeader({ part }) {
+        return resolveProgramHeader({ manifest: this.manifest, part, defaultStopId: "A" });
     },
 
     generateMachineCode() {

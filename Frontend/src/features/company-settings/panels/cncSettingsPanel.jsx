@@ -925,12 +925,24 @@ function PostprocessorSettings({
                         </SettingsCard>
 
                         <SettingsCard title="Integrationsendpunkte">
-                            <div className="grid gap-3 lg:grid-cols-3">
+                            <div className="grid gap-3 lg:grid-cols-4">
                                 <Endpoint name="Viewer" method="translateForViewer" description="Übersetzt das neutrale CNC-Schema in reine Viewer-Operationen." />
                                 <Endpoint name="Maschinencode" method="generateMachineCode" description="Ergänzt Maschinenparameter und erzeugt G-Code oder Hersteller-Code." />
                                 <Endpoint name="Bearbeitung" method="resolveMachining" description="Koppelt eindeutige intentId-Endpunkte an unterstützte Maschinenstrategien." />
+                                <Endpoint name="Programmheader" method="resolveProgramHeader" description="Löst Anschlag, feste Spiegelachsen sowie zusätzliche SX/SY-Spiegelungen auf." />
                             </div>
                             <p className="mt-4 text-xs text-gray-500">Der CNC-Editor bezieht Darstellung und Export ausschließlich über den aktiven Postprozessor. Die Stückliste speichert nur das neutrale Schema.</p>
+                        </SettingsCard>
+
+                        <SettingsCard title="Bearbeitungsstandorte">
+                            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                                {descriptor.machiningLocations.map(location => (
+                                    <div key={location.id} className="rounded-lg border border-gray-700 bg-gray-900 p-3">
+                                        <div className="flex items-center justify-between"><span className="font-medium text-gray-200">Anschlag {location.label ?? location.id}</span><code className="text-xs text-emerald-300">{location.outputCode ?? location.id}</code></div>
+                                        <div className="mt-2 text-xs text-gray-500">{location.anchorCorner === "top-right" ? "oben rechts" : "oben links"} · Spiegel X {location.mirrorAxes.x ? "aktiv" : "aus"} · Spiegel Y {location.mirrorAxes.y ? "aktiv" : "aus"}</div>
+                                    </div>
+                                ))}
+                            </div>
                         </SettingsCard>
 
                         <SettingsCard title="Unterstützte Bearbeitungen">

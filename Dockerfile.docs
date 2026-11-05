@@ -1,18 +1,53 @@
+
+# =========================================
+# Stage 1: Documentation Builder
+# =========================================
+
 FROM python:3.12-slim AS builder
 
 WORKDIR /documentation
 
+# Python dependencies
 COPY requirements-docs.txt ./
-RUN python -m pip install --no-cache-dir -r requirements-docs.txt
 
+RUN python -m pip install \
+    --no-cache-dir \
+    -r requirements-docs.txt
+
+# MkDocs configuration
 COPY mkdocs.yml ./
 COPY docs ./docs
 
+# Generate static documentation
 RUN mkdocs build --strict
 
-FROM nginx:alpine
+# =========================================
+# Stage 2: Non-Root Nginx
+# =========================================
 
-COPY docs-nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=builder /documentation/site /usr/share/nginx/html
+FROM nginxinc/nginx-unprivileged:alpine
 
-EXPOSE 80
+# Nginx configuration
+COPY --chown=33:33 docs-nginx.conf \
+    /etc/nginx/conf.d/default.conf
+
+# Built documentation
+COPY --from=builder --chown=33:33 \
+    /documentation/site/ \
+    /usr/share/nginx/html/
+
+# =========================================
+# Security
+# =========================================
+
+USER 33:33
+
+# =========================================
+# Runtime
+# =========================================
+
+EXPOSE 8080
+
+# Direkter Nginx-Start ohne Entrypoint-Skripte,
+# die Konfigurationsdateien verändern könnten
+ENTRYPOINT ["nginx", "-g", "daemon off;"]

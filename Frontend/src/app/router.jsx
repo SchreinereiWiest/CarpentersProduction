@@ -18,8 +18,8 @@ import TimeTrackingPage from "../features/projects/time-tracking/TimeTrackingPag
 import LegacyProjectEditorPage from "../features/projects/legacy-editor/LegacyProjectEditorPage.jsx";
 import ProjectSettingsPage from "../features/projects/settings/ProjectSettingsPage.jsx";
 import CabinetEditorPage from "../features/projects/cabinet/CabinetEditorPage.jsx";
-import CncEditorPage from "../features/projects/cnc/CncEditorPage.jsx";
-import CncPartEditorPage from "../features/projects/cnc/CncPartEditorPage.jsx";
+import CncEditorPage from "../features/projects/cnc/viewer/CncEditorPage.jsx";
+import CncPartEditorPage from "../features/projects/cnc/editor/CncPartEditorPage.jsx";
 import ProjectPurchasingPage from "../features/projects/purchasing/ProjectPurchasingPage.jsx";
 import ProjectAttachmentsPage from "../features/projects/attachments/ProjectAttachmentsPage.jsx";
 import CalculationPage from "../features/projects/calculation/CalculationPage.jsx";
