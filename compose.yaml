@@ -19,7 +19,7 @@ services:
   carpenters-frontend:
     build:
       context: ./Frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
       additional_contexts:
         engine: ./Engine
 
@@ -49,7 +49,7 @@ services:
   carpenters-backend:
     build:
       context: ./Backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
       additional_contexts:
         engine: ./Engine
 
@@ -64,6 +64,11 @@ services:
       - MEASUREMENT_OCR_SECRET=${MEASUREMENT_OCR_SECRET:?MEASUREMENT_OCR_SECRET muss in der root .env gesetzt sein}
       - MEASUREMENT_OCR_RESOLVE_URL=http://carpenters-backend:5000/api/internal/measurement-ocr/resolve
       - MEASUREMENT_OCR_CALLBACK_URL=http://carpenters-backend:5000/api/internal/measurement-ocr/result
+
+    volumes:
+      - ./Backend:/app
+      - ./Engine:/Engine:ro
+      - /app/node_modules
 
     # Ermöglicht dem Backend-Container den Zugriff auf eine auf demselben
     # Linux-Host laufende Open-WebUI-Instanz (z. B. Port 3000).

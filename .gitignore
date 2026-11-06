@@ -4,6 +4,7 @@ node_modules/
 .pnpm-store/
 
 kubernetesNotes
+kubernetes/*
 
 # Lokale Umgebungsvariablen und Geheimnisse
 .env

@@ -12,14 +12,14 @@ cd "${project_root}"
 docker buildx build \
   --build-context engine=./Engine \
   --load \
-  --file Frontend/Dockerfile.dev \
+  --file Frontend/Dockerfile \
   --tag "${frontend_image}" \
   ./Frontend
 
 docker buildx build \
   --build-context engine=./Engine \
   --load \
-  --file Backend/Dockerfile.dev \
+  --file Backend/Dockerfile \
   --tag "${backend_image}" \
   ./Backend
 
