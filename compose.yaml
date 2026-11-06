@@ -27,7 +27,7 @@ services:
   frontend:
     build:
       context: ./Frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
       additional_contexts:
         engine: ./Engine
 
@@ -56,7 +56,7 @@ services:
   backendjs:
     build:
       context: ./Backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
       additional_contexts:
         engine: ./Engine
 
@@ -67,6 +67,11 @@ services:
 
     environment:
       - NODE_ENV=development
+
+    volumes:
+      - ./Backend:/app
+      - ./Engine:/Engine:ro
+      - /app/node_modules
 
     # Ermöglicht dem Backend-Container den Zugriff auf eine auf demselben
     # Linux-Host laufende Open-WebUI-Instanz (z. B. Port 3000).

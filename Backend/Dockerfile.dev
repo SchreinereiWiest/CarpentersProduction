@@ -1,82 +1,27 @@
-
-# =========================================
-# Stage: Development / Runtime (Node.js Backend)
-# =========================================
+# syntax=docker/dockerfile:1
 
 ARG PNPM_VERSION=12.15.0
+ARG NODE_VERSION=22.23.4
 
-FROM ghcr.io/pnpm/pnpm:${PNPM_VERSION} AS dev
+FROM ghcr.io/pnpm/pnpm:${PNPM_VERSION} AS development
 
-# Node.js installieren (während des Builds als root)
-RUN pnpm runtime set node 22.23.4 -g
+ARG NODE_VERSION
+RUN pnpm runtime set node "${NODE_VERSION}" -g
 
 WORKDIR /app
 
-# =========================================
-# Dependencies
-# =========================================
-
-COPY package.json pnpm-lock.yaml ./
-
-RUN pnpm approve-builds \
-    @prisma/client \
-    @prisma/engines \
-    bcrypt \
-    esbuild \
-    prisma \
-    msgpackr-extract \
-    workerd
-
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
-
-# =========================================
-# Prisma
-# =========================================
 
 COPY prisma ./prisma
 COPY prisma.config.ts ./prisma.config.ts
-
 RUN pnpm exec prisma generate
 
-<<<<<<< HEAD
-# Application
-=======
-# =========================================
-# Application / Engine
-# =========================================
-
->>>>>>> bffc5fb (dockerfile change)
 COPY --from=engine . /Engine
 COPY . .
 
-# =========================================
-# Non-Root Permissions
-# =========================================
-
-# Kubernetes verwendet UID/GID 33.
-# Die Anwendung inklusive Prisma und Engine
-# muss für diesen Benutzer lesbar sein.
-
-RUN chown -R 33:33 /app /Engine \
-    && chmod 755 /app /Engine
-
-# Temporäre Pfade für pnpm / Node.js
-ENV HOME=/tmp
-ENV TMPDIR=/tmp
-ENV XDG_CACHE_HOME=/tmp/.cache
-ENV NODE_ENV=production
-
-# =========================================
-# Security
-# =========================================
-
-# Ab hier keine Root-Rechte mehr
-USER 33:33
-
-# =========================================
-# Runtime
-# =========================================
+ENV NODE_ENV=development
 
 EXPOSE 5000
 
-CMD ["pnpm", "run", "start"]
+CMD ["pnpm", "run", "dev"]

@@ -1,40 +1,32 @@
-# =========================================
-# Development - Vite React App
-# =========================================
+# syntax=docker/dockerfile:1
 
 ARG PNPM_VERSION=12.4.1
+ARG NODE_VERSION=22.23.2
 
-FROM ghcr.io/pnpm/pnpm:${PNPM_VERSION}
+FROM ghcr.io/pnpm/pnpm:${PNPM_VERSION} AS build
 
-# Node 22
-RUN pnpm runtime set node 22.23.2 -g
+ARG NODE_VERSION
+RUN pnpm runtime set node "${NODE_VERSION}" -g
 
 WORKDIR /app
 
-
-# -----------------------------------------
-# Dependencies
-# -----------------------------------------
-
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-
-RUN pnpm approve-builds core-js
-RUN pnpm install
-RUN pnpm approve-builds core-js
-
-# -----------------------------------------
-# Application
-# -----------------------------------------
+RUN pnpm install --frozen-lockfile
 
 COPY --from=engine . /Engine
 COPY . .
-RUN pnpm approve-builds core-js
 RUN pnpm run build
 
-# -----------------------------------------
-# Vite
-# -----------------------------------------
+FROM nginxinc/nginx-unprivileged:stable-alpine AS production
 
-EXPOSE 5173
+COPY --chown=33:33 nginx.conf /etc/nginx/nginx.conf
+COPY --from=build --chown=33:33 /app/dist/ /usr/share/nginx/html/
 
-CMD ["pnpm", "run", "dev", "--host", "0.0.0.0"]
+# The Kubernetes deployment runs both containers as www-data (UID/GID 33).
+# Nginx stores its PID and temporary data below /dev/shm, which remains writable
+# when the container root filesystem is read-only.
+USER 33:33
+
+EXPOSE 80
+
+ENTRYPOINT ["nginx", "-g", "daemon off;"]

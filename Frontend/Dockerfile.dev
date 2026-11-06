@@ -1,83 +1,23 @@
-<<<<<<< HEAD
-# =========================================
-# Build Stage
-# =========================================
+# syntax=docker/dockerfile:1
 
 ARG PNPM_VERSION=12.4.1
-FROM ghcr.io/pnpm/pnpm:${PNPM_VERSION} AS build
+ARG NODE_VERSION=22.23.2
 
-RUN pnpm runtime set node 22.23.2 -g
+FROM ghcr.io/pnpm/pnpm:${PNPM_VERSION} AS development
+
+ARG NODE_VERSION
+RUN pnpm runtime set node "${NODE_VERSION}" -g
 
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-
-RUN pnpm approve-builds core-js
-RUN pnpm install
-RUN pnpm add -D @rolldown/binding-linux-x64-gnu@1.2.8
-RUN pnpm approve-builds core-js
+RUN pnpm install --frozen-lockfile
 
 COPY --from=engine . /Engine
 COPY . .
 
-RUN pnpm approve-builds core-js
-RUN pnpm run build
-=======
->>>>>>> bffc5fb (dockerfile change)
+ENV NODE_ENV=development
 
-# =========================================
-# Stage 1: Documentation Builder
-# =========================================
+EXPOSE 5173
 
-FROM python:3.12-slim AS builder
-
-WORKDIR /documentation
-
-# Python dependencies
-COPY requirements-docs.txt ./
-
-RUN python -m pip install \
-    --no-cache-dir \
-    -r requirements-docs.txt
-
-<<<<<<< HEAD
-CMD ["nginx", "-g", "daemon off;"]
-=======
-# MkDocs configuration
-COPY mkdocs.yml ./
-COPY docs ./docs
-
-# Generate static documentation
-RUN mkdocs build --strict
-
-# =========================================
-# Stage 2: Non-Root Nginx
-# =========================================
-
-FROM nginxinc/nginx-unprivileged:alpine
-
-# Nginx configuration
-COPY --chown=33:33 docs-nginx.conf \
-    /etc/nginx/conf.d/default.conf
-
-# Built documentation
-COPY --from=builder --chown=33:33 \
-    /documentation/site/ \
-    /usr/share/nginx/html/
-
-# =========================================
-# Security
-# =========================================
-
-USER 33:33
-
-# =========================================
-# Runtime
-# =========================================
-
-EXPOSE 8080
-
-# Direkter Nginx-Start ohne Entrypoint-Skripte,
-# die Konfigurationsdateien verändern könnten
-ENTRYPOINT ["nginx", "-g", "daemon off;"]
->>>>>>> bffc5fb (dockerfile change)
+CMD ["pnpm", "run", "dev", "--host", "0.0.0.0"]
