@@ -1,5 +1,6 @@
 import { runShopDataFetch } from "../../../../Engine/src/procurement/shop-data-fetch.js";
 import prisma from "../../infrastructure/database/prisma.js";
+import { isWuerthSupplier } from "./datanorm/datanorm-sku.js";
 import { shopFetchPlugins } from "./shop-fetch/plugins/index.js";
 
 const normalizeKeyPart = value => String(value || "").trim().toLocaleLowerCase("de");
@@ -262,18 +263,25 @@ export const fetchArticleCatalogData = async ({ supplierIds = null, entryIds = n
     );
     const serverEntries = selectedEntries.filter(entry => !browserSupplierIds.has(entry.supplierId));
     const datanormSuppliers = suppliers.filter(supplier => supplier.procurementType === "datanorm");
-    const datanormArticles = datanormSuppliers.length === 0 ? [] : await prisma.supplierCatalogArticle.findMany({
-        where: {
-            OR: datanormSuppliers.map(supplier => ({
+    const datanormArticleConditions = datanormSuppliers.flatMap(supplier => {
+        const normalizedSkus = [...new Set(serverEntries
+            .filter(entry => entry.supplierId === supplier.id)
+            .map(entry => normalizeSku(entry.sku))
+            .filter(Boolean))];
+        if (normalizedSkus.length === 0) return [];
+        if (isWuerthSupplier(supplier)) {
+            return normalizedSkus.map(normalizedSku => ({
                 supplierId: supplier.id,
-                normalizedSku: {
-                    in: serverEntries
-                        .filter(entry => entry.supplierId === supplier.id)
-                        .map(entry => normalizeSku(entry.sku))
-                }
-            }))
+                normalizedSku: normalizedSku.length >= 5
+                    ? { startsWith: normalizedSku }
+                    : normalizedSku
+            }));
         }
+        return [{ supplierId: supplier.id, normalizedSku: { in: normalizedSkus } }];
     });
+    const datanormArticles = datanormArticleConditions.length === 0
+        ? []
+        : await prisma.supplierCatalogArticle.findMany({ where: { OR: datanormArticleConditions } });
     const suppliersWithCatalog = suppliers.map(supplier => ({
         ...supplier,
         datanormArticles: datanormArticles.filter(article => article.supplierId === supplier.id)

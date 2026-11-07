@@ -69,3 +69,72 @@ test("DATANORM-Rabattgruppen wandeln Listenpreise in Einkaufspreise um", async (
     }]);
     assert.equal(parsed.articles[0].netPrice, 8);
 });
+
+test("Würth-Preislisten verwenden die Produktnummer statt der Produktlinie als Artikelnummer", async () => {
+    const header = [
+        "Produktlinie", "Produktname", "Produkttext", "Produktnummer", "Packgröße",
+        "Mengeneinheit", "STAFFELMENGE", "Kundenmaterialbezeichnung", "Preiseinheit",
+        "Bruttopreis", "Nettopreis", "Währung", "Rabatt", "Teuerungszuschlag"
+    ].join(";");
+    const parsed = await parseDatanormUpload({
+        originalname: "DATANORM.001",
+        mimetype: "text/plain",
+        buffer: Buffer.from([
+            header,
+            'A;ASSY Schraube;"verzinkt; Teilgewinde";0190 014 50;100;ST;100;;100;30,00;20,00;EUR;33,33;0',
+            'A;ASSY Schraube;"verzinkt; Teilgewinde";0190 014 50;100;ST;1;;100;30,00;25,00;EUR;16,67;0'
+        ].join("\r\n"), "utf8")
+    });
+
+    assert.equal(parsed.articles.length, 1);
+    assert.deepEqual(parsed.articles[0], {
+        sku: "0190 014 50",
+        name: "ASSY Schraube",
+        description: "verzinkt; Teilgewinde",
+        unit: "Packung (100 ST)",
+        netPrice: 25,
+        imageUrl: null,
+        sourceVersion: null,
+        sourceFile: "DATANORM.001"
+    });
+
+    const [result] = await datanormPlugin.fetchArticles({
+        supplier: { datanormArticles: parsed.articles },
+        entries: [{ id: "entry-1", sku: "019001450" }]
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.data.name, "ASSY Schraube");
+});
+
+test("Würth-DATANORM findet die Basisartikelnummer ohne angehängte Verpackungsmenge", async () => {
+    const parsed = await parseDatanormUploads([{
+        originalname: "Datanorm.001",
+        mimetype: "text/plain",
+        buffer: Buffer.from([
+            "V 051126Adolf Wuerth KG-Kuenzelsau-Preisliste490387                                     COPYRIGHT:ADOLF WUERTH KG          04EUR",
+            "A;N;019014035   500;00;SHR-SEKPF-FRT-HO-RW20-(A2K)-4X35/21;Spanplattenschraube Senkfrästaschenkopf;2;2;ST;137; ;190; ;"
+        ].join("\r\n"), "latin1")
+    }, {
+        originalname: "Datpreis.001",
+        mimetype: "text/plain",
+        buffer: Buffer.from([
+            "V 051126Adolf Wuerth KG-Kuenzelsau-Preisliste490387                                     COPYRIGHT:ADOLF WUERTH KG          04EUR",
+            "P;A;019014035   500;1;137;1;0;3;0;;;"
+        ].join("\r\n"), "utf8")
+    }]);
+
+    assert.equal(parsed.version, "4");
+    assert.equal(parsed.articles[0].sku, "019014035   500");
+    assert.equal(parsed.articles[0].description, "Spanplattenschraube Senkfrästaschenkopf");
+    assert.equal(parsed.articles[0].unit, "Packung (500 ST)");
+    assert.equal(parsed.articles[0].netPrice, 6.85);
+
+    const [result] = await datanormPlugin.fetchArticles({
+        supplier: { name: "Würth", datanormArticles: parsed.articles },
+        entries: [{ id: "entry-1", sku: "019014035" }]
+    });
+    assert.equal(result.ok, true);
+    assert.equal(result.data.name, "SHR-SEKPF-FRT-HO-RW20-(A2K)-4X35/21");
+    assert.equal(result.data.unit, "Packung (500 ST)");
+    assert.equal(result.data.netPrice, 6.85);
+});

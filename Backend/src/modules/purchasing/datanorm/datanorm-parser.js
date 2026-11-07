@@ -4,6 +4,8 @@ import path from "node:path";
 import iconv from "iconv-lite";
 import unzipper from "unzipper";
 
+import { wuerthSkuParts } from "./datanorm-sku.js";
+
 const MAX_ARCHIVE_ENTRIES = 100;
 const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 const MAX_UNCOMPRESSED_BYTES = 150 * 1024 * 1024;
@@ -13,10 +15,94 @@ const DATANORM_FILE = /^(datanorm|datpreis|dattext|data)[a-z0-9_.-]*$/i;
 const text = value => String(value ?? "").replace(/\u001a/g, "").trim();
 const skuKey = value => text(value).replace(/[^\p{L}\p{N}]/gu, "").toLocaleLowerCase("de");
 const cleanDescription = value => text(value).replace(/\s+/g, " ");
+const headerKey = value => text(value)
+    .replace(/ß/gi, "ss")
+    .normalize("NFKD")
+    .replace(/\p{Mark}/gu, "")
+    .replace(/[^a-zA-Z0-9]/g, "")
+    .toLocaleLowerCase("de");
+
+const parseDelimitedLine = (line, delimiter) => {
+    const fields = [];
+    let value = "";
+    let quoted = false;
+    for (let index = 0; index < line.length; index += 1) {
+        const character = line[index];
+        if (character === '"') {
+            if (quoted && line[index + 1] === '"') {
+                value += '"';
+                index += 1;
+            } else {
+                quoted = !quoted;
+            }
+        } else if (character === delimiter && !quoted) {
+            fields.push(value);
+            value = "";
+        } else {
+            value += character;
+        }
+    }
+    fields.push(value);
+    return fields;
+};
+
+const detectPriceListHeader = line => {
+    for (const delimiter of [";", "\t"]) {
+        const fields = parseDelimitedLine(line, delimiter);
+        const columns = new Map(fields.map((value, index) => [headerKey(value), index]));
+        if (columns.has("produktnummer") && columns.has("produktname") && columns.has("nettopreis")) {
+            return { columns, delimiter };
+        }
+    }
+    return null;
+};
+
+const localizedNumber = value => {
+    let normalized = text(value).replace(/[\s\u00a0€']/g, "");
+    if (!normalized) return null;
+    if (normalized.includes(",")) normalized = normalized.replace(/\./g, "").replace(",", ".");
+    normalized = normalized.replace(/[^0-9.-]/g, "");
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+};
+
+const parsePriceListArticle = (fields, columns, sourceFile) => {
+    const field = name => fields[columns.get(name)];
+    const sku = text(field("produktnummer"));
+    if (!sku) return null;
+    const currency = text(field("wahrung")).toUpperCase();
+    const rawNetPrice = localizedNumber(field("nettopreis"));
+    const priceUnit = localizedNumber(field("preiseinheit"));
+    const packageQuantity = localizedNumber(field("packgrosse"));
+    const netPrice = rawNetPrice !== null && rawNetPrice >= 0 && (!currency || currency === "EUR" || currency === "€")
+        ? Math.round((rawNetPrice / Math.max(1, priceUnit || 1) * Math.max(1, packageQuantity || 1)) * 100) / 100
+        : null;
+    const baseUnit = text(field("mengeneinheit")) || null;
+    return {
+        sku,
+        key: skuKey(sku),
+        name: text(field("produktname")) || text(field("produkttext")) || sku,
+        description: cleanDescription(field("produkttext")) || null,
+        unit: packageQuantity
+            ? `Packung (${packageQuantity} ${baseUnit || "Einheiten"})`
+            : baseUnit,
+        netPrice,
+        imageUrl: null,
+        sourceVersion: null,
+        sourceFile,
+        tierQuantity: Math.max(0, localizedNumber(field("staffelmenge")) || 0)
+    };
+};
 
 const decode = buffer => {
     if (buffer.length === 0) return "";
     if (isUtf8(buffer)) return buffer.toString("utf8").replace(/^\uFEFF/, "");
+    // Würth liefert seine aktuellen DATANORM-Dateien als Windows-1252 aus.
+    // Der ASCII-kompatible Kopf kann vor der eigentlichen Dekodierung sicher
+    // zur Herstellererkennung verwendet werden.
+    if (/Adolf Wuerth/i.test(buffer.subarray(0, 512).toString("latin1"))) {
+        return iconv.decode(buffer, "win1252");
+    }
     // DATANORM 4/5 verwendet historisch den DOS/OEM-Zeichensatz CP850.
     return iconv.decode(buffer, "cp850");
 };
@@ -30,30 +116,34 @@ const safeHttpUrl = value => {
     }
 };
 
-const priceInEuros = (rawPrice, rawUnit, version) => {
+const priceInEuros = (rawPrice, rawUnit, version, quantity = 1) => {
     const cents = Number(text(rawPrice).replace(/[^0-9-]/g, ""));
     if (!Number.isFinite(cents) || cents < 0) return null;
     const unitCode = text(rawUnit);
     const divisor = Number(version) >= 5
         ? Math.max(1, Number(unitCode) || 1)
         : ({ "0": 1, "1": 10, "2": 100, "3": 1000 })[unitCode] || 1;
-    return Math.round((cents / 100 / divisor) * 100) / 100;
+    return Math.round((cents / 100 / divisor * Math.max(1, Number(quantity) || 1)) * 100) / 100;
 };
 
-const parseArticle = (fields, version) => {
+const parseArticle = (fields, version, isWuerthSource = false) => {
     const isV5 = Number(version) >= 5;
     const sku = text(fields[2]);
     if (!sku) return null;
+    const wuerthParts = isWuerthSource ? wuerthSkuParts(sku) : null;
     const priceFlag = text(fields[isV5 ? 7 : 6]);
     const rawPrice = fields[isV5 ? 8 : 9];
     const rawPriceUnit = fields[isV5 ? 6 : 7];
-    const normalizedPrice = priceInEuros(rawPrice, rawPriceUnit, version);
+    const normalizedPrice = priceInEuros(rawPrice, rawPriceUnit, version, wuerthParts?.packageQuantity);
+    const baseUnit = text(fields[isV5 ? 5 : 8]) || null;
     return {
         sku,
         key: skuKey(sku),
         name: text(fields[isV5 ? 3 : 4]) || sku,
         description: cleanDescription(fields[isV5 ? 4 : 5]),
-        unit: text(fields[isV5 ? 5 : 8]) || null,
+        unit: wuerthParts
+            ? `Packung (${wuerthParts.packageQuantity} ${baseUnit || "Einheiten"})`
+            : baseUnit,
         // Kennzeichen 2 ist der DATANORM-Nettopreis. Listenpreise werden nicht
         // stillschweigend als netto in den internen Shop geschrieben.
         netPrice: priceFlag === "2" ? normalizedPrice : null,
@@ -133,11 +223,35 @@ export const parseDatanormUploads = async uploads => {
 
     for (const source of files) {
         let version = null;
-        for (const rawLine of decode(source.buffer).split(/\r?\n/)) {
+        let priceListHeader;
+        const decodedSource = decode(source.buffer);
+        const isWuerthSource = /Adolf Wuerth/i.test(decodedSource.slice(0, 512));
+        for (const rawLine of decodedSource.split(/\r?\n/)) {
             const line = rawLine.replace(/\u001a/g, "").trim();
             if (!line) continue;
             recordCount += 1;
             if (recordCount > MAX_RECORDS) throw new Error("Der DATANORM-Import enthält zu viele Datensätze");
+            if (priceListHeader === undefined) {
+                priceListHeader = detectPriceListHeader(line);
+                if (priceListHeader) continue;
+            }
+            if (priceListHeader) {
+                const article = parsePriceListArticle(
+                    parseDelimitedLine(line, priceListHeader.delimiter),
+                    priceListHeader.columns,
+                    source.name
+                );
+                if (!article?.key) continue;
+                const existing = articles.get(article.key);
+                if (!existing || article.tierQuantity < existing.tierQuantity) articles.set(article.key, article);
+                continue;
+            }
+            const fixedHeader = line.match(/^V\s+.*?(\d{2})([A-Z]{3})$/i);
+            if (fixedHeader) {
+                version = Number(fixedHeader[1]) || null;
+                detectedVersion = version || detectedVersion;
+                continue;
+            }
             const fields = line.split(";");
             const recordType = text(fields[0]).toUpperCase();
             if (recordType === "V") {
@@ -165,7 +279,7 @@ export const parseDatanormUploads = async uploads => {
                 continue;
             }
             if (recordType !== "A") continue;
-            const article = parseArticle(fields, version || detectedVersion || 4);
+            const article = parseArticle(fields, version || detectedVersion || 4, isWuerthSource);
             if (!article?.key) continue;
             articles.set(article.key, {
                 ...article,
@@ -187,7 +301,7 @@ export const parseDatanormUploads = async uploads => {
         const calculatedNetPrice = listPrice !== null && discount !== undefined
             ? Math.round(listPrice * (1 - discount / 100) * 100) / 100
             : null;
-        const directNetPrice = priceUpdate ? priceUpdate.netPrice : article.netPrice;
+        const directNetPrice = priceUpdate?.netPrice ?? article.netPrice;
         return {
             sku: article.sku,
             name: article.name,
