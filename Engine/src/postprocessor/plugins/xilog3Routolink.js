@@ -1,5 +1,6 @@
 import { POSTPROCESSOR_API_VERSION } from "../contract.js";
 import {
+  MACHINING_INTENT_IDS,
   MACHINING_KINDS,
   assertNeutralPartCnc,
   translateNeutralPartForViewer
@@ -101,81 +102,6 @@ const configuredTool = (operation, configuration, fallbackNumber) => {
   };
 };
 
-const compensatedLine = (operation, toolDiameter) => {
-  const start = operation.start;
-  const target = operation.target;
-  const compensation = operation.compensation ?? "center";
-  if (!start || !target || compensation === "center" || !(toolDiameter > 0)) {
-    return { start, target };
-  }
-  const startX = finiteNumber(start.x);
-  const startY = finiteNumber(start.y);
-  const targetX = finiteNumber(target.x);
-  const targetY = finiteNumber(target.y);
-  if ([startX, startY, targetX, targetY].some(value => value === null)) {
-    return { start, target };
-  }
-  const dx = targetX - startX;
-  const dy = targetY - startY;
-  const length = Math.hypot(dx, dy);
-  if (!(length > 0)) return { start, target };
-  const direction = compensation === "left" ? 1 : -1;
-  const offset = toolDiameter / 2;
-  // Das neutrale Koordinatensystem hat eine nach unten laufende Y-Achse.
-  const ox = direction * (dy / length) * offset;
-  const oy = direction * (-dx / length) * offset;
-  return {
-    start: { ...start, x: startX + ox, y: startY + oy },
-    target: { ...target, x: targetX + ox, y: targetY + oy }
-  };
-};
-
-const arcPoints = (operation, toolDiameter, configuration) => {
-  const start = operation.start;
-  const target = operation.target;
-  const center = operation.center;
-  if (!start || !target || !center) return null;
-  const centerX = finiteNumber(center.x);
-  const centerY = finiteNumber(center.y);
-  const startX = finiteNumber(start.x);
-  const startY = finiteNumber(start.y);
-  const targetX = finiteNumber(target.x);
-  const targetY = finiteNumber(target.y);
-  if ([centerX, centerY, startX, startY, targetX, targetY].some(value => value === null)) return null;
-
-  const programmedRadius = finiteNumber(operation.radius) ?? Math.hypot(startX - centerX, startY - centerY);
-  const clockwise = operation.direction !== "counterclockwise";
-  const compensation = operation.compensation ?? "center";
-  const radiusOffset = compensation === "center" || !(toolDiameter > 0)
-    ? 0
-    : toolDiameter / 2 * (
-      compensation === "left"
-        ? (clockwise ? 1 : -1)
-        : (clockwise ? -1 : 1)
-    );
-  const radius = programmedRadius + radiusOffset;
-  if (!(radius > 0)) return null;
-
-  const startAngle = Math.atan2(startY - centerY, startX - centerX);
-  const targetAngle = Math.atan2(targetY - centerY, targetX - centerX);
-  let sweep = targetAngle - startAngle;
-  if (clockwise) {
-    while (sweep <= 0) sweep += Math.PI * 2;
-  } else {
-    while (sweep >= 0) sweep -= Math.PI * 2;
-  }
-  const segmentLength = Math.max(0.5, finiteNumber(configuration.arcSegmentLength) ?? 5);
-  const count = Math.max(2, Math.ceil(Math.abs(sweep) * radius / segmentLength));
-  return Array.from({ length: count + 1 }, (_, index) => {
-    const angle = startAngle + sweep * index / count;
-    return {
-      x: centerX + Math.cos(angle) * radius,
-      y: centerY + Math.sin(angle) * radius,
-      z: finiteNumber(target.z ?? start.z)
-    };
-  });
-};
-
 const operationFaceSupported = (operation) =>
   String(operation?.face || "A").toUpperCase() === "A";
 
@@ -195,8 +121,8 @@ const xboLine = ({
     `Z=${formatNumber(z)}`
   ];
   const repetitions = Math.max(1, Math.floor(finiteNumber(count) ?? 1));
+  words.push(`R=${repetitions}`);
   if (repetitions > 1) {
-    words.push(`R=${repetitions}`);
     if (finiteNumber(xOffset) !== 0) words.push(`x=${formatNumber(xOffset)}`);
     if (finiteNumber(yOffset) !== 0) words.push(`y=${formatNumber(yOffset)}`);
   }
@@ -235,7 +161,55 @@ const translateDrill = (operation, dimensions, configuration) => {
   return [xboLine({ x, y, z, diameter, count, xOffset, yOffset })];
 };
 
-const translateShelfRow = (operation, dimensions, configuration) => {
+const connectorIntents = new Set([
+  MACHINING_INTENT_IDS.JOINT_CONNECTOR,
+  MACHINING_INTENT_IDS.JOINT_SCREW
+]);
+
+const isVerticalConnectorCycle = operation =>
+  operation.kind === MACHINING_KINDS.DRILL_LINEAR_PATTERN &&
+  connectorIntents.has(operation.intentId);
+
+const translateVerticalConnector = (operation, dimensions) => {
+  const x = finiteNumber(operation.x);
+  const depth = finiteNumber(operation.depth ?? operation.z);
+  const diameter = finiteNumber(operation.diameter);
+  const configuredSpacing = finiteNumber(operation.spacing);
+  const positions = Array.isArray(operation.positions)
+    ? operation.positions.map(finiteNumber).filter(value => value !== null).sort((left, right) => left - right)
+    : [];
+  const start = positions[0] ?? finiteNumber(operation.y ?? operation.rowStart);
+  const count = Math.max(1, Math.floor(finiteNumber(operation.count) ?? positions.length ?? 1));
+  const spacing = configuredSpacing ?? (
+    positions.length > 1
+      ? positions[1] - positions[0]
+      : 32
+  );
+  const last = positions.at(-1) ?? (
+    start === null || spacing === null
+      ? null
+      : start + Math.max(0, count - 1) * spacing
+  );
+  const endOffset = finiteNumber(operation.rowEnd) ?? (
+    last === null ? null : Math.max(0, dimensions.y - last)
+  );
+
+  if ([x, start, endOffset, depth, diameter, spacing].some(value => value === null)) {
+    return null;
+  }
+
+  return [[
+    "VB1",
+    `X=${formatNumber(x)}`,
+    `Y=${formatNumber(start)}`,
+    `y=${formatNumber(endOffset)}`,
+    `Z=${formatNumber(depth)}`,
+    `R=${formatNumber(spacing)}`,
+    `D=${formatNumber(diameter)}`
+  ].join(" ")];
+};
+
+const translateGenericDrillRow = (operation, dimensions, configuration) => {
   const start = finiteNumber(operation.start);
   const end = finiteNumber(operation.end);
   const spacing = finiteNumber(operation.spacing);
@@ -268,7 +242,44 @@ const translateShelfRow = (operation, dimensions, configuration) => {
   );
 };
 
-const translateHorizontalBore = (operation, dimensions, configuration) => {
+const translateShelfRow = (operation, dimensions, configuration) => {
+  const spacing = finiteNumber(operation.spacing);
+  const isNativeShelfRow = operation.intentId === MACHINING_INTENT_IDS.SHELF_PIN_ROW &&
+    spacing !== null && Math.abs(spacing - 32) <= 0.0001;
+  if (!isNativeShelfRow) {
+    return translateGenericDrillRow(operation, dimensions, configuration);
+  }
+
+  const centered = operation.centered === true || operation.source?.centered === true;
+  const start = finiteNumber(centered ? operation.rangeStart ?? operation.start : operation.start);
+  const end = finiteNumber(centered ? operation.rangeEnd ?? operation.end : operation.end);
+  const depth = finiteNumber(operation.depth ?? operation.z);
+  const positions = (Array.isArray(operation.crossPositions) ? operation.crossPositions : [])
+    .map(finiteNumber)
+    .filter(value => value !== null)
+    .sort((left, right) => left - right);
+  const frontOffset = positions[0];
+  const backOffset = positions.length
+    ? Math.max(0, dimensions.y - positions.at(-1))
+    : null;
+  const endOffset = end === null ? null : Math.max(0, dimensions.x - end);
+
+  if ([start, end, endOffset, frontOffset, backOffset, depth].some(value => value === null) || end < start) {
+    return null;
+  }
+
+  return [[
+    centered ? "LR2M" : "LR2",
+    `X=${formatNumber(start)}`,
+    `Y=${formatNumber(frontOffset)}`,
+    `Z=${formatNumber(depth)}`,
+    `x=${formatNumber(endOffset)}`,
+    `y=${formatNumber(backOffset)}`,
+    ...(centered ? [] : ["C=0", "P=0"])
+  ].join(" ")];
+};
+
+const translateHorizontalBore = (operation, dimensions) => {
   const positions = Array.isArray(operation.positions)
     ? operation.positions.map(finiteNumber).filter((value) => value !== null)
     : [];
@@ -282,11 +293,9 @@ const translateHorizontalBore = (operation, dimensions, configuration) => {
       ? (finiteNumber(operation.spacing) ?? sorted[1] - sorted[0])
       : (finiteNumber(operation.spacing) ?? 32);
   const endOffset = Math.max(0, dimensions.y - sorted.at(-1));
-  const face = operation.edge === "right" ? 2 : 3;
   const height = finiteNumber(operation.height) ?? dimensions.z / 2;
 
   return [
-    `F=${face}`,
     [
       "VBH",
       `X=${formatNumber(height)}`,
@@ -295,8 +304,7 @@ const translateHorizontalBore = (operation, dimensions, configuration) => {
       `Z=${formatNumber(z)}`,
       `R=${formatNumber(spacing)}`,
       `D=${formatNumber(diameter)}`
-    ].join(" "),
-    "F=1"
+    ].join(" ")
   ];
 };
 
@@ -307,7 +315,7 @@ const translateGroove = (operation, dimensions, configuration) => {
   const z = finiteNumber(operation.start?.z ?? operation.depth);
   const width = finiteNumber(operation.width);
   const tool = configuredTool(operation, configuration, configuration.grooveTool).number;
-  const correction = finiteNumber(configuration.grooveCorrection ?? 0);
+  const correction = 3;
   if ([x, endX, y, z, width, tool, correction].some((value) => value === null))
     return null;
 
@@ -325,65 +333,219 @@ const translateGroove = (operation, dimensions, configuration) => {
   ];
 };
 
-const translateMilling = (operation, dimensions, configuration, state) => {
-  const machineTool = configuredTool(operation, configuration, configuration.millingTool);
-  if (machineTool.number === null) return null;
-  const feed = finiteNumber(operation.feed);
-  const line = (type, point, includeTool = false) => {
-    const pointX = finiteNumber(point?.x);
-    const pointY = finiteNumber(point?.y);
-    const pointZ = finiteNumber(point?.z);
-    const x = pointX ?? state.x;
-    const y = pointY === null ? state.y : transformY(pointY, dimensions, configuration);
-    const z = pointZ ?? state.z;
-    if ([x, y, z].some(value => value === null)) return null;
-    const words = [type, `X=${formatNumber(x)}`, `Y=${formatNumber(y)}`, `Z=${formatNumber(z)}`];
-    if (includeTool) words.push(`T=${formatNumber(machineTool.number)}`);
-    if (feed !== null && type !== "XG0") words.push(`V=${formatNumber(feed)}`);
-    state.x = x;
-    state.y = y;
-    state.z = z;
-    return words.join(" ");
+const point3 = (value, fallback = {}) => {
+  const coordinate = (primary, secondary) => {
+    const first = primary === null || primary === undefined || primary === ""
+      ? null
+      : finiteNumber(primary);
+    if (first !== null) return first;
+    return secondary === null || secondary === undefined || secondary === ""
+      ? null
+      : finiteNumber(secondary);
   };
-
-  if (operation.motion === "rapid") {
-    const rapid = line("XG0", operation.target, true);
-    return rapid ? [rapid] : null;
-  }
-
-  if (operation.motion === "arc") {
-    const points = arcPoints(operation, machineTool.diameter, configuration);
-    if (!points?.length) return null;
-    const start = line("XG0", points[0], true);
-    const segments = points.slice(1).map(point => line("XL2P", point)).filter(Boolean);
-    return start && segments.length === points.length - 1 ? [start, ...segments] : null;
-  }
-
-  const compensated = compensatedLine(operation, machineTool.diameter);
-  const lines = [];
-  const programmedStart = compensated.start ?? operation.start;
-  const startX = finiteNumber(programmedStart?.x);
-  const startY = transformY(programmedStart?.y, dimensions, configuration);
-  const startZ = finiteNumber(programmedStart?.z);
-  const startDiffersFromMachine = programmedStart && (
-    state.x === null || state.y === null || state.z === null ||
-    [startX, startY, startZ].some(value => value === null) ||
-    Math.abs(state.x - startX) > 0.0001 ||
-    Math.abs(state.y - startY) > 0.0001 ||
-    Math.abs(state.z - startZ) > 0.0001
-  );
-  if (startDiffersFromMachine) {
-    const start = line("XG0", compensated.start, true);
-    if (!start) return null;
-    lines.push(start);
-  }
-  const target = line("XL2P", compensated.target ?? operation.target);
-  if (!target) return null;
-  lines.push(target);
-  return lines;
+  const x = coordinate(value?.x, fallback.x);
+  const y = coordinate(value?.y, fallback.y);
+  const z = coordinate(value?.z, fallback.z);
+  return { x, y, z };
 };
 
-const translateOperation = (operation, dimensions, configuration, state) => {
+const pointsMatch = (left, right, tolerance = 0.001) => {
+  const first = point3(left);
+  const second = point3(right);
+  return [first.x, first.y, first.z, second.x, second.y, second.z].every(value => value !== null) &&
+    Math.abs(first.x - second.x) <= tolerance &&
+    Math.abs(first.y - second.y) <= tolerance &&
+    Math.abs(first.z - second.z) <= tolerance;
+};
+
+const lineIntersection = (first, second) => {
+  const a = point3(first.start);
+  const b = point3(first.target);
+  const c = point3(second.start);
+  const d = point3(second.target);
+  if ([a.x, a.y, b.x, b.y, c.x, c.y, d.x, d.y].some(value => value === null)) return null;
+  const abX = b.x - a.x;
+  const abY = b.y - a.y;
+  const cdX = d.x - c.x;
+  const cdY = d.y - c.y;
+  const denominator = abX * cdY - abY * cdX;
+  if (Math.abs(denominator) < 0.000001) return null;
+  const acX = c.x - a.x;
+  const acY = c.y - a.y;
+  const factor = (acX * cdY - acY * cdX) / denominator;
+  return {
+    x: a.x + factor * abX,
+    y: a.y + factor * abY,
+    z: b.z ?? c.z
+  };
+};
+
+const normalizeNativeFillets = operations => {
+  const normalized = operations.map(operation => ({
+    ...operation,
+    start: operation.start ? { ...operation.start } : operation.start,
+    target: operation.target ? { ...operation.target } : operation.target
+  }));
+
+  for (let index = 0; index < normalized.length; index += 1) {
+    const operation = normalized[index];
+    if (operation.motion !== "arc") continue;
+    const previous = normalized[index - 1];
+    const next = normalized[index + 1];
+    if (previous?.motion !== "linear" || next?.motion !== "linear") {
+      return {
+        error: "XGFIL benoetigt unmittelbar davor und danach jeweils eine Fraesgerade.",
+        operation
+      };
+    }
+    if (!pointsMatch(previous.target, operation.start) || !pointsMatch(operation.target, next.start)) {
+      return {
+        error: "Die Radiusgeometrie ist nicht tangential mit den angrenzenden Fraesgeraden verbunden.",
+        operation
+      };
+    }
+    const corner = lineIntersection(previous, next);
+    if (!corner) {
+      return {
+        error: "Der gemeinsame Eckpunkt der Geraden fuer XGFIL konnte nicht bestimmt werden.",
+        operation
+      };
+    }
+    previous.target = { ...previous.target, ...corner };
+    next.start = { ...next.start, ...corner };
+  }
+
+  return { operations: normalized };
+};
+
+const compensationCode = (compensation, configuration) => {
+  if (compensation !== "left" && compensation !== "right") return 0;
+  const mirrored = configuration.flipYAxis !== false;
+  if (compensation === "left") return mirrored ? 1 : 2;
+  return mirrored ? 2 : 1;
+};
+
+const machinePoint = (value, dimensions, configuration, fallback = {}) => {
+  const source = point3(value, fallback);
+  return {
+    x: source.x,
+    y: source.y === null ? null : transformY(source.y, dimensions, configuration),
+    z: source.z
+  };
+};
+
+const millingLine = (type, point, feed = null, tool = null) => {
+  if ([point.x, point.y, point.z].some(value => value === null)) return null;
+  const words = [type, `X=${formatNumber(point.x)}`, `Y=${formatNumber(point.y)}`, `Z=${formatNumber(point.z)}`];
+  if (tool !== null) words.push(`T=${formatNumber(tool)}`);
+  if (feed !== null && type !== "XG0") words.push(`V=${formatNumber(feed)}`);
+  return words.join(" ");
+};
+
+const splitMillingPaths = operations => {
+  const paths = [];
+  let current = [];
+  operations.forEach(operation => {
+    if (operation.motion === "rapid" && current.length) {
+      paths.push(current);
+      current = [];
+    }
+    current.push(operation);
+  });
+  if (current.length) paths.push(current);
+  return paths;
+};
+
+const translateMillingPath = (path, dimensions, configuration) => {
+  const unsupportedFace = path.find(operation => !operationFaceSupported(operation));
+  if (unsupportedFace) {
+    return {
+      error: "Nur Fraespfade auf Werkstueckseite A sind fuer Xilog 3 freigegeben.",
+      operation: unsupportedFace
+    };
+  }
+  const rapid = path[0]?.motion === "rapid" ? path[0] : null;
+  const cutting = rapid ? path.slice(1) : path;
+  const normalizedResult = normalizeNativeFillets(cutting);
+  if (normalizedResult.error) return normalizedResult;
+  const normalized = normalizedResult.operations;
+  const reference = normalized[0] ?? rapid;
+  if (!reference) return { lines: [] };
+  const machineTool = configuredTool(reference, configuration, configuration.millingTool);
+  if (machineTool.number === null) {
+    return { error: "Fuer den Fraespfad ist kein gueltiges Xilog-Werkzeug hinterlegt.", operation: reference };
+  }
+  const compensation = reference.compensation ?? rapid?.compensation ?? "center";
+  const toolId = reference.toolId ?? rapid?.toolId ?? null;
+  const incompatible = normalized.find(operation =>
+    (operation.compensation ?? compensation) !== compensation ||
+    (toolId !== null && operation.toolId !== undefined && operation.toolId !== toolId)
+  );
+  if (incompatible) {
+    return {
+      error: "Werkzeug oder Radiuskorrektur darf innerhalb eines Fraespfads nicht wechseln. Bitte einen neuen G0-Start einfuegen.",
+      operation: incompatible
+    };
+  }
+
+  const firstCut = normalized[0];
+  const rawStart = rapid?.target ?? firstCut?.start;
+  if (!rawStart) {
+    return { error: "Dem Fraespfad fehlt ein Startpunkt fuer XG0.", operation: reference };
+  }
+  if (rapid && firstCut?.start && !pointsMatch(rapid.target, firstCut.start)) {
+    return {
+      error: "Der XG0-Startpunkt stimmt nicht mit dem Anfang der ersten Fraesgeraden ueberein.",
+      operation: firstCut
+    };
+  }
+
+  const start = machinePoint(rawStart, dimensions, configuration);
+  const startLine = millingLine("XG0", start, null, machineTool.number);
+  if (!startLine) return { error: "Der XG0-Startpunkt ist unvollstaendig.", operation: reference };
+  const lines = [`C=${compensationCode(compensation, configuration)}`, startLine];
+  let current = point3(rawStart);
+
+  for (let index = 0; index < normalized.length; index += 1) {
+    const operation = normalized[index];
+    if (operation.motion === "arc") {
+      const radius = finiteNumber(operation.radius);
+      if (!(radius > 0)) return { error: "XGFIL benoetigt einen positiven Radius.", operation };
+      lines.push(`XGFIL r=${formatNumber(radius)}`);
+      continue;
+    }
+    if (operation.motion !== "linear") {
+      return { error: `Unbekannte Fraesbewegung ${operation.motion ?? "ohne Kennung"}.`, operation };
+    }
+    const operationStart = point3(operation.start, current);
+    if (!pointsMatch(current, operationStart)) {
+      return {
+        error: "Der Fraespfad ist unterbrochen. Vor einem neuen Pfad muss ein XG0-Start eingefuegt werden.",
+        operation
+      };
+    }
+    const target = point3(operation.target, current);
+    const outputTarget = machinePoint(target, dimensions, configuration);
+    const line = millingLine("XL2P", outputTarget, finiteNumber(operation.feed));
+    if (!line) return { error: "Das Ziel der Fraesgeraden ist unvollstaendig.", operation };
+    lines.push(line);
+    current = target;
+  }
+
+  return { lines };
+};
+
+const translateMillingRun = (operations, dimensions, configuration) => {
+  const lines = [];
+  for (const path of splitMillingPaths(operations)) {
+    const result = translateMillingPath(path, dimensions, configuration);
+    if (result.error) return result;
+    lines.push(...result.lines);
+  }
+  return { lines };
+};
+
+const translateOperation = (operation, dimensions, configuration) => {
   if (!operationFaceSupported(operation))
     return {
       error:
@@ -393,20 +555,21 @@ const translateOperation = (operation, dimensions, configuration, state) => {
   switch (operation.kind) {
     case MACHINING_KINDS.DRILL_POINT:
     case MACHINING_KINDS.DRILL_PATTERN:
-    case MACHINING_KINDS.DRILL_LINEAR_PATTERN:
       return { lines: translateDrill(operation, dimensions, configuration) };
+    case MACHINING_KINDS.DRILL_LINEAR_PATTERN:
+      return {
+        lines: isVerticalConnectorCycle(operation)
+          ? translateVerticalConnector(operation, dimensions)
+          : translateDrill(operation, dimensions, configuration)
+      };
     case MACHINING_KINDS.DRILL_ROW:
       return { lines: translateShelfRow(operation, dimensions, configuration) };
     case MACHINING_KINDS.DRILL_EDGE_PATTERN:
       return {
-        lines: translateHorizontalBore(operation, dimensions, configuration)
+        lines: translateHorizontalBore(operation, dimensions)
       };
     case MACHINING_KINDS.MILL_GROOVE:
       return { lines: translateGroove(operation, dimensions, configuration) };
-    case MACHINING_KINDS.MILL_PATH:
-      return {
-        lines: translateMilling(operation, dimensions, configuration, state)
-      };
     default:
       return {
         error: `Bearbeitungsart ${operation.kind || "ohne Kennung"} wird vom Xilog-3-Erstentwurf nicht unterstuetzt.`
@@ -418,7 +581,7 @@ export const xilog3Routolink = {
   manifest: {
     id: "scm-xilog3-routolink",
     name: "SCM Xilog 3 · RoutoLink",
-    version: "0.3.0",
+    version: "0.4.3",
     apiVersion: POSTPROCESSOR_API_VERSION,
     description:
       "Erzeugt importierbare Xilog-3-XXL-Programme auf Basis der Wiest-Runtime und ihrer installierten Festzyklen.",
@@ -435,7 +598,7 @@ export const xilog3Routolink = {
         "connector.drill",
         "Bohrverbinder",
         [MACHINING_KINDS.DRILL_POINT, MACHINING_KINDS.DRILL_PATTERN, MACHINING_KINDS.DRILL_LINEAR_PATTERN, MACHINING_KINDS.DRILL_EDGE_PATTERN],
-        "Optimierte XBO-Bohrungen und der installierte VBH-Festzyklus."
+        "Native installierte VB1/VBH-Festzyklen sowie XBO-Einzel- und Rasterbohrungen."
       ),
       strategy(
         "connector.screw",
@@ -447,7 +610,7 @@ export const xilog3Routolink = {
         "shelf.row",
         "Fachboden-Lochreihe",
         [MACHINING_KINDS.DRILL_ROW],
-        "Eine oder zwei optimierte XBO-Lochreihen."
+        "Native LR2-Lochreihe oder mittig verteilte LR2M-Lochreihe im 32-mm-Raster."
       ),
       strategy(
         "drawer.legrabox",
@@ -489,7 +652,7 @@ export const xilog3Routolink = {
         "back.rabbet",
         "Rueckwandfalz",
         [MACHINING_KINDS.MILL_PATH],
-        "Fraesstart und lineare Fraesbewegungen mit XG0/XL2P."
+        "Zusammenhaengende Fraespfade mit XG0, XL2P und nativen XGFIL-Radien."
       ),
       strategy(
         "manual.drilling",
@@ -507,7 +670,7 @@ export const xilog3Routolink = {
         "manual.milling",
         "Manuelles Fraesen",
         [MACHINING_KINDS.MILL_PATH],
-        "G0, Geraden und linearisierte Radiusbahnen."
+        "G0, Geraden, native Werkzeugkorrektur C=0/C=1/C=2 und XGFIL-Radien."
       )
     ],
     configuration: [
@@ -570,26 +733,11 @@ export const xilog3Routolink = {
         defaultValue: 81
       },
       {
-        key: "grooveCorrection",
-        label: "Korrektur Rueckwandnut",
-        type: "number",
-        min: 0,
-        defaultValue: 3
-      },
-      {
         key: "millingTool",
         label: "Standard-Fraeswerkzeug",
         type: "number",
         min: 1,
         defaultValue: 114
-      },
-      {
-        key: "arcSegmentLength",
-        label: "Segmentlaenge Radiusbahn",
-        type: "number",
-        min: 0.5,
-        unit: "mm",
-        defaultValue: 5
       },
       {
         key: "toolDatabase",
@@ -670,9 +818,13 @@ export const xilog3Routolink = {
     ];
     if (header.sx) lines.push("SX=1");
     if (header.sy) lines.push("SY=1");
-    const state = { x: null, y: null, z: null };
-
-    operations.forEach((operation) => {
+    let activeMachiningFace = 1;
+    const activateMachiningFace = face => {
+      if (face === activeMachiningFace) return;
+      lines.push(`F=${face}`);
+      activeMachiningFace = face;
+    };
+    const validateOperation = operation => {
       const assignment = resolvedMachining[operation.intentId]?.assignment;
       const strategy = this.manifest.supportedMachiningStrategies.find(
         item => item.id === assignment?.strategyId
@@ -684,13 +836,46 @@ export const xilog3Routolink = {
           `Der Endpunkt ${operation.intentId ?? "ohne Kennung"} ist keiner passenden Xilog-Strategie zugeordnet.`,
           operation
         ));
-        return;
+        return false;
       }
+      return true;
+    };
+
+    for (let index = 0; index < operations.length;) {
+      const operation = operations[index];
+      if (!validateOperation(operation)) {
+        index += 1;
+        continue;
+      }
+
+      if (operation.kind === MACHINING_KINDS.MILL_PATH) {
+        const millingOperations = [];
+        let end = index;
+        while (end < operations.length && operations[end].kind === MACHINING_KINDS.MILL_PATH) {
+          if (validateOperation(operations[end])) millingOperations.push(operations[end]);
+          end += 1;
+        }
+        const result = translateMillingRun(millingOperations, dimensions, configuration);
+        if (result.error || !result.lines) {
+          const failedOperation = result.operation ?? operation;
+          diagnostics.push(diagnostic(
+            "error",
+            result.error ? "UNSUPPORTED_XILOG_MILLING_PATH" : "INVALID_XILOG_OPERATION",
+            result.error ?? "Der Fraespfad enthaelt unvollstaendige oder ungueltige Geometriedaten.",
+            failedOperation
+          ));
+        } else {
+          activateMachiningFace(1);
+          lines.push(...result.lines);
+        }
+        index = end;
+        continue;
+      }
+
       const result = translateOperation(
         operation,
         dimensions,
-        configuration,
-        state
+        configuration
       );
       if (result.error || !result.lines) {
         diagnostics.push(
@@ -704,16 +889,24 @@ export const xilog3Routolink = {
             operation
           )
         );
-        return;
+        index += 1;
+        continue;
       }
+      activateMachiningFace(
+        operation.kind === MACHINING_KINDS.DRILL_EDGE_PATTERN
+          ? (operation.edge === "right" ? 2 : 3)
+          : 1
+      );
       lines.push(...result.lines);
-    });
+      index += 1;
+    }
 
     if (diagnostics.some((entry) => entry.level === "error")) {
       return { supported: false, code: null, diagnostics };
     }
 
-    lines.push(`N=${formatNumber(departure.position)}`);
+    activateMachiningFace(1);
+    lines.push(`N X=${formatNumber(departure.position)}`);
 
     diagnostics.push(
       diagnostic(

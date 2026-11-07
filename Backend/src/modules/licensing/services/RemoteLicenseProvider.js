@@ -54,9 +54,11 @@ function remoteConfiguration(environment = process.env) {
       503
     );
   }
-  if (environment.NODE_ENV === "production" && baseUrl.protocol !== "https:") {
+  const allowPrivateHttp = environment.LICENSE_SERVER_ALLOW_PRIVATE_HTTP === "true"
+    && (baseUrl.hostname.endsWith(".svc") || baseUrl.hostname.endsWith(".svc.cluster.local"));
+  if (environment.NODE_ENV === "production" && baseUrl.protocol !== "https:" && !allowPrivateHttp) {
     throw new LicenseError(
-      "LICENSE_SERVER_URL muss in Produktion HTTPS verwenden",
+      "LICENSE_SERVER_URL muss in Produktion HTTPS oder einen explizit erlaubten Kubernetes-Service verwenden",
       "LICENSE_CONFIGURATION",
       503
     );

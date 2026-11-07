@@ -134,6 +134,29 @@ test("Remote-Konfiguration verlangt in Produktion HTTPS", () => {
   );
 });
 
+test("Remote-Konfiguration erlaubt explizit interne Kubernetes-Dienste", () => {
+  const configuration = remoteConfiguration({
+    ...environment,
+    NODE_ENV: "production",
+    LICENSE_SERVER_URL: "http://licensing-backend.storage.svc.cluster.local:5100/",
+    LICENSE_SERVER_ALLOW_PRIVATE_HTTP: "true"
+  });
+
+  assert.equal(configuration.baseUrl.toString(), "http://licensing-backend.storage.svc.cluster.local:5100/");
+});
+
+test("Private-HTTP-Ausnahme gilt nicht für öffentliche Hosts", () => {
+  assert.throws(
+    () => remoteConfiguration({
+      ...environment,
+      NODE_ENV: "production",
+      LICENSE_SERVER_URL: "http://licensing.example.invalid/",
+      LICENSE_SERVER_ALLOW_PRIVATE_HTTP: "true"
+    }),
+    error => error instanceof LicenseError && error.code === "LICENSE_CONFIGURATION"
+  );
+});
+
 test("HTTP-Fehler des Lizenzservers werden ohne fremde Antwortdetails übersetzt", async () => {
   const provider = new RemoteLicenseProvider({
     environment,

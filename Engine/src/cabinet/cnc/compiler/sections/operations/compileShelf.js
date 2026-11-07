@@ -110,6 +110,10 @@ export const compileShelf = ({
         startFromBottom;
 
 
+    const rangeStart = start;
+    const rangeEnd = end;
+
+
     if (
         func.holeRow?.centered === true &&
         Number.isFinite(spacing) &&
@@ -152,6 +156,13 @@ export const compileShelf = ({
                 end,
 
                 spacing,
+
+                centered:
+                    func.holeRow?.centered === true,
+
+                rangeStart,
+
+                rangeEnd,
 
                 depth:
                     config.shelf.depth,

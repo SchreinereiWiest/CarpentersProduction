@@ -28,15 +28,15 @@ Jede gespeicherte Bearbeitung besitzt zwei stabile Kennungen:
 - `kind` beschreibt ausschließlich die Geometrie, beispielsweise `drill.point`, `drill.row`, `mill.groove` oder `mill.path`.
 - `intentId` beschreibt den fachlichen Zweck, beispielsweise `shelf.pinRow`, `front.hingeCup` oder `back.groove`.
 
-Herstellerbefehle wie `RNT`, `VBH`, `XG0` oder `XL2P`, Werkzeugnummern und Maschinenzyklen dürfen nur innerhalb eines konkreten Postprozessors entstehen. Viewer-Operationen sind ein separates Darstellungsformat und werden nicht in der Stückliste gespeichert.
+Herstellerbefehle wie `VB1`, `VBH`, `RNT`, `XG0`, `XL2P` oder `XGFIL`, Werkzeugnummern und Maschinenzyklen dürfen nur innerhalb eines konkreten Postprozessors entstehen. Viewer-Operationen sind ein separates Darstellungsformat und werden nicht in der Stückliste gespeichert.
 
 ## SCM Xilog 3 / RoutoLink (Wiest)
 
 Der registrierte Adapter `scm-xilog3-routolink` ist ein erster Werkstattentwurf auf Grundlage der vorhandenen Xilog-3-Runtime, realer PGM-Programme, der dort installierten Festzyklen und der deutschen Befehlsreferenz. Er erzeugt das von Xilog importierbare ASCII-Format **XXL** mit CRLF-Zeilen und deklariert Windows-1252 als Zielkodierung. Das proprietäre binäre PGM-Format wird bewusst nicht nachgebaut.
 
-Jedes gültige Programm endet mit einem konfigurierbaren Wegfahrschritt `N=<Position>`. Für das einzelne Feld A ist `1600`, für das volle Feld AD `2800` vorbelegt. Beide Werte gehören zur Maschinenkonfiguration des Plugins und können dort angepasst werden.
+Jedes gültige Programm endet mit einem konfigurierbaren Wegfahrschritt `N X=<Position>`. Für das einzelne Feld A ist `1600`, für das volle Feld AD `2800` vorbelegt. Beide Werte gehören zur Maschinenkonfiguration des Plugins und können dort angepasst werden.
 
-Aktuell übersetzt der Adapter neutrale Bohr-, Lochreihen-, Nut- und Pfadoperationen auf Werkstückseite A in die benötigten Xilog-Befehle. Für horizontale Bohrungen und Rückwandnuten werden die in der Wiest-Runtime vorhandenen Zyklen `VBH` und `RNT` angesprochen. Unbekannte Endpunkte, fehlende Strategiezuordnungen oder unvollständige Geometrie blockieren den Export vollständig.
+Aktuell übersetzt der Adapter neutrale Bohr-, Lochreihen-, Nut- und Pfadoperationen auf Werkstückseite A in die benötigten Xilog-Befehle. Semantisch erkannte Verbinderreihen verwenden die installierten Festzyklen `VB1` beziehungsweise `VBH`; allgemeine Bohrbilder bleiben `XBO` und führen den Wiederholungswert auch bei Einzelbohrungen als `R=1`. Aufeinanderfolgende `VBH`-Bearbeitungen wechseln direkt zwischen `F=2` und `F=3`; `F=1` wird erst für die nächste Flächenbearbeitung oder am Programmende wiederhergestellt. Klassische Fachboden-Lochreihen verwenden `LR2`, mittig verteilte Reihen `LR2M`; dabei ist `X` der Abstand von links und `x` der Abstand von rechts. Abweichende Raster bleiben allgemeine `XBO`-Reihen. Ein Fräspfad beginnt genau einmal mit `XG0`, führt Geraden mit `XL2P` fort und übersetzt einen Radius zwischen zwei Geraden nativ als `XGFIL r=…`. Die Radiuskorrektur wird pro Pfad über `C=0`, `C=1` oder `C=2` gesetzt. Rückwandnuten verwenden `RNT` grundsätzlich mit `C=3`. Unbekannte Endpunkte, unterbrochene Fräspfade, fehlende Strategiezuordnungen oder unvollständige Geometrie blockieren den Export vollständig.
 
 Jede erzeugte Datei trägt die Diagnose `XILOG3_IMPORT_VALIDATION_REQUIRED`: XXL in Xilog 3 importieren, grafisch prüfen und erst nach Maschinenfreigabe in PGM übernehmen. Direkter Maschinentransport ist nicht Bestandteil dieses Plugins.
 

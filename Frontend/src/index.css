@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "flowbite/src/themes/default";
 
 .no-spinner::-webkit-inner-spin-button,
 .no-spinner::-webkit-outer-spin-button {

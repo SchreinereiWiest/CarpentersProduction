@@ -44,6 +44,9 @@ describe("mittige Lochreihe", () => {
         expect(operation.end).toBe(466.5);
         expect(operation.start - requestedStart).toBe(requestedEnd - operation.end);
         expect((operation.end - operation.start) / operation.spacing).toBe(12);
+        expect(operation.centered).toBe(true);
+        expect(operation.rangeStart).toBe(requestedStart);
+        expect(operation.rangeEnd).toBe(requestedEnd);
         expect(operation.source.centered).toBe(true);
     });
 
@@ -52,6 +55,9 @@ describe("mittige Lochreihe", () => {
 
         expect(operation.start).toBe(73);
         expect(operation.end).toBe(476);
+        expect(operation.centered).toBe(false);
+        expect(operation.rangeStart).toBe(73);
+        expect(operation.rangeEnd).toBe(476);
         expect(operation.source.centered).toBe(false);
     });
 });
