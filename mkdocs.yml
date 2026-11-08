@@ -97,6 +97,7 @@ nav:
       - Zeiterfassung: backend/time-tracking.md
       - Benutzer: backend/users.md
       - Dateien, Material & Einstellungen: backend/files-storage-settings.md
+      - Paperless-ngx-Integration: backend/paperless.md
       - Funktionsreferenz: backend/functions.md
       - Sicherheit & bekannte Risiken: backend/security.md
   - Datenbank: database/index.md

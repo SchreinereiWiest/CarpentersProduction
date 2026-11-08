@@ -12,6 +12,7 @@ import requests
 from .pipeline import (
     ScanProcessingError,
     decode_identifier,
+    decode_qr_values,
     extract_fields,
     iter_document_pages,
     rectify_page,
@@ -165,6 +166,67 @@ def process_job(job: dict[str, Any]) -> None:
             LOGGER.exception("failure callback failed scan=%s", scan_id)
 
 
+def process_paperless_qr_job(job: dict[str, Any]) -> None:
+    document_id = str(job["documentId"])
+    tenant_id = str(job["tenantId"])
+    LOGGER.info("processing paperless QR document=%s", document_id)
+    try:
+        response = requests.get(
+            job["downloadUrl"], headers={"x-measurement-ocr-secret": SECRET}, timeout=90
+        )
+        response.raise_for_status()
+        values: list[dict[str, Any]] = []
+        try:
+            maximum_pages = min(
+                20, max(1, int(os.getenv("PAPERLESS_QR_MAX_PAGES", "5")))
+            )
+        except ValueError:
+            maximum_pages = 5
+        inspected_pages = 0
+        for source_page, source in iter_document_pages(
+            response.content,
+            str(job.get("mimeType") or response.headers.get("content-type") or ""),
+            page_limit=maximum_pages,
+        ):
+            inspected_pages += 1
+            values.extend(
+                {"value": value, "sourcePage": source_page}
+                for value in decode_qr_values(source)
+            )
+            if any(
+                entry["value"].startswith(("CPD1.", "CPM1:")) for entry in values
+            ):
+                break
+        _post(
+            job["callbackUrl"],
+            {
+                "tenantId": tenant_id,
+                "documentId": document_id,
+                "values": values,
+                "details": {"inspectedPages": inspected_pages},
+            },
+        )
+        LOGGER.info(
+            "finished paperless QR document=%s pages=%d values=%d",
+            document_id,
+            inspected_pages,
+            len(values),
+        )
+    except Exception as error:
+        LOGGER.exception("paperless QR failed document=%s", document_id)
+        try:
+            _post(
+                job["callbackUrl"],
+                {
+                    "tenantId": tenant_id,
+                    "documentId": document_id,
+                    "error": str(error),
+                },
+            )
+        except Exception:
+            LOGGER.exception("paperless QR failure callback failed document=%s", document_id)
+
+
 def main() -> None:
     client = redis.Redis.from_url(VALKEY_URL, decode_responses=True)
     while True:
@@ -173,7 +235,11 @@ def main() -> None:
             if not entry:
                 continue
             _, raw_job = entry
-            process_job(json.loads(raw_job))
+            job = json.loads(raw_job)
+            if job.get("type") == "paperless-document-qr":
+                process_paperless_qr_job(job)
+            else:
+                process_job(job)
         except (redis.RedisError, requests.RequestException, json.JSONDecodeError, KeyError, ScanProcessingError):
             LOGGER.exception("worker loop error")
             time.sleep(3)

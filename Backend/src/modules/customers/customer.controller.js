@@ -249,6 +249,9 @@ export const getCustomerInfo = async (req, res) => {
   },
   include: {
     addresses: true,
+    paperlessDocuments: {
+      orderBy: { linkedAt: "desc" }
+    },
   },
 });
 

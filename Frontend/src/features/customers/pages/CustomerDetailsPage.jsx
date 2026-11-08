@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from "react-router";
 import SideBar from "../../../shared/components/sideBar.jsx";
 import { formatGermanDate } from "../../../shared/utils/date.js";
 import ProjectImportDialog from "../../projects/import/ProjectImportDialog.jsx";
+import PaperlessDocumentViewer from "../../../shared/components/PaperlessDocumentViewer.jsx";
 
 const Detail = ({ label, children }) => (
   <div>
@@ -18,6 +19,7 @@ export default function CustomerDetailsPage() {
   const [customer, setCustomer] = useState(null);
   const [projects, setProjects] = useState([]);
   const [showImport, setShowImport] = useState(false);
+  const [viewingPaperless, setViewingPaperless] = useState(null);
   const [error, setError] = useState("");
 
   const loadProjects = async () => {
@@ -93,6 +95,8 @@ export default function CustomerDetailsPage() {
                   ))}
                 </div>
               </section>
+
+              {(customer?.paperlessDocuments ?? []).length > 0 && <section className="rounded-xl border border-violet-900/60 bg-gray-800 p-4"><h2 className="font-semibold text-violet-200">Paperless-Dokumente</h2><div className="mt-3 space-y-2">{customer.paperlessDocuments.map(document => <button key={document.id} type="button" onClick={() => setViewingPaperless(document)} className="flex w-full items-center gap-3 rounded-lg bg-gray-900 p-2 text-left hover:bg-slate-700"><img src={`/api/paperless/documents/${document.id}/thumbnail?v=2`} alt="" loading="lazy" className="h-14 w-11 shrink-0 rounded bg-slate-950 object-contain"/><span className="min-w-0"><span className="block truncate text-sm text-sky-300">{document.title}</span><span className="block truncate text-xs text-slate-500">{document.documentType || document.originalFileName || "Paperless-Dokument"}</span></span></button>)}</div></section>}
             </aside>
 
             <section className="min-w-0 w-full flex-1 overflow-hidden rounded-xl border border-slate-800 bg-gray-800">
@@ -132,6 +136,7 @@ export default function CustomerDetailsPage() {
           navigate(`/Projects/${projectId}`);
         }}
       />
+      {viewingPaperless && <PaperlessDocumentViewer document={viewingPaperless} onClose={() => setViewingPaperless(null)} />}
     </div>
   );
 }

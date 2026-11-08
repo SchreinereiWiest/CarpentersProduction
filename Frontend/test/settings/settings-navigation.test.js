@@ -8,6 +8,6 @@ describe("settings navigation", () => {
     expect(ids).not.toContain("shop");
     expect(ids).not.toContain("company");
     expect(ids.at(-1)).toBe("advanced");
-    expect(advancedSettingsTabs.map(tab => tab.id)).toEqual(expect.arrayContaining(["shop", "company"]));
+    expect(advancedSettingsTabs.map(tab => tab.id)).toEqual(expect.arrayContaining(["shop", "company", "documents"]));
   });
 });

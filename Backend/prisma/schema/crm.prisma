@@ -35,7 +35,8 @@ model Customer {
   addresses      CustomerAddress[]
   communications Communication[]
   appointments   Appointment[]
-  files          File[]
+  files              File[]
+  paperlessDocuments PaperlessDocument[]
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -113,6 +114,7 @@ model Project {
   measurementPrintRuns   MeasurementPrintRun[]
   measurementScans       MeasurementScan[]
   calendarEvents         CalendarEvent[]
+  paperlessDocuments     PaperlessDocument[]
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")

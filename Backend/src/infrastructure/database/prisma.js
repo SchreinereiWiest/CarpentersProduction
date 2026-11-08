@@ -57,7 +57,10 @@ const TENANT_DELEGATES = new Set([
     "managementAsset",
     "managementLoan",
     "managementRepayment",
-    "calendarEvent"
+    "calendarEvent",
+    "paperlessConfiguration",
+    "paperlessFolder",
+    "paperlessDocument"
 ]);
 
 const READ_WITH_WHERE = new Set([

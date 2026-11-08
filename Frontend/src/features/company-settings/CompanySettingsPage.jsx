@@ -1,6 +1,7 @@
 
 
 import { useState } from "react";
+import { useSearchParams } from "react-router";
 
 import SideBar from "../../shared/components/sideBar.jsx";
 import SettingsBar from "../../shared/components/settingsBar.jsx";
@@ -38,12 +39,14 @@ import StorageSettingsPanel
 import HourlyRatesSettingsPanel
     from "./panels/hourlyRatesSettingsPanel.jsx";
 import { useAuth } from "../../app/providers/AuthContext.js";
+import PaperlessSettingsPanel from "./panels/paperlessSettingsPanel.jsx";
 
 export const advancedSettingsTabs = [
     { id: "estimation", label: "Stundenschätzung", requiredFeature: "calculation" },
     { id: "hourlyRates", label: "Stundensätze", requiredFeature: "calculation", excludedFeature: "business-management" },
     { id: "ai", label: "AI", requiredFeature: "work-preparation" },
     { id: "company", label: "Unternehmen" },
+    { id: "documents", label: "Dokumente" },
     { id: "shop", label: "Shop", requiredFeature: "shop" }
 ];
 
@@ -51,13 +54,14 @@ export const advancedSettingsTabs = [
 export default function CompanySettings() {
 
     const { user } = useAuth();
+    const [searchParams] = useSearchParams();
 
     const [
         selectedSection,
         setSelectedSection
-    ] = useState("userInterface");
+    ] = useState(() => searchParams.get("section") === "advanced" ? "advanced" : "userInterface");
 
-    const [selectedAdvancedSection, setSelectedAdvancedSection] = useState("estimation");
+    const [selectedAdvancedSection, setSelectedAdvancedSection] = useState(() => searchParams.get("tab") || "estimation");
     const features = new Set(user?.features || []);
     const visibleAdvancedTabs = advancedSettingsTabs.filter(tab =>
         (!tab.requiredFeature || features.has(tab.requiredFeature))
@@ -130,6 +134,11 @@ export default function CompanySettings() {
             case "ai":
                 return (
                     <AttachmentSearchSettingsPanel />
+                );
+
+            case "documents":
+                return (
+                    <PaperlessSettingsPanel />
                 );
 
             case "programSettings":

@@ -18,7 +18,8 @@ model Tenant {
   supplierCatalogArticles SupplierCatalogArticle[]
   calculationSnapshots    CalculationSnapshot[]
   secrets                 TenantSecret[]
-  calendarEvents          CalendarEvent[]
+  calendarEvents         CalendarEvent[]
+  paperlessConfiguration PaperlessConfiguration?
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -114,6 +115,7 @@ model User {
   measurementScans             MeasurementScan[]     @relation("MeasurementScanUploadedBy")
   calendarEventsOwned          CalendarEvent[]       @relation("CalendarEventOwner")
   calendarEventsCreated        CalendarEvent[]       @relation("CalendarEventCreatedBy")
+  paperlessDocumentsLinked     PaperlessDocument[]
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")

@@ -13,7 +13,7 @@ function configurationError() {
     );
 }
 
-export function loadSecretEncryptionKey(raw = process.env.AI_SECRET_ENCRYPTION_KEY) {
+export function loadSecretEncryptionKey(raw = process.env.TENANT_SECRET_ENCRYPTION_KEY || process.env.AI_SECRET_ENCRYPTION_KEY) {
     const value = String(raw || "").trim();
     let key;
     if (/^[a-f0-9]{64}$/i.test(value)) key = Buffer.from(value, "hex");

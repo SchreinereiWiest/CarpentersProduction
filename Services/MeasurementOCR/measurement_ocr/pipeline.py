@@ -41,7 +41,7 @@ def _maximum_document_pages() -> int:
 
 
 def iter_document_pages(
-    content: bytes, mime_type: str = ""
+    content: bytes, mime_type: str = "", page_limit: int | None = None
 ) -> Iterator[tuple[int, np.ndarray]]:
     """Yield rasterized document pages sequentially to bound worker memory use."""
     if mime_type == "application/pdf" or content.startswith(b"%PDF-"):
@@ -49,12 +49,12 @@ def iter_document_pages(
         try:
             if document.page_count < 1:
                 raise ScanProcessingError("Das PDF enthält keine Seite.")
-            maximum = _maximum_document_pages()
-            if document.page_count > maximum:
+            maximum = _maximum_document_pages() if page_limit is None else max(1, page_limit)
+            if page_limit is None and document.page_count > maximum:
                 raise ScanProcessingError(
                     f"Das PDF enthält {document.page_count} Seiten; maximal {maximum} sind erlaubt."
                 )
-            for page_index in range(document.page_count):
+            for page_index in range(min(document.page_count, maximum)):
                 pixmap = document[page_index].get_pixmap(
                     matrix=fitz.Matrix(2.5, 2.5), alpha=False
                 )
@@ -160,6 +160,29 @@ def decode_identifier(image: np.ndarray) -> DecodedPage:
                 normalized_points.tolist(),
             )
     raise ScanProcessingError("Kein gültiger Aufmaß-QR-Identifier erkannt.")
+
+
+def decode_qr_values(image: np.ndarray) -> list[str]:
+    """Decode arbitrary QR payloads without interpreting untrusted contents."""
+    detector = cv2.QRCodeDetector()
+    values: list[str] = []
+    for rotation in (0, 90, 180, 270):
+        rotated = _rotate(image, rotation)
+        try:
+            detected, decoded, _points, _straight = detector.detectAndDecodeMulti(rotated)
+        except (cv2.error, ValueError):
+            detected, decoded = False, ()
+        if detected:
+            values.extend(str(value).strip() for value in decoded if str(value).strip())
+        try:
+            value, _points, _straight = detector.detectAndDecode(rotated)
+        except cv2.error:
+            value = ""
+        if value.strip():
+            values.append(value.strip())
+        if values:
+            break
+    return list(dict.fromkeys(values))
 
 
 def _ordered_quad(points: np.ndarray) -> np.ndarray:

@@ -62,7 +62,7 @@ export async function getCustomerCrm(req, res) {
             orderBy: { startAt: "asc" }
           },
           _count: {
-            select: { files: true, appointments: true, communications: true }
+            select: { files: true, paperlessDocuments: true, appointments: true, communications: true }
           }
         }
       },
@@ -88,6 +88,12 @@ export async function getCustomerCrm(req, res) {
           category: true,
           uploadedAt: true,
           status: true
+        }
+      },
+      paperlessDocuments: {
+        orderBy: { linkedAt: "desc" },
+        include: {
+          project: { select: { id: true, title: true, projectNumber: true } }
         }
       }
     }

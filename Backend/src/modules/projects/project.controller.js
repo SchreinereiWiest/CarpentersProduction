@@ -315,6 +315,9 @@ export const getProject = async (req, res) => {
   },
   include: {
     files: true,
+    paperlessDocuments: {
+      orderBy: { linkedAt: "desc" }
+    },
   },
 });
 
