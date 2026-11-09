@@ -244,6 +244,7 @@ export const paperlessDocumentInclude = {
 export function presentPaperlessDocument(document) {
   return {
     id: document.id,
+    source: "paperless",
     remoteDocumentId: document.remoteDocumentId,
     remoteVersionId: document.remoteVersionId,
     title: document.title,

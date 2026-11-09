@@ -27,12 +27,12 @@ const paperlessDocumentContentUrl = (document, library = false) => library
   : `/api/paperless/documents/${encodeURIComponent(document.id)}/content`;
 
 const readableProgress = bytes => {
-  if (!bytes) return "Paperless-Dokument wird geladen …";
+  if (!bytes) return "Dokument wird geladen …";
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB geladen …`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB geladen …`;
 };
 
-export default function PaperlessDocumentViewer({ document, library = false, onClose }) {
+export default function PaperlessDocumentViewer({ document, library = false, contentUrl = "", sourceLabel = "direkt aus Paperless", onClose }) {
   const { SideBarCollapsed = true } = useApp() || {};
   const titleId = useId();
   const closeButtonRef = useRef(null);
@@ -47,7 +47,8 @@ export default function PaperlessDocumentViewer({ document, library = false, onC
   const [viewerWidth, setViewerWidth] = useState(0);
   const [error, setError] = useState("");
 
-  const url = document ? paperlessDocumentContentUrl(document, library) : "";
+  const url = document ? contentUrl || paperlessDocumentContentUrl(document, library) : "";
+  const isImage = Boolean(contentUrl && document?.mimeType?.startsWith("image/"));
 
   useEffect(() => {
     if (!document) return undefined;
@@ -88,7 +89,7 @@ export default function PaperlessDocumentViewer({ document, library = false, onC
   }, [document]);
 
   useEffect(() => {
-    if (!url) return undefined;
+    if (!url || isImage) return undefined;
     let active = true;
     let loadingTask;
     loadPdfJs()
@@ -107,8 +108,8 @@ export default function PaperlessDocumentViewer({ document, library = false, onC
       })
       .catch(loadError => {
         if (!active || loadError?.name === "AbortException") return;
-        console.error("Paperless-PDF konnte nicht geladen werden:", loadError);
-        setError("Das Dokument konnte nicht aus Paperless geladen werden.");
+        console.error("Dokument-PDF konnte nicht geladen werden:", loadError);
+        setError("Das Dokument konnte nicht geladen werden.");
         setLoading(false);
       });
 
@@ -116,7 +117,7 @@ export default function PaperlessDocumentViewer({ document, library = false, onC
       active = false;
       loadingTask?.destroy();
     };
-  }, [url]);
+  }, [isImage, url]);
 
   useEffect(() => {
     if (!pdf || !canvasRef.current || !viewerWidth) return undefined;
@@ -166,7 +167,7 @@ export default function PaperlessDocumentViewer({ document, library = false, onC
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-700 bg-slate-900 px-3 py-3 shadow-xl sm:px-5">
         <div className="min-w-0">
           <h2 id={titleId} className="truncate font-semibold text-slate-100">{document.title || "Paperless-Dokument"}</h2>
-          <p className="truncate text-xs text-slate-500">{fileName} · direkt aus Paperless</p>
+          <p className="truncate text-xs text-slate-500">{fileName} · {sourceLabel}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <a href={url} download={fileName} className="inline-flex items-center gap-2 rounded-lg border border-slate-600 px-3 py-2 text-xs text-slate-200 hover:bg-slate-800 sm:text-sm">
@@ -180,7 +181,7 @@ export default function PaperlessDocumentViewer({ document, library = false, onC
         </div>
       </header>
 
-      <div className="flex shrink-0 flex-wrap items-center justify-center gap-2 border-b border-slate-800 bg-slate-900/90 px-3 py-2">
+      {!isImage && <div className="flex shrink-0 flex-wrap items-center justify-center gap-2 border-b border-slate-800 bg-slate-900/90 px-3 py-2">
         <button type="button" disabled={!pdf || pageNumber <= 1} onClick={() => setPageNumber(current => Math.max(1, current - 1))} className="rounded-md border border-slate-700 p-2 text-slate-300 hover:bg-slate-800 disabled:opacity-30" aria-label="Vorherige Seite">
           <Icon className="size-4"><path d="m15 18-6-6 6-6"/></Icon>
         </button>
@@ -196,12 +197,13 @@ export default function PaperlessDocumentViewer({ document, library = false, onC
         <button type="button" disabled={!pdf || zoom >= 2.25} onClick={() => setZoom(current => Math.min(2.25, current + 0.25))} className="rounded-md border border-slate-700 p-2 text-slate-300 hover:bg-slate-800 disabled:opacity-30" aria-label="Vergrößern">
           <Icon className="size-4"><path d="M5 12h14"/><path d="M12 5v14"/></Icon>
         </button>
-      </div>
+      </div>}
 
       <main ref={viewerRef} className="relative min-h-0 flex-1 overflow-auto bg-slate-950 p-4 sm:p-6" aria-busy={loading || rendering}>
         {loading && <div className="absolute inset-0 z-10 grid place-items-center"><div className="rounded-xl border border-slate-700 bg-slate-900/95 px-6 py-5 text-center shadow-2xl"><span className="mx-auto block size-8 animate-spin rounded-full border-2 border-slate-600 border-t-blue-400"/><p className="mt-3 text-sm text-slate-300">{readableProgress(loadedBytes)}</p></div></div>}
         {error && <div className="mx-auto mt-8 max-w-lg rounded-xl border border-red-900 bg-red-950/40 p-5 text-center"><p role="alert" className="text-sm text-red-300">{error}</p><a href={url} download={fileName} className="mt-4 inline-flex rounded-lg border border-red-800 px-4 py-2 text-sm text-red-200 hover:bg-red-950">Datei stattdessen herunterladen</a></div>}
-        {!error && <canvas ref={canvasRef} className={`mx-auto rounded-sm bg-white shadow-2xl transition-opacity ${loading || rendering ? "opacity-60" : "opacity-100"}`} aria-label={`Seite ${pageNumber} von ${pageCount || "unbekannt"}`} />}
+        {!error && isImage && <img src={url} alt={document.title || fileName} onLoad={() => setLoading(false)} onError={() => { setError("Das Bild konnte nicht geladen werden."); setLoading(false); }} className={`mx-auto max-h-full max-w-full rounded-sm bg-white object-contain shadow-2xl transition-opacity ${loading ? "opacity-60" : "opacity-100"}`} />}
+        {!error && !isImage && <canvas ref={canvasRef} className={`mx-auto rounded-sm bg-white shadow-2xl transition-opacity ${loading || rendering ? "opacity-60" : "opacity-100"}`} aria-label={`Seite ${pageNumber} von ${pageCount || "unbekannt"}`} />}
       </main>
     </div>
   );

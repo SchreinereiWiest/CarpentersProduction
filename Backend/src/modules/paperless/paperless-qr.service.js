@@ -50,6 +50,10 @@ export async function enqueuePaperlessQrInspection(document) {
     return false;
   }
   const base = process.env.PAPERLESS_INTERNAL_BASE_URL || "http://carpenters-backend:5000/api/internal/paperless";
+  await prisma.paperlessDocument.update({
+    where: { id: document.id },
+    data: { status: "processing", qrStatus: "queued", qrError: null }
+  });
   await pushValkeyJob(process.env.MEASUREMENT_OCR_QUEUE || "measurement:ocr:jobs", {
     schemaVersion: 1,
     type: "paperless-document-qr",
@@ -59,9 +63,34 @@ export async function enqueuePaperlessQrInspection(document) {
     downloadUrl: `${base}/content/${document.id}?tenantId=${getTenantId()}`,
     callbackUrl: `${base}/qr-result`
   });
-  await prisma.paperlessDocument.update({
-    where: { id: document.id },
-    data: { status: "processing", qrStatus: "queued", qrError: null }
+  return true;
+}
+
+export async function enqueueLocalDocumentQrInspection(fileId) {
+  const [configuration, file] = await Promise.all([
+    getPaperlessConfiguration({ required: false }),
+    prisma.file.findFirst({
+      where: { id: fileId, category: "management-document", deletedAt: null },
+      select: { id: true, mimeType: true }
+    })
+  ]);
+  if (!file) return false;
+  if (!configuration?.autoAssignQr) {
+    await prisma.file.update({ where: { id: file.id }, data: { status: "qr-disabled" } });
+    return false;
+  }
+
+  const tenantId = getTenantId();
+  const base = process.env.PAPERLESS_INTERNAL_BASE_URL || "http://carpenters-backend:5000/api/internal/paperless";
+  await prisma.file.update({ where: { id: file.id }, data: { status: "qr-processing" } });
+  await pushValkeyJob(process.env.MEASUREMENT_OCR_QUEUE || "measurement:ocr:jobs", {
+    schemaVersion: 1,
+    type: "paperless-document-qr",
+    tenantId,
+    documentId: file.id,
+    mimeType: file.mimeType,
+    downloadUrl: `${base}/content/local/${file.id}?tenantId=${tenantId}`,
+    callbackUrl: `${base}/qr-result/local`
   });
   return true;
 }
@@ -174,6 +203,62 @@ export async function applyPaperlessQrResult(documentId, body) {
         entityId: document.id,
         metadata: {
           remoteDocumentId: document.remoteDocumentId,
+          projectId: assignment.projectId,
+          customerId: assignment.customerId,
+          documentType: assignment.payload.documentType || null
+        }
+      }
+    });
+  });
+  return { accepted: true, assigned: true };
+}
+
+export async function applyLocalDocumentQrResult(fileId, body) {
+  const file = await prisma.file.findFirst({
+    where: { id: fileId, category: "management-document", deletedAt: null }
+  });
+  if (!file) return { accepted: false, missing: true };
+  if (file.status === "dismissed") return { accepted: true, assigned: false, dismissed: true };
+  if (file.projectId || file.customerId || file.documentFolderId) {
+    return { accepted: true, assigned: true, alreadyLinked: true };
+  }
+  if (body.error) {
+    await prisma.file.update({ where: { id: file.id }, data: { status: "qr-failed" } });
+    return { accepted: true, assigned: false };
+  }
+
+  const values = Array.isArray(body.values) ? body.values.slice(0, 50) : [];
+  let assignment = null;
+  for (const entry of values) {
+    const value = typeof entry === "string" ? entry : entry?.value;
+    assignment = await resolveCpdAssignment(value) || await resolveMeasurementAssignment(value);
+    if (assignment) break;
+  }
+
+  if (!assignment) {
+    await prisma.file.update({
+      where: { id: file.id },
+      data: { status: values.length ? "qr-invalid" : "qr-none" }
+    });
+    return { accepted: true, assigned: false };
+  }
+
+  await prisma.$transaction(async transaction => {
+    await transaction.file.update({
+      where: { id: file.id },
+      data: {
+        projectId: assignment.projectId,
+        customerId: assignment.customerId,
+        documentFolderId: null,
+        status: "qr-linked"
+      }
+    });
+    await transaction.auditLog.create({
+      data: {
+        action: "management.document.auto_link",
+        entityType: "File",
+        entityId: file.id,
+        metadata: {
           projectId: assignment.projectId,
           customerId: assignment.customerId,
           documentType: assignment.payload.documentType || null

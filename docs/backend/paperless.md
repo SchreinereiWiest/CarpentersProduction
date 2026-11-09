@@ -1,9 +1,11 @@
 # Paperless-ngx-Integration
 
-CarpentersProduction bindet eine externe Paperless-ngx-Instanz als alleinige
-Dateiablage an. In Carpenters werden nur Remote-ID, Anzeige-Metadaten und die
-Zuordnung zu Projekt, Kunde oder manuellem Ordner gespeichert. Der Binärinhalt
-wird weder beim Webhook noch beim Öffnen nach Garage kopiert.
+CarpentersProduction bindet eine externe Paperless-ngx-Instanz als optionale
+Dateiablage an. Für Paperless-Dokumente werden in Carpenters nur Remote-ID,
+Anzeige-Metadaten und die Zuordnung zu Projekt, Kunde oder manuellem Ordner
+gespeichert. Der Binärinhalt wird weder beim Webhook noch beim Öffnen nach
+Garage kopiert. Intern gespeicherte Carpenters-Belege verbleiben dagegen in
+Garage/S3 und werden im selben Dokumenteingang bearbeitet.
 
 ## Einrichtung
 
@@ -49,6 +51,25 @@ erreichbaren Inbound-Port ab. Die bestehende Bibliothek wird beim ersten
 Aktivieren nicht vollständig in den Eingang kopiert. Das Intervall lässt sich
 mit `PAPERLESS_SYNC_INTERVAL_MS` zwischen 15 Sekunden und einer Stunde setzen.
 
+Über **Beleg hochladen** im Dokumenteingang kann eine Datei wahlweise intern in
+Carpenters oder direkt im DMS gespeichert werden. Die DMS-Variante reicht das
+Multipart-Feld `document` an `POST /api/documents/post_document/` der
+Paperless-Instanz weiter. Der Dateiinhalt wird dabei nicht in Garage abgelegt.
+Carpenters verfolgt die zurückgegebene Paperless-Task-ID kurzzeitig und startet
+nach erfolgreichem Konsum sofort die normale QR-Prüfung. Bei längerer
+Verarbeitung greifen Webhook und Pull-Abgleich als idempotente Rückfallebene.
+Intern hochgeladene `management-document`-Dateien erscheinen ebenfalls im
+gemeinsamen Eingang. Dort können sie einem Projekt, Kunden oder manuellen
+Dokumentordner zugewiesen, ausgeblendet oder dauerhaft aus Garage gelöscht
+werden. Direkt nach dem Garage-Upload wird derselbe QR-Worker wie bei
+Paperless-Dokumenten gestartet. Der Worker liest den Dateiinhalt über einen
+internen, mit dem OCR-Secret geschützten Stream und meldet Treffer an einen
+separaten lokalen Callback zurück. Gültige `CPD1`- oder `CPM1`-Codes führen
+dadurch auch beim Speicherort Carpenters zur automatischen Zuordnung. Eine
+zwischenzeitlich vorgenommene manuelle Zuordnung wird vom späteren
+Worker-Callback nicht überschrieben. Der frühere separate
+Carpenters-Belegeingang wird nicht mehr verwendet.
+
 Der Proxy hält den Paperless-Token im Backend. Browser und OCR-Worker erhalten
 den Token nie. Redirects zu einer anderen Origin werden abgelehnt, damit der
 Token nicht an fremde Hosts weitergegeben wird.
@@ -83,9 +104,13 @@ mit `PAPERLESS_QR_MAX_PAGES` zwischen 1 und 20 anpassen.
 | `POST` | `/api/paperless/settings/test` | Token und Erreichbarkeit prüfen |
 | `POST` | `/api/integrations/paperless/webhook/:tenantId` | Paperless Document-Added-Hook |
 | `GET` | `/api/paperless/documents` | Eingang und gespeicherte Referenzen |
+| `GET` | `/api/paperless/local-documents` | Interne Carpenters-Belege für den gemeinsamen Eingang |
 | `POST` | `/api/paperless/sync` | Pull-Abgleich sofort ausführen |
+| `POST` | `/api/paperless/upload` | Beleg ausschließlich an Paperless übergeben und Verarbeitung starten |
 | `PUT` | `/api/paperless/documents/:id/assignment` | Referenz zuordnen |
 | `POST` | `/api/paperless/documents/:id/dismiss` | Nur aus Carpenters-Eingang ausblenden |
+| `PUT/DELETE` | `/api/paperless/local-documents/:id/assignment` | Internen Beleg zuordnen oder Verknüpfung lösen |
+| `POST` | `/api/paperless/local-documents/:id/dismiss` | Internen Beleg aus dem Eingang ausblenden |
 | `DELETE` | `/api/paperless/documents/:id` | Remote-Dokument in Paperless löschen |
 | `GET` | `/api/paperless/library` | Paperless-Volltextsuche |
 | `POST` | `/api/paperless/library/:remoteId/link` | Früheres Dokument verknüpfen |

@@ -17,6 +17,7 @@ import {
 import { createPaperlessQrValue, enqueuePaperlessQrInspection } from "./paperless-qr.service.js";
 import { streamPaperlessResponse } from "./paperless-stream.service.js";
 import { syncPaperlessDocuments } from "./paperless-sync.service.js";
+import { uploadPaperlessDocument as uploadDocument } from "./paperless-upload.service.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -28,6 +29,7 @@ export async function getPaperlessStatus(_req, res) {
   return res.json({
     configured: Boolean(configuration),
     connected: Boolean(configuration?.enabled && tokenStatus.configured),
+    baseUrl: configuration?.baseUrl || null,
     folders: configuration?.folders ?? []
   });
 }
@@ -49,6 +51,12 @@ export async function listPaperlessDocuments(req, res) {
 export async function syncPaperlessNow(_req, res) {
   const result = await syncPaperlessDocuments();
   return res.json(result);
+}
+
+export async function uploadPaperlessDocument(req, res) {
+  if (!req.file) return res.status(400).json({ message: "Bitte eine Belegdatei auswählen." });
+  const result = await uploadDocument(req.file, req.user);
+  return res.status(result.status === "imported" ? 201 : 202).json(result);
 }
 
 export async function getAssignmentOptions(req, res) {
@@ -80,9 +88,9 @@ export async function getAssignmentOptions(req, res) {
       orderBy: [{ companyName: "asc" }, { lastName: "asc" }],
       take: 200
     }),
-    getPaperlessConfiguration()
+    getPaperlessConfiguration({ required: false })
   ]);
-  return res.json({ projects, customers, folders: configuration.folders });
+  return res.json({ projects, customers, folders: configuration?.folders ?? [] });
 }
 
 async function resolveAssignment(body) {
@@ -109,6 +117,134 @@ async function resolveAssignment(body) {
     return { projectId: null, customerId: null, folderId: folder.id };
   }
   throw Object.assign(new Error("Unbekanntes Zuordnungsziel."), { statusCode: 400 });
+}
+
+const localDocumentInclude = {
+  project: { select: { id: true, title: true, projectNumber: true } },
+  customer: { select: { id: true, firstName: true, lastName: true, companyName: true, customerNumber: true } },
+  documentFolder: { select: { id: true, name: true } }
+};
+
+const localDocumentLinked = file => Boolean(file.projectId || file.customerId || file.documentFolderId);
+const localQrStatus = status => ({
+  "qr-processing": "queued",
+  "qr-linked": "matched",
+  "qr-failed": "failed",
+  "qr-invalid": "invalid",
+  "qr-none": "none",
+  "qr-disabled": "disabled"
+})[status] || null;
+
+export function presentLocalDocument(file) {
+  return {
+    id: file.id,
+    source: "carpenters",
+    title: file.fileName,
+    fileName: file.fileName,
+    mimeType: file.mimeType,
+    documentType: "Carpenters-Beleg",
+    correspondent: "Carpenters",
+    status: localDocumentLinked(file) ? "linked" : file.status === "dismissed" ? "dismissed" : file.status === "qr-processing" ? "processing" : "inbox",
+    qrStatus: localQrStatus(file.status),
+    assignmentSource: localDocumentLinked(file) ? file.status === "qr-linked" ? "qr" : "manual" : null,
+    project: file.project || null,
+    customer: file.customer || null,
+    folder: file.documentFolder || null,
+    receivedAt: file.uploadedAt,
+    linkedAt: localDocumentLinked(file) ? file.updatedAt : null
+  };
+}
+
+async function findLocalDocument(fileId) {
+  return prisma.file.findFirst({
+    where: { id: fileId, category: "management-document", deletedAt: null },
+    include: localDocumentInclude
+  });
+}
+
+export async function listLocalDocuments(_req, res) {
+  const files = await prisma.file.findMany({
+    where: {
+      category: "management-document",
+      deletedAt: null,
+      OR: [{ status: null }, { status: { not: "dismissed" } }]
+    },
+    include: localDocumentInclude,
+    orderBy: { uploadedAt: "desc" },
+    take: 250
+  });
+  return res.json({ documents: files.map(presentLocalDocument) });
+}
+
+export async function updateLocalDocumentAssignment(req, res) {
+  const file = await findLocalDocument(req.params.fileId);
+  if (!file) return res.status(404).json({ message: "Carpenters-Dokument nicht gefunden." });
+  const assignment = await resolveAssignment(req.body);
+  const updated = await prisma.$transaction(async transaction => {
+    const result = await transaction.file.update({
+      where: { id: file.id },
+      data: {
+        projectId: assignment.projectId,
+        customerId: assignment.customerId,
+        documentFolderId: assignment.folderId,
+        status: "completed"
+      },
+      include: localDocumentInclude
+    });
+    await transaction.auditLog.create({
+      data: {
+        actorUserId: req.user.id,
+        action: "management.document.link",
+        entityType: "File",
+        entityId: file.id,
+        metadata: assignment
+      }
+    });
+    return result;
+  });
+  return res.json({ document: presentLocalDocument(updated) });
+}
+
+export async function unlinkLocalDocument(req, res) {
+  const file = await findLocalDocument(req.params.fileId);
+  if (!file) return res.status(404).json({ message: "Carpenters-Dokument nicht gefunden." });
+  const updated = await prisma.$transaction(async transaction => {
+    const result = await transaction.file.update({
+      where: { id: file.id },
+      data: { projectId: null, customerId: null, documentFolderId: null, status: "completed" },
+      include: localDocumentInclude
+    });
+    await transaction.auditLog.create({
+      data: {
+        actorUserId: req.user.id,
+        action: "management.document.unlink",
+        entityType: "File",
+        entityId: file.id
+      }
+    });
+    return result;
+  });
+  return res.json({ document: presentLocalDocument(updated) });
+}
+
+export async function dismissLocalDocument(req, res) {
+  const file = await findLocalDocument(req.params.fileId);
+  if (!file) return res.status(404).json({ message: "Carpenters-Dokument nicht gefunden." });
+  if (localDocumentLinked(file)) {
+    return res.status(409).json({ message: "Eine bereits zugeordnete Datei muss zuerst gelöst werden." });
+  }
+  await prisma.$transaction(async transaction => {
+    await transaction.file.update({ where: { id: file.id }, data: { status: "dismissed" } });
+    await transaction.auditLog.create({
+      data: {
+        actorUserId: req.user.id,
+        action: "management.document.dismiss",
+        entityType: "File",
+        entityId: file.id
+      }
+    });
+  });
+  return res.status(204).end();
 }
 
 async function assignDocument(document, assignment, actor) {

@@ -35,6 +35,7 @@ model PaperlessFolder {
   sortOrder Int    @default(0) @map("sort_order")
 
   documents PaperlessDocument[]
+  files     File[] @relation("ManagementDocumentFolderFiles")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

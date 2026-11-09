@@ -79,9 +79,11 @@ model File {
 
   customerId String? @map("customer_id") @db.Uuid
   projectId  String? @map("project_id") @db.Uuid
+  documentFolderId String? @map("document_folder_id") @db.Uuid
 
   customer Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
   project  Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  documentFolder PaperlessFolder? @relation("ManagementDocumentFolderFiles", fields: [documentFolderId], references: [id], onDelete: SetNull)
 
   storageObjectId String   @map("storage_object_id") @db.Uuid
   storageObject   S3Object @relation(fields: [storageObjectId], references: [id], onDelete: Cascade)
@@ -114,6 +116,7 @@ model File {
   measurementScans       MeasurementScan[]
 
   @@unique([tenantId, id])
+  @@index([documentFolderId])
   @@map("files")
 }
 
