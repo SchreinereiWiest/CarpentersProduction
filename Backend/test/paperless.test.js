@@ -12,7 +12,7 @@ const {
   paperlessTaskDocumentId,
   paperlessUploadTaskId
 } = await import("../src/modules/paperless/paperless-upload.service.js");
-const { presentLocalDocument } = await import("../src/modules/paperless/paperless.controller.js");
+const { presentGarageFile, presentLocalDocument } = await import("../src/modules/paperless/paperless.controller.js");
 
 class ResponseSink extends Writable {
   constructor() {
@@ -103,6 +103,7 @@ test("Lokale Carpenters-Belege werden für den gemeinsamen Eingang aufbereitet",
     id: "file-1",
     fileName: "beleg.pdf",
     mimeType: "application/pdf",
+    serverVersion: 3,
     status: "completed",
     projectId: "project-1",
     customerId: "customer-1",
@@ -148,4 +149,30 @@ test("Lokale Carpenters-Belege werden für den gemeinsamen Eingang aufbereitet",
     updatedAt: receivedAt
   });
   assert.equal(inbox.status, "inbox");
+});
+
+test("Garage-Dateien werden für die Carpenters-Bibliothek aufbereitet", () => {
+  const uploadedAt = new Date("2026-11-10T10:00:00.000Z");
+  const file = presentGarageFile({
+    id: "file-3",
+    fileName: "projektplan.pdf",
+    originalName: "Projektplan Küche.pdf",
+    mimeType: "application/pdf",
+    fileSize: 12345,
+    serverVersion: 3,
+    category: "production-attachment",
+    projectId: "project-1",
+    customerId: "customer-1",
+    documentFolderId: null,
+    project: { id: "project-1", title: "Küche", projectNumber: "P-100" },
+    customer: { id: "customer-1", companyName: "Muster GmbH" },
+    documentFolder: null,
+    uploadedAt
+  });
+  assert.equal(file.source, "carpenters");
+  assert.equal(file.title, "Projektplan Küche.pdf");
+  assert.equal(file.documentType, "PDF");
+  assert.equal(file.status, "linked");
+  assert.equal(file.project.projectNumber, "P-100");
+  assert.equal(file.serverVersion, 3);
 });

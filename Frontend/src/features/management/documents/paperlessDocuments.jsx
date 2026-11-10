@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import QRCode from "qrcode";
 import PaperlessDocumentViewer from "../../../shared/components/PaperlessDocumentViewer.jsx";
@@ -6,9 +6,23 @@ import { createPaperlessQrPdf, PAPERLESS_QR_PAPER_FORMATS } from "./paperlessQrP
 import { DOCUMENT_DEFAULTS } from "../defaults/ui.defaults.js";
 import { useManagement } from "../hooks/useManagement.js";
 import { getS3FileUrl } from "../../../shared/cache/project-asset-cache.js";
+import { loadPdfJs } from "../../../shared/pdf/loadPdfJs.js";
 
 const formatDate = value => value ? new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value)) : "—";
 const customerName = customer => customer?.companyName || [customer?.firstName, customer?.lastName].filter(Boolean).join(" ") || "Kunde";
+const normalizedSearchText = value => String(value || "").trim().toLocaleLowerCase("de-DE");
+const documentSearchText = document => normalizedSearchText([
+    document.title,
+    document.fileName,
+    document.originalFileName,
+    document.documentType,
+    document.correspondent,
+    document.category,
+    document.project?.projectNumber,
+    document.project?.title,
+    document.customer ? customerName(document.customer) : null,
+    document.folder?.name
+].filter(Boolean).join(" "));
 const targetLabel = document => document.status === "dismissed"
     ? "In Carpenters ausgeblendet"
     : document.project
@@ -19,9 +33,77 @@ const targetLabel = document => document.status === "dismissed"
             ? `Kunde ${customerName(document.customer)}`
             : "Nicht zugeordnet";
 
+export function GarageThumbnail({ document }) {
+    const hostRef = useRef(null);
+    const canvasRef = useRef(null);
+    const [visible, setVisible] = useState(typeof IntersectionObserver === "undefined");
+    const [imageUrl, setImageUrl] = useState("");
+    const [ready, setReady] = useState(false);
+    const [failed, setFailed] = useState(false);
+    const isImage = document.mimeType?.startsWith("image/");
+
+    useEffect(() => {
+        if (visible || !hostRef.current || typeof IntersectionObserver === "undefined") return undefined;
+        const observer = new IntersectionObserver(entries => {
+            if (entries.some(entry => entry.isIntersecting)) {
+                setVisible(true);
+                observer.disconnect();
+            }
+        }, { rootMargin: "240px" });
+        observer.observe(hostRef.current);
+        return () => observer.disconnect();
+    }, [visible]);
+
+    useEffect(() => {
+        if (!visible) return undefined;
+        let active = true;
+        let loadingTask;
+        let renderTask;
+        axios.get(`/api/paperless/garage-library/${document.id}/download`)
+            .then(({ data }) => {
+                if (!active) return null;
+                if (isImage) {
+                    setImageUrl(data.url);
+                    return null;
+                }
+                return loadPdfJs().then(pdfjs => {
+                    if (!active) return null;
+                    loadingTask = pdfjs.getDocument({ url: data.url });
+                    return loadingTask.promise;
+                });
+            })
+            .then(pdf => {
+                if (!pdf || !active) return null;
+                return pdf.getPage(1);
+            })
+            .then(page => {
+                if (!page || !active || !canvasRef.current) return null;
+                const base = page.getViewport({ scale: 1 });
+                const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+                const scale = Math.min(280 / base.width, 180 / base.height) * pixelRatio;
+                const viewport = page.getViewport({ scale });
+                const canvas = canvasRef.current;
+                canvas.width = Math.floor(viewport.width);
+                canvas.height = Math.floor(viewport.height);
+                canvas.style.width = `${Math.floor(viewport.width / pixelRatio)}px`;
+                canvas.style.height = `${Math.floor(viewport.height / pixelRatio)}px`;
+                renderTask = page.render({ canvas, viewport });
+                return renderTask.promise.then(() => active && setReady(true));
+            })
+            .catch(() => active && setFailed(true));
+        return () => {
+            active = false;
+            renderTask?.cancel?.();
+            loadingTask?.destroy?.();
+        };
+    }, [document.id, document.serverVersion, isImage, visible]);
+
+    return <div ref={hostRef} className="relative grid h-full place-items-center overflow-hidden">{failed ? <div className="px-5 text-center"><span className="text-5xl text-sky-700">▤</span><p className="mt-2 line-clamp-2 text-xs text-slate-400">In Carpenters gespeichert</p></div> : <>{!ready && <span className="size-7 animate-spin rounded-full border-2 border-slate-700 border-t-sky-400" aria-label="Vorschau wird geladen" />}{isImage && imageUrl ? <img src={imageUrl} alt="" loading="lazy" onLoad={() => setReady(true)} onError={() => setFailed(true)} className={`absolute inset-0 h-full w-full object-contain ${ready ? "opacity-100" : "opacity-0"}`} /> : !isImage && <canvas ref={canvasRef} className={`max-h-full max-w-full bg-white shadow ${ready ? "opacity-100" : "opacity-0"}`} aria-label={`Vorschau von ${document.title}`} />}</>}</div>;
+}
+
 const Thumbnail = ({ document, library = false }) => {
     const [failed, setFailed] = useState(false);
-    if (document.source === "carpenters") return <div className="grid h-full place-items-center px-5 text-center"><div><span className="text-5xl text-sky-700">▤</span><p className="mt-2 line-clamp-2 text-xs text-slate-400">In Carpenters gespeichert</p></div></div>;
+    if (document.source === "carpenters") return <GarageThumbnail key={`${document.id}-${document.serverVersion || 0}`} document={document} />;
     const src = library
         ? `/api/paperless/library/${document.remoteDocumentId}/thumbnail?v=2`
         : `/api/paperless/documents/${document.id}/thumbnail?v=2`;
@@ -255,7 +337,7 @@ function QrGenerator() {
     );
 }
 
-export function PaperlessInbox({ connected = true, folders = [] }) {
+export function PaperlessInbox({ connected = true }) {
     const [documents, setDocuments] = useState([]);
     const [localDocuments, setLocalDocuments] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -369,8 +451,6 @@ export function PaperlessInbox({ connected = true, folders = [] }) {
         .filter(document => document.status === "linked" && document.assignmentSource !== "qr" && !document.folder)
         .sort((left, right) => new Date(right.linkedAt || 0) - new Date(left.linkedAt || 0))
         .slice(0, 20);
-    const byFolder = new Map(folders.map(folder => [folder.id, allDocuments.filter(document => document.folder?.id === folder.id)]));
-
     return (
         <div className="space-y-5">
             {message && <p role="status" className="rounded-lg border border-emerald-900 bg-emerald-950/30 p-3 text-sm text-emerald-300">{message}</p>}
@@ -378,12 +458,148 @@ export function PaperlessInbox({ connected = true, folders = [] }) {
             {automatic.length > 0 && <section className="rounded-xl border border-emerald-900 bg-emerald-950/20 p-5"><h2 className="font-semibold text-emerald-200">Automatisch zugeordnet</h2><div className="mt-3 space-y-2">{automatic.map(document => <button key={document.id} type="button" onClick={() => openDocument(document)} className="flex w-full flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-900/70 px-4 py-3 text-left text-sm hover:bg-slate-800"><span><span className="font-medium text-slate-100">{document.title}</span><span className="ml-2 text-slate-400">wurde per QR-Code zugeordnet.</span></span><span className="text-emerald-300">{targetLabel(document)} →</span></button>)}</div></section>}
             <section className="rounded-xl border border-slate-700 bg-slate-800/30 p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-semibold">Dokumenteingang</h2><p className="mt-1 text-sm text-slate-500">Neue Belege aus Paperless und Carpenters gemeinsam prüfen und zuordnen.</p></div><div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => setShowUpload(true)} className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold hover:bg-blue-500">Beleg hochladen</button>{connected && <button type="button" disabled={syncing} onClick={syncNow} className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs hover:bg-slate-700 disabled:opacity-50">{syncing ? "Synchronisiert …" : "Jetzt synchronisieren"}</button>}<span className="rounded-full bg-blue-950 px-3 py-1 text-xs text-blue-300">{inbox.length} offen</span></div></div>{loading ? <p className="py-10 text-center text-slate-500">Dokumente werden geladen …</p> : inbox.length === 0 ? <p className="mt-4 rounded-lg border border-dashed border-slate-700 p-8 text-center text-sm text-slate-500">Keine offenen Dokumente.</p> : <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{inbox.map(document => <DocumentCard key={`${document.source}-${document.id}`} document={document} onOpen={openDocument} onAssign={setAssigning} onDismiss={dismiss} onDeleteRemote={deleteRemote} />)}</div>}</section>
             {recentManual.length > 0 && <section className="rounded-xl border border-slate-700 bg-slate-800/30 p-5"><h2 className="font-semibold">Zuletzt verknüpft</h2><div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{recentManual.map(document => <DocumentCard key={`${document.source}-${document.id}`} document={document} onOpen={openDocument} onUnlink={unlink} />)}</div></section>}
-            {folders.map(folder => <section key={folder.id} className="rounded-xl border border-slate-700 bg-slate-800/30 p-5"><div className="flex items-center justify-between"><h2 className="font-semibold">{folder.name}</h2><span className="text-xs text-slate-500">{byFolder.get(folder.id)?.length || 0} Dokumente</span></div>{!byFolder.get(folder.id)?.length ? <p className="mt-4 text-sm text-slate-500">Noch keine Dokumente in diesem Ordner.</p> : <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{byFolder.get(folder.id).map(document => <DocumentCard key={`${document.source}-${document.id}`} document={document} onOpen={openDocument} onUnlink={unlink} />)}</div>}</section>)}
             {connected && <QrGenerator />}
             {assigning && <AssignmentDialog document={assigning} onClose={() => setAssigning(null)} onAssigned={load} />}
-            {viewing && <PaperlessDocumentViewer document={viewing.document} contentUrl={viewing.contentUrl} sourceLabel={viewing.sourceLabel} onClose={() => setViewing(null)} />}
+            {viewing && <PaperlessDocumentViewer document={viewing.document} contentUrl={viewing.contentUrl} sourceLabel={viewing.sourceLabel} onSaved={load} onClose={() => setViewing(null)} />}
             {showUpload && <ManualDocumentUploadDialog connected={connected} onClose={() => setShowUpload(false)} onLocalUploaded={async () => { await load(); setMessage("Der Beleg wurde in Carpenters gespeichert und wird jetzt auf einen QR-Code geprüft."); }} onPaperlessUploaded={async result => { await load(); setMessage(result.status === "imported" ? "Der Beleg wurde in Paperless übernommen und wird geprüft." : "Der Beleg wurde an Paperless übergeben und erscheint nach der Verarbeitung automatisch im Eingang."); }} />}
         </div>
+    );
+}
+
+export function ManualDocumentFolders({ folders = [] }) {
+    const [documents, setDocuments] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+    const [viewing, setViewing] = useState(null);
+    const [query, setQuery] = useState("");
+    const [activeQuery, setActiveQuery] = useState("");
+
+    const load = useCallback(async () => {
+        setError("");
+        try {
+            const [paperlessResponse, localResponse] = await Promise.all([
+                axios.get("/api/paperless/documents"),
+                axios.get("/api/paperless/local-documents")
+            ]);
+            setDocuments([
+                ...(paperlessResponse.data.documents || []),
+                ...(localResponse.data.documents || [])
+            ]);
+        } catch (requestError) {
+            setError(requestError.response?.data?.message || "Dokumentordner konnten nicht geladen werden.");
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        const initial = window.setTimeout(load, 0);
+        const interval = window.setInterval(load, 10_000);
+        return () => { window.clearTimeout(initial); window.clearInterval(interval); };
+    }, [load]);
+
+    const openDocument = async document => {
+        setError("");
+        if (document.source !== "carpenters") {
+            setViewing({ document });
+            return;
+        }
+        try {
+            const contentUrl = await getS3FileUrl(document);
+            setViewing({ document, contentUrl, sourceLabel: "direkt aus Carpenters" });
+        } catch {
+            setError("Das Carpenters-Dokument konnte nicht geöffnet werden.");
+        }
+    };
+
+    const unlink = async document => {
+        const location = document.source === "carpenters" ? "Carpenters" : "Paperless";
+        if (!window.confirm(`Verknüpfung von „${document.title}“ lösen? Die Datei bleibt in ${location} erhalten.`)) return;
+        setError("");
+        try {
+            const url = document.source === "carpenters"
+                ? `/api/paperless/local-documents/${document.id}/assignment`
+                : `/api/paperless/documents/${document.id}/assignment`;
+            await axios.delete(url);
+            await load();
+        } catch (requestError) {
+            setError(requestError.response?.data?.message || "Die Verknüpfung konnte nicht gelöst werden.");
+        }
+    };
+
+    const searchTerm = normalizedSearchText(activeQuery);
+    const visibleFolders = folders.map(folder => {
+        const folderDocuments = documents.filter(document => document.folder?.id === folder.id);
+        if (!searchTerm) return { ...folder, documents: folderDocuments };
+        if (normalizedSearchText(folder.name).includes(searchTerm)) return { ...folder, documents: folderDocuments };
+        const matchingDocuments = folderDocuments.filter(document => documentSearchText(document).includes(searchTerm));
+        return matchingDocuments.length ? { ...folder, documents: matchingDocuments } : null;
+    }).filter(Boolean);
+    const visibleDocumentCount = visibleFolders.reduce((total, folder) => total + folder.documents.length, 0);
+
+    return (
+        <section className="space-y-4">
+            <div>
+                <h2 className="text-lg font-semibold">Manuelle Dokumentordner</h2>
+                <p className="mt-1 text-sm text-slate-500">In den Einstellungen angelegte Carpenters-Ordner und die ihnen zugewiesenen Dokumente.</p>
+            </div>
+            <form onSubmit={event => { event.preventDefault(); setActiveQuery(query.trim()); }} className="flex flex-col gap-3 rounded-xl border border-slate-700 bg-slate-800/40 p-4 sm:flex-row"><label className="min-w-0 flex-1"><span className="sr-only">Firmenordner durchsuchen</span><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Firmenordner und Dokumente durchsuchen …" className="w-full rounded-lg border border-slate-600 bg-slate-950 px-4 py-2.5 outline-none focus:border-blue-500" /></label><button className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold hover:bg-blue-500">Suchen</button></form>
+            {error && <p role="alert" className="rounded-lg border border-red-800 bg-red-950/40 p-3 text-sm text-red-300">{error}</p>}
+            {!loading && folders.length > 0 && <p className="text-sm text-slate-400">{visibleFolders.length} Ordner · {visibleDocumentCount} Dokumente</p>}
+            {loading ? <p className="rounded-xl border border-slate-700 bg-slate-800/30 p-8 text-center text-sm text-slate-500">Dokumentordner werden geladen …</p> : folders.length === 0 ? <p className="rounded-xl border border-dashed border-slate-700 p-8 text-center text-sm text-slate-500">Noch keine manuellen Dokumentordner angelegt.</p> : visibleFolders.length === 0 ? <p className="rounded-xl border border-dashed border-slate-700 p-8 text-center text-sm text-slate-500">Keine Ordner oder Dokumente für „{activeQuery}“ gefunden.</p> : visibleFolders.map(folder => {
+                const folderDocuments = folder.documents;
+                return <section key={folder.id} className="rounded-xl border border-slate-700 bg-slate-800/30 p-5"><div className="flex items-center justify-between"><h3 className="font-semibold">{folder.name}</h3><span className="text-xs text-slate-500">{folderDocuments.length} Dokumente</span></div>{folderDocuments.length === 0 ? <p className="mt-4 text-sm text-slate-500">Noch keine Dokumente in diesem Ordner.</p> : <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{folderDocuments.map(document => <DocumentCard key={`${document.source}-${document.id}`} document={document} onOpen={openDocument} onUnlink={unlink} />)}</div>}</section>;
+            })}
+            {viewing && <PaperlessDocumentViewer document={viewing.document} contentUrl={viewing.contentUrl} sourceLabel={viewing.sourceLabel} onSaved={load} onClose={() => setViewing(null)} />}
+        </section>
+    );
+}
+
+export function CarpentersGarageLibrary() {
+    const [query, setQuery] = useState("");
+    const [page, setPage] = useState(1);
+    const [result, setResult] = useState({ results: [], count: 0, next: false, previous: false });
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+    const [viewing, setViewing] = useState(null);
+
+    const search = useCallback(async (nextPage = page) => {
+        setLoading(true);
+        setError("");
+        try {
+            const { data } = await axios.get("/api/paperless/garage-library", {
+                params: { query: query.trim() || undefined, page: nextPage }
+            });
+            setResult(data);
+            setPage(nextPage);
+        } catch (requestError) {
+            setError(requestError.response?.data?.message || "Die Carpenters-Garage konnte nicht durchsucht werden.");
+        } finally {
+            setLoading(false);
+        }
+    }, [page, query]);
+
+    useEffect(() => { const timeout = window.setTimeout(() => search(1), 0); return () => window.clearTimeout(timeout); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const openDocument = async document => {
+        setError("");
+        try {
+            const { data } = await axios.get(`/api/paperless/garage-library/${document.id}/download`);
+            setViewing({ document, contentUrl: data.url, sourceLabel: "direkt aus Carpenters Garage" });
+        } catch {
+            setError("Die Garage-Datei konnte nicht geöffnet werden.");
+        }
+    };
+
+    return (
+        <section className="space-y-4 border-t border-slate-700 pt-8">
+            <div><h2 className="text-lg font-semibold">Carpenters-Garage</h2><p className="mt-1 text-sm text-slate-500">Alle in Carpenters gespeicherten PDF- und Bilddateien durchsuchen und ansehen.</p></div>
+            <form onSubmit={event => { event.preventDefault(); search(1); }} className="flex flex-col gap-3 rounded-xl border border-slate-700 bg-slate-800/40 p-4 sm:flex-row"><label className="min-w-0 flex-1"><span className="sr-only">Carpenters-Garage durchsuchen</span><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Dateiname, Projekt, Kunde oder Ordner …" className="w-full rounded-lg border border-slate-600 bg-slate-950 px-4 py-2.5 outline-none focus:border-blue-500" /></label><button disabled={loading} className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold hover:bg-blue-500 disabled:opacity-50">{loading ? "Sucht …" : "Suchen"}</button></form>
+            {error && <p role="alert" className="rounded-lg border border-red-800 bg-red-950/40 p-3 text-sm text-red-300">{error}</p>}
+            <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-400"><span>{result.count} PDF- und Bilddateien</span><div className="flex gap-2"><button type="button" disabled={!result.previous || loading} onClick={() => search(page - 1)} className="rounded-lg border border-slate-700 px-3 py-1.5 disabled:opacity-30">← Zurück</button><span className="px-2 py-1.5">Seite {page}</span><button type="button" disabled={!result.next || loading} onClick={() => search(page + 1)} className="rounded-lg border border-slate-700 px-3 py-1.5 disabled:opacity-30">Weiter →</button></div></div>
+            {!loading && result.results.length === 0 ? <p className="rounded-xl border border-dashed border-slate-700 p-12 text-center text-slate-500">Keine PDF- oder Bilddateien gefunden.</p> : <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">{result.results.map(document => <DocumentCard key={document.id} document={document} onOpen={openDocument} />)}</div>}
+            {viewing && <PaperlessDocumentViewer document={viewing.document} contentUrl={viewing.contentUrl} sourceLabel={viewing.sourceLabel} onSaved={() => search(page)} onClose={() => setViewing(null)} />}
+        </section>
     );
 }
 

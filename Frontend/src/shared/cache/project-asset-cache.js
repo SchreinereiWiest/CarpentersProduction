@@ -154,6 +154,19 @@ export const cacheProjectAsset = async (projectId, file, { retentionProtected = 
     }
     if (cached?.blob) {
         if (cached.localOnly) return cached;
+        const knownServerVersion = file.serverVersion == null ? Number.NaN : Number(file.serverVersion);
+        if (!offline()
+            && Number.isSafeInteger(knownServerVersion)
+            && Number(cached.serverVersion) !== knownServerVersion) {
+            const refreshed = await queueAssetRevalidation({
+                cached,
+                file,
+                projectId,
+                force: true,
+                redownload: true
+            });
+            if (refreshed?.blob) return refreshed;
+        }
         if (retentionProtected && !cached.retentionProtected) {
             cached = await setCachedProjectAsset({
                 projectId: projectId || cached.projectId,
@@ -224,10 +237,22 @@ export const getProjectAssetBlob = async file => {
 export const getProjectAssetUrl = async file => {
     if (objectUrls.has(file.id)) {
         const cached = await getCachedProjectAsset(file.id);
-        if (cached && !offline()) {
+        const knownServerVersion = file.serverVersion == null ? Number.NaN : Number(file.serverVersion);
+        const versionMismatch = cached
+            && Number.isSafeInteger(knownServerVersion)
+            && Number(cached.serverVersion) !== knownServerVersion;
+        if (cached && !offline() && versionMismatch) {
+            await queueAssetRevalidation({
+                cached,
+                file,
+                projectId: file.projectId,
+                force: true,
+                redownload: true
+            });
+        } else if (cached && !offline()) {
             void queueAssetRevalidation({ cached, file, projectId: file.projectId, force: true });
         }
-        return objectUrls.get(file.id);
+        if (objectUrls.has(file.id)) return objectUrls.get(file.id);
     }
     const blob = await getProjectAssetBlob(file);
     const url = URL.createObjectURL(blob);
@@ -264,6 +289,16 @@ export const refreshCachedProjectAssets = async ({
 
 export const getS3FileBlob = getProjectAssetBlob;
 export const getS3FileUrl = getProjectAssetUrl;
+
+export const invalidateS3FileCache = async fileId => {
+    await invalidateProjectAsset(fileId);
+    retireObjectUrl(fileId);
+    if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("s3-cache-updated", {
+            detail: { scope: "asset", fileId, removed: true }
+        }));
+    }
+};
 
 export const clearProjectAssetMemory = () => {
     objectUrls.forEach(url => URL.revokeObjectURL(url));

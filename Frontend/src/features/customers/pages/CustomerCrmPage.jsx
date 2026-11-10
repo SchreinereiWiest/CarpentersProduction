@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
 import SideBar from "../../../shared/components/sideBar.jsx";
 import PaperlessDocumentViewer from "../../../shared/components/PaperlessDocumentViewer.jsx";
+import { getS3FileUrl } from "../../../shared/cache/project-asset-cache.js";
 import { formatGermanDate } from "../../../shared/utils/date.js";
 import { AppointmentForm, CommunicationForm } from "../crm/CustomerCrmForms.jsx";
 import {
@@ -48,6 +49,7 @@ export default function CustomerCrmPage() {
   const [crm, setCrm] = useState(null);
   const [form, setForm] = useState(null);
   const [viewingPaperless, setViewingPaperless] = useState(null);
+  const [viewingFile, setViewingFile] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [referenceTime] = useState(() => Date.now());
@@ -67,6 +69,23 @@ export default function CustomerCrmPage() {
       });
     return () => controller.abort();
   }, [userid]);
+
+  const openCustomerFile = async file => {
+    setError("");
+    try {
+      const contentUrl = await getS3FileUrl(file);
+      setViewingFile({
+        document: {
+          ...file,
+          source: "carpenters",
+          title: file.originalName || file.fileName
+        },
+        contentUrl
+      });
+    } catch {
+      setError("Die Kundendatei konnte nicht geöffnet werden.");
+    }
+  };
 
   const customer = crm?.customer;
   const projects = customer?.projects ?? EMPTY_LIST;
@@ -318,7 +337,7 @@ export default function CustomerCrmPage() {
                     <h2 className="font-semibold">Kundendateien</h2>
                     <div className="mt-3 space-y-2">
                       {(customer.files ?? []).length === 0 && (customer.paperlessDocuments ?? []).length === 0 && <p className="text-sm text-slate-500">Keine direkten Kundendateien.</p>}
-                      {(customer.files ?? []).map(file => <div key={file.id} className="rounded-lg bg-slate-800 px-3 py-2 text-sm"><p className="truncate">{file.originalName || file.fileName}</p><p className="text-xs text-slate-500">{file.category || file.mimeType || "Datei"} · {formatGermanDate(file.uploadedAt)}</p></div>)}
+                      {(customer.files ?? []).map(file => file.mimeType === "application/pdf" || file.mimeType?.startsWith("image/") ? <button key={file.id} type="button" onClick={() => openCustomerFile(file)} className="block w-full rounded-lg bg-slate-800 px-3 py-2 text-left text-sm hover:bg-slate-700"><span className="block truncate text-blue-300">{file.originalName || file.fileName}</span><span className="block text-xs text-slate-500">{file.category || file.mimeType || "Datei"} · {formatGermanDate(file.uploadedAt)}</span></button> : <div key={file.id} className="rounded-lg bg-slate-800 px-3 py-2 text-sm"><p className="truncate">{file.originalName || file.fileName}</p><p className="text-xs text-slate-500">{file.category || file.mimeType || "Datei"} · {formatGermanDate(file.uploadedAt)}</p></div>)}
                       {(customer.paperlessDocuments ?? []).map(document => <button key={document.id} type="button" onClick={() => setViewingPaperless(document)} className="flex w-full items-center gap-3 rounded-lg border border-violet-900/50 bg-slate-800 p-2 text-left text-sm hover:bg-slate-700"><img src={`/api/paperless/documents/${document.id}/thumbnail?v=2`} alt="" loading="lazy" className="h-14 w-11 shrink-0 rounded bg-slate-950 object-contain"/><span className="min-w-0"><span className="block truncate text-blue-300">{document.title}</span><span className="block truncate text-xs text-slate-500">Paperless · {document.documentType || document.originalFileName || "Dokument"}{document.project ? ` · ${document.project.title}` : ""}</span></span></button>)}
                     </div>
                   </section>
@@ -329,6 +348,7 @@ export default function CustomerCrmPage() {
         </div>
       </main>
       {viewingPaperless && <PaperlessDocumentViewer document={viewingPaperless} onClose={() => setViewingPaperless(null)} />}
+      {viewingFile && <PaperlessDocumentViewer document={viewingFile.document} contentUrl={viewingFile.contentUrl} sourceLabel="direkt aus Carpenters Garage" onSaved={refresh} onClose={() => setViewingFile(null)} />}
     </div>
   );
 }

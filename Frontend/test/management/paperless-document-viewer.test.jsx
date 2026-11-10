@@ -1,4 +1,4 @@
-import { fireEvent, render } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import PaperlessDocumentViewer from "../../src/shared/components/PaperlessDocumentViewer.jsx";
@@ -38,5 +38,25 @@ describe("Paperless-Dokumentviewer", () => {
 
     view.unmount();
     sidebar.remove();
+  });
+
+  it("bietet den Bearbeitungsmodus nur für Carpenters-PDFs an", () => {
+    const paperless = render(
+      <PaperlessDocumentViewer
+        document={{ id: "paperless-1", title: "Extern.pdf", mimeType: "application/pdf", source: "paperless" }}
+        onClose={vi.fn()}
+      />
+    );
+    expect(screen.queryByRole("button", { name: "Bearbeiten" })).not.toBeInTheDocument();
+    paperless.unmount();
+
+    render(
+      <PaperlessDocumentViewer
+        document={{ id: "file-1", title: "Intern.pdf", fileName: "Intern.pdf", mimeType: "application/pdf", source: "carpenters", serverVersion: 1 }}
+        contentUrl="blob:intern"
+        onClose={vi.fn()}
+      />
+    );
+    expect(screen.getByRole("button", { name: "Bearbeiten" })).toBeInTheDocument();
   });
 });

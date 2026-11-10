@@ -1,6 +1,14 @@
+import crypto from "crypto";
+
+import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+
 import prisma from "../../infrastructure/database/prisma.js";
 import { getTenantId } from "../../infrastructure/database/tenant-context.js";
+import { enqueueStorageDeletions } from "../../infrastructure/storage/storage-deletion.service.js";
+import { s3Download, s3Upload } from "../../infrastructure/storage/s3.js";
 import { getTenantSecret, getTenantSecretStatus } from "../attachment-search/tenant-secrets.service.js";
+import { publishFileChange } from "../files/file-change-events.service.js";
 import {
   PAPERLESS_API_TOKEN_SECRET,
   PAPERLESS_QR_SIGNING_SECRET,
@@ -143,6 +151,7 @@ export function presentLocalDocument(file) {
     fileName: file.fileName,
     mimeType: file.mimeType,
     documentType: "Carpenters-Beleg",
+    serverVersion: file.serverVersion,
     correspondent: "Carpenters",
     status: localDocumentLinked(file) ? "linked" : file.status === "dismissed" ? "dismissed" : file.status === "qr-processing" ? "processing" : "inbox",
     qrStatus: localQrStatus(file.status),
@@ -174,6 +183,219 @@ export async function listLocalDocuments(_req, res) {
     take: 250
   });
   return res.json({ documents: files.map(presentLocalDocument) });
+}
+
+export function presentGarageFile(file) {
+  const linked = Boolean(file.projectId || file.customerId || file.documentFolderId);
+  return {
+    id: file.id,
+    source: "carpenters",
+    title: file.originalName || file.fileName,
+    fileName: file.fileName,
+    originalFileName: file.originalName || null,
+    mimeType: file.mimeType,
+    fileSize: file.fileSize,
+    category: file.category,
+    serverVersion: file.serverVersion,
+    documentType: file.mimeType === "application/pdf" ? "PDF" : "Bild",
+    correspondent: file.project
+      ? `Projekt ${file.project.projectNumber ? `${file.project.projectNumber} · ` : ""}${file.project.title}`
+      : file.customer
+        ? `Kunde ${file.customer.companyName || [file.customer.firstName, file.customer.lastName].filter(Boolean).join(" ")}`
+        : file.documentFolder
+          ? `Ordner ${file.documentFolder.name}`
+          : "Carpenters Garage",
+    status: linked ? "linked" : "library",
+    assignmentSource: linked ? "manual" : null,
+    project: file.project || null,
+    customer: file.customer || null,
+    folder: file.documentFolder || null,
+    receivedAt: file.uploadedAt,
+    uploadedAt: file.uploadedAt
+  };
+}
+
+export async function searchGarageLibrary(req, res) {
+  const query = String(req.query.query || "").trim().slice(0, 500);
+  const page = Math.max(1, Math.min(10_000, Number.parseInt(req.query.page, 10) || 1));
+  const pageSize = 24;
+  const search = query ? { contains: query, mode: "insensitive" } : null;
+  const where = {
+    deletedAt: null,
+    storageObject: { is: { provider: "garage" } },
+    OR: [
+      { mimeType: "application/pdf" },
+      { mimeType: { startsWith: "image/" } }
+    ],
+    ...(search ? { AND: [{ OR: [
+      { fileName: search },
+      { originalName: search },
+      { category: search },
+      { project: { is: { OR: [{ title: search }, { projectNumber: search }] } } },
+      { customer: { is: { OR: [
+        { companyName: search },
+        { firstName: search },
+        { lastName: search },
+        { customerNumber: search }
+      ] } } },
+      { documentFolder: { is: { name: search } } }
+    ] }] } : {})
+  };
+  const [count, files] = await Promise.all([
+    prisma.file.count({ where }),
+    prisma.file.findMany({
+      where,
+      include: localDocumentInclude,
+      orderBy: [{ uploadedAt: "desc" }, { id: "desc" }],
+      skip: (page - 1) * pageSize,
+      take: pageSize
+    })
+  ]);
+  return res.json({
+    count,
+    page,
+    next: page * pageSize < count,
+    previous: page > 1,
+    results: files.map(presentGarageFile)
+  });
+}
+
+export async function getGarageFileDownload(req, res) {
+  const fileId = String(req.params.fileId || "");
+  if (!UUID.test(fileId)) return res.status(400).json({ message: "Ungültige Datei-ID." });
+  const file = await prisma.file.findFirst({
+    where: {
+      id: fileId,
+      deletedAt: null,
+      storageObject: { is: { provider: "garage" } },
+      OR: [
+        { mimeType: "application/pdf" },
+        { mimeType: { startsWith: "image/" } }
+      ]
+    },
+    include: { storageObject: true }
+  });
+  if (!file) return res.status(404).json({ message: "Garage-Datei nicht gefunden." });
+  const url = await getSignedUrl(s3Download, new GetObjectCommand({
+    Bucket: file.storageObject.bucketName,
+    Key: file.storageObject.objectKey
+  }), { expiresIn: 900 });
+  return res.json({
+    url,
+    fileId: file.id,
+    projectId: file.projectId,
+    fileName: file.originalName || file.fileName,
+    mimeType: file.mimeType,
+    serverVersion: file.serverVersion,
+    updatedAt: file.updatedAt
+  });
+}
+
+export async function saveGaragePdf(req, res) {
+  const fileId = String(req.params.fileId || "");
+  if (!UUID.test(fileId)) return res.status(400).json({ message: "Ungültige Datei-ID." });
+  if (!req.file || req.file.mimetype !== "application/pdf" || req.file.buffer.subarray(0, 5).toString("ascii") !== "%PDF-") {
+    return res.status(415).json({ message: "Es kann nur eine gültige PDF-Datei gespeichert werden." });
+  }
+  const expectedVersion = Number.parseInt(req.body?.expectedVersion, 10);
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 1) {
+    return res.status(400).json({ message: "Die Dateiversion fehlt oder ist ungültig." });
+  }
+  const file = await prisma.file.findFirst({
+    where: {
+      id: fileId,
+      deletedAt: null,
+      mimeType: "application/pdf",
+      storageObject: { is: { provider: "garage" } }
+    },
+    include: { storageObject: true }
+  });
+  if (!file) return res.status(404).json({ message: "Garage-PDF nicht gefunden." });
+  if (file.serverVersion !== expectedVersion) {
+    return res.status(409).json({
+      message: "Die PDF wurde zwischenzeitlich geändert. Bitte die Datei neu öffnen und erneut bearbeiten.",
+      currentVersion: file.serverVersion
+    });
+  }
+
+  const nextVersion = expectedVersion + 1;
+  const objectKey = `tenants/${getTenantId()}/edited-documents/${file.id}/v${nextVersion}-${crypto.randomUUID()}.pdf`;
+  const updated = await prisma.$transaction(async transaction => {
+    const claimed = await transaction.file.updateMany({
+      where: { id: file.id, serverVersion: expectedVersion },
+      data: { serverVersion: { increment: 1 } }
+    });
+    if (claimed.count !== 1) {
+      const conflict = new Error("Die PDF wurde zwischenzeitlich geändert. Bitte die Datei neu öffnen und erneut bearbeiten.");
+      conflict.statusCode = 409;
+      throw conflict;
+    }
+
+    const upload = await s3Upload.send(new PutObjectCommand({
+      Bucket: file.storageObject.bucketName,
+      Key: objectKey,
+      Body: req.file.buffer,
+      ContentType: "application/pdf"
+    }));
+    const storageObject = await transaction.s3Object.create({
+      data: {
+        provider: "garage",
+        bucketName: file.storageObject.bucketName,
+        objectKey,
+        endpoint: process.env.S3_PUBLIC_ENDPOINT,
+        etag: upload.ETag || null
+      }
+    });
+    const result = await transaction.file.update({
+      where: { id: file.id },
+      data: {
+        storageObjectId: storageObject.id,
+        mimeType: "application/pdf",
+        fileSize: req.file.size
+      },
+      select: { id: true, projectId: true, fileName: true, serverVersion: true, updatedAt: true }
+    });
+    const orphanedObject = await transaction.s3Object.findFirst({
+      where: {
+        id: file.storageObjectId,
+        files: { none: {} },
+        projectStorage: { none: {} }
+      },
+      select: { id: true, bucketName: true, objectKey: true }
+    });
+    if (orphanedObject) {
+      await enqueueStorageDeletions(transaction, [orphanedObject]);
+      await transaction.s3Object.delete({ where: { id: orphanedObject.id } });
+    }
+    await transaction.auditLog.create({
+      data: {
+        actorUserId: req.user.id,
+        action: "file.pdf.annotate",
+        entityType: "File",
+        entityId: file.id,
+        metadata: { fromVersion: expectedVersion, toVersion: nextVersion, previousObjectKey: file.storageObject.objectKey, objectKey },
+        ipAddress: req.ip || null,
+        userAgent: req.get("user-agent") || null
+      }
+    });
+    return result;
+  }, { timeout: 90_000 });
+
+  publishFileChange({
+    tenantId: req.tenant.id,
+    action: "updated",
+    resourceType: "asset",
+    fileId: updated.id,
+    projectId: updated.projectId,
+    fileName: updated.fileName,
+    serverVersion: updated.serverVersion
+  });
+  return res.json({
+    fileId: updated.id,
+    serverVersion: updated.serverVersion,
+    fileSize: req.file.size,
+    updatedAt: updated.updatedAt
+  });
 }
 
 export async function updateLocalDocumentAssignment(req, res) {

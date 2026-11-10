@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router';
 import { MeasurementScanInbox } from './measurementScanInbox.jsx';
-import { PaperlessInbox, PaperlessLibrary } from './paperlessDocuments.jsx';
+import { CarpentersGarageLibrary, ManualDocumentFolders, PaperlessInbox, PaperlessLibrary } from './paperlessDocuments.jsx';
 
 /** Zeigt die Betriebsdokumentenablage ohne die entfernte Erfassung einzelner Geschäftsvorfälle. */
 export function ManagementDocuments() {
@@ -33,9 +33,9 @@ export function ManagementDocuments() {
           ['local', 'Carpenters-Dateien']
         ].map(([id, label]) => <button key={id} type="button" aria-current={tab === id ? 'page' : undefined} onClick={() => setTab(id)} className={`whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium ${tab === id ? 'border-blue-500 text-blue-300' : 'border-transparent text-slate-500 hover:text-slate-300'}`}>{label}</button>)}
       </nav>
-      {tab === 'inbox' && <PaperlessInbox connected={status.connected} folders={status.folders} />}
+      {tab === 'inbox' && <PaperlessInbox connected={status.connected} />}
       {status.connected && tab === 'library' && <PaperlessLibrary paperlessUrl={status.baseUrl} />}
-      {tab === 'local' && <MeasurementScanInbox />}
+      {tab === 'local' && <div className="space-y-8"><MeasurementScanInbox /><ManualDocumentFolders folders={status.folders} /><CarpentersGarageLibrary /></div>}
     </div>
   );
 }

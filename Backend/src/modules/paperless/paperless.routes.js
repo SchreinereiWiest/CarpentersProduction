@@ -8,6 +8,7 @@ import {
   deletePaperlessDocument,
   dismissPaperlessDocument,
   getAssignmentOptions,
+  getGarageFileDownload,
   getPaperlessStatus,
   importLibraryDocument,
   linkLibraryDocument,
@@ -16,6 +17,8 @@ import {
   proxyLibraryDocument,
   proxyLinkedDocument,
   remoteDocumentMetadata,
+  saveGaragePdf,
+  searchGarageLibrary,
   searchPaperlessLibrary,
   syncPaperlessNow,
   uploadPaperlessDocument,
@@ -48,6 +51,12 @@ const receiveUpload = (req, res, next) => upload.single("document")(req, res, er
   error.code = error.code === "LIMIT_FILE_SIZE" ? "PAPERLESS_UPLOAD_TOO_LARGE" : "PAPERLESS_UPLOAD_TYPE_INVALID";
   return next(error);
 });
+const receivePdfEdit = (req, res, next) => upload.single("pdf")(req, res, error => {
+  if (!error) return next();
+  error.statusCode = error.code === "LIMIT_FILE_SIZE" ? 413 : 415;
+  error.code = error.code === "LIMIT_FILE_SIZE" ? "GARAGE_PDF_TOO_LARGE" : "GARAGE_PDF_INVALID";
+  return next(error);
+});
 router.use(authenticate);
 
 router.get("/documents/:documentId/content", authorizePaperlessDocument, (req, _res, next) => { req.params.action = "content"; next(); }, proxyLinkedDocument);
@@ -73,6 +82,9 @@ router.delete("/documents/:documentId", deletePaperlessDocument);
 router.put("/local-documents/:fileId/assignment", updateLocalDocumentAssignment);
 router.delete("/local-documents/:fileId/assignment", unlinkLocalDocument);
 router.post("/local-documents/:fileId/dismiss", dismissLocalDocument);
+router.get("/garage-library", searchGarageLibrary);
+router.get("/garage-library/:fileId/download", getGarageFileDownload);
+router.put("/garage-library/:fileId/content", receivePdfEdit, saveGaragePdf);
 router.get("/library", searchPaperlessLibrary);
 router.get("/library/:remoteDocumentId/metadata", remoteDocumentMetadata);
 router.get("/library/:remoteDocumentId/content", (req, _res, next) => { req.params.action = "content"; next(); }, proxyLibraryDocument);

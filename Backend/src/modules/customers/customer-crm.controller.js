@@ -87,7 +87,8 @@ export async function getCustomerCrm(req, res) {
           fileSize: true,
           category: true,
           uploadedAt: true,
-          status: true
+          status: true,
+          serverVersion: true
         }
       },
       paperlessDocuments: {

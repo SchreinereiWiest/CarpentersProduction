@@ -96,6 +96,23 @@ gegen gespeicherte Druckseiten geprüft und dem zugehörigen Projekt zugeordnet.
 Der Worker prüft standardmäßig nur die ersten fünf Seiten. Der Wert lässt sich
 mit `PAPERLESS_QR_MAX_PAGES` zwischen 1 und 20 anpassen.
 
+## Garage-Bibliothek und PDF-Bearbeitung
+
+Der Bereich **Carpenters-Dateien** durchsucht zusätzlich alle mandanteneigenen
+PDF- und Bilddateien, deren Storage-Provider `garage` ist. PDF-Dateien können im
+internen Viewer mit Freihandlinien beziehungsweise handschriftlichen
+Unterschriften versehen werden. Die Linien werden als PDF-Vektoren eingebettet;
+die bestehenden Seiten werden nicht in Bilder umgewandelt.
+
+Beim Speichern bleibt die `File`-ID und damit jede Projekt-, Kunden- oder
+Ordnerverknüpfung unverändert. Der Inhalt wird unter einem neuen Garage-Key
+gespeichert, die Dateireferenz atomar darauf umgestellt und `serverVersion`
+erhöht. Der vorherige Storage-Key wird anschließend über die normale
+Storage-Deletion-Queue entfernt. Es wird bewusst kein dauerhaftes
+Original-Snapshot geführt. Gleichzeitige Änderungen werden über die erwartete
+`serverVersion` mit HTTP 409 abgewehrt. Paperless-Dateien werden durch diesen
+Editor nicht verändert.
+
 ## API-Endpunkte
 
 | Methode | Endpoint | Zweck |
@@ -115,6 +132,9 @@ mit `PAPERLESS_QR_MAX_PAGES` zwischen 1 und 20 anpassen.
 | `GET` | `/api/paperless/library` | Paperless-Volltextsuche |
 | `POST` | `/api/paperless/library/:remoteId/link` | Früheres Dokument verknüpfen |
 | `GET` | `/api/paperless/documents/:id/content` | Datei aus Paperless streamen |
+| `GET` | `/api/paperless/garage-library` | PDFs und Bilder aus Carpenters Garage durchsuchen |
+| `GET` | `/api/paperless/garage-library/:fileId/download` | Kurzlebige Download-URL für eine Garage-Datei |
+| `PUT` | `/api/paperless/garage-library/:fileId/content` | Bearbeitete PDF versionsgeprüft speichern |
 | `POST` | `/api/paperless/qr` | Signierten CPD1-Code erzeugen |
 
 Alle Browser-Endpunkte sind sitzungs- und rollenbasiert geschützt. Der externe

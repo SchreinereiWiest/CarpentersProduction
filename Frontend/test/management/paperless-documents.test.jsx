@@ -33,17 +33,32 @@ describe("Paperless-Dokumentbereich", () => {
       if (url === "/api/paperless/status") return Promise.resolve({ data: { configured: true, connected: true, baseUrl: "http://paperless.internal", folders: [{ id: "folder-1", name: "Buchhaltung" }] } });
       if (url === "/api/paperless/documents") return Promise.resolve({ data: { documents: [] } });
       if (url === "/api/paperless/local-documents") return Promise.resolve({ data: { documents: [] } });
+      if (url === "/api/paperless/garage-library") return Promise.resolve({ data: { count: 0, page: 1, next: false, previous: false, results: [] } });
+      if (url === "/api/measurement-ocr/scans") return Promise.resolve({ data: { scans: [] } });
       if (url === "/api/paperless/assignment-options") return Promise.resolve({ data: { projects: [], customers: [], folders: [] } });
       if (url === "/api/paperless/library") return Promise.resolve({ data: { count: 0, page: 1, next: false, previous: false, results: [] } });
       return Promise.reject(new Error(`Unexpected URL ${url}`));
     });
   });
 
-  it("zeigt bei aktiver Verbindung Eingang, Bibliothek und manuelle Ordner", async () => {
+  it("zeigt manuelle Ordner unter Carpenters-Dateien statt im Eingang", async () => {
     render(<MemoryRouter><ManagementDocuments /></MemoryRouter>);
 
     expect(await screen.findByRole("heading", { name: "Dokumenteingang" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Buchhaltung" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Buchhaltung" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Carpenters-Dateien" }));
+    expect(await screen.findByRole("heading", { name: "Manuelle Dokumentordner" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Buchhaltung" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Carpenters-Garage" })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Firmenordner und Dokumente durchsuchen …")).toBeInTheDocument();
+    const garageSearch = screen.getByPlaceholderText("Dateiname, Projekt, Kunde oder Ordner …");
+    fireEvent.change(garageSearch, { target: { value: "Küchenplan" } });
+    fireEvent.submit(garageSearch.closest("form"));
+    await waitFor(() => expect(axios.get).toHaveBeenCalledWith(
+      "/api/paperless/garage-library",
+      { params: { query: "Küchenplan", page: 1 } }
+    ));
 
     fireEvent.click(screen.getByRole("button", { name: "Paperless-Bibliothek" }));
     expect(await screen.findByPlaceholderText("Titel, Inhalt, Korrespondent …")).toBeInTheDocument();
