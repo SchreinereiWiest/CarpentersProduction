@@ -6,7 +6,7 @@ export default function CncCodeDialog({ part, postprocessor, result, onClose }) 
                 <header className="flex items-start justify-between border-b border-gray-700 px-5 py-4">
                     <div>
                         <h2 className="font-semibold text-white">Postprozessor-Code</h2>
-                        <p className="mt-1 text-xs text-gray-500">{part?.Objektname ?? part?.PID} · {postprocessor?.name} · {result?.fileName}</p>
+                        <p className="mt-1 text-xs text-gray-500">{part?.Objektname ?? part?.PID} · {postprocessor?.name} · Seite {result?.metadata?.programFace ?? "A"} · {result?.fileName}</p>
                     </div>
                     <button type="button" onClick={onClose} className="rounded px-2 py-1 text-gray-400 hover:bg-gray-800 hover:text-white">×</button>
                 </header>

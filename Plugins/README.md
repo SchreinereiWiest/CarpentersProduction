@@ -27,3 +27,10 @@ Die lieferantenübergreifende Browser-Erweiterung liegt unter
 Lieferanten, Shop-Startadressen und der Abrufweg werden in
 CarpentersProduction unter **Einstellungen → Shop** konfiguriert.
 
+## XilogConvert
+
+Die Windows-Anwendung unter `Plugins/XilogConvert` konvertiert das vom
+CNC-Editor erzeugte Xilog-XXL-ZIP über die originale xISO-Konsolenanwendung in
+einzelne PGM-Dateien oder ein PGM-ZIP. Build und Bedienung sind in
+`Plugins/XilogConvert/README.md` beschrieben.
+

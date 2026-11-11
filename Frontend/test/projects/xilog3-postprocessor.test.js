@@ -8,6 +8,7 @@ import {
     MACHINING_KINDS,
     generateCncMachineCode as generateMachineCode
 } from "@Engine/postprocessor/index.js";
+import { getPartMachineCodeFaces } from "../../src/features/projects/cnc/shared/machineCodeFaces.js";
 
 const withNeutralCnc = part => ({
     ...part,
@@ -41,8 +42,9 @@ const instance = {
 describe("SCM Xilog 3 postprocessor", () => {
     it("publishes the workshop-specific XXL adapter", () => {
         expect(descriptor).toMatchObject({
-            version: "0.4.3",
+            version: "0.5.0",
             sourceFormat: "Xilog 3 XXL (ASCII, CRLF)",
+            machineCodeFaces: ["A", "B"],
             capabilities: {
                 viewer: true,
                 machineCode: true,
@@ -100,6 +102,57 @@ describe("SCM Xilog 3 postprocessor", () => {
             level: "warning",
             code: "XILOG3_IMPORT_VALIDATION_REQUIRED"
         }));
+    });
+
+    it("generates a separate XXL program for machining side B", () => {
+        const operation = (id, face, x, y) => ({
+            id,
+            kind: MACHINING_KINDS.DRILL_POINT,
+            intentId: MACHINING_INTENT_IDS.MANUAL_DRILLING,
+            face,
+            x,
+            y,
+            depth: 8,
+            diameter: 5
+        });
+        const part = {
+            PID: "seite-links",
+            L: 450,
+            B: 695,
+            T: 20,
+            CNC: {
+                operations: [
+                    operation("face-a", "A", 10, 20),
+                    operation("face-b", "B", 30, 40),
+                    operation("both", "both", 50, 60)
+                ]
+            }
+        };
+
+        const sideA = generateCncMachineCode(instance, { part, fileName: "seite-links", face: "A" });
+        const sideB = generateCncMachineCode(instance, { part, fileName: "seite-links", face: "B" });
+
+        expect(sideA.supported).toBe(true);
+        expect(sideA.fileName).toBe("SEITE-LI.xxl");
+        expect(sideA.metadata).toMatchObject({ programFace: "A", operationCount: 2 });
+        expect(sideA.code).toContain('XBO X=10 Y=675 Z=8 R=1 D=5 N="P"');
+        expect(sideA.code).toContain('XBO X=50 Y=635 Z=8 R=1 D=5 N="P"');
+        expect(sideA.code).not.toContain("XBO X=30 ");
+
+        expect(sideB.supported).toBe(true);
+        expect(sideB.fileName).toBe("SEITE_B.xxl");
+        expect(sideB.metadata).toMatchObject({ programFace: "B", operationCount: 2 });
+        expect(sideB.code).toContain("validate in Xilog 3 - face B");
+        expect(sideB.code).toContain('XBO X=30 Y=655 Z=8 R=1 D=5 N="P"');
+        expect(sideB.code).toContain('XBO X=50 Y=635 Z=8 R=1 D=5 N="P"');
+        expect(sideB.code).not.toContain("XBO X=10 ");
+        expect(getPartMachineCodeFaces(part, descriptor)).toEqual(["A", "B"]);
+    });
+
+    it("does not add an empty side-B export when a part has no B machining", () => {
+        expect(getPartMachineCodeFaces({
+            CNC: { operations: [{ face: "A" }] }
+        }, descriptor)).toEqual(["A"]);
     });
 
     it("adds the configured field A departure step as the final program command", () => {

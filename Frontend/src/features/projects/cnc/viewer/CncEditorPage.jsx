@@ -30,6 +30,10 @@ import {
 } from "@Engine/postprocessor/index.js";
 import CncCodeDialog from "./CncCodeDialog.jsx";
 import { createZipArchive } from "../shared/cncArchive.js";
+import {
+    getPartMachineCodeFaces,
+    resolveMachineCodeFace
+} from "../shared/machineCodeFaces.js";
 
 import ProjectBar
     from "../../../../shared/components/projectBar.jsx";
@@ -467,10 +471,11 @@ export default function CncEditor() {
      * =====================================================
      */
 
-    const generatePartCode = part => generateCncMachineCode(
+    const generatePartCode = (part, face = "A") => generateCncMachineCode(
         activePostprocessor,
         {
             part,
+            face,
             fileName: part.PID ?? part.Objektname,
             assignments: machiningAssignments
         }
@@ -479,7 +484,8 @@ export default function CncEditor() {
     const showSelectedPartCode = () => {
         if (!selectedPart || !activePostprocessorDescriptor?.capabilities?.machineCode) return;
         try {
-            const result = generatePartCode(selectedPart);
+            const face = resolveMachineCodeFace(activePostprocessorDescriptor, selectedFace);
+            const result = generatePartCode(selectedPart, face);
             if (!result.supported || (result.content == null && result.code == null)) {
                 const message = result.diagnostics?.filter(entry => entry.level === "error").map(entry => entry.message).join(" ");
                 setExportNotice({ type: "error", message: message || "Der Postprozessor konnte keinen Code für dieses Bauteil erzeugen." });
@@ -500,13 +506,14 @@ export default function CncEditor() {
 
         try {
 
-            const generated = allParts.map(part => ({ part, result: generatePartCode(part) }));
+            const generated = allParts.flatMap(part => getPartMachineCodeFaces(part, activePostprocessorDescriptor)
+                .map(face => ({ part, face, result: generatePartCode(part, face) })));
             const failed = generated.filter(({ result }) => !result.supported || (result.content == null && result.code == null));
 
             if (failed.length) {
-                const message = failed.flatMap(({ part, result }) => result.diagnostics
+                const message = failed.flatMap(({ part, face, result }) => result.diagnostics
                     ?.filter(entry => entry.level === "error")
-                    .map(entry => `${part.PID ?? part.Objektname}: ${entry.message}`) ?? []).join(" ");
+                    .map(entry => `${part.PID ?? part.Objektname} · Seite ${face}: ${entry.message}`) ?? []).join(" ");
 
                 setExportNotice({
                     type: "error",

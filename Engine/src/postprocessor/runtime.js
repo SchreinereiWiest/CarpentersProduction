@@ -35,8 +35,17 @@ export const resolveCncProgramHeader = (instance, payload) =>
 export const generateCncMachineCode = (instance, payload) => {
     const plugin = load(instance);
     const pluginContext = context(instance, payload);
+    const requestedFace = ["A", "B"].includes(String(payload?.face ?? "").toUpperCase())
+        ? String(payload.face).toUpperCase()
+        : null;
+    const operationMatchesFace = operation => {
+        if (!requestedFace) return true;
+        const operationFace = String(operation?.face ?? "A").toUpperCase();
+        return operationFace === requestedFace || operationFace === "BOTH";
+    };
+    const operations = (payload?.part?.CNC?.operations ?? []).filter(operationMatchesFace);
     const intents = [...new Set(
-        (payload?.part?.CNC?.operations ?? [])
+        operations
             .map(operation => operation.intentId)
             .filter(Boolean)
     )];
@@ -44,7 +53,6 @@ export const generateCncMachineCode = (instance, payload) => {
         intent,
         plugin.resolveMachining({ ...pluginContext, intent })
     ]));
-    const operations = payload?.part?.CNC?.operations ?? [];
     const diagnostics = Object.entries(resolvedMachining)
         .flatMap(([intentId, resolution]) => {
             const affectedOperations = operations.filter(operation => operation.intentId === intentId);
