@@ -36,7 +36,17 @@ export const generateSideParts = ({
         );
 
 
-    const sideHeight = bottomIsContinuous ? height - 2 * thickness : height;
+    const topExists = cabinet.topExists ?? true;
+    const bottomExists = cabinet.bottomExists ?? true;
+    const topOffset = Number(cabinet.topOffset ?? 0);
+    const bottomOffset = Number(cabinet.bottomOffset ?? 0);
+    const sideStartY = bottomIsContinuous && topExists
+        ? topOffset + thickness
+        : 0;
+    const sideEndY = bottomIsContinuous && bottomExists
+        ? height - bottomOffset - thickness
+        : height;
+    const sideHeight = Math.max(0, sideEndY - sideStartY);
     const createSide = side => {
         const isRight = side === "right";
 
@@ -85,7 +95,7 @@ export const generateSideParts = ({
                 side,
                 mirrorX: isRight,
                 x: isRight ? width - thickness : 0,
-                y: 0,
+                y: sideStartY,
                 width: thickness,
                 height: sideHeight,
                 continuous: !bottomIsContinuous

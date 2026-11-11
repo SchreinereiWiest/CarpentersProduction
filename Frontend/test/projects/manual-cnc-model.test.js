@@ -62,21 +62,64 @@ describe("manual CNC model", () => {
         expect(CNC_MACRO_DEFINITIONS.length).toBeGreaterThan(macros.length);
     });
 
-    it("creates parameter-driven VB and Legrabox macro groups", () => {
+    it("creates parameter-driven VB, Spax, horizontal connector, and Legrabox macro groups", () => {
         const part = { L: 700, B: 560, T: 19 };
         const tools = [{ id: "drill-5", category: "drilling", diameter: 5 }];
         const connector = createMacroOperations({ macroId: "macro.connectorRow", values: { x: 210 }, part, tools });
         expect(connector[0]).toMatchObject({
             intentId: MACHINING_INTENT_IDS.JOINT_CONNECTOR,
             x: 210,
-            positions: [50, 280, 510],
-            count: 3
+            count: 4
         });
+        expect(connector[0].positions).toHaveLength(4);
+        expect(connector[0].positions[0]).toBe(50);
+        expect(connector[0].positions[1]).toBeCloseTo(203.333333);
+        expect(connector[0].positions[2]).toBeCloseTo(356.666667);
+        expect(connector[0].positions[3]).toBe(510);
+
+        const screw = createMacroOperations({ macroId: "macro.screwRow", values: { x: 210 }, part, tools });
+        expect(screw[0]).toMatchObject({
+            intentId: MACHINING_INTENT_IDS.JOINT_SCREW,
+            count: 4
+        });
+        expect(screw[0].positions).toHaveLength(4);
+        expect(screw[0].positions.slice(1, -1)).toHaveLength(2);
+
+        const horizontal = createMacroOperations({ macroId: "macro.connectorEdge", values: { edge: "right" }, part, tools });
+        expect(horizontal[0]).toMatchObject({
+            intentId: MACHINING_INTENT_IDS.JOINT_CONNECTOR,
+            edge: "right",
+            count: 4
+        });
+        expect(horizontal[0].positions).toHaveLength(4);
+        expect(horizontal[0].positions.slice(1, -1)).toHaveLength(2);
 
         const legrabox = createMacroOperations({ macroId: "macro.legrabox", values: { x: 125 }, part, tools });
         expect(legrabox).toHaveLength(2);
         expect(legrabox[0]).toMatchObject({ x: 125, y: 37, rows: 2, stepY: 32 });
         expect(legrabox[1]).toMatchObject({ x: 125, y: 192, rows: 3, stepY: 32 });
+    });
+
+    it("uses three connector holes below the configured threshold and four from the threshold", () => {
+        const belowThreshold = createMacroOperations({
+            macroId: "macro.connectorRow",
+            values: { x: 100 },
+            part: { L: 500, B: 299, T: 19 }
+        });
+        const atThreshold = createMacroOperations({
+            macroId: "macro.connectorRow",
+            values: { x: 100 },
+            part: { L: 500, B: 300, T: 19 }
+        });
+        const at350 = createMacroOperations({
+            macroId: "macro.connectorRow",
+            values: { x: 100 },
+            part: { L: 500, B: 350, T: 19 }
+        });
+
+        expect(belowThreshold[0].count).toBe(3);
+        expect(atThreshold[0].count).toBe(4);
+        expect(at350[0].count).toBe(4);
     });
 
     it("converts the Legra front input from the lowest hole to configured group offsets", () => {

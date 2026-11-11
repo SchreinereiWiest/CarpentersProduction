@@ -85,7 +85,7 @@ export const generateBottomPart = ({
                 "top",
 
             x:
-                thickness,
+                bottomIsContinuous ? 0 : thickness,
 
             y,
 
@@ -127,7 +127,7 @@ export const generateBottomPart = ({
                 "bottom",
 
             x:
-                thickness,
+                bottomIsContinuous ? 0 : thickness,
 
             y,
 

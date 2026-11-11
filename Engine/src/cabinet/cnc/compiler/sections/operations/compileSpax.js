@@ -220,6 +220,10 @@ const getVerticalMemberInstances = (
                                 : "left"
                         ),
 
+                    mirrorX:
+                        instance.mirrorX ??
+                        isRight,
+
                     x,
 
                     y:
@@ -1019,10 +1023,6 @@ const getVerticalJointPosition = ({
     panel,
     boundary
 }) => {
-
-    const member =
-        boundary?.part;
-
     const geometry =
         boundary?.memberGeometry;
 
@@ -1033,25 +1033,6 @@ const getVerticalJointPosition = ({
 
         return Number(
             panel?.centerY
-        );
-
-    }
-
-
-    /*
-     * Seiten laufen über die komplette
-     * Korpus-Höhe.
-     *
-     * Hier entspricht panel.centerY bereits
-     * der lokalen Position.
-     */
-
-    if (
-        isSidePart(member)
-    ) {
-
-        return Number(
-            panel.centerY
         );
 
     }
@@ -1083,41 +1064,9 @@ const getVerticalJointPosition = ({
 
 
     /*
-     * Bei einer Mittelwand:
-     *
-     * Deckel:
-     *     obere Kante der Mittelwand = 0
-     *
-     * Boden:
-     *     untere Kante der Mittelwand = height
-     *
-     * Damit verwenden wir nicht mehr
-     * die globale Korpusposition.
-     */
-
-    if (
-        panel.type === "top"
-    ) {
-
-        return 0;
-
-    }
-
-
-    if (
-        panel.type === "bottom"
-    ) {
-
-        return memberHeight;
-
-    }
-
-
-    /*
-     * Fallback für andere horizontale Bauteile.
-     *
      * Globale Y-Position in lokale Position
-     * des vertikalen Bauteils umrechnen.
+     * Das gilt auch für gekürzte Korpusseiten bei
+     * durchgehenden Horizontalteilen.
      */
 
     const localPosition =
@@ -1134,6 +1083,68 @@ const getVerticalJointPosition = ({
             localPosition
         )
     );
+
+};
+
+
+const getVerticalMemberEdge = ({
+    boundary,
+    verticalJointPosition
+}) => {
+
+    const geometry =
+        boundary?.memberGeometry;
+
+
+    const memberLength =
+        Number(
+            boundary?.part?.L ??
+            geometry?.height
+        );
+
+
+    if (
+        !geometry ||
+        !Number.isFinite(memberLength) ||
+        !Number.isFinite(verticalJointPosition)
+    ) {
+        return null;
+    }
+
+
+    let edge = null;
+
+
+    if (
+        isNear(
+            verticalJointPosition,
+            0
+        )
+    ) {
+        edge = "left";
+    } else if (
+        isNear(
+            verticalJointPosition,
+            memberLength
+        )
+    ) {
+        edge = "right";
+    }
+
+
+    if (!edge) {
+        return null;
+    }
+
+
+    if (geometry.mirrorX === true) {
+        return edge === "left"
+            ? "right"
+            : "left";
+    }
+
+
+    return edge;
 
 };
 
@@ -1177,12 +1188,8 @@ const compileHorizontalJoint = ({
     /*
      * Lokale Position auf dem vertikalen Bauteil.
      *
-     * Bei Seiten:
-     *     panel.centerY
-     *
-     * Bei Mittelwänden:
-     *     top    -> 0
-     *     bottom -> member.height
+     * Die globale Plattenposition wird gegen den tatsächlichen
+     * Anfang der jeweiligen Seite oder Mittelwand aufgelöst.
      */
 
     const verticalJointPosition =
@@ -1618,7 +1625,6 @@ const compileHorizontalJoint = ({
     let continuousPosition =
         null;
 
-    console.log("panel:", panel, "boundary:", boundary.horizontalSide);
     if (
         boundary.horizontalSide ===
         "left"
@@ -1904,14 +1910,9 @@ const compileHorizontalJoint = ({
      *
      * Hier ist jetzt der entscheidende Unterschied:
      *
-     * Die Position wird NICHT mehr aus
-     * panel.centerY (globale Korpus-Y-Position)
-     * übernommen.
-     *
-     * Bei einer Mittelwand:
-     *
-     * Deckel -> 0
-     * Boden -> member.height
+     * Position und Stirnkante werden aus der lokalen Lage auf
+     * dem vertikalen Bauteil bestimmt. Die Spiegelorientierung
+     * einer rechten Korpusseite wird dabei berücksichtigt.
      * -----------------------------------------------------
      */
 
@@ -1942,6 +1943,18 @@ const compileHorizontalJoint = ({
                 horizontalHoleCount
         });
 
+
+    const verticalMemberEdge =
+        getVerticalMemberEdge({
+            boundary,
+            verticalJointPosition
+        });
+
+
+    if (!verticalMemberEdge) {
+        return;
+    }
+
     addOperation(
         verticalPart,
         {
@@ -1955,7 +1968,8 @@ const compileHorizontalJoint = ({
             face:
                 boundary.face,
 
-            edge: boundary.horizontalSide !== "middle" ? boundary.horizontalSide :panel.type === "top" ? "left" : panel.type === "bottom" ? "right" : boundary.horizontalSide,
+            edge:
+                verticalMemberEdge,
 
             position:
                 verticalJointPosition,

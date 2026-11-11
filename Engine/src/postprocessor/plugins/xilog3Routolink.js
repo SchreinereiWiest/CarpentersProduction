@@ -289,6 +289,8 @@ const translateShelfRow = (operation, dimensions, configuration) => {
 };
 
 const translateHorizontalBore = (operation, dimensions) => {
+  if (!["left", "right"].includes(operation.edge)) return null;
+
   const positions = Array.isArray(operation.positions)
     ? operation.positions.map(finiteNumber).filter((value) => value !== null)
     : [];

@@ -1,5 +1,6 @@
 import { createStringId } from "@Engine/shared/id.js";
 import { DEFAULT_CNC } from "@Engine/cabinet/cnc/cncDefaults.js";
+import { getConnectorHoleCount } from "@Engine/cabinet/cnc/compiler/cncHelpers.js";
 import { getDrawerFrontGroups } from "@Engine/cabinet/sektions/front/frontAttachments.js";
 import {
     MACHINING_INTENT_IDS,
@@ -296,7 +297,7 @@ export const createMacroOperations = ({ macroId, values = {}, part, cncDefault, 
 
     if (macroId === "macro.connectorRow" || macroId === "macro.screwRow") {
         const connector = macroId === "macro.connectorRow" ? config.spax.connector : config.spax.screw;
-        const count = macroId === "macro.connectorRow" && width >= number(config.spax.connector.holeCountThreshold, 300) ? 3 : 2;
+        const count = getConnectorHoleCount(width, config.spax.connector.holeCountThreshold);
         const positions = linearPositions(width, connector.startOffset, connector.endOffset, count);
         return [macroOperation({
             macroId,
@@ -317,7 +318,8 @@ export const createMacroOperations = ({ macroId, values = {}, part, cncDefault, 
 
     if (macroId === "macro.connectorEdge") {
         const connector = config.spax.horizontal;
-        const positions = linearPositions(width, connector.startOffset, connector.endOffset, 2);
+        const count = getConnectorHoleCount(width, config.spax.connector.holeCountThreshold);
+        const positions = linearPositions(width, connector.startOffset, connector.endOffset, count);
         return [macroOperation({
             macroId,
             values,
@@ -325,6 +327,8 @@ export const createMacroOperations = ({ macroId, values = {}, part, cncDefault, 
             intentId: MACHINING_INTENT_IDS.JOINT_CONNECTOR,
             edge: values.edge === "right" ? "right" : "left",
             positions,
+            count: positions.length,
+            spacing: positions.length > 1 ? positions[1] - positions[0] : 0,
             height: thickness / 2,
             diameter: number(connector.diameter, 8),
             depth: number(connector.depth, 15),

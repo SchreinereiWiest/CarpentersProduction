@@ -285,6 +285,36 @@ describe("SCM Xilog 3 postprocessor", () => {
         expect(result.code).toContain("F=2\r\nVBH X=10 Y=50 y=50 Z=28 R=198 D=8\r\nF=1");
     });
 
+    it("rejects an invalid neutral edge instead of silently using the left machine face", () => {
+        const result = generateCncMachineCode(instance, {
+            part: {
+                PID: "VBH-INVALID-EDGE",
+                L: 450,
+                B: 695,
+                T: 20,
+                CNC: {
+                    operations: [{
+                        id: "horizontal-invalid",
+                        kind: MACHINING_KINDS.DRILL_EDGE_PATTERN,
+                        intentId: MACHINING_INTENT_IDS.JOINT_CONNECTOR,
+                        face: "A",
+                        edge: "middle",
+                        positions: [50, 248, 446, 645],
+                        spacing: 198,
+                        depth: 28,
+                        diameter: 8
+                    }]
+                }
+            }
+        });
+
+        expect(result.code).toBeNull();
+        expect(result.diagnostics).toContainEqual(expect.objectContaining({
+            level: "error",
+            code: "INVALID_XILOG_OPERATION"
+        }));
+    });
+
     it("switches directly between consecutive VBH side faces without an intermediate F=1", () => {
         const operation = edge => ({
             id: `horizontal-${edge}`,
