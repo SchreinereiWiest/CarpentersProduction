@@ -1,5 +1,6 @@
 import { flattenPartList } from "./flattenPartList.js";
 import { getCncProgramSignature } from "./getCncProgramSignature.js";
+import { expandCncMachiningVariants } from "./machiningVariants.js";
 import { createId } from "../shared/id.js";
 
 const getPartOrder = (part) => {
@@ -40,76 +41,50 @@ const getPartOrder = (part) => {
 
 export const groupCncParts = (partList = []) => {
 
-  const parts = flattenPartList(partList);
+  const baseParts = flattenPartList(partList);
 
   const groups = new Map();
 
-  parts.forEach((part) => {
+  baseParts.forEach((basePart) => {
+
+    const hasVariantOperations = (basePart.CNC?.machiningVariants ?? []).some(variant =>
+      Array.isArray(variant?.cnc?.operations) && variant.cnc.operations.length > 0
+    );
 
     if (
-      !part.CNC ||
-      !Array.isArray(part.CNC.operations) ||
-      part.CNC.operations.length === 0
+      !basePart.CNC ||
+      !Array.isArray(basePart.CNC.operations) ||
+      (basePart.CNC.operations.length === 0 && !hasVariantOperations)
     ) {
       return;
     }
 
-    const signature = getCncProgramSignature(part);
-
-    const partOrder = getPartOrder(part);
-
-    /*
-     * Korpusname:
-     *
-     * Idealfall ist der Korpusname bereits am geflatten
-     * Part vorhanden.
-     *
-     * Fallbacks für unterschiedliche Strukturen.
-     */
+    // Die Rohteilgruppe verwendet weiterhin die gemeinsame Signatur. Die
+    // darin enthaltenen Links-/Rechtsprogramme werden nur als Children
+    // aufgelöst und bleiben dadurch unter derselben Teileposition sichtbar.
+    const signature = getCncProgramSignature(basePart);
+    const partOrder = getPartOrder(basePart);
+    const partType = ["Seite", "Boden", "Mittelwand"][partOrder]
+      ?? basePart.Objektname
+      ?? "Bauteil";
+    const groupKey = `${partOrder}|${partType}|${signature}`;
     const cabinetName =
-      part.cabinetName ||
-      part.korpusName ||
-      part.CabinetName ||
-      part.parentName ||
+      basePart.cabinetName ||
+      basePart.korpusName ||
+      basePart.CabinetName ||
+      basePart.parentName ||
       "";
 
-    /*
-     * Der Typ des Bauteils soll unabhängig vom
-     * konkreten Namen als Anzeige dienen.
-     */
-    const partType = ["Seite", "Boden", "Mittelwand"][partOrder]
-      ?? part.Objektname
-      ?? "Bauteil";
-
-    /*
-     * Gleiche CNC-Signatur + gleicher Bauteiltyp
-     * werden zu einer Gruppe.
-     *
-     * Dadurch wird z.B. nicht versehentlich eine Seite
-     * mit einem Boden zusammengefasst, nur weil die
-     * CNC-Operationen identisch sind.
-     */
-    const groupKey = `${partOrder}|${partType}|${signature}`;
-
     if (!groups.has(groupKey)) {
-
       groups.set(groupKey, {
         id: createId(),
-
         signature,
-
         name: partType,
-
-        type: part.Plattentyp || "",
-
+        type: basePart.Plattentyp || "",
         order: partOrder,
-
         parts: [],
-
         count: 0,
-
         cabinetNames: [],
-
         displayName: cabinetName
           ? `${partType} – ${cabinetName}`
           : partType
@@ -117,13 +92,15 @@ export const groupCncParts = (partList = []) => {
     }
 
     const group = groups.get(groupKey);
+    const programParts = expandCncMachiningVariants(basePart).filter(part =>
+      Array.isArray(part.CNC?.operations) && part.CNC.operations.length > 0
+    );
 
-    group.parts.push(part);
+    programParts.forEach(part => {
+      group.parts.push(part);
+      group.count += Number(part.Anzahl) || 1;
+    });
 
-    // Anzahl der tatsächlichen Bauteile
-    group.count += Number(part.Anzahl) || 1;
-
-    // Korpusnamen einmalig sammeln
     if (
       cabinetName &&
       !group.cabinetNames.includes(cabinetName)

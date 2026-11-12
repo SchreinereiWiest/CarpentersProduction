@@ -353,6 +353,17 @@ export const storePartCncInCabinet = (cabinet, part, operations, { tools = [], h
     });
 };
 
+export const storePartCncHeaderInCabinet = (cabinet, part, header) => {
+    const partKey = getCncPartKey(part);
+    return updateCncProgramConfig(cabinet, config => ({
+        ...config,
+        partHeaders: [
+            ...asArray(config.partHeaders).filter(entry => entry.partKey !== partKey),
+            ...(header == null ? [] : [{ partKey, partId: part.PID ?? null, header: clone(header) }])
+        ]
+    }));
+};
+
 const matchesProfile = (operation, profile) => {
     if (!asArray(profile.intentIds).includes(operation.intentId)) return false;
     if (profile.sectionId && keyOf(operation.source?.sectionId) !== keyOf(profile.sectionId)) return false;

@@ -16,6 +16,49 @@ import { generateLegraboxHardware } from "./hardware/generateLegraboxHardware.js
 
 import { compileCnc } from "../cnc/compiler/cncCompiler.js";
 import { getCncConfig } from "../cnc/compiler/cncHelpers.js";
+import { getCncPartKey } from "../cnc/manualPrograms.js";
+
+const getSideMachiningVariant = (part, quantity) => {
+  const instance = Array.isArray(part?.Source?.instances)
+    ? part.Source.instances[0]
+    : null;
+  const side = instance?.side === "right" ? "right" : "left";
+  const cnc = { ...(part?.CNC ?? {}) };
+  delete cnc.machiningVariants;
+
+  return {
+    id: String(instance?.id ?? side),
+    label: side === "right" ? "Rechts" : "Links",
+    side,
+    mirrorX: instance?.mirrorX === true,
+    quantity,
+    partKey: getCncPartKey(part),
+    partId: part.PID ?? null,
+    generatedId: part._generatedId ?? null,
+    cabinetId: part._cabinetId ?? null,
+    cnc
+  };
+};
+
+const scalePartQuantity = (part, factor) => {
+  const variants = part?.CNC?.machiningVariants;
+
+  return {
+    ...part,
+    Anzahl: Number(part.Anzahl) * factor,
+    ...(Array.isArray(variants) && variants.length
+      ? {
+          CNC: {
+            ...part.CNC,
+            machiningVariants: variants.map(variant => ({
+              ...variant,
+              quantity: Number(variant.quantity || 1) * factor
+            }))
+          }
+        }
+      : {})
+  };
+};
 
 const groupEquivalentParts = (
   parts,
@@ -44,12 +87,14 @@ const groupEquivalentParts = (
       ETID: part.ETID ?? "",
       EBID: part.EBID ?? "",
       Kante: part.Kante ?? "",
-      cnc: (part.CNC?.operations ?? []).map(operation => {
-        const geometry = { ...operation };
-        delete geometry.id;
-        delete geometry.source;
-        return geometry;
-      })
+      cnc: assemblyType === "side"
+        ? null
+        : (part.CNC?.operations ?? []).map(operation => {
+            const geometry = { ...operation };
+            delete geometry.id;
+            delete geometry.source;
+            return geometry;
+          })
     });
 
     const existingPart = groupedPartsByKey.get(key);
@@ -57,12 +102,38 @@ const groupEquivalentParts = (
 
     if (existingPart) {
       existingPart.Anzahl += quantity;
+
+      if (assemblyType === "side") {
+        existingPart.Source = {
+          ...existingPart.Source,
+          instances: [
+            ...(Array.isArray(existingPart.Source?.instances) ? existingPart.Source.instances : []),
+            ...(Array.isArray(part.Source?.instances) ? part.Source.instances : [])
+          ]
+        };
+        existingPart.CNC = {
+          ...existingPart.CNC,
+          machiningVariants: [
+            ...(Array.isArray(existingPart.CNC?.machiningVariants) ? existingPart.CNC.machiningVariants : []),
+            getSideMachiningVariant(part, quantity)
+          ]
+        };
+      }
+
       return;
     }
 
     const groupedPart = {
       ...part,
-      Anzahl: quantity
+      Anzahl: quantity,
+      ...(assemblyType === "side"
+        ? {
+            CNC: {
+              ...part.CNC,
+              machiningVariants: [getSideMachiningVariant(part, quantity)]
+            }
+          }
+        : {})
     };
 
     groupedPartsByKey.set(key, groupedPart);
@@ -406,7 +477,14 @@ const createGroupRoot = (name, children = [], hardware = []) => {
         .map(part => part.PID)
     );
 
+    const sideIds = new Set(
+      compiledChildren
+        .filter(part => part?.Source?.role === "side")
+        .map(part => part.PID)
+    );
+
     const assemblyTypeByPartId = new Map([
+      ...[...sideIds].map(partId => [partId, "side"]),
       ...[...shelfIds].map(partId => [partId, "shelf"]),
       ...[...middleWallIds].map(partId => [partId, "middleWall"]),
       ...[...frontIds].map(partId => [partId, "front"])
@@ -488,10 +566,7 @@ const createGroupRoot = (name, children = [], hardware = []) => {
     root.Children = groupEquivalentParts(
       remainingChildren,
       part => assemblyTypeByPartId.get(part.PID)
-    ).map(part => ({
-      ...part,
-      Anzahl: Number(part.Anzahl) * cabinetQuantity
-    }));
+    ).map(part => scalePartQuantity(part, cabinetQuantity));
 
     return root;
   });

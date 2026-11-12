@@ -104,11 +104,9 @@ export default function CncPartSidebar({
                             {part.Objektname || part.PID}
                           </span>
 
-                          {quantity > 1 && (
-                            <span className="text-gray-500 shrink-0">
-                              {quantity}×
-                            </span>
-                          )}
+                          <span className="text-gray-500 shrink-0">
+                            {quantity}×
+                          </span>
 
                         </div>
 

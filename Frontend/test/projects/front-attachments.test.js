@@ -136,10 +136,11 @@ describe("Frontbefestigungen", () => {
         const parts = partList[0].Children;
         const frontPart = parts.find(part => part.Source?.frontId === front.id);
         const cupOperations = frontPart.CNC.operations.filter(operation => operation.source?.role === "hingeCup");
-        const leftSide = parts.find(part => part.Source?.instances?.[0]?.side === "left");
-        const rightSide = parts.find(part => part.Source?.instances?.[0]?.side === "right");
-        const leftCorpusOperations = leftSide.CNC.operations.filter(operation => operation.source?.role === "hingeCorpus");
-        const rightCorpusOperations = rightSide.CNC.operations.filter(operation => operation.source?.role === "hingeCorpus");
+        const groupedSides = parts.find(part => part.Source?.role === "side");
+        const leftVariant = groupedSides.CNC.machiningVariants.find(variant => variant.side === "left");
+        const rightVariant = groupedSides.CNC.machiningVariants.find(variant => variant.side === "right");
+        const leftCorpusOperations = leftVariant.cnc.operations.filter(operation => operation.source?.role === "hingeCorpus");
+        const rightCorpusOperations = rightVariant.cnc.operations.filter(operation => operation.source?.role === "hingeCorpus");
 
         expect(frontPart).toMatchObject({
             L: 710,
@@ -159,6 +160,8 @@ describe("Frontbefestigungen", () => {
             [68, 37]
         ]);
         expect(rightCorpusOperations).toHaveLength(0);
+        expect(groupedSides.Anzahl).toBe(2);
+        expect(rightVariant.mirrorX).toBe(true);
     });
 
     it("behält neu erzeugte Türprogramme auch bei einem älteren Partlist-Preset", async () => {

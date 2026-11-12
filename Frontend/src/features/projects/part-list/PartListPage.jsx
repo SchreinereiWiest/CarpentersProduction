@@ -243,6 +243,11 @@ return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden ove
                                             ({child.Herkunftsobjekt})
                                         </span>
                                     )}
+                                    {(child.CNC?.machiningVariants ?? []).some(variant => variant.mirrorX === true) && (
+                                        <span className="ml-2 rounded bg-blue-950 px-1.5 py-0.5 text-[10px] text-blue-300">
+                                            X-gespiegelt
+                                        </span>
+                                    )}
                                 </td>
 
                                 <td data-label="Material" className="text-gray-300">

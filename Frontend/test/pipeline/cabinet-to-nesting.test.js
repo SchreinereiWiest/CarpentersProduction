@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { buildPartList } from '@Engine/cabinet/partList/buildPartList.js';
 import { flattenPartList } from '@Engine/cnc/flattenPartList.js';
 import { groupCncParts } from '@Engine/cnc/groupCncParts.js';
+import { expandCncMachiningVariants } from '@Engine/cnc/machiningVariants.js';
 import { calculateNesting } from '@Engine/nesting/nestingAlgorythm.js';
 import {
   cabinet,
@@ -147,9 +148,10 @@ describe('Projektpipeline Korpus → Stückliste → CNC → Nesting', () => {
     ))).toBe(true);
 
     const cncGroups = groupCncParts(partList);
+    const expectedProgramParts = cncParts.flatMap(expandCncMachiningVariants);
     expect(cncGroups.length).toBeGreaterThan(0);
     expect(cncGroups.flatMap((group) => group.parts)).toEqual(
-      expect.arrayContaining(cncParts),
+      expect.arrayContaining(expectedProgramParts),
     );
 
     const nesting = calculateNesting(partList, [], storageMaterials);

@@ -5,6 +5,7 @@ import {
     applyStoredCncPrograms,
     createCncProgramPreviewSvg,
     getCncProgramConfig,
+    storePartCncHeaderInCabinet,
     storePartCncInCabinet
 } from "../src/cabinet/cnc/manualPrograms.js";
 import { createFunctionPreset, applyFunctionPreset } from "../src/cabinet/sektions/functionPresets.js";
@@ -157,6 +158,28 @@ test("part program headers are stored with the cabinet and restored during compi
     const regenerated = { ...part, CNC: { version: 2, coordinateSystem, operations: [] } };
     applyStoredCncPrograms(stored, [regenerated]);
     assert.deepEqual(regenerated.CNC.header, header);
+});
+
+test("saving only a part header preserves the stored CNC programs", () => {
+    const part = {
+        PID: "000002",
+        _generatedId: "cabinet-1:part:1",
+        _cabinetId: "cabinet-1",
+        L: 720,
+        B: 560,
+        T: 19,
+        CNC: { version: 2, coordinateSystem, operations: [manualDrill, editedRow] }
+    };
+    const storedPrograms = storePartCncInCabinet(cabinet, part, part.CNC.operations);
+    const before = getCncProgramConfig(storedPrograms);
+    const header = { stopId: "AD", edgeAtStop: "front", sx: false, sy: true, comment: "Viewer" };
+    const storedHeader = storePartCncHeaderInCabinet(storedPrograms, part, header);
+    const after = getCncProgramConfig(storedHeader);
+
+    assert.deepEqual(after.recognizedProfiles, before.recognizedProfiles);
+    assert.deepEqual(after.customPrograms, before.customPrograms);
+    assert.deepEqual(after.partOrders, before.partOrders);
+    assert.deepEqual(after.partHeaders, [{ partKey: "part:1", partId: "000002", header }]);
 });
 
 test("function presets preserve CNC program headers and remap section references", () => {

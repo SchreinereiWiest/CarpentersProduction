@@ -1137,13 +1137,6 @@ const getVerticalMemberEdge = ({
     }
 
 
-    if (geometry.mirrorX === true) {
-        return edge === "left"
-            ? "right"
-            : "left";
-    }
-
-
     return edge;
 
 };

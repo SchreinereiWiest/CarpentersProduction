@@ -22,6 +22,15 @@ import {
     groupCncParts
 } from "@Engine/cnc/groupCncParts.js";
 import {
+    expandCncMachiningVariants,
+    getStoredCncVariantHeader,
+    updateCncMachiningVariantHeader
+} from "@Engine/cnc/machiningVariants.js";
+import {
+    getCncPartKey,
+    storePartCncHeaderInCabinet
+} from "@Engine/cabinet/cnc/manualPrograms.js";
+import {
     AVAILABLE_POSTPROCESSORS,
     DEFAULT_MACHINING_ASSIGNMENTS,
     generateCncMachineCode,
@@ -29,6 +38,8 @@ import {
     translatePartForCncViewer
 } from "@Engine/postprocessor/index.js";
 import CncCodeDialog from "./CncCodeDialog.jsx";
+import ProgramHeaderDialog from "../editor/ProgramHeaderDialog.jsx";
+import { updatePartByKey } from "../editor/manualCncModel.js";
 import { createZipArchive } from "../shared/cncArchive.js";
 import {
     getPartMachineCodeFaces,
@@ -42,9 +53,9 @@ import SideBar
     from "../../../../shared/components/sideBar.jsx";
 import MobileWorkspaceGuard
     from "../../../../shared/components/MobileWorkspaceGuard.jsx";
-import {getProjectFile} from "../../../../shared/cache/project-cache.js";
+import {getProjectFile, uploadProjectFile} from "../../../../shared/cache/project-cache.js";
 import {getGlobalFile} from "../../../../shared/cache/global-cache.js";
-import {downloadFile} from "../../../../shared/api/file-api.js";
+import {downloadFile, uploadJSONFile} from "../../../../shared/api/file-api.js";
 
 const createViewerFallback = () => ({
     id: "builtin-legacy-viewer",
@@ -97,6 +108,10 @@ export default function CncEditor() {
         setExportNotice
     ] = useState(null);
     const [codeResult, setCodeResult] = useState(null);
+    const [partList, setPartList] = useState(null);
+    const [cabinets, setCabinets] = useState([]);
+    const [headerDraft, setHeaderDraft] = useState(null);
+    const [headerSaving, setHeaderSaving] = useState(false);
 
     const viewerResult = useMemo(() => {
         if (!selectedPart || !activePostprocessor) {
@@ -304,21 +319,26 @@ export default function CncEditor() {
 
                 try {
 
-                    const data =
-                        await getProjectFile({
-
+                    const [data, cabinetData] = await Promise.all([
+                        getProjectFile({
                             projectId,
-
                             file: "list.json",
-
                             loadFromServer: { download: downloadFile, path: `/api/projects/generated/${projectId}/list` }
-
-                        });
+                        }),
+                        getProjectFile({
+                            projectId,
+                            file: "cabinet.json",
+                            loadFromServer: { download: downloadFile, path: `/api/projects/generated/${projectId}/cabinet` }
+                        })
+                    ]);
 
 
                     if (!data) {
                         return;
                     }
+
+                    setPartList(data);
+                    setCabinets(Array.isArray(cabinetData) ? cabinetData : []);
 
                     const grouped =
                         groupCncParts(
@@ -464,6 +484,83 @@ export default function CncEditor() {
 
     }, []);
 
+    const currentProgramHeader = useMemo(() => selectedPart?.CNC?.header ?? ({
+        stopId: activePostprocessor?.configuration?.workingFields ?? "A",
+        edgeAtStop: "front",
+        sx: false,
+        sy: false,
+        comment: ""
+    }), [activePostprocessor, selectedPart]);
+
+    const persistProgramHeader = async effectiveHeader => {
+        if (!partList || !selectedPart) return false;
+
+        const cabinetId = selectedPart._cncCabinetId ?? selectedPart._cabinetId;
+        const parentCabinet = cabinets.find(cabinet => String(cabinet.id) === String(cabinetId));
+        if (!parentCabinet) {
+            setExportNotice({ type: "error", message: "Der Elternkorpus des Bauteils konnte nicht ermittelt werden." });
+            return false;
+        }
+
+        setHeaderSaving(true);
+        setExportNotice(null);
+
+        try {
+            const variant = selectedPart._cncMachiningVariant ?? null;
+            const storedHeader = getStoredCncVariantHeader(effectiveHeader, variant);
+            const basePartKey = getCncPartKey(selectedPart);
+            const updatedList = updatePartByKey(partList, basePartKey, cabinetId, current =>
+                updateCncMachiningVariantHeader(current, variant?.id, effectiveHeader)
+            );
+            const headerPart = variant
+                ? {
+                    ...selectedPart,
+                    PID: variant.partId ?? selectedPart.PID,
+                    _generatedId: variant.generatedId ?? selectedPart._generatedId,
+                    _cabinetId: variant.cabinetId ?? cabinetId
+                }
+                : selectedPart;
+            const updatedCabinet = storePartCncHeaderInCabinet(parentCabinet, headerPart, storedHeader);
+            const updatedCabinets = cabinets.map(cabinet =>
+                String(cabinet.id) === String(cabinetId) ? updatedCabinet : cabinet
+            );
+
+            await Promise.all([
+                uploadProjectFile({
+                    projectId,
+                    file: "list.json",
+                    data: updatedList,
+                    uploadFunction: { upload: uploadJSONFile, path: `/api/projects/generated/${projectId}/list` }
+                }),
+                uploadProjectFile({
+                    projectId,
+                    file: "cabinet.json",
+                    data: updatedCabinets,
+                    uploadFunction: { upload: uploadJSONFile, path: `/api/projects/generated/${projectId}/cabinet` }
+                })
+            ]);
+
+            const nextGroups = groupCncParts(updatedList);
+            const nextGroup = nextGroups.find(group => group.parts.some(part => part.PID === selectedPart.PID));
+            const nextSelectedPart = nextGroup?.parts.find(part => part.PID === selectedPart.PID) ?? null;
+
+            setPartList(updatedList);
+            setCabinets(updatedCabinets);
+            setGroups(nextGroups);
+            setSelectedGroupId(nextGroup?.id ?? null);
+            setSelectedPart(nextSelectedPart);
+            setCodeResult(null);
+            setExportNotice({ type: "success", message: "CNC-Header gespeichert." });
+            return true;
+        } catch (error) {
+            console.error("CNC-Header konnte nicht gespeichert werden:", error);
+            setExportNotice({ type: "error", message: "Der CNC-Header konnte nicht gespeichert werden." });
+            return false;
+        } finally {
+            setHeaderSaving(false);
+        }
+    };
+
 
     /*
      * =====================================================
@@ -506,7 +603,8 @@ export default function CncEditor() {
 
         try {
 
-            const generated = allParts.flatMap(part => getPartMachineCodeFaces(part, activePostprocessorDescriptor)
+            const exportParts = allParts.flatMap(expandCncMachiningVariants);
+            const generated = exportParts.flatMap(part => getPartMachineCodeFaces(part, activePostprocessorDescriptor)
                 .map(face => ({ part, face, result: generatePartCode(part, face) })));
             const failed = generated.filter(({ result }) => !result.supported || (result.content == null && result.code == null));
 
@@ -721,7 +819,9 @@ export default function CncEditor() {
                                                     left-3
                                                     z-10
                                                     flex
+                                                    items-center
                                                     gap-1
+                                                    overflow-x-auto
                                                     rounded-lg
                                                     border
                                                     border-gray-700
@@ -798,6 +898,17 @@ export default function CncEditor() {
 
                                         </button>
 
+                                        {resolvedProgramHeader && <>
+                                            <span className="ml-2 whitespace-nowrap text-[11px] text-gray-400">
+                                                Anschlag <span className="font-semibold text-emerald-300">{resolvedProgramHeader.stopLabel}</span> · {resolvedProgramHeader.cornerLabel} · {resolvedProgramHeader.edgeAtStop === "back" ? "Rücken" : "Frontkante"}
+                                            </span>
+                                            <button type="button" disabled={headerSaving} onClick={() => void persistProgramHeader({ ...currentProgramHeader, sx: currentProgramHeader.sx !== true })} className={`rounded border px-2 py-1 text-[11px] font-semibold disabled:opacity-50 ${currentProgramHeader.sx ? "border-emerald-500 bg-emerald-900/50 text-emerald-300" : "border-gray-700 bg-gray-900 text-gray-500"}`}>SX</button>
+                                            <button type="button" disabled={headerSaving} onClick={() => void persistProgramHeader({ ...currentProgramHeader, sy: currentProgramHeader.sy !== true })} className={`rounded border px-2 py-1 text-[11px] font-semibold disabled:opacity-50 ${currentProgramHeader.sy ? "border-emerald-500 bg-emerald-900/50 text-emerald-300" : "border-gray-700 bg-gray-900 text-gray-500"}`}>SY</button>
+                                            <button type="button" disabled={headerSaving} onClick={() => setHeaderDraft({ ...currentProgramHeader })} className="whitespace-nowrap rounded border border-emerald-900 px-2 py-1 text-[11px] text-emerald-300 hover:bg-emerald-950/50 disabled:opacity-50">Header ändern</button>
+                                            {resolvedProgramHeader.comment && <span className="max-w-40 truncate text-[10px] text-gray-600" title={resolvedProgramHeader.comment}>{resolvedProgramHeader.comment}</span>}
+                                            {headerSaving && <span className="whitespace-nowrap text-[10px] text-amber-300">Speichert…</span>}
+                                        </>}
+
                                     </div>
 
 
@@ -845,7 +956,10 @@ export default function CncEditor() {
 
                                         <button
                                             type="button"
-                                            onClick={() => selectedPart?.PID && navigate(`/Projects/Cnc/${projectId}/Edit/${encodeURIComponent(selectedPart.PID)}`)}
+                                            onClick={() => {
+                                                const editablePid = selectedPart?._cncBasePid ?? selectedPart?.PID;
+                                                if (editablePid) navigate(`/Projects/Cnc/${projectId}/Edit/${encodeURIComponent(editablePid)}`);
+                                            }}
                                             disabled={!selectedPart?.PID}
                                             className="rounded border border-violet-700 bg-violet-950/40 px-3 py-1.5 text-xs font-medium text-violet-200 transition hover:bg-violet-900/60 disabled:cursor-not-allowed disabled:border-gray-700 disabled:bg-gray-800 disabled:text-gray-500"
                                         >
@@ -967,6 +1081,15 @@ export default function CncEditor() {
                 postprocessor={activePostprocessor}
                 result={codeResult}
                 onClose={() => setCodeResult(null)}
+            />}
+            {headerDraft && <ProgramHeaderDialog
+                header={headerDraft}
+                locations={activePostprocessorDescriptor?.machiningLocations ?? []}
+                onChange={setHeaderDraft}
+                onCancel={() => setHeaderDraft(null)}
+                onSave={async () => {
+                    if (await persistProgramHeader(headerDraft)) setHeaderDraft(null);
+                }}
             />}
 
         </div>

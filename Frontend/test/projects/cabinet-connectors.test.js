@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { buildPartList } from "@Engine/cabinet/partList/buildPartList.js";
+import { groupCncParts } from "@Engine/cnc/groupCncParts.js";
+import {
+    expandCncMachiningVariants,
+    getStoredCncVariantHeader,
+    updateCncMachiningVariantHeader
+} from "@Engine/cnc/machiningVariants.js";
 import { MACHINING_INTENT_IDS, MACHINING_KINDS } from "@Engine/postprocessor/index.js";
 
 const baseCabinet = {
@@ -32,17 +38,24 @@ describe("Korpusverbinder", () => {
         }], []);
         const sideParts = root.Children.filter(part => part.Source?.role === "side");
         const horizontalPart = root.Children.find(part => part.Source?.role === "horizontalPanel");
-        const leftSide = sideParts.find(part => part.Source.instances[0].side === "left");
-        const rightSide = sideParts.find(part => part.Source.instances[0].side === "right");
+        const groupedSides = sideParts[0];
 
-        expect(leftSide.Source.instances[0]).toMatchObject({ y: 19, height: 542 });
-        expect(rightSide.Source.instances[0]).toMatchObject({ y: 19, height: 542 });
+        expect(sideParts).toHaveLength(1);
+        expect(groupedSides.Anzahl).toBe(2);
+        expect(groupedSides.Source.instances).toEqual([
+            expect.objectContaining({ side: "left", mirrorX: false, y: 19, height: 542 }),
+            expect.objectContaining({ side: "right", mirrorX: true, y: 19, height: 542 })
+        ]);
+        expect(groupedSides.CNC.machiningVariants).toEqual([
+            expect.objectContaining({ side: "left", mirrorX: false, quantity: 1 }),
+            expect.objectContaining({ side: "right", mirrorX: true, quantity: 1 })
+        ]);
         expect(horizontalPart.Source.instances).toEqual(expect.arrayContaining([
             expect.objectContaining({ id: "top", x: 0, width: 280 }),
             expect.objectContaining({ id: "bottom", x: 0, width: 280 })
         ]));
 
-        expect(connectorOperations(leftSide).map(operation => ({
+        expect(connectorOperations(groupedSides).map(operation => ({
             edge: operation.edge,
             position: operation.position,
             panel: operation.source.panelType
@@ -50,14 +63,31 @@ describe("Korpusverbinder", () => {
             { edge: "left", position: 0, panel: "top" },
             { edge: "right", position: 542, panel: "bottom" }
         ]);
-        expect(connectorOperations(rightSide).map(operation => ({
-            edge: operation.edge,
-            position: operation.position,
-            panel: operation.source.panelType
-        }))).toEqual([
-            { edge: "right", position: 0, panel: "top" },
-            { edge: "left", position: 542, panel: "bottom" }
+
+        const variants = expandCncMachiningVariants(groupedSides);
+        expect(variants).toHaveLength(2);
+        expect(variants[0]).toMatchObject({ PID: `${groupedSides.PID}-L`, Anzahl: 1 });
+        expect(variants[0].CNC.header.sx).toBe(false);
+        expect(variants[1]).toMatchObject({ PID: `${groupedSides.PID}-R`, Anzahl: 1 });
+        expect(variants[1].CNC.header.sx).toBe(true);
+
+        const rightVariant = groupedSides.CNC.machiningVariants[1];
+        expect(getStoredCncVariantHeader({ ...variants[1].CNC.header, sx: false }, rightVariant).sx).toBe(true);
+        const manuallyUnmirrored = updateCncMachiningVariantHeader(
+            groupedSides,
+            rightVariant.id,
+            { ...variants[1].CNC.header, sx: false }
+        );
+        expect(expandCncMachiningVariants(manuallyUnmirrored)[1].CNC.header.sx).toBe(false);
+        expect(manuallyUnmirrored.CNC.machiningVariants[1].cnc.header.sx).toBe(true);
+
+        const sideGroup = groupCncParts([root]).find(group => group.name === "Seite");
+        expect(sideGroup.count).toBe(2);
+        expect(sideGroup.parts).toEqual([
+            expect.objectContaining({ PID: `${groupedSides.PID}-L`, Anzahl: 1 }),
+            expect.objectContaining({ PID: `${groupedSides.PID}-R`, Anzahl: 1 })
         ]);
+        expect(sideGroup.parts.map(part => part.CNC.header.sx)).toEqual([false, true]);
 
         expect(connectorOperations(horizontalPart).filter(operation =>
             operation.kind === MACHINING_KINDS.DRILL_LINEAR_PATTERN
