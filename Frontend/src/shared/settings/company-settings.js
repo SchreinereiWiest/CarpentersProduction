@@ -5,7 +5,7 @@ import { normalizeEstimationSettings } from "@Engine/calculation/estimation.mjs"
 export const CUSTOM_WORK_TYPE_ID = "__custom__";
 
 export const DEFAULT_COMPANY_SETTINGS = {
-    schemaVersion: 5,
+    schemaVersion: 8,
     workingHours: {
         start: "07:00",
         end: "16:45"
@@ -34,7 +34,18 @@ export const DEFAULT_COMPANY_SETTINGS = {
     ],
     userInterface: {
         showTips: true,
-        lineLockThresholdCm: 5
+        lineLockThresholdCm: 5,
+        measurementLabelSizePercent: 100,
+        measurementLabelOffsetY: -30,
+        measurementFormFieldWidthMm: 32,
+        measurementFormFieldHeightMm: 10,
+        workspaceLayout: "single",
+        workspaceScalePercent: 100,
+        keybindings: {
+            sidebar: "Alt+1",
+            projectBar: "Alt+2",
+            apply: "Ctrl+Enter"
+        }
     },
     estimation: {
         ...normalizeEstimationSettings(),
@@ -97,7 +108,7 @@ export function normalizeCompanySettings(data) {
         : [];
 
     return {
-        schemaVersion: 5,
+        schemaVersion: 8,
         workingHours,
         breaks: breaks.map((entry, index) => ({
             id: entry.id || `break-${index + 1}`,
@@ -113,7 +124,24 @@ export function normalizeCompanySettings(data) {
             showTips: userInterface.showTips !== false,
             lineLockThresholdCm: normalizeLineLockThresholdCm(
                 userInterface.lineLockThresholdCm
-            )
+            ),
+            measurementLabelSizePercent: normalizeMeasurementLabelSizePercent(
+                userInterface.measurementLabelSizePercent
+            ),
+            measurementLabelOffsetY: normalizeMeasurementLabelOffsetY(
+                userInterface.measurementLabelOffsetY
+            ),
+            measurementFormFieldWidthMm: normalizeMeasurementFormFieldWidthMm(
+                userInterface.measurementFormFieldWidthMm
+            ),
+            measurementFormFieldHeightMm: normalizeMeasurementFormFieldHeightMm(
+                userInterface.measurementFormFieldHeightMm
+            ),
+            workspaceLayout: normalizeWorkspaceLayout(userInterface.workspaceLayout),
+            workspaceScalePercent: normalizeWorkspaceScalePercent(
+                userInterface.workspaceScalePercent
+            ),
+            keybindings: normalizeKeybindings(userInterface.keybindings)
         },
         estimation: {
             ...estimation,
@@ -150,6 +178,72 @@ export function normalizeLineLockThresholdCm(value) {
     }
 
     return Math.max(0, parsed);
+}
+
+export function normalizeMeasurementLabelSizePercent(value) {
+    const parsed = Number.parseFloat(String(value ?? "").replace(",", "."));
+    if (!Number.isFinite(parsed)) {
+        return DEFAULT_COMPANY_SETTINGS.userInterface.measurementLabelSizePercent;
+    }
+
+    return Math.min(200, Math.max(50, parsed));
+}
+
+export function normalizeMeasurementLabelOffsetY(value) {
+    const parsed = Number.parseFloat(String(value ?? "").replace(",", "."));
+    if (!Number.isFinite(parsed)) {
+        return DEFAULT_COMPANY_SETTINGS.userInterface.measurementLabelOffsetY;
+    }
+
+    return Math.min(200, Math.max(-200, parsed));
+}
+
+export function normalizeMeasurementFormFieldWidthMm(value) {
+    const parsed = Number.parseFloat(String(value ?? "").replace(",", "."));
+    if (!Number.isFinite(parsed)) {
+        return DEFAULT_COMPANY_SETTINGS.userInterface.measurementFormFieldWidthMm;
+    }
+
+    return Math.min(80, Math.max(20, parsed));
+}
+
+export function normalizeMeasurementFormFieldHeightMm(value) {
+    const parsed = Number.parseFloat(String(value ?? "").replace(",", "."));
+    if (!Number.isFinite(parsed)) {
+        return DEFAULT_COMPANY_SETTINGS.userInterface.measurementFormFieldHeightMm;
+    }
+
+    return Math.min(30, Math.max(8, parsed));
+}
+
+export const WORKSPACE_LAYOUTS = ["single", "split", "grid"];
+
+export function normalizeWorkspaceLayout(value) {
+    return WORKSPACE_LAYOUTS.includes(value) ? value : "single";
+}
+
+export function normalizeWorkspaceScalePercent(value) {
+    const parsed = Number.parseFloat(String(value ?? "").replace(",", "."));
+    if (!Number.isFinite(parsed)) {
+        return DEFAULT_COMPANY_SETTINGS.userInterface.workspaceScalePercent;
+    }
+
+    return Math.min(125, Math.max(50, Math.round(parsed)));
+}
+
+export function normalizeKeybinding(value, fallback) {
+    const normalized = String(value || "").trim();
+    return normalized.length > 0 && normalized.length <= 40 ? normalized : fallback;
+}
+
+export function normalizeKeybindings(value) {
+    const defaults = DEFAULT_COMPANY_SETTINGS.userInterface.keybindings;
+
+    return {
+        sidebar: normalizeKeybinding(value?.sidebar, defaults.sidebar),
+        projectBar: normalizeKeybinding(value?.projectBar, defaults.projectBar),
+        apply: normalizeKeybinding(value?.apply, defaults.apply)
+    };
 }
 
 export function createWorkBlocks(settings) {

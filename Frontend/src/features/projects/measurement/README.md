@@ -40,4 +40,19 @@ measurement/
 - 3D-Modell, Licht oder Schatten: `views/three/`
 - Laden, Speichern oder Zusammenspiel aller Bereiche: `MeasurementPage.jsx`
 
+## Druck- und OCR-Ablauf
+
+Der Button **Drucken** erstellt über
+`Engine/browser/measurement-pdf/createMeasurementPDF.js` zwei PDFs aus allen
+Zeichenansichten: eine dokumentierte Version und ein Aufmaßformular, in dem
+offene Maßwerte durch handschriftlich nutzbare Felder ersetzt sind. QR-Kennung,
+Orientierungsmarker und die physischen Feldkoordinaten werden als Drucksitzung
+im Backend gespeichert.
+
+Ausgefüllte Seiten werden im globalen Dokumentbereich als Aufmaß-Scan
+hochgeladen. Der isolierte Worker in `Services/MeasurementOCR` richtet sie aus,
+ordnet sie anhand des QR-Codes zu und liefert erkannte Zahlen zur
+`MeasurementReviewDialog`-Kontrollansicht. Erst eine ausdrückliche Bestätigung
+setzt die Maßobjekte auf `measured`.
+
 Die Dateien in `domain/` und der überwiegende Teil von `import/` sind unabhängig von React und können direkt mit Vitest getestet werden.

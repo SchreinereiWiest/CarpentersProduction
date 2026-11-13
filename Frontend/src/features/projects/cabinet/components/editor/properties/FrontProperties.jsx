@@ -1,4 +1,97 @@
-import React from "react";
+import { useState } from "react";
+
+
+function SignedNumberInput({
+    value,
+    onChange
+}) {
+    const numericValue = value ?? 0;
+    const [inputState, setInputState] =
+        useState({
+            draft: String(numericValue),
+            sourceValue: numericValue
+        });
+
+    const draft =
+        inputState.sourceValue === numericValue
+            ? inputState.draft
+            : String(numericValue);
+
+    const commitValue = nextDraft => {
+        const normalized =
+            nextDraft.replace(",", ".");
+
+        if (
+            normalized === "" ||
+            normalized === "-" ||
+            normalized === "." ||
+            normalized === "-."
+        ) {
+            return;
+        }
+
+        const nextValue = Number(normalized);
+
+        if (Number.isFinite(nextValue)) {
+            onChange(nextValue);
+            return nextValue;
+        }
+
+        return numericValue;
+    };
+
+    return (
+        <input
+            type="text"
+            inputMode="decimal"
+            value={draft}
+            onChange={event => {
+                const nextDraft = event.target.value;
+
+                if (!/^-?\d*(?:[.,]\d*)?$/.test(nextDraft)) {
+                    return;
+                }
+
+                setInputState({
+                    draft: nextDraft,
+                    sourceValue: commitValue(nextDraft) ?? numericValue
+                });
+            }}
+            onBlur={() => {
+                const normalized = draft.replace(",", ".");
+                const nextValue = Number(normalized);
+
+                if (
+                    draft !== "" &&
+                    Number.isFinite(nextValue)
+                ) {
+                    setInputState({
+                        draft: String(nextValue),
+                        sourceValue: nextValue
+                    });
+                    onChange(nextValue);
+                    return;
+                }
+
+                setInputState({
+                    draft: String(numericValue),
+                    sourceValue: numericValue
+                });
+            }}
+            className="
+                mt-1
+                w-full
+                rounded-lg
+                border
+                border-gray-700
+                bg-gray-900
+                px-3
+                py-2
+                text-white
+            "
+        />
+    );
+}
 
 
 export default function FrontProperties({
@@ -15,6 +108,7 @@ export default function FrontProperties({
     setFrontSplitDirection,
 
     splitFront,
+    toggleFrontRemoved,
     mergeFrontChildren,
     findFrontParent,
 
@@ -42,6 +136,15 @@ export default function FrontProperties({
                 selectedElement.id
             ) !== null
         );
+
+    const isLeafFront =
+        isSelectedFront &&
+        !selectedElement.children?.length;
+
+    const frontGrainDirection =
+        activeCabinet.frontGrainDirection === "horizontal"
+            ? "horizontal"
+            : "vertical";
 
 
     return (
@@ -261,7 +364,7 @@ export default function FrontProperties({
         text-gray-400
         mb-2
     ">
-        Äußere Fugen
+        Äußere Fugen (negativ = Überstand)
     </div>
 
     <div className="
@@ -281,36 +384,13 @@ export default function FrontProperties({
                 Links
             </span>
 
-            <input
-                type="number"
-                min="0"
-                step="0.5"
-                value={
-                    activeCabinet.frontGapLeft ??
-                    0
-                }
-                onChange={(event) =>
+            <SignedNumberInput
+                value={activeCabinet.frontGapLeft ?? 0}
+                onChange={value =>
                     updateActiveCabinet({
-                        frontGapLeft:
-                            Math.max(
-                                0,
-                                Number(
-                                    event.target.value
-                                ) || 0
-                            )
+                        frontGapLeft: value
                     })
                 }
-                className="
-                    mt-1
-                    w-full
-                    rounded-lg
-                    border
-                    border-gray-700
-                    bg-gray-900
-                    px-3
-                    py-2
-                    text-white
-                "
             />
 
         </label>
@@ -327,36 +407,13 @@ export default function FrontProperties({
                 Rechts
             </span>
 
-            <input
-                type="number"
-                min="0"
-                step="0.5"
-                value={
-                    activeCabinet.frontGapRight ??
-                    0
-                }
-                onChange={(event) =>
+            <SignedNumberInput
+                value={activeCabinet.frontGapRight ?? 0}
+                onChange={value =>
                     updateActiveCabinet({
-                        frontGapRight:
-                            Math.max(
-                                0,
-                                Number(
-                                    event.target.value
-                                ) || 0
-                            )
+                        frontGapRight: value
                     })
                 }
-                className="
-                    mt-1
-                    w-full
-                    rounded-lg
-                    border
-                    border-gray-700
-                    bg-gray-900
-                    px-3
-                    py-2
-                    text-white
-                "
             />
 
         </label>
@@ -373,36 +430,13 @@ export default function FrontProperties({
                 Oben
             </span>
 
-            <input
-                type="number"
-                min="0"
-                step="0.5"
-                value={
-                    activeCabinet.frontGapTop ??
-                    0
-                }
-                onChange={(event) =>
+            <SignedNumberInput
+                value={activeCabinet.frontGapTop ?? 0}
+                onChange={value =>
                     updateActiveCabinet({
-                        frontGapTop:
-                            Math.max(
-                                0,
-                                Number(
-                                    event.target.value
-                                ) || 0
-                            )
+                        frontGapTop: value
                     })
                 }
-                className="
-                    mt-1
-                    w-full
-                    rounded-lg
-                    border
-                    border-gray-700
-                    bg-gray-900
-                    px-3
-                    py-2
-                    text-white
-                "
             />
 
         </label>
@@ -419,36 +453,13 @@ export default function FrontProperties({
                 Unten
             </span>
 
-            <input
-                type="number"
-                min="0"
-                step="0.5"
-                value={
-                    activeCabinet.frontGapBottom ??
-                    0
-                }
-                onChange={(event) =>
+            <SignedNumberInput
+                value={activeCabinet.frontGapBottom ?? 0}
+                onChange={value =>
                     updateActiveCabinet({
-                        frontGapBottom:
-                            Math.max(
-                                0,
-                                Number(
-                                    event.target.value
-                                ) || 0
-                            )
+                        frontGapBottom: value
                     })
                 }
-                className="
-                    mt-1
-                    w-full
-                    rounded-lg
-                    border
-                    border-gray-700
-                    bg-gray-900
-                    px-3
-                    py-2
-                    text-white
-                "
             />
 
         </label>
@@ -468,6 +479,7 @@ export default function FrontProperties({
 
                         <button
                             type="button"
+                            disabled={selectedElement.isRemoved}
                             onClick={() =>
                                 splitFront(
                                     selectedElement.id,
@@ -488,10 +500,45 @@ export default function FrontProperties({
                                 py-2
                                 text-sm
                                 hover:bg-gray-700
+                                disabled:cursor-not-allowed
+                                disabled:opacity-30
                             "
                         >
                             Front unterteilen
                         </button>
+
+
+                        {isLeafFront && (
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    toggleFrontRemoved(
+                                        selectedElement.id,
+                                        activeCabinet,
+                                        updateActiveCabinet,
+                                        setSelectedElement
+                                    )
+                                }
+                                className={`
+                                    w-full
+                                    rounded
+                                    border
+                                    px-3
+                                    py-2
+                                    text-sm
+
+                                    ${selectedElement.isRemoved
+                                        ? "border-green-800 text-green-400 hover:bg-green-950"
+                                        : "border-red-800 text-red-400 hover:bg-red-950"
+                                    }
+                                `}
+                            >
+                                {selectedElement.isRemoved
+                                    ? "Front wieder einfügen"
+                                    : "Front löschen"
+                                }
+                            </button>
+                        )}
 
 
                         <button
@@ -552,6 +599,78 @@ export default function FrontProperties({
                         Fronten erzeugen
                     </button>
 
+                )}
+
+                {!isSelectedFront && (
+                    <div>
+
+                        <div className="text-xs text-gray-400">
+                            Maserrichtung
+                        </div>
+
+                        <div
+                            className="mt-1 grid grid-cols-2 gap-2"
+                            role="group"
+                            aria-label="Maserrichtung"
+                        >
+                            <button
+                                type="button"
+                                aria-pressed={
+                                    frontGrainDirection === "vertical"
+                                }
+                                onClick={() =>
+                                    updateActiveCabinet({
+                                        frontGrainDirection: "vertical"
+                                    })
+                                }
+                                className={`
+                                    rounded
+                                    border
+                                    px-3
+                                    py-2
+                                    text-sm
+
+                                    ${frontGrainDirection === "vertical"
+                                        ? "border-blue-600 bg-blue-900 text-blue-200"
+                                        : "border-gray-700 bg-gray-800 text-gray-400"
+                                    }
+                                `}
+                            >
+                                Hochkant
+                            </button>
+
+                            <button
+                                type="button"
+                                aria-pressed={
+                                    frontGrainDirection === "horizontal"
+                                }
+                                onClick={() =>
+                                    updateActiveCabinet({
+                                        frontGrainDirection: "horizontal"
+                                    })
+                                }
+                                className={`
+                                    rounded
+                                    border
+                                    px-3
+                                    py-2
+                                    text-sm
+
+                                    ${frontGrainDirection === "horizontal"
+                                        ? "border-blue-600 bg-blue-900 text-blue-200"
+                                        : "border-gray-700 bg-gray-800 text-gray-400"
+                                    }
+                                `}
+                            >
+                                Quer
+                            </button>
+                        </div>
+
+                        <div className="mt-2 text-xs text-gray-500">
+                            Quer vertauscht Länge und Breite der Fronten in der Part List.
+                        </div>
+
+                    </div>
                 )}
 
             </div>

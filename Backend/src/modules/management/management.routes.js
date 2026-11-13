@@ -6,7 +6,7 @@ import { run } from './services/http.js';
 
 // Die Oberfläche verwendet ausschließlich Jahres-Snapshot, Referenzen, Entwurf und Freigabe.
 const router = express.Router();
-router.use(authenticate, requireFeature('management'), authorizeRoles('admin', 'manager'));
+router.use(authenticate, requireFeature('business-management'), authorizeRoles('admin', 'manager'));
 router.get('/', run(getManagementOverview));
 router.get('/references', run(getManagementReferences));
 router.put('/settings', run(saveManagementConfig));

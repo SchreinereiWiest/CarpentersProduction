@@ -1,13 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-    authorizeRoles
+    authorizeRoles,
+    requireFeature
 } from "../src/middleware/auth.middleware.js";
 import { verifyCsrfToken, verifyRequestOrigin } from "../src/middleware/csrf.middleware.js";
 import {
     canAccessFile,
+    customerReferenceWhere,
     projectAccessWhere
 } from "../src/middleware/resourceAuthorization.middleware.js";
+import {
+    createCustomerDisplayStatusWhere,
+    createCustomerSearchQuery,
+    getCustomerDisplayStatus
+} from "../src/modules/customers/customer.controller.js";
 
 function createResponse() {
     return {
@@ -60,16 +67,95 @@ test("authorizeRoles verlangt eine authentifizierte Identität", () => {
     assert.equal(res.statusCode, 401);
 });
 
-test("Projektzugriff erlaubt Benutzern alle aktiven Projekte", () => {
+test("requireFeature lässt nur explizit lizenzierte Module passieren", () => {
+    const allowedRequest = { license: { features: ["crm", "calculation"] } };
+    const allowedResponse = createResponse();
+    let nextCalled = false;
+    requireFeature("calculation")(allowedRequest, allowedResponse, () => { nextCalled = true; });
+    assert.equal(nextCalled, true);
+
+    const deniedResponse = createResponse();
+    requireFeature("business-management")(allowedRequest, deniedResponse, () => {
+        assert.fail("next darf ohne Modulfreigabe nicht aufgerufen werden");
+    });
+    assert.equal(deniedResponse.statusCode, 403);
+    assert.equal(deniedResponse.payload.error, "LICENSE_FEATURE_MISSING");
+});
+
+test("Projektzugriff erlaubt Benutzern aktive und selbst angelegte inaktive Projekte", () => {
     assert.deepEqual(
         projectAccessWhere({ id: "user-id", role: "user" }),
-        { status: "active" }
+        {
+            OR: [
+                { status: "active" },
+                { createdById: "user-id" }
+            ]
+        }
     );
 });
 
 test("Projektzugriff beschränkt privilegierte Rollen nicht nach Status", () => {
     assert.deepEqual(projectAccessWhere({ id: "admin-id", role: "admin" }), {});
     assert.deepEqual(projectAccessWhere({ id: "manager-id", role: "manager" }), {});
+});
+
+test("Kundenreferenzen für Projekte prüfen keine Eigentümerschaft", () => {
+    assert.deepEqual(customerReferenceWhere("customer-id"), {
+        id: "customer-id",
+        deletedAt: null
+    });
+});
+
+test("Kundensuche liefert Benutzern ausschließlich ID sowie Vor- und Nachname", () => {
+    const query = createCustomerSearchQuery({ role: "user" }, "Muster");
+
+    assert.deepEqual(query.select, {
+        id: true,
+        firstName: true,
+        lastName: true
+    });
+    assert.equal(query.where.OR.length, 2);
+    assert.equal(query.where.OR.some(filter => Object.hasOwn(filter, "companyName")), false);
+});
+
+test("Privilegierte Kundensuche darf weiterhin Firmennamen durchsuchen", () => {
+    const query = createCustomerSearchQuery({ role: "manager" }, "Muster");
+
+    assert.equal(Object.hasOwn(query, "select"), false);
+    assert.equal(query.where.OR.some(filter => Object.hasOwn(filter, "companyName")), true);
+});
+
+test("Kundenstatus ist nur bei ausschließlich archivierten Projekten inaktiv", () => {
+    assert.equal(getCustomerDisplayStatus([]), "active");
+    assert.equal(getCustomerDisplayStatus([{ status: "archive" }]), "inactive");
+    assert.equal(getCustomerDisplayStatus([
+        { status: "archive" },
+        { status: "inactive" }
+    ]), "active");
+    assert.equal(getCustomerDisplayStatus([
+        { status: "archive" },
+        { status: "active" }
+    ]), "active");
+    assert.equal(getCustomerDisplayStatus([
+        { status: "archive" },
+        { status: "active", deletedAt: new Date() }
+    ]), "inactive");
+});
+
+test("Kundenstatusfilter ignorieren gelöschte Projekte", () => {
+    const activeWhere = createCustomerDisplayStatusWhere("active");
+    const inactiveWhere = createCustomerDisplayStatusWhere("inactive");
+
+    assert.deepEqual(activeWhere.OR[0], {
+        projects: { none: { deletedAt: null } }
+    });
+    assert.deepEqual(inactiveWhere.projects, {
+        some: { deletedAt: null },
+        none: {
+            deletedAt: null,
+            status: { not: "archive" }
+        }
+    });
 });
 
 test("Dateizugriff folgt dem Status des zugehörigen Projekts", () => {
@@ -88,6 +174,11 @@ test("Dateizugriff folgt dem Status des zugehörigen Projekts", () => {
         ...baseFile,
         project: { status: "inactive", deletedAt: null }
     }), false);
+
+    assert.equal(canAccessFile(user, {
+        ...baseFile,
+        project: { status: "inactive", deletedAt: null, createdById: user.id }
+    }), true);
 
     assert.equal(canAccessFile(user, {
         ...baseFile,
@@ -136,6 +227,17 @@ test("CSRF-Prüfung lehnt fehlenden Header mit 403 ab", () => {
 
     verifyCsrfToken(req, res, () => assert.fail("next darf nicht aufgerufen werden"));
     assert.equal(res.statusCode, 403);
+});
+
+test("CSRF-Prüfung lässt ausschließlich die öffentlichen Auth-Einstiege ohne Token zu", () => {
+    for (const path of ["/api/auth/login", "/api/auth/bootstrap"]) {
+        const req = { method: "POST", path, cookies: {}, get() { return undefined; } };
+        const res = createResponse();
+        let nextCalled = false;
+
+        verifyCsrfToken(req, res, () => { nextCalled = true; });
+        assert.equal(nextCalled, true);
+    }
 });
 
 test("Origin-Prüfung lehnt fremde Origins ab", () => {

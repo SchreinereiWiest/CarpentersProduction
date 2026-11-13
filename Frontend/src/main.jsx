@@ -6,8 +6,11 @@ import { registerServiceWorker } from "./app/registerServiceWorker.js";
 import { installNetworkClient } from "./shared/api/http-client.js";
 import { installS3CacheRefresh } from "./shared/cache/cache-refresh.js";
 import { installCacheCleanup } from "./shared/cache/cache-retention.js";
+import { initializeTheme } from "./app/theme/theme.js";
 import "./index.css";
+import "./app/theme/theme.css";
 
+initializeTheme();
 installNetworkClient();
 installS3CacheRefresh();
 installCacheCleanup();

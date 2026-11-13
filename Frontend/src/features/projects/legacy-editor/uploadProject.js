@@ -1,16 +1,31 @@
 import axios from 'axios';
 import {uploadProjectFile} from "../../../shared/cache/project-cache.js";
+import {storeLocalProjectAsset} from "../../../shared/cache/project-asset-cache.js";
 import {uploadJSONFile} from "../../../shared/api/file-api.js";
-
-export const DEFAULT_PROJECT_CUSTOMER_ID = "1a87d110-bb96-4af3-9bc5-c0753e1fdadc";
+import {
+    createLocalProject,
+    getLocalProject,
+    saveLocalProject
+} from "../../../shared/offline/local-projects.js";
 
 export async function createProjectRecord({
     customerId,
     title = "Neues Projekt",
-    description = ""
+    description = "",
+    projectId
 }) {
+    if (!customerId) {
+        const project = await createLocalProject({
+            id: projectId,
+            title,
+            description
+        });
+        return project.id;
+    }
+
     const project = await axios.post("/api/projects/new", {
-        customerId: customerId || DEFAULT_PROJECT_CUSTOMER_ID,
+        ...(projectId ? { id: projectId } : {}),
+        customerId,
         title,
         description
     }, {
@@ -22,11 +37,6 @@ export async function createProjectRecord({
 
 
 export async function ProjectSave(corpuses, materials, selectedCustomer, files, projectDescription, projectName, mode, id, incomingCabinets) {
-
-    if (selectedCustomer == null) {
-        console.warn("No customer selected");
-        selectedCustomer = {id: DEFAULT_PROJECT_CUSTOMER_ID}
-    }
     console.log(corpuses);
 
     let pid = 0;
@@ -191,12 +201,26 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
     let projectId = id;
     if (mode != "edit") {
         projectId = await createProjectRecord({
-            customerId: selectedCustomer.id,
+            customerId: selectedCustomer?.id,
             title: projectName,
             description: projectDescription
         });
 
-        for (const file of files) {
+        const localProject = await getLocalProject(projectId);
+
+        if (localProject) {
+            const localFiles = [];
+            for (const file of files) {
+                localFiles.push(await storeLocalProjectAsset(projectId, file));
+            }
+            if (localFiles.length) {
+                await saveLocalProject({
+                    ...localProject,
+                    files: [...(localProject.files ?? []), ...localFiles]
+                });
+            }
+        } else {
+            for (const file of files) {
             let mimeType = file.type;
 
             if (mimeType == "" | !mimeType) {
@@ -237,6 +261,7 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
             //     id: response.data.fileEntry.id
             // }
             // );
+            }
         }
     }
     const generatedData = cadData;
@@ -307,6 +332,10 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
     }
 
 
-    return { projectId };
+    const localOnly = Boolean(await getLocalProject(projectId));
+    return {
+        projectId,
+        ...(localOnly ? { localOnly: true } : {})
+    };
 
 }

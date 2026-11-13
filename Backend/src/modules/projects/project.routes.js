@@ -3,7 +3,7 @@ import prisma from "../../infrastructure/database/prisma.js";
 
 import { newProject, getAllProjectsID, getProject, getGeneratedProjectData, createGeneratedProjectData, getAllProjects, getOfflineProjects, updateProject, deleteProject } from "./project.controller.js";
 import { authenticate, authorizeRoles, requireFeature } from "../../middleware/auth.middleware.js";
-import { authorizeCustomer, authorizeCustomerBody, authorizeProject, authorizeTimeEntry } from "../../middleware/resourceAuthorization.middleware.js";
+import { authorizeCustomer, authorizeCustomerReferenceBody, authorizeProject, authorizeTimeEntry } from "../../middleware/resourceAuthorization.middleware.js";
 import { getTime, manualTime, startTime, stopTime } from "../time-tracking/time.controller.js";
 import { exportProject, importProject } from "./project-archive.controller.js";
 import { getCalculationContext } from "../calculation/calculation.controller.js";
@@ -13,7 +13,7 @@ import os from "os";
 import crypto from "crypto";
 
 const router = express.Router();
-router.use(authenticate, requireFeature("cabinet"));
+router.use(authenticate, requireFeature("work-preparation"));
 
 const archiveUpload = multer({
     storage: multer.diskStorage({
@@ -23,9 +23,9 @@ const archiveUpload = multer({
     limits: { fileSize: 2 * 1024 * 1024 * 1024, files: 1 }
 });
 
-router.post("/new", authorizeCustomerBody(), newProject);
+router.post("/new", authorizeCustomerReferenceBody(), newProject);
 
-router.put("/update/:id", authorizeProject(), authorizeCustomerBody(), updateProject);
+router.put("/update/:id", authorizeProject(), authorizeCustomerReferenceBody(), updateProject);
 
 router.delete("/delete/:projectId", authorizeRoles("admin", "manager"), deleteProject);
 
@@ -40,9 +40,9 @@ router.get("/offline", getOfflineProjects);
 
 router.get("/get/:id", authorizeProject(), getProject);
 
-router.get("/calculation-context/:id", authorizeProject(), getCalculationContext);
+router.get("/calculation-context/:id", requireFeature("calculation"), authorizeProject(), getCalculationContext);
 
-router.post("/calculation-snapshots/:id/release", authorizeProject(), releaseCalculationSnapshot);
+router.post("/calculation-snapshots/:id/release", requireFeature("calculation"), authorizeProject(), releaseCalculationSnapshot);
 
 router.get("/export/:id", authorizeProject(), exportProject);
 
@@ -52,12 +52,12 @@ router.get("/generated/:id/:name", authorizeProject(), getGeneratedProjectData);
 
 router.post("/generated/:id/:name", authorizeProject(), createGeneratedProjectData);
 
-router.post("/time/:id/start", requireFeature("time"), authorizeProject(), startTime);
+router.post("/time/:id/start", authorizeProject(), startTime);
 
-router.patch("/time/:id/stop", requireFeature("time"), authorizeTimeEntry(), stopTime);
+router.patch("/time/:id/stop", authorizeTimeEntry(), stopTime);
 
-router.get("/time/:id", requireFeature("time"), authorizeProject(), getTime);
+router.get("/time/:id", authorizeProject(), getTime);
 
-router.post("/time/:id/new", requireFeature("time"), authorizeProject(), manualTime);
+router.post("/time/:id/new", authorizeProject(), manualTime);
 
 export default router;

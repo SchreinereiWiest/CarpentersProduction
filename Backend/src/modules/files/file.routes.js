@@ -3,7 +3,7 @@ import prisma from "../../infrastructure/database/prisma.js";
 
 import {createUpload, createDownloadUrl, deleteFile} from "../../middleware/upload.middleware.js";
 import {uploadcomplete} from "./file.controller.js";
-import { authenticate, authorizeRoles } from "../../middleware/auth.middleware.js";
+import { authenticate, authorizeRoles, requireFeature } from "../../middleware/auth.middleware.js";
 import { authorizeFile, authorizeProjectBody, authorizeUploadTarget } from "../../middleware/resourceAuthorization.middleware.js";
 import { subscribeToFileChanges } from "./file-change-events.service.js";
 import { attachmentSearch, importAttachmentSearchResult } from "../attachment-search/attachment-search.controller.js";
@@ -56,20 +56,40 @@ const PROJECT_IMPORT_CATEGORIES = Object.freeze({
 
 const router = express.Router();
 
+const requireUploadModule = (req, res, next) => {
+    const feature = req.body?.entity === "shop"
+        ? "shop"
+        : req.body?.entity === "management"
+            ? "business-management"
+            : "work-preparation";
+    return requireFeature(feature)(req, res, next);
+};
+
+const requireAuthorizedFileModule = (req, res, next) => {
+    const category = req.authorizedFile?.category;
+    const feature = category === "management-document"
+        ? "business-management"
+        : category === "shop"
+            ? "shop"
+            : "work-preparation";
+    return requireFeature(feature)(req, res, next);
+};
+
 router.get("/events", authenticate, subscribeToFileChanges);
 
 router.post(
-    '/management-document', authenticate, authorizeRoles('admin', 'manager'),
+    '/management-document', authenticate, requireFeature("business-management"), authorizeRoles('admin', 'manager'),
     projectAttachmentUpload.single('file'),
     (req, _res, next) => { req.body.entity = 'management'; req.uploadCategory = 'management-document'; next(); },
     createUpload
 );
 
-router.post("/upload", authenticate, upload.single("file"), authorizeUploadTarget, createUpload);
+router.post("/upload", authenticate, upload.single("file"), requireUploadModule, authorizeUploadTarget, createUpload);
 
 router.post(
     "/project-import-asset",
     authenticate,
+    requireFeature("work-preparation"),
     authorizeRoles("admin", "manager"),
     projectImportAssetUpload.single("file"),
     (req, res, next) => {
@@ -88,6 +108,7 @@ router.post(
 router.post(
     "/project-attachment",
     authenticate,
+    requireFeature("work-preparation"),
     authorizeRoles("admin", "manager"),
     projectAttachmentUpload.single("file"),
     (req, _res, next) => {
@@ -102,6 +123,7 @@ router.post(
 router.post(
     "/attachment-search",
     authenticate,
+    requireFeature("work-preparation"),
     authorizeRoles("admin", "manager"),
     authorizeProjectBody("projectId"),
     attachmentSearch
@@ -110,6 +132,7 @@ router.post(
 router.post(
     "/attachment-search/import",
     authenticate,
+    requireFeature("work-preparation"),
     authorizeRoles("admin", "manager"),
     authorizeProjectBody("projectId"),
     importAttachmentSearchResult
@@ -118,6 +141,7 @@ router.post(
 router.post(
     "/shop-image",
     authenticate,
+    requireFeature("shop"),
     authorizeRoles("admin", "manager"),
     shopImageUpload.single("file"),
     (req, _res, next) => {
@@ -129,12 +153,13 @@ router.post(
 
 // router.post("/complete", uploadcomplete);
 
-router.get("/download/:id", authenticate, authorizeFile("id", { allowSharedShop: true }), createDownloadUrl);
+router.get("/download/:id", authenticate, authorizeFile("id", { allowSharedShop: true }), requireAuthorizedFileModule, createDownloadUrl);
 
 router.delete(
     "/delete/:fileId",
     authenticate,
     authorizeFile("fileId"),
+    requireAuthorizedFileModule,
     (req, res, next) => {
         const isProductionAttachment = req.authorizedFile.category === "production-attachment";
         const canEditAttachments = ["admin", "manager"].includes(req.user.role);

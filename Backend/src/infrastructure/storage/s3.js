@@ -21,6 +21,7 @@ export const s3Upload = new S3Client({
     },
 
     requestChecksumCalculation: "WHEN_REQUIRED",
+    responseChecksumValidation: "WHEN_REQUIRED",
 });
 
 export const s3Download = new S3Client({
@@ -40,4 +41,5 @@ export const s3Download = new S3Client({
     },
 
     requestChecksumCalculation: "WHEN_REQUIRED",
+    responseChecksumValidation: "WHEN_REQUIRED",
 });

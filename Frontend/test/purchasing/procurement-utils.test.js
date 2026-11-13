@@ -5,6 +5,7 @@ import {
     buildEdgeItems,
     buildHardwareItems,
     buildPlateItems,
+    createManualProcurementItem,
     mergeGeneratedItems,
     normalizeCatalog
 } from "@Engine/procurement/procurement.js";
@@ -242,6 +243,39 @@ describe("procurement data", () => {
         expect(second[0]).toMatchObject({ sourceKey: "shop:x", quantity: 8, netPrice: 0.25 });
     });
 
+    it("creates a one-time manual project article without a shop reference", () => {
+        const item = createManualProcurementItem({
+            name: "  Sonderbeschlag  ",
+            sku: " SB-42 ",
+            quantity: "3",
+            netPrice: "12.50",
+            released: true
+        });
+
+        expect(item).toMatchObject({
+            source: "manual",
+            category: "Manuell",
+            name: "Sonderbeschlag",
+            sku: "SB-42",
+            quantity: 3,
+            netPrice: 12.5,
+            released: true
+        });
+        expect(item.sourceKey).toMatch(/^manual:/);
+        expect(item).not.toHaveProperty("articleId");
+    });
+
+    it("retains an unreleased manual article when generated project data is refreshed", () => {
+        const manual = createManualProcurementItem({
+            name: "Einmalartikel",
+            quantity: 1,
+            netPrice: 5,
+            released: false
+        });
+
+        expect(mergeGeneratedItems([], [manual])).toEqual([manual]);
+    });
+
     it("assigns configured suppliers to storage sheets and shop hardware", () => {
         const settings = {
             suppliers: [{ id: "supplier-1", name: "Häfele" }],
@@ -260,6 +294,40 @@ describe("procurement data", () => {
 
         expect(plates[0]).toMatchObject({ supplierId: "supplier-1", supplierName: "Häfele" });
         expect(hardware[0]).toMatchObject({ supplierId: "supplier-1", supplierName: "Häfele" });
+    });
+
+    it("uses separate suppliers for a plate and its edge", () => {
+        const settings = {
+            suppliers: [
+                { id: "plate-supplier", name: "Plattenhandel" },
+                { id: "edge-supplier", name: "Kantenhandel" }
+            ]
+        };
+        const nesting = [{
+            MID: "W1000",
+            T: 19,
+            nestingPlates: [{ placedWidth: 2800, placedHeight: 2070, strips: [{}] }],
+            plates: [{ width: 1000, height: 500, EdgeR: "W1000" }]
+        }];
+        const materials = [{
+            materialNumber: "W1000",
+            name: "Weiß",
+            thickness: 19,
+            width: 2800,
+            height: 2070,
+            edgeArticleNumber: "K-W1000",
+            supplierId: "plate-supplier",
+            edgeSupplierId: "edge-supplier"
+        }];
+
+        expect(buildPlateItems(nesting, materials, settings)[0]).toMatchObject({
+            supplierId: "plate-supplier",
+            supplierName: "Plattenhandel"
+        });
+        expect(buildEdgeItems(nesting, materials, settings)[0]).toMatchObject({
+            supplierId: "edge-supplier",
+            supplierName: "Kantenhandel"
+        });
     });
 
     it("keeps purchased items locked and creates a new line when reordered", () => {

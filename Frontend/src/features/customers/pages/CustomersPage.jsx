@@ -1,8 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import SideBar from '../../../shared/components/sideBar.jsx'
 import { Link } from "react-router";
 import axios from "axios";
-import { useEffect } from "react";
 import { useNavigate } from 'react-router';
 
 
@@ -12,32 +11,53 @@ function Contacts() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
-
-//Alle Kunden /customers/all?page=1 laden und anzeigen
-
-  useEffect(() => {
-    fetchCustomers();
-  }, [currentPage]);
-
-  const fetchCustomers = async () => {
-    try {
-      setLoading(true);
-
-      const response = await axios.get(
-        `/api/customers/all?page=${currentPage}`
-      );
-
-      setCustomers(response.data.customers);
-      setTotalPages(response.data.totalPages);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [search, setSearch] = useState("");
+  const [activeSearch, setActiveSearch] = useState("");
 
   const navigate = useNavigate();
-  console.log(customers);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchCustomers = async () => {
+      try {
+        setLoading(true);
+
+        const response = activeSearch
+          ? await axios.get(
+              `/api/customers/search?search=${encodeURIComponent(activeSearch)}&includeDisplayStatus=true`
+            )
+          : await axios.get(`/api/customers/all?page=${currentPage}`);
+
+        if (cancelled) return;
+
+        if (activeSearch) {
+          setCustomers(response.data);
+          setTotalPages(1);
+        } else {
+          setCustomers(response.data.customers);
+          setTotalPages(response.data.totalPages);
+        }
+      } catch (error) {
+        if (!cancelled) console.error(error);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    fetchCustomers();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSearch, currentPage]);
+
+  const handleSearch = (event) => {
+    event.preventDefault();
+    setCurrentPage(1);
+    setActiveSearch(search.trim());
+  };
+
 return (
 <>
     <div className='h-screen bg-gray-900 text-white flex justify-left'>
@@ -47,13 +67,19 @@ return (
         <main className="h-full min-w-0 flex-1 overflow-y-auto pt-4 sm:pt-10">
             <div className="flex flex-col gap-3 px-4 sm:px-6 lg:relative lg:flex-row lg:items-center">
                 <form
+                    onSubmit={handleSearch}
                     className="flex w-full max-w-xl rounded-full border bg-gray-50 px-4 py-2 focus-within:border-gray-300 sm:mx-auto sm:px-6">
-                    <input type="text" placeholder="Search anything"
+                    <input type="search" placeholder="Kunden suchen"
+                        aria-label="Kunden suchen"
                         className="w-full border-0 bg-transparent px-0 py-0 pr-2 font-semibold text-gray-900 focus:outline-none focus:ring-0 sm:pr-4"
-                        name="search" />
+                        name="search"
+                        value={search}
+                        onChange={(event) => setSearch(event.target.value)} />
                     <button
+                        type="submit"
+                        disabled={loading}
                         className="hover:bg-gray-700 transition duration-300 flex flex-row items-center justify-center min-w-[130px] px-4 rounded-full font-medium tracking-wide border disabled:cursor-not-allowed disabled:opacity-50 transition ease-in-out duration-150 text-base bg-gray-900 text-white font-medium tracking-wide border-transparent py-1.5 h-[38px] -mr-3">
-                        Search
+                        {loading ? "Suche..." : "Suchen"}
                     </button>
                 </form>
 
@@ -107,7 +133,7 @@ return (
       </td>
 
       <td data-label="Ort" className="py-4 px-6">
-        {customer.addresses[0]?.city}
+        {customer.addresses?.[0]?.city}
       </td>
 
       <td data-label="Status" className="py-4 px-6">
@@ -123,6 +149,13 @@ return (
       </td>
     </tr>
   ))}
+  {!loading && customers.length === 0 && (
+    <tr className="bg-gray-700">
+      <td colSpan="5" className="py-8 px-6 text-center text-gray-300">
+        {activeSearch ? "Keine Kunden gefunden." : "Keine Kunden vorhanden."}
+      </td>
+    </tr>
+  )}
 </tbody>
                 </table>
             </div>

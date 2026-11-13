@@ -35,7 +35,7 @@ async function readJsonFile(file) {
   }
 }
 
-function managementRates(snapshot) {
+function managementRates(snapshot, { forceEasy = false } = {}) {
   const config = snapshot.operationalConfig || snapshot.config;
   const approved = Boolean(snapshot.config?.setup?.approvals?.length);
   const calculated = snapshot.operatingPlan;
@@ -64,7 +64,7 @@ function managementRates(snapshot) {
   const easyHourlyRate = easyRates.length
     ? Math.round((easyRates.reduce((sum, rate) => sum + rate.hourlyRate, 0) / easyRates.length) * 100) / 100
     : 0;
-  const fullMode = config?.mode === "full";
+  const fullMode = config?.mode === "full" && !forceEasy;
 
   return {
     available: fullMode ? costCenters.length > 0 : easyRates.length > 0,
@@ -97,7 +97,8 @@ const unavailableManagement = year => ({
  */
 export async function getCalculationContext(req, res) {
   const year = Number(req.query.year) || currentBerlinYear();
-  const mayUseManagement = req.license?.features?.includes("management");
+  const mayUseCalculationRates = req.license?.features?.includes("calculation");
+  const mayUseBusinessManagement = req.license?.features?.includes("business-management");
   const [currentTimeEntries, project, management, estimationSettings] = await Promise.all([
     prisma.timeEntry.findMany({
       where: { projectId: req.params.id, duration: { gt: 0 } },
@@ -124,9 +125,9 @@ export async function getCalculationContext(req, res) {
         }
       }
     }),
-    mayUseManagement
+    mayUseCalculationRates
       ? loadSnapshot(year)
-        .then(snapshot => managementRates(presentSnapshot(snapshot)))
+        .then(snapshot => managementRates(presentSnapshot(snapshot), { forceEasy: !mayUseBusinessManagement }))
         .catch(error => {
           console.warn("Managementsaetze konnten nicht geladen werden", error.message);
           return unavailableManagement(year);

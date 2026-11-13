@@ -1,6 +1,7 @@
-import React from "react";
+import { useMemo } from "react";
 
 import MaterialSelect from "./MaterialSelect.jsx";
+import { getEdgeMaterials } from "../../../../../../shared/materials/material-utils.js";
 
 
 export default function CabinetProperties({
@@ -11,6 +12,11 @@ export default function CabinetProperties({
     loadingMaterials,
     materialError
 }) {
+
+    const edgeMaterials = useMemo(
+        () => getEdgeMaterials(materials),
+        [materials]
+    );
 
     if (!activeCabinet) {
         return null;
@@ -167,7 +173,7 @@ export default function CabinetProperties({
                             activeCabinet.edgeTopMaterialId
                         }
                         materials={
-                            materials
+                            edgeMaterials
                         }
                         loading={
                             loadingMaterials
@@ -190,7 +196,7 @@ export default function CabinetProperties({
                             activeCabinet.edgeBottomMaterialId
                         }
                         materials={
-                            materials
+                            edgeMaterials
                         }
                         loading={
                             loadingMaterials
@@ -213,7 +219,7 @@ export default function CabinetProperties({
                             activeCabinet.frontEdgeMaterialId
                         }
                         materials={
-                            materials
+                            edgeMaterials
                         }
                         loading={
                             loadingMaterials

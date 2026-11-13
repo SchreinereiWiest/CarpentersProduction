@@ -35,36 +35,24 @@ export const generateFronts = (
     // =====================================================
 
     const gapLeft =
-        Math.max(
-            0,
-            Number(
-                cabinet.frontGapLeft ?? 0
-            )
-        );
+        Number(
+            cabinet.frontGapLeft ?? 0
+        ) || 0;
 
     const gapRight =
-        Math.max(
-            0,
-            Number(
-                cabinet.frontGapRight ?? 0
-            )
-        );
+        Number(
+            cabinet.frontGapRight ?? 0
+        ) || 0;
 
     const gapTop =
-        Math.max(
-            0,
-            Number(
-                cabinet.frontGapTop ?? 0
-            )
-        );
+        Number(
+            cabinet.frontGapTop ?? 0
+        ) || 0;
 
     const gapBottom =
-        Math.max(
-            0,
-            Number(
-                cabinet.frontGapBottom ?? 0
-            )
-        );
+        Number(
+            cabinet.frontGapBottom ?? 0
+        ) || 0;
 
 
     const cabinetWidth =

@@ -16,6 +16,132 @@ import { generateLegraboxHardware } from "./hardware/generateLegraboxHardware.js
 
 import { compileCnc } from "../cnc/compiler/cncCompiler.js";
 import { getCncConfig } from "../cnc/compiler/cncHelpers.js";
+import { getCncPartKey } from "../cnc/manualPrograms.js";
+
+const getSideMachiningVariant = (part, quantity) => {
+  const instance = Array.isArray(part?.Source?.instances)
+    ? part.Source.instances[0]
+    : null;
+  const side = instance?.side === "right" ? "right" : "left";
+  const cnc = { ...(part?.CNC ?? {}) };
+  delete cnc.machiningVariants;
+
+  return {
+    id: String(instance?.id ?? side),
+    label: side === "right" ? "Rechts" : "Links",
+    side,
+    mirrorX: instance?.mirrorX === true,
+    quantity,
+    partKey: getCncPartKey(part),
+    partId: part.PID ?? null,
+    generatedId: part._generatedId ?? null,
+    cabinetId: part._cabinetId ?? null,
+    cnc
+  };
+};
+
+const scalePartQuantity = (part, factor) => {
+  const variants = part?.CNC?.machiningVariants;
+
+  return {
+    ...part,
+    Anzahl: Number(part.Anzahl) * factor,
+    ...(Array.isArray(variants) && variants.length
+      ? {
+          CNC: {
+            ...part.CNC,
+            machiningVariants: variants.map(variant => ({
+              ...variant,
+              quantity: Number(variant.quantity || 1) * factor
+            }))
+          }
+        }
+      : {})
+  };
+};
+
+const groupEquivalentParts = (
+  parts,
+  getAssemblyType = () => "assembly"
+) => {
+  const groupedParts = [];
+  const groupedPartsByKey = new Map();
+
+  parts.forEach(part => {
+    const assemblyType = getAssemblyType(part);
+
+    if (!assemblyType) {
+      groupedParts.push(part);
+      return;
+    }
+
+    const key = JSON.stringify({
+      assemblyType,
+      L: Number(part.L),
+      B: Number(part.B),
+      T: Number(part.T),
+      MID: part.MID ?? "",
+      Maserung: part.Maserung ?? "",
+      ELID: part.ELID ?? "",
+      ERID: part.ERID ?? "",
+      ETID: part.ETID ?? "",
+      EBID: part.EBID ?? "",
+      Kante: part.Kante ?? "",
+      cnc: assemblyType === "side"
+        ? null
+        : (part.CNC?.operations ?? []).map(operation => {
+            const geometry = { ...operation };
+            delete geometry.id;
+            delete geometry.source;
+            return geometry;
+          })
+    });
+
+    const existingPart = groupedPartsByKey.get(key);
+    const quantity = Number(part.Anzahl) || 0;
+
+    if (existingPart) {
+      existingPart.Anzahl += quantity;
+
+      if (assemblyType === "side") {
+        existingPart.Source = {
+          ...existingPart.Source,
+          instances: [
+            ...(Array.isArray(existingPart.Source?.instances) ? existingPart.Source.instances : []),
+            ...(Array.isArray(part.Source?.instances) ? part.Source.instances : [])
+          ]
+        };
+        existingPart.CNC = {
+          ...existingPart.CNC,
+          machiningVariants: [
+            ...(Array.isArray(existingPart.CNC?.machiningVariants) ? existingPart.CNC.machiningVariants : []),
+            getSideMachiningVariant(part, quantity)
+          ]
+        };
+      }
+
+      return;
+    }
+
+    const groupedPart = {
+      ...part,
+      Anzahl: quantity,
+      ...(assemblyType === "side"
+        ? {
+            CNC: {
+              ...part.CNC,
+              machiningVariants: [getSideMachiningVariant(part, quantity)]
+            }
+          }
+        : {})
+    };
+
+    groupedPartsByKey.set(key, groupedPart);
+    groupedParts.push(groupedPart);
+  });
+
+  return groupedParts;
+};
 
 export const buildPartList = async (
   cabinets = [],
@@ -254,15 +380,16 @@ const createGroupRoot = (name, children = [], hardware = []) => {
     // CNC auf ALLE Korpus-Teile anwenden
     // ----------------------------------------------------------
 
+    allChildren.forEach(part => {
+      part._generatedId = `${cabinet.id}:part:${Number(part.PID) - cabinetStartPid}`;
+      part._cabinetId = cabinet.id;
+    });
+
     let compiledChildren = compileCnc(
       cabinet,
       allChildren,
       defaultConfig
     );
-
-    compiledChildren.forEach(part => {
-      part._generatedId = `${cabinet.id}:part:${Number(part.PID) - cabinetStartPid}`;
-    });
 
     // Presets can store an edited snapshot of the generated part rows.
     // Match rows by their cabinet independent part index so cloned cabinets
@@ -296,7 +423,9 @@ const createGroupRoot = (name, children = [], hardware = []) => {
           ...presetPart,
           PID: part.PID,
           _generatedId: part._generatedId,
-          _cabinetId: cabinet.id
+          _cabinetId: cabinet.id,
+          CNC: part.CNC,
+          Source: part.Source
         }];
       });
 
@@ -347,6 +476,19 @@ const createGroupRoot = (name, children = [], hardware = []) => {
         .filter(Boolean)
         .map(part => part.PID)
     );
+
+    const sideIds = new Set(
+      compiledChildren
+        .filter(part => part?.Source?.role === "side")
+        .map(part => part.PID)
+    );
+
+    const assemblyTypeByPartId = new Map([
+      ...[...sideIds].map(partId => [partId, "side"]),
+      ...[...shelfIds].map(partId => [partId, "shelf"]),
+      ...[...middleWallIds].map(partId => [partId, "middleWall"]),
+      ...[...frontIds].map(partId => [partId, "front"])
+    ]);
 
     for (const part of compiledChildren) {
       if (!part) continue;
@@ -421,10 +563,10 @@ const createGroupRoot = (name, children = [], hardware = []) => {
       root.Hardware = hardware ?? [];
     }
 
-    root.Children = remainingChildren.map(part => ({
-      ...part,
-      Anzahl: Number(part.Anzahl) * cabinetQuantity
-    }));
+    root.Children = groupEquivalentParts(
+      remainingChildren,
+      part => assemblyTypeByPartId.get(part.PID)
+    ).map(part => scalePartQuantity(part, cabinetQuantity));
 
     return root;
   });
@@ -437,7 +579,7 @@ const createGroupRoot = (name, children = [], hardware = []) => {
     cabinetList.push(
       createGroupRoot(
         "Fächer",
-        shelfParts
+        groupEquivalentParts(shelfParts)
       )
     );
   }
@@ -446,7 +588,7 @@ const createGroupRoot = (name, children = [], hardware = []) => {
     cabinetList.push(
       createGroupRoot(
         "Fronten",
-        frontParts
+        groupEquivalentParts(frontParts)
       )
     );
   }
@@ -455,7 +597,7 @@ const createGroupRoot = (name, children = [], hardware = []) => {
     cabinetList.push(
       createGroupRoot(
         "Mittelwände",
-        middleWallParts
+        groupEquivalentParts(middleWallParts)
       )
     );
   }

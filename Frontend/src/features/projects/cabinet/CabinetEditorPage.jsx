@@ -10,8 +10,10 @@ import { DEFAULT_CNC } from "@Engine/cabinet/cnc/cncDefaults.js";
 import { buildPartList } from "@Engine/cabinet/partList/buildPartList.js";
 import { resizeCabinetContents } from "@Engine/cabinet/geometry/resizeCabinetContents.js";
 import { createInitialSections } from "@Engine/cabinet/sektions/interior/createInitialSections.js";
+import { applyFunctionPreset, createFunctionPreset } from "@Engine/cabinet/sektions/functionPresets.js";
 import { generateFronts } from "@Engine/cabinet/sektions/front/generateFronts.js";
 import { splitFront } from "@Engine/cabinet/sektions/front/splitFront.js";
+import { toggleFrontRemoved } from "@Engine/cabinet/sektions/front/toggleFrontRemoved.js";
 import { splitSection } from "@Engine/cabinet/sektions/splitSections.js";
 import { mergeSectionChildren, findParent } from "@Engine/cabinet/sektions/interior/mergeSectionChildren.js";
 import { frontsToSections } from "@Engine/cabinet/sektions/functions/parseFrontSections.js";
@@ -35,6 +37,7 @@ import {
 import { getAufmasWorkspaceCache } from "../measurement/state/workspaceCache.js";
 import { createProjectRecord } from "../legacy-editor/uploadProject.js";
 import CustomerSearch from "../legacy-editor/customerSearch.jsx";
+import { getProjectRecord } from "../../../shared/projects/project-records.js";
 export default function CabinetEditor() {
 
     // conmstant Section alle Editor daten
@@ -70,11 +73,17 @@ export default function CabinetEditor() {
 
     const [cabinetPresets, setCabinetPresets] = useState([]);
 
+    const [functionPresets, setFunctionPresets] = useState([]);
+
     const [presetEditorCabinet, setPresetEditorCabinet] = useState(null);
 
     const [showPresetInsertModal, setShowPresetInsertModal] = useState(false);
 
     const [selectedPresetId, setSelectedPresetId] = useState("");
+
+    const [selectedFunctionPresetId, setSelectedFunctionPresetId] = useState("");
+
+    const [presetInsertType, setPresetInsertType] = useState("cabinet");
 
     const [activeCabinetId, setActiveCabinetId] = useState();
 
@@ -211,7 +220,7 @@ export default function CabinetEditor() {
 
     const saveCabinetAsPreset = cabinet => {
         if (!isAdmin) return;
-        setPresetEditorCabinet({ cabinet, presetId: null });
+        setPresetEditorCabinet({ cabinet, presetId: null, allowTypeSelection: false });
     };
 
     const handleSaveCabinetPreset = async ({ name, cabinet }) => {
@@ -242,6 +251,44 @@ export default function CabinetEditor() {
         setActiveCabinetId(cabinet.id);
         loadFrontLayoutControls(cabinet);
         setSectionCount(cabinet.sections?.length ?? 1);
+        setSelectedElement(null);
+        setShowPresetInsertModal(false);
+    };
+
+    const saveFunctionPresets = async nextPresets => {
+        await uploadGlobalFile({
+            file: "settings-functionPreset.json",
+            data: nextPresets,
+            uploadFunction: {
+                upload: uploadJSONFile,
+                path: "/api/settings/functionPreset"
+            }
+        });
+        setFunctionPresets(nextPresets);
+    };
+
+    const handleSaveFunctionPreset = async ({ name, cabinet }) => {
+        const hasCncPrograms = cabinet?.functionConfig?.some(entry =>
+            entry?.type === "cncPrograms" &&
+            ((entry.recognizedProfiles?.length ?? 0) > 0 || (entry.customPrograms?.length ?? 0) > 0)
+        );
+        if (!isAdmin || (!cabinet?.sections?.length && !hasCncPrograms) || !name.trim()) return;
+
+        await saveFunctionPresets([...functionPresets, {
+            id: createId(),
+            name: name.trim(),
+            data: createFunctionPreset(cabinet)
+        }]);
+        setPresetEditorCabinet(null);
+    };
+
+    const insertSelectedFunctionPreset = () => {
+        const preset = functionPresets.find(item => String(item.id) === String(selectedFunctionPresetId));
+        if (!activeCabinet || !preset?.data) return;
+
+        const functionLayout = applyFunctionPreset(activeCabinet, preset.data);
+        updateActiveCabinet(functionLayout);
+        setSectionCount(functionLayout.sections.length);
         setSelectedElement(null);
         setShowPresetInsertModal(false);
     };
@@ -532,8 +579,8 @@ export default function CabinetEditor() {
 
         const trimmedProjectName = emptyProjectName.trim();
 
-        if (!emptyProjectCustomer?.id || !trimmedProjectName) {
-            setSkipError("Bitte wähle einen Kunden aus und gib einen Projektnamen ein.");
+        if (!trimmedProjectName) {
+            setSkipError("Bitte gib einen Projektnamen ein.");
             return;
         }
 
@@ -542,7 +589,7 @@ export default function CabinetEditor() {
 
         try {
             const newProjectId = await createProjectRecord({
-                customerId: emptyProjectCustomer.id,
+                customerId: emptyProjectCustomer?.id,
                 title: trimmedProjectName,
                 description: emptyProjectDescription.trim()
             });
@@ -590,11 +637,7 @@ export default function CabinetEditor() {
 
             try {
 
-                const { data } = await axios.get(
-                    `/api/projects/get/${projectId}`
-                );
-
-                const project = data.project;
+                const project = await getProjectRecord(projectId);
 
                 setProject(project);
 
@@ -800,7 +843,7 @@ export default function CabinetEditor() {
 
             try {
 
-                const [data, presetData] = await Promise.all([
+                const [data, presetData, functionPresetData] = await Promise.all([
                     getGlobalFile({
                         file: "settings-cabinet.json",
                         loadFromServer: {download: downloadFile, path:"/api/settings/cabinet"}
@@ -808,6 +851,10 @@ export default function CabinetEditor() {
                     getGlobalFile({
                         file: "settings-cabinetPreset.json",
                         loadFromServer: {download: downloadFile, path:"/api/settings/cabinetPreset"}
+                    }),
+                    getGlobalFile({
+                        file: "settings-functionPreset.json",
+                        loadFromServer: {download: downloadFile, path:"/api/settings/functionPreset"}
                     })
                 ]);
 
@@ -824,6 +871,8 @@ export default function CabinetEditor() {
                         ? presetData
                         : []
                 );
+
+                setFunctionPresets(Array.isArray(functionPresetData) ? functionPresetData : []);
 
             } catch (error) {
 
@@ -1030,12 +1079,25 @@ export default function CabinetEditor() {
                             type="button"
                             onClick={() => {
                                 setSelectedPresetId(String(cabinetPresets[0]?.id ?? ""));
+                                setSelectedFunctionPresetId(String(functionPresets[0]?.id ?? ""));
+                                setPresetInsertType(cabinetPresets.length > 0 ? "cabinet" : "function");
                                 setShowPresetInsertModal(true);
                             }}
                             className="shrink-0 whitespace-nowrap rounded border border-gray-700 bg-gray-800/90 px-3 py-2 text-sm text-gray-200 shadow-lg hover:bg-gray-700"
                         >
                             Preset einfügen
                         </button>
+
+                        {isAdmin && (
+                            <button
+                                type="button"
+                                disabled={!activeCabinet}
+                                onClick={() => setPresetEditorCabinet({ cabinet: activeCabinet, presetId: null, allowTypeSelection: true })}
+                                className="shrink-0 whitespace-nowrap rounded border border-gray-700 bg-gray-800/90 px-3 py-2 text-sm text-gray-200 shadow-lg hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                                Preset speichern
+                            </button>
+                        )}
 
                         <div className="mx-2 h-6 w-px shrink-0 bg-gray-700" />
                         </div>
@@ -1180,6 +1242,7 @@ export default function CabinetEditor() {
     }
 
     splitFront={splitFront}
+    toggleFrontRemoved={toggleFrontRemoved}
     mergeFrontChildren={
         mergeFrontChildren
     }
@@ -1213,7 +1276,9 @@ export default function CabinetEditor() {
     }
     materialError={materialError}
 
+    cncConfig={defaultConfig}
     measurementVariables={measurementVariables}
+    projectId={projectId}
 
     updateCabinetLayout={updateCabinetLayout}
 />
@@ -1278,7 +1343,7 @@ export default function CabinetEditor() {
 
                     <div className="mt-5">
                         <label className="mb-2 block text-sm text-gray-300">
-                            Kunde <span aria-hidden="true" className="text-red-400">*</span>
+                            Kunde <span className="text-gray-500">(optional)</span>
                         </label>
                         <CustomerSearch
                             selectedCustomer={emptyProjectCustomer}
@@ -1331,7 +1396,7 @@ export default function CabinetEditor() {
                         </button>
                         <button
                             type="submit"
-                            disabled={creatingEmptyProject || !emptyProjectCustomer?.id || !emptyProjectName.trim()}
+                            disabled={creatingEmptyProject || !emptyProjectName.trim()}
                             className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             {creatingEmptyProject ? "Projekt wird erstellt ..." : "Projekt erstellen"}
@@ -1348,8 +1413,10 @@ export default function CabinetEditor() {
                 initialName={presetEditorCabinet.name ?? presetEditorCabinet.cabinet.name ?? ""}
                 materials={materials}
                 defaultConfig={defaultConfig}
+                allowPresetTypeSelection={presetEditorCabinet.allowTypeSelection}
                 onCancel={() => setPresetEditorCabinet(null)}
                 onSave={handleSaveCabinetPreset}
+                onSaveFunction={handleSaveFunctionPreset}
             />
         )}
 
@@ -1357,31 +1424,61 @@ export default function CabinetEditor() {
             <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4">
                 <section role="dialog" aria-modal="true" aria-labelledby="insert-preset-title" className="w-full max-w-md rounded-xl border border-gray-700 bg-gray-900 p-6 shadow-2xl">
                     <h2 id="insert-preset-title" className="text-lg font-semibold text-white">
-                        Cabinet-Preset einfügen
+                        Preset einfügen
                     </h2>
-                    {cabinetPresets.length > 0 ? (
-                        <>
+                    <div className="mt-5 flex rounded-lg border border-gray-700 bg-gray-950 p-1" role="group" aria-label="Preset-Typ">
+                        {[["cabinet", "Cabinet Preset"], ["function", "Function Preset"]].map(([type, label]) => (
+                            <button
+                                key={type}
+                                type="button"
+                                onClick={() => setPresetInsertType(type)}
+                                className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition ${presetInsertType === type
+                                    ? "bg-blue-600 text-white"
+                                    : "text-gray-400 hover:bg-gray-800 hover:text-gray-200"
+                                }`}
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {presetInsertType === "cabinet" ? (
+                        cabinetPresets.length > 0 ? (
                             <label className="mt-5 block">
-                                <span className="mb-1 block text-xs text-gray-400">Preset auswählen</span>
+                                <span className="mb-1 block text-xs text-gray-400">Cabinet Preset auswählen</span>
                                 <select value={selectedPresetId} onChange={event => setSelectedPresetId(event.target.value)} className="w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white">
                                     {cabinetPresets.map(preset => (
                                         <option key={preset.id} value={String(preset.id)}>{preset.name}</option>
                                     ))}
                                 </select>
                             </label>
-                            <div className="mt-6 flex justify-end gap-3">
-                                <button type="button" onClick={() => setShowPresetInsertModal(false)} className="rounded border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800">Abbrechen</button>
-                                <button type="button" onClick={insertSelectedCabinetPreset} disabled={!selectedPresetId} className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50">Korpus laden</button>
-                            </div>
-                        </>
+                        ) : <p className="mt-5 rounded border border-dashed border-gray-700 p-4 text-sm text-gray-500">Es sind noch keine Cabinet Presets gespeichert.</p>
                     ) : (
                         <>
-                            <p className="mt-3 text-sm text-gray-400">Es sind noch keine Cabinet-Presets gespeichert.</p>
-                            <div className="mt-6 flex justify-end">
-                                <button type="button" onClick={() => setShowPresetInsertModal(false)} className="rounded border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800">Schließen</button>
-                            </div>
+                            <p className="mt-4 text-sm text-gray-400">Sections und Funktionen ersetzen den Inhalt des aktiven Korpus. Maße, Material und Konstruktion bleiben unverändert.</p>
+                            {functionPresets.length > 0 ? (
+                                <label className="mt-4 block">
+                                    <span className="mb-1 block text-xs text-gray-400">Function Preset auswählen</span>
+                                    <select value={selectedFunctionPresetId} onChange={event => setSelectedFunctionPresetId(event.target.value)} className="w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white">
+                                        {functionPresets.map(preset => (
+                                            <option key={preset.id} value={String(preset.id)}>{preset.name}</option>
+                                        ))}
+                                    </select>
+                                </label>
+                            ) : <p className="mt-4 rounded border border-dashed border-gray-700 p-4 text-sm text-gray-500">Es sind noch keine Function Presets gespeichert.</p>}
                         </>
                     )}
+                    <div className="mt-6 flex justify-end gap-3">
+                        <button type="button" onClick={() => setShowPresetInsertModal(false)} className="rounded border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800">Abbrechen</button>
+                        <button
+                            type="button"
+                            onClick={presetInsertType === "cabinet" ? insertSelectedCabinetPreset : insertSelectedFunctionPreset}
+                            disabled={presetInsertType === "cabinet" ? !selectedPresetId || cabinetPresets.length === 0 : !activeCabinet || !selectedFunctionPresetId || functionPresets.length === 0}
+                            className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            {presetInsertType === "cabinet" ? "Korpus einfügen" : "Auf Korpus anwenden"}
+                        </button>
+                    </div>
                 </section>
             </div>
         )}

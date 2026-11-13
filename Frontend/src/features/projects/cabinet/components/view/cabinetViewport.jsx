@@ -518,6 +518,44 @@ export default function CabinetViewport({
 
     /*
     ====================================================
+    NATIVER WHEEL-LISTENER
+
+    React registriert Wheel-Events je nach Browser passiv.
+    Ein nativer, nicht-passiver Listener verhindert, dass
+    Strg + Mausrad bzw. Trackpad-Pinch die ganze Seite zoomt.
+    ====================================================
+    */
+
+    useEffect(() => {
+
+        const container =
+            containerRef.current;
+
+        if (!container) {
+            return;
+        }
+
+
+        container.addEventListener(
+            "wheel",
+            handleWheel,
+            { passive: false }
+        );
+
+
+        return () => {
+
+            container.removeEventListener(
+                "wheel",
+                handleWheel
+            );
+        };
+
+    }, [handleWheel]);
+
+
+    /*
+    ====================================================
     PAN START
     ====================================================
     */
@@ -852,10 +890,6 @@ export default function CabinetViewport({
                     userSelect: "none"
                 }}
 
-                onWheel={
-                    handleWheel
-                }
-
                 onPointerDown={
                     handlePointerDown
                 }
@@ -891,7 +925,7 @@ export default function CabinetViewport({
                     y={viewBox.y - 10000}
                     width={20000}
                     height={20000}
-                    fill="#111827"
+                    fill="var(--cabinet-editor-background)"
                 />
 
 
@@ -935,10 +969,13 @@ export default function CabinetViewport({
                     {(mode === "front" || mode === "combined") && (
                         <FrontLayer
                             cabinet={cabinet}
+                            cncConfig={cncConfig}
                             selectedElement={selectedElement}
                             onSelect={onSelect}
                             opacity={mode === "combined" ? 0.35 : 1}
                             showBackground={mode !== "combined"}
+                            showMachining={mode === "combined"}
+                            machiningOpacity={0.65}
                         />
                     )}
 

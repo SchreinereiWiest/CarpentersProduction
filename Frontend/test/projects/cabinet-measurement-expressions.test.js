@@ -57,6 +57,7 @@ describe("cabinet measurement expressions", () => {
                     shelfFrontOffset: 0,
                     holeRow: { spacing: 32 },
                     measurementExpressions: {
+                        compartmentCount: "3",
                         shelfDepth: "RH/4",
                         "holeRow.spacing": "RH/100"
                     }
@@ -64,6 +65,7 @@ describe("cabinet measurement expressions", () => {
             }]
         }, variables);
         expect(cabinet.sections[0].functionConfig[0]).toMatchObject({
+            compartmentCount: 4,
             shelfFrontOffset: 25,
             holeRow: { spacing: 23 }
         });

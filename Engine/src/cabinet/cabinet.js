@@ -41,6 +41,11 @@ export function cloneCabinetWithFreshIds(cabinet) {
                 return;
             }
 
+            if (key.endsWith("Ids") && Array.isArray(nestedValue)) {
+                value[key] = nestedValue.map(id => idMap.get(id) ?? id);
+                return;
+            }
+
             remapReferences(nestedValue);
         });
     };

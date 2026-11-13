@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react'
 import { useApp } from '../../app/providers/AppContext.js';
 import { Link } from "react-router";
 import ProtectedElement from '../../app/routing/ProtectedElement.jsx';
+import { isWorkspacePane } from '../workspace/workspace-settings.js';
 
 
 
-function SideBar({selected=0}) {
+function SideBar({selected=0, onNavigate}) {
 
     const {SideBarCollapsed, setSideBarCollapsed} = useApp();
 
@@ -34,9 +35,24 @@ function SideBar({selected=0}) {
         }
     };
 
+    if (isWorkspacePane()) return null;
+
+    const handleNavigation = event => {
+        if (!onNavigate) return;
+        const link = event.target.closest("a[href]");
+        if (!link) return;
+
+        const url = new URL(link.href, window.location.origin);
+        if (url.origin !== window.location.origin) return;
+        event.preventDefault();
+        onNavigate(`${url.pathname}${url.search}${url.hash}`);
+    };
+
 return (
 <nav
     aria-label="Sidebar"
+    data-keybinding-target="sidebar"
+    onClick={handleNavigation}
     className="
         app-sidebar
         h-dvh
@@ -71,7 +87,7 @@ return (
         </ProtectedElement>
 
 
-        <ProtectedElement requiredRole="admin">
+        <ProtectedElement requiredRole="admin" requiredFeature="business-management">
             <Link to="/Management" aria-label="Management" title="Management" className={SideBarCollapsed ? selected===1
                 ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
@@ -92,7 +108,7 @@ return (
             </Link>
         </ProtectedElement>
 
-        <ProtectedElement requiredRole="user">
+        <ProtectedElement requiredRole="user" requiredFeature="work-preparation">
         <Link to="/Projects" aria-label="Projekte" title="Projekte" className={SideBarCollapsed ? selected===2
             ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
             : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
@@ -112,7 +128,7 @@ return (
         </Link>
         </ProtectedElement>
 
-        <ProtectedElement requiredRole="admin">
+        <ProtectedElement requiredRole="admin" requiredFeature="business-management">
             <Link to="/Documents" aria-label="Dokumente" title="Dokumente" className={SideBarCollapsed ? selected===3
                 ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
@@ -132,8 +148,8 @@ return (
             </Link>
         </ProtectedElement>
 
-        <ProtectedElement requiredRole="user">
-            <Link to="/" aria-label="Planung" title="Planung" className={SideBarCollapsed ? selected===4
+        <ProtectedElement requiredRole="user" requiredFeature="work-preparation">
+            <Link to="/Calendar" aria-label="Kalender" title="Kalender" className={SideBarCollapsed ? selected===4
                 ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : selected===4
@@ -148,11 +164,11 @@ return (
                         d="M6.75 2.25A.75.75 0 0 1 7.5 3v1.5h9V3A.75.75 0 0 1 18 3v1.5h.75a3 3 0 0 1 3 3v11.25a3 3 0 0 1-3 3H5.25a3 3 0 0 1-3-3V7.5a3 3 0 0 1 3-3H6V3a.75.75 0 0 1 .75-.75Zm13.5 9a1.5 1.5 0 0 0-1.5-1.5H5.25a1.5 1.5 0 0 0-1.5 1.5v7.5a1.5 1.5 0 0 0 1.5 1.5h13.5a1.5 1.5 0 0 0 1.5-1.5v-7.5Z"
                         clipRule="evenodd" />
                 </svg>
-                <span className={SideBarCollapsed ? "hidden" : "pl-2 block" }>Planung</span>
+                <span className={SideBarCollapsed ? "hidden" : "pl-2 block" }>Kalender</span>
             </Link>
         </ProtectedElement>
 
-        <ProtectedElement requiredRole="admin">
+        <ProtectedElement requiredRole="admin" requiredFeature="crm">
             <Link to="/Kontakte" aria-label="Kontakte" title="Kontakte" className={SideBarCollapsed ? selected===5
                 ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
@@ -171,7 +187,7 @@ return (
             </Link>
         </ProtectedElement>
 
-        <ProtectedElement requiredRole="user">
+        <ProtectedElement requiredRole="user" requiredFeature="work-preparation">
             <Link to="/Storage" aria-label="Lager" title="Lager" className={SideBarCollapsed ? selected===6
                 ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
@@ -190,7 +206,7 @@ return (
             </Link>
         </ProtectedElement>
 
-        <ProtectedElement requiredRole="user">
+        <ProtectedElement requiredRole="user" requiredFeature="work-preparation">
             <Link to="/Mitarbeiter" aria-label="Mitarbeiter" title="Mitarbeiter" className={SideBarCollapsed ? selected===7
                 ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
@@ -207,7 +223,7 @@ return (
             </Link>
         </ProtectedElement>
 
-                <ProtectedElement requiredRole="user">
+                <ProtectedElement requiredRole="user" requiredFeature="shop">
                         <Link to="/Purchasing" aria-label="Einkauf" title="Einkauf" className={SideBarCollapsed ? selected===10
                     ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                     : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"

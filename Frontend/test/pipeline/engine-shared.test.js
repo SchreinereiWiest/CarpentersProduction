@@ -5,6 +5,8 @@ import {
 } from '@Engine/cabinet/cabinet.js';
 import { getMiddleWallCenter } from '@Engine/cabinet/geometry/middleWall.js';
 import { resizeCabinetContents } from '@Engine/cabinet/geometry/resizeCabinetContents.js';
+import { generateFronts } from '@Engine/cabinet/sektions/front/generateFronts.js';
+import { applyFunctionPreset, createFunctionPreset } from '@Engine/cabinet/sektions/functionPresets.js';
 import {
     findTreeNode,
     findTreeParent,
@@ -13,6 +15,55 @@ import {
 } from '@Engine/shared/tree.js';
 
 describe('shared Engine helpers', () => {
+    it('moves section functions to cabinets with different dimensions without copying cabinet settings', () => {
+        const source = {
+            width: 600,
+            height: 720,
+            thickness: 20,
+            topExists: true,
+            bottomExists: true,
+            materialId: 'source-material',
+            sectionLayout: { source: 'split', spec: '1:1', direction: 'horizontal' },
+            sections: [{
+                id: 'section-a',
+                x: 20,
+                y: 20,
+                width: 280,
+                height: 680,
+                functionConfig: [{ id: 'function-a', type: 'shelf', count: 2 }],
+                children: []
+            }, {
+                id: 'section-b',
+                x: 300,
+                y: 20,
+                width: 280,
+                height: 680,
+                functionConfig: [],
+                children: []
+            }]
+        };
+        const target = {
+            width: 1000,
+            height: 900,
+            thickness: 20,
+            topExists: true,
+            bottomExists: true,
+            materialId: 'target-material'
+        };
+
+        const preset = createFunctionPreset(source);
+        const applied = applyFunctionPreset(target, preset);
+
+        expect(preset).not.toHaveProperty('width');
+        expect(preset).not.toHaveProperty('materialId');
+        expect(applied.sections).toHaveLength(2);
+        expect(applied.sections[0]).toMatchObject({ x: 20, y: 20, width: 480, height: 860 });
+        expect(applied.sections[1]).toMatchObject({ x: 500, y: 20, width: 480, height: 860 });
+        expect(applied.sections[0].functionConfig[0]).toMatchObject({ type: 'shelf', count: 2 });
+        expect(applied.sections[0].id).not.toBe('section-a');
+        expect(applied.sections[0].functionConfig[0].id).not.toBe('function-a');
+    });
+
     it('creates the usable cabinet section without UI dependencies', () => {
         expect(createAvailableSection({
             width: 600,
@@ -124,6 +175,61 @@ describe('shared Engine helpers', () => {
             height: 1000,
             sections: [],
             fronts: []
+        });
+    });
+
+    it('uses negative outer front gaps as overhangs when generating and resizing fronts', () => {
+        let generatedCabinet;
+
+        generateFronts(
+            '1',
+            'vertical',
+            {
+                width: 600,
+                height: 1000,
+                frontGap: 3,
+                frontGapLeft: -10,
+                frontGapRight: -20,
+                frontGapTop: -5,
+                frontGapBottom: -15
+            },
+            changes => {
+                generatedCabinet = changes;
+            },
+            () => {}
+        );
+
+        expect(generatedCabinet.fronts[0]).toMatchObject({
+            x: -10,
+            y: -5,
+            width: 630,
+            height: 1020
+        });
+
+        const resized = resizeCabinetContents(
+            {
+                width: 600,
+                height: 1000,
+                frontGap: 3,
+                frontGapLeft: -10,
+                frontGapRight: -20,
+                frontGapTop: -5,
+                frontGapBottom: -15,
+                frontLayout: {
+                    spec: '1',
+                    direction: 'vertical'
+                },
+                fronts: generatedCabinet.fronts,
+                sections: []
+            },
+            { width: 700, height: 1200 }
+        );
+
+        expect(resized.fronts[0]).toMatchObject({
+            x: -10,
+            y: -5,
+            width: 730,
+            height: 1220
         });
     });
 

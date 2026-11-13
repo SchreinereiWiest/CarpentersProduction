@@ -67,6 +67,10 @@ export default function ProgramSettingsPanel() {
 
     const license = data?.license;
     const development = license?.provider === "development";
+    const remote = license?.provider === "remote";
+    const providerLabel = development
+        ? "Entwicklungsmodus"
+        : remote ? "Lizenzserver" : "Lokales Zertifikat";
 
     return (
         <div className="responsive-settings-panel h-full overflow-y-auto p-6">
@@ -102,7 +106,7 @@ export default function ProgramSettingsPanel() {
                                 <Info label="Lizenzmodell" value={license.plan} />
                                 <Info label="Maximale Benutzer" value={license.maxUsers ?? "Unbegrenzt"} />
                                 <Info label="Gültig bis" value={dateLabel(license.validUntil)} />
-                                <Info label="Prüfquelle" value={development ? "Entwicklungsmodus" : "Lokales Zertifikat"} />
+                                <Info label="Prüfquelle" value={providerLabel} />
                             </div>
                         </section>
 
@@ -120,14 +124,16 @@ export default function ProgramSettingsPanel() {
                             <p className="mt-1 text-sm text-gray-400">
                                 {development
                                     ? "Im Entwicklungsmodus wird automatisch eine lokale Entwicklungslizenz verwendet."
-                                    : "Der signierte Lizenzschlüssel wird lokal geprüft und an den oben angezeigten Firmennamen gebunden."}
+                                    : remote
+                                        ? "Der Lizenzschlüssel wird sicher über das Backend an den zentralen Lizenzserver übertragen und dort geprüft."
+                                        : "Der signierte Lizenzschlüssel wird lokal geprüft und an den oben angezeigten Firmennamen gebunden."}
                             </p>
                             <form onSubmit={save} className="mt-4 flex flex-col gap-3 sm:flex-row">
                                 <input
                                     value={licenseKey}
                                     onChange={event => setLicenseKey(event.target.value)}
                                     disabled={development || saving}
-                                    placeholder="Signierten Lizenzschlüssel einfügen"
+                                    placeholder="Lizenzschlüssel einfügen"
                                     className="min-w-0 flex-1 rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:opacity-50"
                                 />
                                 <button type="submit" disabled={development || saving || !licenseKey.trim()} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50">

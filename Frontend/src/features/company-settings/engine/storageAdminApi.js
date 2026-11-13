@@ -46,6 +46,12 @@ export const createDatabaseBackup = name => request({
     data: { name }
 });
 
+export const createShopDatabaseBackup = name => request({
+    method: "post",
+    url: "/api/storage-admin/shop-database-backups",
+    data: { name }
+});
+
 export const getBackupDownload = id => request({
     method: "get",
     url: `/api/storage-admin/backups/${id}/download`,
@@ -82,6 +88,18 @@ export const importDatabaseBackup = file => {
     return request({
         method: "post",
         url: "/api/storage-admin/database-backups/import",
+        data,
+        headers: { "Content-Type": "multipart/form-data" }
+    });
+};
+
+export const importShopDatabaseBackup = file => {
+    const data = new FormData();
+    data.append("backup", file);
+    data.append("confirmation", "WIEDERHERSTELLEN");
+    return request({
+        method: "post",
+        url: "/api/storage-admin/shop-database-backups/import",
         data,
         headers: { "Content-Type": "multipart/form-data" }
     });

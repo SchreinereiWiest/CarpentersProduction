@@ -4,7 +4,9 @@ import { getMiddleWallCenter } from "@Engine/cabinet/geometry/middleWall.js";
 import { findSection } from "@Engine/cabinet/sektions/interior/mergeSectionChildren.js";
 import { updateSectionTree } from "@Engine/cabinet/sektions/updateSectionTree.js";
 import { createId } from "@Engine/shared/id.js";
+import { createShelfHoleRowDefaults, getShelfFrontOffsetDefault } from "../../../sectionFunctionDefaults.js";
 import FormulaNumberInput from "../FormulaNumberInput.jsx";
+import { removeCncProfilesForFunction } from "@Engine/cabinet/cnc/manualPrograms.js";
 
 
 
@@ -38,6 +40,7 @@ export default function SectionFunctionProperties({
     activeCabinet,
     updateActiveCabinet,
     setSelectedElement,
+    cncConfig,
     measurementVariables = []
 }) {
 
@@ -92,6 +95,8 @@ export default function SectionFunctionProperties({
      */
 
     const functions = currentSection.functionConfig ?? [];
+    const shelfHoleRowDefaults = createShelfHoleRowDefaults(cncConfig, activeCabinet);
+    const shelfFrontOffsetDefault = getShelfFrontOffsetDefault(cncConfig);
 
 
 
@@ -157,15 +162,9 @@ export default function SectionFunctionProperties({
 
                     compartmentCount: 2,
 
-                    shelfFrontOffset: 0,
+                    shelfFrontOffset: shelfFrontOffsetDefault,
 
-                    holeRow: {
-                        spacing: 32,
-                        frontOffset: 37,
-                        backOffset: 37,
-                        startFromBottom: 150,
-                        endFromTop: 150
-                    }
+                    holeRow: shelfHoleRowDefaults
                 };
 
 
@@ -268,6 +267,9 @@ export default function SectionFunctionProperties({
             func => func.id !== functionId
         );
 
+        updateActiveCabinet(cabinet => ({
+            functionConfig: removeCncProfilesForFunction(cabinet, functionId).functionConfig
+        }));
         updateSection({
             functionConfig:
                 newFunctions
@@ -300,6 +302,9 @@ export default function SectionFunctionProperties({
             };
         });
 
+        updateActiveCabinet(cabinet => ({
+            functionConfig: removeCncProfilesForFunction(cabinet, functionId).functionConfig
+        }));
         updateSection({
             functionConfig:
                 newFunctions
@@ -659,17 +664,22 @@ export default function SectionFunctionProperties({
                                         {/* Fächeranzahl */}
                                         <FormulaNumberInput
                                             label="Fächeranzahl"
-                                            value={func.compartmentCount ?? 2}
+                                            value={Math.max(
+                                                0,
+                                                Number(func.compartmentCount ?? 1) - 1
+                                            )}
                                             expression={func.measurementExpressions?.compartmentCount}
                                             variables={measurementVariables}
-                                            min={1}
+                                            min={0}
                                             unit=""
                                             onChange={(expression, evaluation) => updateFunctionFormula(
                                                 func.id,
                                                 "compartmentCount",
                                                 expression,
                                                 evaluation,
-                                                value => ({ compartmentCount: Math.max(1, value) })
+                                                value => ({
+                                                    compartmentCount: Math.max(1, value + 1)
+                                                })
                                             )}
                                         />
 
@@ -748,7 +758,7 @@ export default function SectionFunctionProperties({
                                         {/* Vorne */}
                                         <FormulaNumberInput
                                             label="Abstand von vorne"
-                                            value={func.holeRow?.frontOffset ?? 37}
+                                            value={func.holeRow?.frontOffset ?? shelfHoleRowDefaults.frontOffset}
                                             expression={func.measurementExpressions?.["holeRow.frontOffset"]}
                                             variables={measurementVariables}
                                             min={0}
@@ -765,7 +775,7 @@ export default function SectionFunctionProperties({
                                         {/* Hinten */}
                                         <FormulaNumberInput
                                             label="Abstand von hinten"
-                                            value={func.holeRow?.backOffset ?? 37}
+                                            value={func.holeRow?.backOffset ?? shelfHoleRowDefaults.backOffset}
                                             expression={func.measurementExpressions?.["holeRow.backOffset"]}
                                             variables={measurementVariables}
                                             min={0}
@@ -811,6 +821,20 @@ export default function SectionFunctionProperties({
                                                 (value, current) => ({ holeRow: { ...(current.holeRow ?? {}), endFromTop: value } })
                                             )}
                                         />
+
+                                        <label className="flex items-center gap-2 text-sm text-gray-300">
+                                            <input
+                                                type="checkbox"
+                                                checked={func.holeRow?.centered === true}
+                                                onChange={event => updateFunctionNested(
+                                                    func.id,
+                                                    "holeRow",
+                                                    { centered: event.target.checked }
+                                                )}
+                                                className="h-4 w-4 rounded border-gray-600 bg-gray-900 text-blue-600"
+                                            />
+                                            Lochreihe mittig
+                                        </label>
 
                                     </div>
 

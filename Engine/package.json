@@ -16,6 +16,7 @@
     "./management/*": "./src/management/*",
     "./nesting/*": "./src/nesting/*",
     "./procurement": "./src/procurement/procurement.js",
+    "./procurement/shop-data-fetch": "./src/procurement/shop-data-fetch.js",
     "./contracts/*": "./src/contracts/*",
     "./shared/*": "./src/shared/*",
     "./browser/*": "./browser/*"

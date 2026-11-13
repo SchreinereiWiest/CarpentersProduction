@@ -4,6 +4,7 @@ import SideBar from "../../shared/components/sideBar.jsx";
 import { useAuth } from "../../app/providers/AuthContext.js";
 import {
     addArticleToProcurement,
+    createArticleId,
     createCatalogPayload,
     createProcurementPayload,
     normalizeCatalog,
@@ -11,13 +12,29 @@ import {
     normalizeShopSettings
 } from "@Engine/procurement/procurement.js";
 import {
+    activateArticleArchiveEntry,
+    createArticleArchiveEntry,
+    createPurchaseList,
+    deleteArticleArchiveEntry,
+    deletePurchaseList,
+    loadArticleArchive,
+    loadArticleCatalog,
+    loadNonProjectPurchases,
+    loadPurchaseLists,
     loadProcurementCatalog,
     loadProjectProcurement,
     loadShopSettings,
     loadShopImageUrl,
+    processNonProjectPurchases,
+    releasePurchaseList,
     saveProcurementCatalog,
+    saveArticleCatalog,
     saveProjectProcurement,
-    uploadShopImage
+    updateArticleArchiveEntry,
+    updatePurchaseList,
+    uploadShopImage,
+    fetchArticleCatalogShopData,
+    saveBrowserExtensionResults
 } from "./procurementApi.js";
 import {
     ArticleModal,
@@ -26,6 +43,20 @@ import {
     ShopArticle,
     ShopGroup
 } from "./shopComponents.jsx";
+import {
+    ArticleArchiveModal,
+    ArticleArchiveView,
+    PurchaseListModal,
+    PurchaseListsView
+} from "./purchasingExtensions.jsx";
+import ArticleCatalogView from "./articleCatalog.jsx";
+import ShopFetchSelectionModal from "./shopFetchSelectionModal.jsx";
+import { formatShopFetchFailures } from "./shopFetchReport.js";
+import {
+    configureAvFirefoxExtension,
+    fetchWithAvFirefoxExtension,
+    subscribeToAvFirefoxStandaloneResults
+} from "./avFirefoxExtension.js";
 
 const money = new Intl.NumberFormat("de-DE", {
     style: "currency",
@@ -37,6 +68,23 @@ const dateTime = new Intl.DateTimeFormat("de-DE", {
     timeStyle: "short"
 });
 
+const SHOP_COLUMNS_STORAGE_KEY = "purchasing.shopColumns";
+const SHOP_GRID_CLASSES = {
+    1: "grid-cols-1",
+    2: "grid-cols-1 lg:grid-cols-2",
+    3: "grid-cols-1 md:grid-cols-2 2xl:grid-cols-3",
+    4: "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
+};
+
+const loadShopColumns = () => {
+    try {
+        const columns = Number(window.localStorage.getItem(SHOP_COLUMNS_STORAGE_KEY));
+        return [1, 2, 3, 4].includes(columns) ? columns : 4;
+    } catch {
+        return 4;
+    }
+};
+
 const getSupplierName = (item, suppliers) => (
     suppliers.find(supplier => supplier.id === item.supplierId)?.name ||
     item.supplierName ||
@@ -47,6 +95,23 @@ const sortBySupplier = (items, suppliers) => [...items].sort((left, right) => (
     getSupplierName(left, suppliers).localeCompare(getSupplierName(right, suppliers), "de") ||
     String(left.name || "").localeCompare(String(right.name || ""), "de")
 ));
+
+const groupNonProjectPurchases = items => Object.values(items.reduce((groups, item) => {
+    const key = item.listId || item.listName || "allgemein";
+    if (!groups[key]) {
+        groups[key] = {
+            project: {
+                id: `non-project:${key}`,
+                title: item.listName || "Projektfreie Bestellung",
+                projectNumber: "Ohne Projekt",
+                isNonProject: true
+            },
+            items: []
+        };
+    }
+    groups[key].items.push(item);
+    return groups;
+}, {}));
 
 function ReleasedTable({ rows, suppliers, showProject, selectedKeys, processing, onToggle }) {
     return (
@@ -270,10 +335,14 @@ export default function Purchasing() {
     const [purchasedGroups, setPurchasedGroups] = useState([]);
     const [articles, setArticles] = useState([]);
     const [articleGroups, setArticleGroups] = useState([]);
+    const [articleCatalogEntries, setArticleCatalogEntries] = useState([]);
     const [suppliers, setSuppliers] = useState([]);
+    const [purchaseLists, setPurchaseLists] = useState([]);
+    const [archiveEntries, setArchiveEntries] = useState([]);
     const [imageUrls, setImageUrls] = useState({});
     const [selectedProjectId, setSelectedProjectId] = useState("");
     const [search, setSearch] = useState("");
+    const [shopColumns, setShopColumns] = useState(loadShopColumns);
     const [editMode, setEditMode] = useState(false);
     const [editingArticle, setEditingArticle] = useState(null);
     const [showArticleModal, setShowArticleModal] = useState(false);
@@ -282,9 +351,18 @@ export default function Purchasing() {
     const [openGroupId, setOpenGroupId] = useState(null);
     const [loading, setLoading] = useState(true);
     const [catalogSaving, setCatalogSaving] = useState(false);
+    const [articleCatalogSaving, setArticleCatalogSaving] = useState(false);
+    const [fetchingShopData, setFetchingShopData] = useState(false);
+    const [showShopFetchModal, setShowShopFetchModal] = useState(false);
     const [addingArticleId, setAddingArticleId] = useState(null);
     const [selectedReleaseKeys, setSelectedReleaseKeys] = useState(() => new Set());
     const [processingAction, setProcessingAction] = useState(null);
+    const [processingListId, setProcessingListId] = useState(null);
+    const [processingArchiveId, setProcessingArchiveId] = useState(null);
+    const [editingPurchaseList, setEditingPurchaseList] = useState(null);
+    const [showPurchaseListModal, setShowPurchaseListModal] = useState(false);
+    const [editingArchiveEntry, setEditingArchiveEntry] = useState(null);
+    const [showArchiveModal, setShowArchiveModal] = useState(false);
     const [releasedView, setReleasedView] = useState("project");
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
@@ -297,10 +375,15 @@ export default function Purchasing() {
             setError("");
 
             try {
-                const [projectResponse, catalogResponse, settingsResponse] = await Promise.all([
+                const [projectResponse, catalogResponse, articleCatalogResponse, settingsResponse, loadedLists, loadedArchive, nonProjectReleased, nonProjectPurchased] = await Promise.all([
                     axios.get("/api/projects/getAll"),
                     loadProcurementCatalog(),
-                    loadShopSettings()
+                    loadArticleCatalog(),
+                    loadShopSettings(),
+                    loadPurchaseLists(),
+                    loadArticleArchive(),
+                    loadNonProjectPurchases("released"),
+                    loadNonProjectPurchases("purchased")
                 ]);
                 const loadedProjects = projectResponse.data.projects || [];
                 const procurementDocuments = await Promise.all(
@@ -316,12 +399,14 @@ export default function Purchasing() {
                     }))
                     .filter(group => group.items.length > 0)
                     .sort((left, right) => left.project.title.localeCompare(right.project.title, "de"));
+                groups.push(...groupNonProjectPurchases(nonProjectReleased));
                 const purchased = loadedProjects
                     .map((project, index) => ({
                         project,
                         items: procurementByProject[index].items.filter(item => item.purchased)
                     }))
                     .filter(group => group.items.length > 0);
+                purchased.push(...groupNonProjectPurchases(nonProjectPurchased));
 
                 const normalizedCatalog = normalizeCatalog(catalogResponse);
                 const normalizedSettings = normalizeShopSettings(settingsResponse);
@@ -342,7 +427,10 @@ export default function Purchasing() {
                 setSelectedProjectId(loadedProjects[0]?.id || "");
                 setArticles(normalizedCatalog.articles);
                 setArticleGroups(normalizedCatalog.groups);
+                setArticleCatalogEntries(Array.isArray(articleCatalogResponse?.entries) ? articleCatalogResponse.entries : []);
                 setSuppliers(normalizedSettings.suppliers);
+                setPurchaseLists(loadedLists);
+                setArchiveEntries(loadedArchive);
                 setImageUrls(Object.fromEntries(imageEntries));
                 setReleasedGroups(groups);
                 setPurchasedGroups(purchased);
@@ -357,6 +445,33 @@ export default function Purchasing() {
         load();
         return () => { active = false; };
     }, []);
+
+    useEffect(() => {
+        if (!loading) configureAvFirefoxExtension(suppliers);
+    }, [loading, suppliers]);
+
+    useEffect(() => subscribeToAvFirefoxStandaloneResults(async results => {
+        setFetchingShopData(true);
+        setError("");
+        try {
+            const report = await saveBrowserExtensionResults(results);
+            const [catalogResponse, articleCatalogResponse] = await Promise.all([
+                loadProcurementCatalog(),
+                loadArticleCatalog()
+            ]);
+            const normalizedCatalog = normalizeCatalog(catalogResponse);
+            setArticles(normalizedCatalog.articles);
+            setArticleGroups(normalizedCatalog.groups);
+            setArticleCatalogEntries(Array.isArray(articleCatalogResponse?.entries) ? articleCatalogResponse.entries : []);
+            setMessage(`${report.updated} Artikel aktualisiert, ${report.created} neu im internen Shop und Katalog angelegt.`);
+            setError(report.failed > 0 ? formatShopFetchFailures(report, suppliers) : "");
+        } catch (importError) {
+            console.error("Sidebar-Artikel konnte nicht übernommen werden", importError);
+            setError("Der Artikel aus der Firefox-Sidebar konnte nicht übernommen werden.");
+        } finally {
+            setFetchingShopData(false);
+        }
+    }, () => configureAvFirefoxExtension(suppliers)), [suppliers]);
 
     const shopEntries = useMemo(() => {
         const needle = search.trim().toLocaleLowerCase("de");
@@ -388,12 +503,21 @@ export default function Purchasing() {
     const releaseKeys = releasedGroups.flatMap(group => group.items.map(item => `${group.project.id}:${item.sourceKey}`));
     const allReleasedSelected = releaseKeys.length > 0 && releaseKeys.every(key => selectedReleaseKeys.has(key));
 
+    const changeShopColumns = columns => {
+        setShopColumns(columns);
+        try {
+            window.localStorage.setItem(SHOP_COLUMNS_STORAGE_KEY, String(columns));
+        } catch {
+            // Die Ansicht bleibt für die aktuelle Sitzung aktiv, wenn lokaler Speicher gesperrt ist.
+        }
+    };
+
     const upsertArticle = async (article, imageFile) => {
         let nextArticle = article;
 
         if (imageFile) {
             const fileEntry = await uploadShopImage(imageFile);
-            nextArticle = { ...article, imageFileId: fileEntry.id };
+            nextArticle = { ...article, imageFileId: fileEntry.id, imageUrl: "" };
             try {
                 const imageUrl = await loadShopImageUrl(fileEntry.id);
                 setImageUrls(current => ({ ...current, [fileEntry.id]: imageUrl }));
@@ -429,12 +553,119 @@ export default function Purchasing() {
         setError("");
         try {
             await saveProcurementCatalog(createCatalogPayload(articles, articleGroups));
+            const refreshedArticleCatalog = await loadArticleCatalog();
+            setArticleCatalogEntries(Array.isArray(refreshedArticleCatalog?.entries) ? refreshedArticleCatalog.entries : []);
             setMessage("Shop-Katalog wurde gespeichert.");
         } catch (saveError) {
             console.error("Katalog konnte nicht gespeichert werden", saveError);
             setError("Der Shop-Katalog konnte nicht gespeichert werden.");
         } finally {
             setCatalogSaving(false);
+        }
+    };
+
+    const addArticleCatalogEntry = () => {
+        setArticleCatalogEntries(current => [...current, {
+            id: createArticleId(),
+            sku: "",
+            name: "",
+            supplierId: suppliers[0]?.id || null,
+            shopArticleId: null,
+            origin: "manual"
+        }]);
+        setMessage("Neuer Katalogeintrag angelegt. Zum Abschließen bitte speichern.");
+    };
+
+    const updateArticleCatalogEntry = (id, field, value) => {
+        setArticleCatalogEntries(current => current.map(entry => entry.id === id
+            ? { ...entry, [field]: value }
+            : entry));
+    };
+
+    const removeArticleCatalogEntry = id => {
+        setArticleCatalogEntries(current => current.filter(entry => entry.id !== id));
+        setMessage("Manueller Katalogeintrag entfernt. Zum Abschließen bitte speichern.");
+    };
+
+    const persistArticleCatalog = async ({ quiet = false } = {}) => {
+        const invalid = articleCatalogEntries.some(entry => !entry.sku.trim() || !entry.name.trim());
+        if (invalid) {
+            setError("Bitte für jeden Katalogeintrag Artikelnummer und Bezeichnung angeben.");
+            return null;
+        }
+        setArticleCatalogSaving(true);
+        setError("");
+        try {
+            const saved = await saveArticleCatalog(articleCatalogEntries);
+            const nextEntries = Array.isArray(saved?.entries) ? saved.entries : [];
+            setArticleCatalogEntries(nextEntries);
+            if (!quiet) setMessage("Katalog wurde gespeichert.");
+            return nextEntries;
+        } catch (saveError) {
+            console.error("Artikelkatalog konnte nicht gespeichert werden", saveError);
+            setError("Der Katalog konnte nicht gespeichert werden.");
+            return null;
+        } finally {
+            setArticleCatalogSaving(false);
+        }
+    };
+
+    const fetchShopData = async selection => {
+        if (fetchingShopData) return;
+        setShowShopFetchModal(false);
+        setFetchingShopData(true);
+        setMessage("");
+        setError("");
+        try {
+            const saved = await persistArticleCatalog({ quiet: true });
+            if (!saved) return;
+            const selectedEntryIds = new Set(selection.entryIds);
+            const selectedSupplierIds = new Set(selection.supplierIds);
+            const selectedEntries = saved.filter(entry => selectedEntryIds.has(entry.id) && selectedSupplierIds.has(entry.supplierId));
+            const serverReport = await fetchArticleCatalogShopData(selection);
+            const extensionSupplierIds = new Set(
+                suppliers
+                    .filter(supplier => supplier.procurementType === "av-firefox-extension" && selectedSupplierIds.has(supplier.id))
+                    .map(supplier => supplier.id)
+            );
+            const extensionEntries = selectedEntries.filter(entry => extensionSupplierIds.has(entry.supplierId));
+            let browserReport = { updated: 0, created: 0, failed: 0, results: [] };
+            let browserError = "";
+            if (extensionEntries.length > 0) {
+                try {
+                    setMessage(`Product Fetch: 0 von ${extensionEntries.length} Artikeln verarbeitet. Bitte in den geöffneten Shop-Tabs anmelden, falls erforderlich.`);
+                    const browserResults = await fetchWithAvFirefoxExtension(
+                        extensionEntries,
+                        suppliers,
+                        progress => setMessage(progress)
+                    );
+                    browserReport = await saveBrowserExtensionResults(browserResults);
+                } catch (extensionError) {
+                    browserError = extensionError.message;
+                }
+            }
+            const report = {
+                updated: serverReport.updated + browserReport.updated,
+                created: serverReport.created + browserReport.created,
+                failed: serverReport.failed + browserReport.failed,
+                results: [...(serverReport.results || []), ...(browserReport.results || [])]
+            };
+            const [catalogResponse, articleCatalogResponse] = await Promise.all([
+                loadProcurementCatalog(),
+                loadArticleCatalog()
+            ]);
+            const normalizedCatalog = normalizeCatalog(catalogResponse);
+            setArticles(normalizedCatalog.articles);
+            setArticleGroups(normalizedCatalog.groups);
+            setArticleCatalogEntries(Array.isArray(articleCatalogResponse?.entries) ? articleCatalogResponse.entries : []);
+            setMessage(`${report.updated} Artikel aktualisiert, ${report.created} neu im internen Shop angelegt.`);
+            const fetchFailure = report.failed > 0 ? formatShopFetchFailures(report, suppliers) : "";
+            setError([fetchFailure, browserError && `Firefox-Erweiterung: ${browserError}`].filter(Boolean).join(" · "));
+        } catch (fetchError) {
+            console.error("Shop-Daten konnten nicht geladen werden", fetchError);
+            setError("Die Shop-Daten konnten nicht geladen werden.");
+        } finally {
+            setFetchingShopData(false);
         }
     };
 
@@ -482,7 +713,7 @@ export default function Purchasing() {
             const sourceKeys = group.items
                 .filter(item => selectedReleaseKeys.has(`${group.project.id}:${item.sourceKey}`))
                 .map(item => item.sourceKey);
-            if (sourceKeys.length > 0) result.push({ projectId: group.project.id, sourceKeys });
+            if (sourceKeys.length > 0) result.push({ projectId: group.project.id, project: group.project, items: group.items, sourceKeys });
             return result;
         }, []);
         const completedKeys = new Set();
@@ -493,6 +724,19 @@ export default function Purchasing() {
         for (const selection of selectionsByProject) {
             try {
                 const selectedSources = new Set(selection.sourceKeys);
+                if (selection.project.isNonProject) {
+                    const selectedItems = selection.items.filter(item => selectedSources.has(item.sourceKey));
+                    await processNonProjectPurchases(selectedItems.map(item => item.id), action);
+                    selection.sourceKeys.forEach(sourceKey => completedKeys.add(`${selection.projectId}:${sourceKey}`));
+                    if (action === "purchased") {
+                        completedPurchases.push({
+                            projectId: selection.projectId,
+                            project: selection.project,
+                            items: selectedItems.map(item => ({ ...item, purchased: true, purchasedAt: timestamp, released: false }))
+                        });
+                    }
+                    continue;
+                }
                 const current = normalizeProcurementDocument(await loadProjectProcurement(selection.projectId));
                 const nextItems = current.items.map(item => {
                     if (!selectedSources.has(item.sourceKey)) return item;
@@ -505,6 +749,7 @@ export default function Purchasing() {
                 if (action === "purchased") {
                     completedPurchases.push({
                         projectId: selection.projectId,
+                        project: selection.project,
                         items: nextItems.filter(item => selectedSources.has(item.sourceKey))
                     });
                 }
@@ -526,7 +771,7 @@ export default function Purchasing() {
                 setPurchasedGroups(current => {
                     const next = current.map(group => ({ ...group, items: [...group.items] }));
                     for (const purchase of completedPurchases) {
-                        const project = projects.find(item => item.id === purchase.projectId);
+                        const project = purchase.project || projects.find(item => item.id === purchase.projectId);
                         if (!project) continue;
                         const existing = next.find(group => group.project.id === purchase.projectId);
                         if (existing) {
@@ -563,11 +808,124 @@ export default function Purchasing() {
         setMessage("Artikel entfernt. Zum Abschließen bitte den Katalog speichern.");
     };
 
+    const duplicateArticle = article => {
+        const copy = {
+            ...article,
+            id: createArticleId(),
+            name: `${article.name} (Kopie)`
+        };
+        setArticles(current => {
+            const articleIndex = current.findIndex(item => item.id === article.id);
+            if (articleIndex < 0) return [...current, copy];
+            return [
+                ...current.slice(0, articleIndex + 1),
+                copy,
+                ...current.slice(articleIndex + 1)
+            ];
+        });
+        setMessage(`„${article.name}“ wurde dupliziert. Zum Abschließen bitte den Katalog speichern.`);
+    };
+
     const deleteGroup = id => {
         setArticleGroups(current => current.filter(group => group.id !== id));
         setArticles(current => current.map(article => article.groupId === id ? { ...article, groupId: null } : article));
         setOpenGroupId(current => current === id ? null : current);
         setMessage("Gruppe entfernt; ihre Artikel sind jetzt ungruppiert. Zum Abschließen bitte speichern.");
+    };
+
+    const savePurchaseListEntry = async payload => {
+        setError("");
+        try {
+            const next = editingPurchaseList
+                ? await updatePurchaseList(editingPurchaseList.id, payload)
+                : await createPurchaseList(payload);
+            setPurchaseLists(next);
+            setShowPurchaseListModal(false);
+            setEditingPurchaseList(null);
+            setMessage(editingPurchaseList ? "Bestellliste wurde aktualisiert." : "Bestellliste wurde angelegt.");
+        } catch (saveError) {
+            console.error("Bestellliste konnte nicht gespeichert werden", saveError);
+            setError("Die Bestellliste konnte nicht gespeichert werden.");
+        }
+    };
+
+    const removePurchaseList = async list => {
+        if (!window.confirm(`Bestellliste „${list.name}“ wirklich löschen?`)) return;
+        setError("");
+        try {
+            await deletePurchaseList(list.id);
+            setPurchaseLists(current => current.filter(item => item.id !== list.id));
+            setMessage("Bestellliste wurde gelöscht.");
+        } catch (deleteError) {
+            console.error("Bestellliste konnte nicht gelöscht werden", deleteError);
+            setError("Die Bestellliste konnte nicht gelöscht werden.");
+        }
+    };
+
+    const releaseList = async list => {
+        setProcessingListId(list.id);
+        setError("");
+        try {
+            const result = await releasePurchaseList(list.id);
+            const nonProjectReleased = await loadNonProjectPurchases("released");
+            setReleasedGroups(current => [
+                ...current.filter(group => !group.project.isNonProject),
+                ...groupNonProjectPurchases(nonProjectReleased)
+            ]);
+            setMessage(`${result.released} Artikel aus „${list.name}“ wurden ohne Projekt freigegeben.`);
+        } catch (releaseError) {
+            console.error("Bestellliste konnte nicht freigegeben werden", releaseError);
+            setError("Die Bestellliste konnte nicht freigegeben werden.");
+        } finally {
+            setProcessingListId(null);
+        }
+    };
+
+    const saveArchiveEntry = async payload => {
+        setError("");
+        try {
+            const next = editingArchiveEntry
+                ? await updateArticleArchiveEntry(editingArchiveEntry.id, payload)
+                : await createArticleArchiveEntry(payload);
+            setArchiveEntries(next);
+            setShowArchiveModal(false);
+            setEditingArchiveEntry(null);
+            setMessage("Lieferantenvariante wurde im Archiv gespeichert.");
+        } catch (saveError) {
+            console.error("Archivposition konnte nicht gespeichert werden", saveError);
+            setError("Die Lieferantenvariante konnte nicht gespeichert werden.");
+        }
+    };
+
+    const removeArchiveEntry = async entry => {
+        if (!window.confirm(`Archivvariante von „${entry.supplierName}“ wirklich löschen?`)) return;
+        setError("");
+        try {
+            await deleteArticleArchiveEntry(entry.id);
+            setArchiveEntries(current => current.filter(item => item.id !== entry.id));
+            setMessage("Archivposition wurde gelöscht.");
+        } catch (deleteError) {
+            console.error("Archivposition konnte nicht gelöscht werden", deleteError);
+            setError("Die Archivposition konnte nicht gelöscht werden.");
+        }
+    };
+
+    const activateArchiveEntry = async entry => {
+        setProcessingArchiveId(entry.id);
+        setError("");
+        try {
+            const result = await activateArticleArchiveEntry(entry.id);
+            const normalizedCatalog = normalizeCatalog(result.catalog);
+            setArticles(normalizedCatalog.articles);
+            setArticleGroups(normalizedCatalog.groups);
+            setArchiveEntries(result.archive?.entries || []);
+            setMessage(`${entry.supplierName} ist jetzt der aktive Lieferant für „${entry.article.name}“. Der vorherige Lieferant wurde archiviert.`);
+        } catch (activateError) {
+            console.error("Archivposition konnte nicht aktiviert werden", activateError);
+            setError("Die Lieferantenvariante konnte nicht aktiviert werden.");
+        } finally {
+            setProcessingArchiveId(null);
+        }
     };
 
     const openGroup = articleGroups.find(group => group.id === openGroupId) || null;
@@ -601,10 +959,25 @@ export default function Purchasing() {
                         )}
                     </div>
 
-                    <div className="mt-7 flex overflow-x-auto border-b border-gray-700">
-                        <button type="button" onClick={() => setActiveTab("released")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "released" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Freigegebene Artikel</button>
-                        <button type="button" onClick={() => setActiveTab("shop")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "shop" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Interner Shop</button>
-                        <button type="button" onClick={() => setActiveTab("purchased")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "purchased" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Gekaufte Artikel</button>
+                    <div className="mt-7 flex border-b border-gray-700">
+                        <div className="flex min-w-0 flex-1 overflow-x-auto [&>button]:shrink-0 [&>button]:whitespace-nowrap">
+                            <button type="button" onClick={() => setActiveTab("released")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "released" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Freigegebene Artikel</button>
+                            <button type="button" onClick={() => setActiveTab("shop")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "shop" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Interner Shop</button>
+                            <button type="button" onClick={() => setActiveTab("catalog")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "catalog" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Katalog</button>
+                            <button type="button" onClick={() => setActiveTab("purchased")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "purchased" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Gekaufte Artikel</button>
+                            <button type="button" onClick={() => setActiveTab("lists")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "lists" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Listen</button>
+                            <button type="button" onClick={() => setActiveTab("archive")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "archive" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Archiv</button>
+                        </div>
+                        {canEdit && (
+                            <button
+                                type="button"
+                                onClick={() => setShowShopFetchModal(true)}
+                                disabled={fetchingShopData || articleCatalogSaving || loading}
+                                className="shrink-0 whitespace-nowrap border-b-2 border-transparent px-5 py-3 font-semibold text-blue-300 hover:bg-blue-950/30 hover:text-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {fetchingShopData ? "Shop-Daten werden geladen …" : "Shop-Daten fetchen"}
+                            </button>
+                        )}
                     </div>
 
                     {message && <div className="mt-5 rounded-lg border border-emerald-800 bg-emerald-950/40 px-4 py-3 text-emerald-300">{message}</div>}
@@ -644,8 +1017,83 @@ export default function Purchasing() {
                                 </div>
                                 <ReleasedPurchases groups={releasedGroups} suppliers={suppliers} view={releasedView} loading={loading} selectedKeys={selectedReleaseKeys} processing={Boolean(processingAction)} onToggle={toggleReleasedSelection} />
                             </>
+                        ) : activeTab === "catalog" ? (
+                            <>
+                                <div className="mb-6 flex flex-wrap items-end justify-between gap-4 rounded-xl border border-gray-700 bg-gray-800 p-4">
+                                    <label className="min-w-64 flex-1">
+                                        <span className="mb-1.5 block text-xs uppercase tracking-wide text-gray-500">Katalog durchsuchen</span>
+                                        <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Artikelnummer, Bezeichnung oder Lieferant" className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 outline-none focus:border-blue-500" />
+                                    </label>
+                                    {canEdit && (
+                                        <div className="flex flex-wrap gap-2">
+                                            <button type="button" onClick={addArticleCatalogEntry} className="rounded-lg border border-gray-600 px-4 py-2 text-gray-200 hover:bg-gray-700">+ Artikel</button>
+                                            <button type="button" onClick={() => persistArticleCatalog()} disabled={articleCatalogSaving} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold hover:bg-blue-500 disabled:opacity-50">{articleCatalogSaving ? "Speichert …" : "Katalog speichern"}</button>
+                                        </div>
+                                    )}
+                                </div>
+                                {loading ? (
+                                    <div className="rounded-xl border border-gray-700 bg-gray-800 p-10 text-center text-gray-400">Katalog wird geladen …</div>
+                                ) : (
+                                    <ArticleCatalogView
+                                        entries={articleCatalogEntries}
+                                        suppliers={suppliers}
+                                        search={search}
+                                        canEdit={canEdit}
+                                        onChange={updateArticleCatalogEntry}
+                                        onRemove={removeArticleCatalogEntry}
+                                    />
+                                )}
+                            </>
                         ) : activeTab === "purchased" ? (
                             <PurchasedHistory groups={purchasedGroups} suppliers={suppliers} loading={loading} />
+                        ) : activeTab === "lists" ? (
+                            <>
+                                <div className="mb-6 flex flex-wrap items-end justify-between gap-4 rounded-xl border border-gray-700 bg-gray-800 p-4">
+                                    <label className="min-w-64 flex-1">
+                                        <span className="mb-1.5 block text-xs uppercase tracking-wide text-gray-500">Listen durchsuchen</span>
+                                        <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Liste, Kategorie oder Artikel" className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 outline-none focus:border-blue-500" />
+                                    </label>
+                                    {canEdit && <button type="button" onClick={() => { setEditingPurchaseList(null); setShowPurchaseListModal(true); }} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold hover:bg-blue-500">+ Neue Liste</button>}
+                                </div>
+                                {loading ? (
+                                    <div className="rounded-xl border border-gray-700 bg-gray-800 p-10 text-center text-gray-400">Listen werden geladen …</div>
+                                ) : (
+                                    <PurchaseListsView
+                                        lists={purchaseLists}
+                                        search={search}
+                                        canEdit={canEdit}
+                                        processingId={processingListId}
+                                        onCreate={() => { setEditingPurchaseList(null); setShowPurchaseListModal(true); }}
+                                        onEdit={list => { setEditingPurchaseList(list); setShowPurchaseListModal(true); }}
+                                        onDelete={removePurchaseList}
+                                        onRelease={releaseList}
+                                    />
+                                )}
+                            </>
+                        ) : activeTab === "archive" ? (
+                            <>
+                                <div className="mb-6 flex flex-wrap items-end justify-between gap-4 rounded-xl border border-gray-700 bg-gray-800 p-4">
+                                    <label className="min-w-64 flex-1">
+                                        <span className="mb-1.5 block text-xs uppercase tracking-wide text-gray-500">Archiv durchsuchen</span>
+                                        <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Artikel, Lieferant, Nummer oder Kategorie" className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 outline-none focus:border-blue-500" />
+                                    </label>
+                                    {canEdit && <button type="button" onClick={() => { setEditingArchiveEntry(null); setShowArchiveModal(true); }} disabled={articles.length === 0 || suppliers.length === 0} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-40">+ Lieferantenvariante</button>}
+                                </div>
+                                {loading ? (
+                                    <div className="rounded-xl border border-gray-700 bg-gray-800 p-10 text-center text-gray-400">Archiv wird geladen …</div>
+                                ) : (
+                                    <ArticleArchiveView
+                                        entries={archiveEntries}
+                                        search={search}
+                                        canEdit={canEdit}
+                                        processingId={processingArchiveId}
+                                        onCreate={() => { setEditingArchiveEntry(null); setShowArchiveModal(true); }}
+                                        onEdit={entry => { setEditingArchiveEntry(entry); setShowArchiveModal(true); }}
+                                        onDelete={removeArchiveEntry}
+                                        onActivate={activateArchiveEntry}
+                                    />
+                                )}
+                            </>
                         ) : (
                             <>
                                 <div className="flex flex-wrap items-end justify-between gap-4 rounded-xl border border-gray-700 bg-gray-800 p-4">
@@ -663,18 +1111,39 @@ export default function Purchasing() {
                                         </label>
                                     </div>
 
-                                    {canEdit && (
-                                        <div className="flex gap-2">
-                                            <button type="button" onClick={() => setEditMode(current => !current)} className={`rounded-lg border px-4 py-2 font-medium ${editMode ? "border-amber-500 bg-amber-500/10 text-amber-300" : "border-gray-600 text-gray-300 hover:bg-gray-700"}`}>{editMode ? "Editiermodus aktiv" : "Editieren"}</button>
-                                            {editMode && (
-                                                <>
-                                                    <button type="button" onClick={() => { setEditingArticle(null); setShowArticleModal(true); }} className="rounded-lg border border-gray-600 px-4 py-2 text-gray-200 hover:bg-gray-700">+ Artikel</button>
-                                                    <button type="button" onClick={() => { setEditingGroup(null); setShowGroupModal(true); }} className="rounded-lg border border-gray-600 px-4 py-2 text-gray-200 hover:bg-gray-700">+ Gruppe</button>
-                                                    <button type="button" onClick={saveCatalog} disabled={catalogSaving} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold hover:bg-blue-500 disabled:opacity-50">{catalogSaving ? "Speichert …" : "Katalog speichern"}</button>
-                                                </>
-                                            )}
+                                    <div className="flex flex-wrap items-end gap-3">
+                                        <div>
+                                            <span className="mb-1.5 block text-xs uppercase tracking-wide text-gray-500">Spalten</span>
+                                            <div className="flex rounded-lg border border-gray-600 bg-gray-900 p-1" role="group" aria-label="Shop-Spalten">
+                                                {[4, 3, 2, 1].map(columns => (
+                                                    <button
+                                                        key={columns}
+                                                        type="button"
+                                                        onClick={() => changeShopColumns(columns)}
+                                                        aria-label={columns === 1 ? "1 Spalte (Listenansicht)" : `${columns} Spalten`}
+                                                        aria-pressed={shopColumns === columns}
+                                                        title={columns === 1 ? "Listenansicht" : `${columns} Spalten`}
+                                                        className={`h-8 min-w-8 rounded-md px-2 text-sm font-medium ${shopColumns === columns ? "bg-blue-600 text-white" : "text-gray-400 hover:bg-gray-700 hover:text-white"}`}
+                                                    >
+                                                        {columns}
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </div>
-                                    )}
+
+                                        {canEdit && (
+                                            <div className="flex flex-wrap gap-2">
+                                                <button type="button" onClick={() => setEditMode(current => !current)} className={`rounded-lg border px-4 py-2 font-medium ${editMode ? "border-amber-500 bg-amber-500/10 text-amber-300" : "border-gray-600 text-gray-300 hover:bg-gray-700"}`}>{editMode ? "Editiermodus aktiv" : "Editieren"}</button>
+                                                {editMode && (
+                                                    <>
+                                                        <button type="button" onClick={() => { setEditingArticle(null); setShowArticleModal(true); }} className="rounded-lg border border-gray-600 px-4 py-2 text-gray-200 hover:bg-gray-700">+ Artikel</button>
+                                                        <button type="button" onClick={() => { setEditingGroup(null); setShowGroupModal(true); }} className="rounded-lg border border-gray-600 px-4 py-2 text-gray-200 hover:bg-gray-700">+ Gruppe</button>
+                                                        <button type="button" onClick={saveCatalog} disabled={catalogSaving} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold hover:bg-blue-500 disabled:opacity-50">{catalogSaving ? "Speichert …" : "Katalog speichern"}</button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
 
                                 {loading ? (
@@ -684,13 +1153,14 @@ export default function Purchasing() {
                                         {articles.length === 0 && articleGroups.length === 0 ? "Der Shop ist noch leer. Im Editiermodus kann der erste Artikel oder eine Gruppe angelegt werden." : "Keine passenden Artikel oder Gruppen gefunden."}
                                     </div>
                                 ) : (
-                                    <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                                    <div className={`mt-6 grid gap-3 ${SHOP_GRID_CLASSES[shopColumns]}`}>
                                         {shopEntries.groups.map(group => (
                                             <ShopGroup
                                                 key={group.id}
                                                 group={group}
                                                 articleCount={articles.filter(article => article.groupId === group.id).length}
                                                 editMode={editMode}
+                                                listView={shopColumns === 1}
                                                 onOpen={() => setOpenGroupId(group.id)}
                                                 onEdit={item => { setEditingGroup(item); setShowGroupModal(true); }}
                                                 onDelete={deleteGroup}
@@ -700,13 +1170,15 @@ export default function Purchasing() {
                                             <ShopArticle
                                                 key={article.id}
                                                 article={article}
-                                                imageUrl={imageUrls[article.imageFileId]}
+                                                imageUrl={article.imageUrl || imageUrls[article.imageFileId]}
                                                 supplierName={suppliers.find(supplier => supplier.id === article.supplierId)?.name}
                                                 projectId={selectedProjectId}
                                                 editMode={editMode}
+                                                listView={shopColumns === 1}
                                                 adding={addingArticleId === article.id}
                                                 onAdd={addToProject}
                                                 onEdit={openArticleEditor}
+                                                onDuplicate={duplicateArticle}
                                                 onDelete={deleteArticle}
                                             />
                                         ))}
@@ -723,9 +1195,20 @@ export default function Purchasing() {
                     article={editingArticle}
                     groups={articleGroups}
                     suppliers={suppliers}
-                    imageUrl={imageUrls[editingArticle?.imageFileId]}
+                    imageUrl={editingArticle?.imageUrl || imageUrls[editingArticle?.imageFileId]}
                     onClose={() => { setShowArticleModal(false); setEditingArticle(null); }}
                     onSave={upsertArticle}
+                />
+            )}
+
+            {showShopFetchModal && (
+                <ShopFetchSelectionModal
+                    entries={articleCatalogEntries}
+                    suppliers={suppliers}
+                    articles={articles}
+                    groups={articleGroups}
+                    onClose={() => setShowShopFetchModal(false)}
+                    onStart={fetchShopData}
                 />
             )}
 
@@ -738,6 +1221,26 @@ export default function Purchasing() {
                 />
             )}
 
+            {showPurchaseListModal && (
+                <PurchaseListModal
+                    list={editingPurchaseList}
+                    articles={articles}
+                    suppliers={suppliers}
+                    onClose={() => { setShowPurchaseListModal(false); setEditingPurchaseList(null); }}
+                    onSave={savePurchaseListEntry}
+                />
+            )}
+
+            {showArchiveModal && (
+                <ArticleArchiveModal
+                    entry={editingArchiveEntry}
+                    articles={articles}
+                    suppliers={suppliers}
+                    onClose={() => { setShowArchiveModal(false); setEditingArchiveEntry(null); }}
+                    onSave={saveArchiveEntry}
+                />
+            )}
+
             {openGroup && (
                 <GroupArticlesModal
                     group={openGroup}
@@ -747,9 +1250,11 @@ export default function Purchasing() {
                     projectId={selectedProjectId}
                     editMode={editMode}
                     addingArticleId={addingArticleId}
+                    columns={shopColumns}
                     onClose={() => setOpenGroupId(null)}
                     onAdd={addToProject}
                     onEdit={openArticleEditor}
+                    onDuplicate={duplicateArticle}
                     onDelete={deleteArticle}
                 />
             )}

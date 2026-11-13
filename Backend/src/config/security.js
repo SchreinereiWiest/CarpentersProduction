@@ -12,6 +12,7 @@ export const allowedOrigins = new Set(configuredOrigins.length
     : production
       ? ["https://cp.moebelschreinerei-wiest.de"]
       : [
+        "http://av.localhost",
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://10.10.100.52",

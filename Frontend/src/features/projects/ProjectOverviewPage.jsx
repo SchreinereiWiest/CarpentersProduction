@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import SideBar from '../../shared/components/sideBar.jsx'
-import axios from 'axios';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../../app/providers/AuthContext.js';
 import ProjectImportDialog from './import/ProjectImportDialog.jsx';
+import { getProjectRecords } from '../../shared/projects/project-records.js';
+import { formatGermanDate } from '../../shared/utils/date.js';
 
 function ProjectOverview() {
 
@@ -17,14 +18,13 @@ function ProjectOverview() {
         : "/api/projects/getAll";
 
     const fetchProjects = async () => {
-        const result = await axios.get(projectsEndpoint);
-        setProjects(result.data.projects);
+        setProjects(await getProjectRecords(projectsEndpoint));
     };
 
     useEffect(() => {
         let active = true;
-        axios.get(projectsEndpoint).then(result => {
-            if (active) setProjects(result.data.projects);
+        getProjectRecords(projectsEndpoint).then(projects => {
+            if (active) setProjects(projects);
         }).catch(error => {
             console.error("Projekte konnten nicht geladen werden:", error);
         });
@@ -102,11 +102,11 @@ function ProjectOverview() {
                                     </td>
 
                                     <td data-label="Kunde" className="xl:py-4 py-3 px-6">
-                                        {project.customer.lastName}
+                                        {project.customer?.lastName ?? (project.localOnly ? "Ohne Kunde (lokal)" : "—")}
                                     </td>
 
                                     <td data-label="Start" className="xl:py-4 py-3 px-6 truncate">
-                                        {project.startDate}
+                                        {formatGermanDate(project.startDate)}
                                     </td>
 
                                     <td data-label="Priorität" className="xl:py-4 py-3 px-6 truncate">

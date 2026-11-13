@@ -27,8 +27,9 @@ export const normalizeShopSettings = data => {
             id: String(supplier.id),
             name: String(supplier.name),
             externalId: String(supplier.externalId || ""),
+            shopUrl: String(supplier.shopUrl || ""),
             procurementType: supplier.procurementType || null,
-            procurementConfig: supplier.procurementConfig || null
+            datanormArticleCount: Math.max(0, Number(supplier.datanormArticleCount) || 0)
         }));
 
     return {
@@ -188,7 +189,10 @@ export const buildEdgeItems = (nestingData = [], storageMaterials = [], shopSett
             candidate?.edgeArticleNumber ||
             candidate?.edgePricePerMeter !== null && candidate?.edgePricePerMeter !== undefined
         )) ?? matchingMaterials[0] ?? null;
-        const supplier = resolveSupplier(material?.supplierId, normalizedSettings);
+        const edgeSupplierId = material && Object.prototype.hasOwnProperty.call(material, "edgeSupplierId")
+            ? material.edgeSupplierId
+            : material?.supplierId;
+        const supplier = resolveSupplier(edgeSupplierId, normalizedSettings);
         const baseRequiredMeters = requirement.meters;
         const requiredMeters = baseRequiredMeters * (1 + wastePercentage / 100);
         const purchaseLength = toPositiveNumber(material?.edgePurchaseLength, 75);
@@ -385,6 +389,7 @@ export const mergeGeneratedItems = (generatedItems, savedItems = []) => {
     const retainedSavedItems = (Array.isArray(savedItems) ? savedItems : [])
         .filter(item => (
             item?.source === "shop"
+            || item?.source === "manual"
             || item?.purchased
             || item?.released
         ) && !generatedKeys.has(item.sourceKey));
@@ -425,6 +430,37 @@ export const addArticleToProcurement = (items, article, quantity = 1) => {
         purchasedAt: null,
         released: false
     }];
+};
+
+export const createManualProcurementItem = values => {
+    const id = createUuid();
+    const sourceKey = `manual:${id}`;
+    const rawPrice = values?.netPrice;
+    const parsedPrice = rawPrice === "" || rawPrice === null || rawPrice === undefined
+        ? null
+        : Number(rawPrice);
+    const netPrice = Number.isFinite(parsedPrice) ? Math.max(0, parsedPrice) : null;
+
+    return {
+        id: sourceKey,
+        sourceKey,
+        source: "manual",
+        category: "Manuell",
+        name: String(values?.name || "").trim(),
+        sku: String(values?.sku || "").trim(),
+        description: "Einmaliger Projektartikel",
+        quantity: toPositiveNumber(values?.quantity),
+        quantityMode: "piece",
+        unit: "Stk.",
+        netPrice,
+        supplierId: null,
+        supplierName: "",
+        quantityManuallyEdited: true,
+        priceManuallyEdited: true,
+        purchased: false,
+        purchasedAt: null,
+        released: Boolean(values?.released) && netPrice !== null
+    };
 };
 
 export const createProcurementPayload = items => ({

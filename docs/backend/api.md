@@ -7,9 +7,17 @@ Basis-URL im lokalen Backend: `http://localhost:5000/api`. Geschützte Endpunkte
 | Methode | Pfad | Schutz | Handler | Zweck |
 |---|---|---|---|---|
 | `POST` | `/auth/login` | öffentlich | `login` | Zugangsdaten prüfen und JWT-Cookie setzen |
+| `POST` | `/auth/bootstrap` | öffentlich, erlaubte Origin | `bootstrap` | bei leerem Tenant den ersten Admin einmalig per Lizenzschlüssel anlegen |
 | `POST` | `/auth/logout` | angemeldet + CSRF | `logout` | alle Sessions widerrufen und Cookies löschen |
 | `GET` | `/auth/users` | Admin oder Manager | `getAllUsers` | reduzierte Benutzerliste `{id,email}` laden |
 | `GET` | `/auth/me` | angemeldet | Inline-Handler | aktuelle Identität laden |
+
+Der Login liefert `409 TENANT_SETUP_REQUIRED`, wenn für den gefundenen Tenant
+noch keine Membership existiert. Die Oberfläche wechselt dann in die
+Ersteinrichtung. Der Lizenzschlüssel wird dabei nur gegen den Lizenzserver
+geprüft und nicht als Benutzerpasswort oder in der Carpenters-Datenbank
+gespeichert. Sobald eine Membership existiert, ist der Bootstrap-Endpunkt für
+diesen Tenant dauerhaft gesperrt.
 
 ## Kunden
 
@@ -85,6 +93,17 @@ Benutzerverwaltung Teil der ausgenommenen `/CompanySettings`-Route ist.
 | `PUT` | `/user/update/:id` | `updateUser` | Benutzer partiell ändern |
 | `PUT` | `/user/password/:id` | `changeUserPassword` | Passwort ersetzen |
 | `DELETE` | `/user/delete/:id` | `deleteUser` | Benutzer soft-löschen |
+
+## Lizenzierung
+
+Beide Endpunkte sind ausschließlich für Administratoren des aktuellen Mandanten verfügbar. Die Lizenzprüfung selbst wird zusätzlich bereits durch die Authentifizierungs-Middleware erzwungen.
+
+| Methode | Pfad | Zweck |
+|---|---|---|
+| `GET` | `/license/current?refresh=true` | bereinigten Lizenzstatus laden; optional den Provider-Cache umgehen |
+| `PUT` | `/license/current` | `{licenseKey}` beim aktiven Provider prüfen und aktivieren |
+
+Der Provider kann lokal, zertifikatbasiert oder remote arbeiten. Das öffentliche Antwortformat bleibt dabei gleich. Der Backend-zu-Backend-Vertrag ist unter [Lizenzierung](licensing.md) beschrieben.
 
 ## Einstellungen
 

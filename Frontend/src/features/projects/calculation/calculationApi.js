@@ -11,6 +11,8 @@ import {
   loadProcurementCatalog,
   loadShopSettings
 } from "../../purchasing/procurementApi.js";
+import { getProjectRecord } from "../../../shared/projects/project-records.js";
+import { isLocalProject } from "../../../shared/offline/local-projects.js";
 
 export const loadOptionalCalculationFile = async (projectId, name) => {
   try {
@@ -32,7 +34,7 @@ export const loadOptionalCalculationFile = async (projectId, name) => {
 
 export async function loadCalculationWorkspace(projectId) {
   const [
-    projectResponse,
+    project,
     cabinets,
     nesting,
     partList,
@@ -43,7 +45,7 @@ export async function loadCalculationWorkspace(projectId) {
     shopSettings,
     catalog
   ] = await Promise.all([
-    axios.get(`/api/projects/get/${projectId}`),
+    getProjectRecord(projectId),
     loadOptionalCalculationFile(projectId, "cabinet"),
     loadOptionalCalculationFile(projectId, "nesting"),
     loadOptionalCalculationFile(projectId, "list"),
@@ -78,7 +80,7 @@ export async function loadCalculationWorkspace(projectId) {
   };
 
   return {
-    project: projectResponse.data.project,
+    project,
     cabinets: Array.isArray(cabinets) ? cabinets : [],
     partList: Array.isArray(partList) ? partList : [],
     procurement,
@@ -98,6 +100,9 @@ export const saveCalculation = (projectId, payload) => uploadProjectFile({
 });
 
 export const releaseCalculationSnapshot = async projectId => {
+  if (await isLocalProject(projectId)) {
+    throw new Error("Die Freigabe ist erst nach der Kundenzuweisung und dem Projekt-Upload verfügbar.");
+  }
   const response = await axios.post(`/api/projects/calculation-snapshots/${projectId}/release`);
   return response.data.snapshot;
 };

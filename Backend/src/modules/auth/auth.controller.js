@@ -8,7 +8,22 @@ import {
 import { issueCsrfToken } from "../../middleware/csrf.middleware.js";
 
 import { comparePassword } from "../../shared/security/passwords.js";
-import { assertActiveLicense } from "../licensing/services/index.js";
+import { assertActiveLicense, LicenseError } from "../licensing/services/index.js";
+import {
+  bootstrapTenantAdmin,
+  TenantBootstrapError,
+  tenantNeedsBootstrap
+} from "../tenants/tenant-bootstrap.service.js";
+
+const findActiveTenant = company => systemPrisma.tenant.findFirst({
+  where: {
+    status: "active",
+    OR: [
+      { name: { equals: company, mode: "insensitive" } },
+      { slug: { equals: company, mode: "insensitive" } }
+    ]
+  }
+});
 
 /**
  * Firmengebundener Login.
@@ -29,18 +44,17 @@ export const login = async (req, res) => {
     // Name und Slug sind zulässig: Name ist benutzerfreundlich und an die Lizenz
     // gebunden, der Slug bleibt eine stabile technische Login-Alternative.
     const companyInput = String(company).trim();
-    const tenant = await systemPrisma.tenant.findFirst({
-      where: {
-        status: "active",
-        OR: [
-          { name: { equals: companyInput, mode: "insensitive" } },
-          { slug: { equals: companyInput, mode: "insensitive" } }
-        ]
-      }
-    });
+    const tenant = await findActiveTenant(companyInput);
 
     if (!tenant) {
       return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    if (await tenantNeedsBootstrap(tenant.id)) {
+      return res.status(409).json({
+        error: "TENANT_SETUP_REQUIRED",
+        message: "Für dieses Unternehmen muss zuerst ein Administrator eingerichtet werden"
+      });
     }
 
     // Einheitliche Fehlerantworten verhindern die Enumeration vorhandener
@@ -109,11 +123,41 @@ export const login = async (req, res) => {
       csrfToken
     });
   } catch (err) {
+    if (err instanceof LicenseError) {
+      return res.status(err.statusCode).json({ error: err.code, message: err.message });
+    }
+
     console.error(err);
 
     return res.status(500).json({
       error: "Internal server error"
     });
+  }
+};
+
+export const bootstrap = async (req, res) => {
+  try {
+    const companyInput = typeof req.body?.company === "string" ? req.body.company.trim() : "";
+    if (!companyInput) {
+      return res.status(400).json({ error: "BOOTSTRAP_VALIDATION", message: "Firma ist erforderlich" });
+    }
+
+    const tenant = await findActiveTenant(companyInput);
+    if (!tenant) {
+      return res.status(401).json({ error: "BOOTSTRAP_NOT_AVAILABLE", message: "Ersteinrichtung nicht verfügbar" });
+    }
+
+    const user = await bootstrapTenantAdmin(tenant, req.body);
+    return res.status(201).json({
+      user,
+      message: "Administrator wurde angelegt. Die Anmeldung wird vorbereitet."
+    });
+  } catch (error) {
+    if (error instanceof LicenseError || error instanceof TenantBootstrapError) {
+      return res.status(error.statusCode).json({ error: error.code, message: error.message });
+    }
+    console.error("tenant bootstrap:", error);
+    return res.status(500).json({ error: "INTERNAL_SERVER_ERROR", message: "Internal server error" });
   }
 };
 

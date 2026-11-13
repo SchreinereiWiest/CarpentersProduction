@@ -10,6 +10,8 @@ import {
 import { estimateProjectHours } from "@Engine/calculation/estimation.mjs";
 import {
   buildCalculationSnapshot,
+  buildManualCalculationSnapshot,
+  summarizeManualCabinetDimensions,
   summarizePartList
 } from "@Engine/calculation/snapshots.mjs";
 import { combineManagementHourlyRates } from "@Engine/calculation/managementRates.mjs";
@@ -21,18 +23,20 @@ describe("project calculation engine", () => {
       materialSurchargePercent: 10,
       hours: 10,
       hourlyRate: 60,
+      profitPercent: 20,
       cashDiscountPercent: 2,
       customerDiscountPercent: 5,
       vatPercent: 19
     })).toMatchObject({
       materialCosts: 1100,
       laborCosts: 600,
-      cashSellingPrice: 1700,
-      cashDiscountAmount: 34.69,
-      targetSellingPrice: 1734.69,
-      customerDiscountAmount: 91.3,
-      netSellingPrice: 1825.99,
-      grossSellingPrice: 2172.93
+      profitAmount: 340,
+      cashSellingPrice: 2040,
+      cashDiscountAmount: 41.63,
+      targetSellingPrice: 2081.63,
+      customerDiscountAmount: 109.56,
+      netSellingPrice: 2191.19,
+      grossSellingPrice: 2607.52
     });
   });
 
@@ -44,14 +48,16 @@ describe("project calculation engine", () => {
         { id: "workshop", name: "Werkstatt", hours: 5, hourlyRate: 80 },
         { id: "assembly", name: "Montage", hours: 2, hourlyRate: 70 }
       ],
-      administrationOverheadPercent: 10
+      administrationOverheadPercent: 10,
+      profitPercent: 20
     })).toMatchObject({
       materialCosts: 1000,
       productionLaborCosts: 540,
       productionCosts: 1540,
       administrationOverheadAmount: 154,
       manufacturingCosts: 1694,
-      grossSellingPrice: 2015.86
+      profitAmount: 338.8,
+      grossSellingPrice: 2419.03
     });
   });
 
@@ -172,5 +178,91 @@ describe("project calculation engine", () => {
     });
     expect(snapshot.cabinetSummary).not.toHaveProperty("rows");
     expect(summarizePartList([{ PID: "one", Anzahl: 3, MID: "board", L: 100, B: 200 }])).toMatchObject({ partCount: 3, materialIds: ["board"] });
+  });
+
+  it("builds manual post-calculation data in the estimation snapshot format", () => {
+    const snapshot = buildManualCalculationSnapshot({
+      projectTitle: "Bibliothek Altbau",
+      projectNumber: "ALT-12",
+      projectType: "Einbaumöbel",
+      description: "Viele Anpassungen vor Ort",
+      cabinetCount: 6,
+      cabinetTypes: 3,
+      sections: 14,
+      fronts: 8,
+      functions: 10,
+      complexity: 18.4,
+      volume: 7.2,
+      partCount: 86,
+      totalAreaM2: 42.5,
+      materialIds: "eiche; mdf\neiche",
+      materialCost: 3200,
+      plannedHours: 48,
+      costCenters: [
+        { id: "shop", name: "Werkstatt", hours: 42, hourlyRate: 75 },
+        { id: "assembly", name: "Montage", hours: 16, hourlyRate: 68 }
+      ]
+    });
+
+    expect(snapshot).toMatchObject({
+      projectTitle: "Bibliothek Altbau",
+      cabinetCount: 6,
+      complexity: 18.4,
+      plannedHours: 48,
+      actualHours: 58,
+      varianceHours: 10,
+      cabinetSummary: { sections: 14, fronts: 8, functions: 10 },
+      listSummary: { partCount: 86, materialCount: 2, materialIds: ["eiche", "mdf"] },
+      calculationBasis: { source: "manual-post-calculation" },
+      objectReferences: {}
+    });
+  });
+
+  it("rejects manual post-calculations without title or actual hours", () => {
+    expect(() => buildManualCalculationSnapshot({
+      projectTitle: "",
+      costCenters: [{ name: "Werkstatt", hours: 2 }]
+    })).toThrow("Projektbezeichnung");
+    expect(() => buildManualCalculationSnapshot({
+      projectTitle: "Test",
+      costCenters: [{ name: "Werkstatt", hours: 0 }]
+    })).toThrow("Iststunden");
+  });
+
+  it("derives manual structure metrics from cabinet outer dimensions", () => {
+    const cabinetDimensions = [
+      { id: "tall", type: "Hochschrank", quantity: 2, width: 600, height: 2000, depth: 500, sections: 3, fronts: 2, functions: 2 },
+      { id: "base", type: "Unterschrank", quantity: 1, width: 800, height: 720, depth: 560, sections: 1, fronts: 1, functions: 1 }
+    ];
+    expect(summarizeManualCabinetDimensions(cabinetDimensions)).toMatchObject({
+      cabinetTypes: 2,
+      cabinetCount: 3,
+      sections: 7,
+      fronts: 5,
+      functions: 5,
+      volume: 1.52,
+      complexity: 7.41
+    });
+
+    expect(buildManualCalculationSnapshot({
+      projectTitle: "Küche",
+      structureMode: "dimensions",
+      cabinetDimensions,
+      cabinetCount: 99,
+      volume: 99,
+      costCenters: [{ name: "Werkstatt", hours: 12 }]
+    })).toMatchObject({
+      cabinetCount: 3,
+      cabinetTypes: 2,
+      volume: 1.52,
+      complexity: 7.41,
+      cabinetSummary: {
+        entryMode: "dimensions",
+        cabinetDimensions: [
+          { type: "Hochschrank", quantity: 2, width: 600, height: 2000, depth: 500 },
+          { type: "Unterschrank", quantity: 1, width: 800, height: 720, depth: 560 }
+        ]
+      }
+    });
   });
 });

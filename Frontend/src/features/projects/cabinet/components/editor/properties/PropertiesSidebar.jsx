@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 
 import PropertiesTabs from "./PropertiesTabs.jsx";
 import SelectedElementProperties from "./SelectedElementProperties.jsx";
@@ -6,6 +6,8 @@ import FrontProperties from "./FrontProperties.jsx";
 import SectionProperties from "./SectionProperties.jsx";
 import SectionFunctionProperties from "./SectionFunctionProperties.jsx";
 import CabinetProperties from "./CabinetProperties.jsx";
+import FrontAttachmentProperties from "./FrontAttachmentProperties.jsx";
+import CncFunctionConfigProperties from "./CncFunctionConfigProperties.jsx";
 
 
 export default function PropertiesSidebar({
@@ -44,6 +46,7 @@ export default function PropertiesSidebar({
     setFrontSplitDirection,
 
     splitFront,
+    toggleFrontRemoved,
     mergeFrontChildren,
     findFrontParent,
 
@@ -73,7 +76,9 @@ export default function PropertiesSidebar({
     loadingMaterials,
     materialError,
 
+    cncConfig,
     measurementVariables = [],
+    projectId,
 
     updateCabinetLayout
 
@@ -185,6 +190,10 @@ export default function PropertiesSidebar({
 
                                         splitFront={
                                             splitFront
+                                        }
+
+                                        toggleFrontRemoved={
+                                            toggleFrontRemoved
                                         }
 
                                         mergeFrontChildren={
@@ -341,6 +350,7 @@ export default function PropertiesSidebar({
 
                         {selectedElement?.type === "section" ? (
 
+                            <>
                             <SectionFunctionProperties
                                 selectedElement={
                                     selectedElement
@@ -358,21 +368,49 @@ export default function PropertiesSidebar({
                                     setSelectedElement
                                 }
 
+                                cncConfig={cncConfig}
+
                                 measurementVariables={
                                     measurementVariables
                                 }
                             />
+                            <CncFunctionConfigProperties
+                                activeCabinet={activeCabinet}
+                                updateActiveCabinet={updateActiveCabinet}
+                                projectId={projectId}
+                                sectionId={selectedElement.id}
+                            />
+                            </>
+
+                        ) : selectedElement?.type === "front" && ["front", "combined"].includes(viewMode) ? (
+
+                            <>
+                            <FrontAttachmentProperties
+                                selectedElement={selectedElement}
+                                activeCabinet={activeCabinet}
+                                updateActiveCabinet={updateActiveCabinet}
+                                setSelectedElement={setSelectedElement}
+                                cncConfig={cncConfig}
+                                viewMode={viewMode}
+                            />
+                            <CncFunctionConfigProperties
+                                activeCabinet={activeCabinet}
+                                updateActiveCabinet={updateActiveCabinet}
+                                projectId={projectId}
+                            />
+                            </>
+
+                        ) : activeCabinet ? (
+
+                            <CncFunctionConfigProperties
+                                activeCabinet={activeCabinet}
+                                updateActiveCabinet={updateActiveCabinet}
+                                projectId={projectId}
+                            />
 
                         ) : (
 
-                            <div className="
-                                mt-6
-                                text-sm
-                                text-gray-500
-                            ">
-                                Wähle eine Sektion aus,
-                                um deren Funktion zu konfigurieren.
-                            </div>
+                            <div className="mt-6 text-sm text-gray-500">Kein Korpus ausgewählt.</div>
 
                         )}
 

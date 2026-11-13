@@ -20,25 +20,23 @@ import {
     getProjectDocumentCalculationSource,
     isCalculationSource
 } from "../../../../Engine/src/contracts/project/calculation-source.js";
+import { newProjectData, projectUpdateData } from "./project.logic.js";
 
 export const newProject = async (req, res) => {
 
     try {
 
         const project = await prisma.project.create({
-            data: {
-                customerId: req.body.customerId,
-                title: req.body.title,
-                description: req.body.description,
-                createdById: req.user.id,
-            },
+            data: newProjectData(req.body, req.user.id),
         });
 
         return res.status(201).json(project);
 
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: "Internal server error" });
+        res.status(error.statusCode || 500).json({
+            error: error.statusCode ? error.message : "Internal server error"
+        });
     }
 
 }
@@ -48,23 +46,43 @@ export const updateProject = async (req, res) => {
 
     try {
 
-        const project = await prisma.project.update({
-            where: {
-                id: req.params.id
-            },
-            data: {
-                customerId: req.body.customerId,
-                title: req.body.title,
-                description: req.body.description,
-                status: req.body.status
-            },
+        const project = await prisma.$transaction(async transaction => {
+            const current = await transaction.project.findUnique({
+                where: { id: req.params.id },
+                select: { id: true, status: true, startDate: true }
+            });
+            if (!current) {
+                const error = new Error("Project not found");
+                error.statusCode = 404;
+                throw error;
+            }
+
+            const data = projectUpdateData(current, req.body);
+            if (data.startDate) {
+                const { startDate, ...projectData } = data;
+                await transaction.project.updateMany({
+                    where: { id: current.id, startDate: null },
+                    data: { startDate }
+                });
+                return transaction.project.update({
+                    where: { id: current.id },
+                    data: projectData
+                });
+            }
+
+            return transaction.project.update({
+                where: { id: current.id },
+                data
+            });
         });
 
-        return res.status(201).json(project);
+        return res.status(200).json(project);
 
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: "Internal server error" });
+        res.status(error.statusCode || 500).json({
+            error: error.statusCode ? error.message : "Internal server error"
+        });
     }
 
 }
@@ -250,15 +268,16 @@ export const getAllProjects = async (req, res) => {
   try {
 
     const isPrivileged = ["admin", "manager"].includes(req.user?.role);
-    const visibleStatuses = isPrivileged
-      ? ["active", "inactive"]
-      : ["active"];
-
     const projects = await prisma.project.findMany({
         where: {
-          status: {
-            in: visibleStatuses
-          }
+          ...(isPrivileged
+            ? { status: { in: ["active", "inactive"] } }
+            : {
+                OR: [
+                  { status: "active" },
+                  { status: "inactive", createdById: req.user.id }
+                ]
+              })
         },
         orderBy: [
           {
@@ -296,6 +315,9 @@ export const getProject = async (req, res) => {
   },
   include: {
     files: true,
+    paperlessDocuments: {
+      orderBy: { linkedAt: "desc" }
+    },
   },
 });
 
@@ -728,7 +750,12 @@ export const getOfflineProjects = async (req, res) => {
     const projects = await prisma.project.findMany({
         where: {
             deletedAt: null,
-            ...(privileged ? {} : { status: "active" }),
+            ...(privileged ? {} : {
+                OR: [
+                    { status: "active" },
+                    { createdById: req.user.id }
+                ]
+            }),
             ...(mode === "active"
                 ? { status: "active" }
                 : { id: { in: requestedIds } })

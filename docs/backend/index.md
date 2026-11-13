@@ -34,6 +34,7 @@ Routen, Controller und Services eines Fachbereichs liegen bewusst nebeneinander.
 | Lokale Einrichtung und Variablen | [Installation & Konfiguration](installation.md) |
 | Alle HTTP-Routen | [API-Referenz](api.md) |
 | Login, Cookies und Rollen | [Authentifizierung](authentication.md) |
+| Development-, Zertifikat- und Remote-Lizenzen | [Lizenzierung](licensing.md) |
 | Fachbereiche | [Kunden](customers.md), [Projekte](projects.md), [Zeiten](time-tracking.md), [Benutzer](users.md) |
 | S3, Materialien und Einstellungen | [Dateien, Material & Einstellungen](files-storage-settings.md) |
 | Benannte Backend-Funktionen | [Funktionsreferenz](functions.md) |

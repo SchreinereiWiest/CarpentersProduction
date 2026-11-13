@@ -6,6 +6,13 @@ const money = new Intl.NumberFormat("de-DE", {
     currency: "EUR"
 });
 
+const ARTICLE_GRID_CLASSES = {
+    1: "grid-cols-1",
+    2: "grid-cols-1 lg:grid-cols-2",
+    3: "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
+    4: "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+};
+
 const EMPTY_ARTICLE = {
     name: "",
     sku: "",
@@ -14,12 +21,45 @@ const EMPTY_ARTICLE = {
     unit: "Stk.",
     netPrice: "",
     groupId: "",
-    supplierId: ""
+    supplierId: "",
+    imageUrl: ""
+};
+
+const normalizeExternalImageUrl = value => {
+    const text = String(value || "").trim();
+    if (!text) return "";
+
+    try {
+        const url = new URL(text);
+        return url.protocol === "http:" || url.protocol === "https:" ? text : null;
+    } catch {
+        return null;
+    }
+};
+
+const getArticleCategories = value => {
+    const seen = new Set();
+    return String(value || "")
+        .split(",")
+        .map(category => category.trim())
+        .filter(category => {
+            if (!category) return false;
+            const normalized = category.toLocaleLowerCase("de");
+            if (seen.has(normalized)) return false;
+            seen.add(normalized);
+            return true;
+        });
+};
+
+const normalizeArticleCategories = value => {
+    const categories = getArticleCategories(value);
+    return categories.length > 0 ? categories.join(", ") : "Sonstiges";
 };
 
 export function ArticleModal({ article, groups, suppliers = [], imageUrl, onClose, onSave }) {
     const [form, setForm] = useState({ ...EMPTY_ARTICLE, ...(article || {}) });
     const [imageFile, setImageFile] = useState(null);
+    const [imageInputKey, setImageInputKey] = useState(0);
     const [previewUrl, setPreviewUrl] = useState(imageUrl || "");
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
@@ -39,12 +79,29 @@ export function ArticleModal({ article, groups, suppliers = [], imageUrl, onClos
 
         if (previewUrl?.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
         setImageFile(file);
+        setForm(current => ({ ...current, imageUrl: "" }));
         setPreviewUrl(URL.createObjectURL(file));
+        setError("");
+    };
+
+    const setExternalImageUrl = event => {
+        const value = event.target.value;
+        const normalizedUrl = normalizeExternalImageUrl(value);
+        if (previewUrl?.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
+        setImageFile(null);
+        setImageInputKey(current => current + 1);
+        setForm(current => ({ ...current, imageUrl: value }));
+        setPreviewUrl(normalizedUrl || "");
         setError("");
     };
 
     const submit = async event => {
         event.preventDefault();
+        const normalizedImageUrl = normalizeExternalImageUrl(form.imageUrl);
+        if (normalizedImageUrl === null) {
+            setError("Bitte einen gültigen Bild-Link mit http:// oder https:// eingeben.");
+            return;
+        }
         setSaving(true);
         setError("");
 
@@ -54,11 +111,13 @@ export function ArticleModal({ article, groups, suppliers = [], imageUrl, onClos
                 id: form.id || createArticleId(),
                 name: form.name.trim(),
                 sku: form.sku.trim(),
-                category: form.category.trim() || "Sonstiges",
+                category: normalizeArticleCategories(form.category),
                 description: form.description.trim(),
                 unit: form.unit.trim() || "Stk.",
                 groupId: form.groupId || null,
                 supplierId: form.supplierId || null,
+                imageFileId: normalizedImageUrl ? null : form.imageFileId,
+                imageUrl: normalizedImageUrl,
                 netPrice: Math.max(0, Number(form.netPrice) || 0)
             }, imageFile);
         } catch (saveError) {
@@ -89,6 +148,7 @@ export function ArticleModal({ article, groups, suppliers = [], imageUrl, onClos
                     className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-white outline-none focus:border-blue-500"
                 />
             )}
+            {options.help && <span className="mt-1.5 block text-xs text-gray-500">{options.help}</span>}
         </label>
     );
 
@@ -113,14 +173,35 @@ export function ArticleModal({ article, groups, suppliers = [], imageUrl, onClos
                         ) : (
                             <span className="text-sm text-gray-500">Bild auswählen · JPG, PNG, WebP oder GIF · max. 5 MB</span>
                         )}
-                        <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={selectImage} className="absolute inset-0 cursor-pointer opacity-0" />
+                        <input key={imageInputKey} type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={selectImage} className="absolute inset-0 cursor-pointer opacity-0" />
                     </span>
+                </label>
+
+                <div className="my-3 flex items-center gap-3 text-xs uppercase tracking-wide text-gray-500">
+                    <span className="h-px flex-1 bg-gray-700" />
+                    oder per Link
+                    <span className="h-px flex-1 bg-gray-700" />
+                </div>
+
+                <label className="block">
+                    <span className="mb-1.5 block text-sm text-gray-300">Bild-Link</span>
+                    <input
+                        type="url"
+                        maxLength="2048"
+                        aria-label="Bild-Link"
+                        aria-describedby="article-image-url-help"
+                        placeholder="https://example.de/artikelbild.jpg"
+                        value={form.imageUrl || ""}
+                        onChange={setExternalImageUrl}
+                        className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-white outline-none focus:border-blue-500"
+                    />
+                    <span id="article-image-url-help" className="mt-1.5 block text-xs text-gray-500">Ein Link ersetzt ein zuvor ausgewähltes oder hochgeladenes Bild.</span>
                 </label>
 
                 <div className="mt-6 grid gap-4 sm:grid-cols-2">
                     {field("name", "Bezeichnung", { required: true, wide: true })}
                     {field("sku", "Artikelnummer")}
-                    {field("category", "Kategorie")}
+                    {field("category", "Kategorien", { help: "Mehrere Kategorien mit Komma trennen, z. B. Küche, Hänger." })}
                     {field("unit", "Einheit", { required: true })}
                     {field("netPrice", "Nettopreis in €", { required: true, type: "number", min: "0", step: "0.01" })}
                     <label className="sm:col-span-2">
@@ -155,7 +236,7 @@ export function ArticleModal({ article, groups, suppliers = [], imageUrl, onClos
 
                 <div className="mt-6 flex justify-end gap-3">
                     <button type="button" onClick={onClose} disabled={saving} className="rounded-lg border border-gray-600 px-4 py-2 text-gray-300 hover:bg-gray-700 disabled:opacity-50">Abbrechen</button>
-                    <button type="submit" disabled={saving} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold hover:bg-blue-500 disabled:opacity-50">{saving ? "Bild wird hochgeladen …" : "Artikel übernehmen"}</button>
+                    <button type="submit" disabled={saving} className="rounded-lg bg-blue-600 px-4 py-2 font-semibold hover:bg-blue-500 disabled:opacity-50">{saving ? "Artikel wird gespeichert …" : "Artikel übernehmen"}</button>
                 </div>
             </form>
         </div>
@@ -166,20 +247,30 @@ export function GroupModal({ group, articles, onClose, onSave }) {
     const [form, setForm] = useState({
         id: group?.id || createArticleId(),
         name: group?.name || "",
-        description: group?.description || ""
+        description: group?.description || "",
+        imageUrl: group?.imageUrl || ""
     });
+    const [error, setError] = useState("");
     const [selectedIds, setSelectedIds] = useState(() => new Set(
         articles.filter(article => article.groupId === group?.id).map(article => article.id)
     ));
 
     const submit = event => {
         event.preventDefault();
+        const normalizedImageUrl = normalizeExternalImageUrl(form.imageUrl);
+        if (normalizedImageUrl === null) {
+            setError("Bitte einen gültigen Gruppenbild-Link mit http:// oder https:// eingeben.");
+            return;
+        }
         onSave({
             ...form,
             name: form.name.trim(),
-            description: form.description.trim()
+            description: form.description.trim(),
+            imageUrl: normalizedImageUrl
         }, selectedIds);
     };
+
+    const groupPreviewUrl = normalizeExternalImageUrl(form.imageUrl);
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onMouseDown={event => {
@@ -203,6 +294,27 @@ export function GroupModal({ group, articles, onClose, onSave }) {
                         <span className="mb-1.5 block text-sm text-gray-300">Beschreibung</span>
                         <textarea rows="3" value={form.description} onChange={event => setForm(current => ({ ...current, description: event.target.value }))} className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-white outline-none focus:border-blue-500" />
                     </label>
+                    <label>
+                        <span className="mb-1.5 block text-sm text-gray-300">Gruppenbild-Link</span>
+                        <input
+                            type="url"
+                            maxLength="2048"
+                            aria-label="Gruppenbild-Link"
+                            placeholder="https://example.de/gruppenbild.jpg"
+                            value={form.imageUrl}
+                            onChange={event => {
+                                setForm(current => ({ ...current, imageUrl: event.target.value }));
+                                setError("");
+                            }}
+                            className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-white outline-none focus:border-blue-500"
+                        />
+                        <span className="mt-1.5 block text-xs text-gray-500">Direkter Bild-Link mit http:// oder https://.</span>
+                    </label>
+                    {groupPreviewUrl && (
+                        <div className="flex h-44 items-center justify-center overflow-hidden rounded-xl border border-gray-700 bg-gray-900">
+                            <img src={groupPreviewUrl} alt="Gruppenvorschau" className="h-full w-full object-contain" />
+                        </div>
+                    )}
                 </div>
 
                 <div className="mt-6">
@@ -232,6 +344,8 @@ export function GroupModal({ group, articles, onClose, onSave }) {
                     </div>
                 </div>
 
+                {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
+
                 <div className="mt-6 flex justify-end gap-3">
                     <button type="button" onClick={onClose} className="rounded-lg border border-gray-600 px-4 py-2 text-gray-300 hover:bg-gray-700">Abbrechen</button>
                     <button type="submit" className="rounded-lg bg-blue-600 px-4 py-2 font-semibold hover:bg-blue-500">Gruppe übernehmen</button>
@@ -241,19 +355,24 @@ export function GroupModal({ group, articles, onClose, onSave }) {
     );
 }
 
-export function ShopArticle({ article, imageUrl, supplierName, projectId, editMode, adding, onAdd, onEdit, onDelete }) {
+export function ShopArticle({ article, imageUrl, supplierName, projectId, editMode, listView = false, adding, onAdd, onEdit, onDuplicate, onDelete }) {
     const [quantity, setQuantity] = useState(1);
+    const categories = getArticleCategories(article.category);
 
     return (
-        <article className="flex h-full flex-col rounded-lg border border-gray-700 bg-gray-800 p-3.5 shadow-md transition hover:border-gray-600">
-            <div className="flex min-w-0 gap-3">
+        <article className={`flex h-full rounded-lg border border-gray-700 bg-gray-800 p-3.5 shadow-md transition hover:border-gray-600 ${listView ? "flex-col sm:flex-row sm:items-center sm:gap-4" : "flex-col"}`}>
+            <div className={`flex min-w-0 gap-3 ${listView ? "sm:flex-1 sm:items-center" : ""}`}>
                 <div className="aspect-square size-24 shrink-0 overflow-hidden rounded-md bg-gray-900/50">
                     {imageUrl && <img src={imageUrl} alt={article.name} loading="lazy" className="h-full w-full object-contain" />}
                 </div>
                 <div className="flex min-w-0 flex-1 flex-col">
                     <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                        <span className="inline-flex rounded-full bg-gray-700 px-2 py-0.5 text-[11px] text-gray-300">{article.category || "Sonstiges"}</span>
+                        <div className="flex flex-wrap gap-1">
+                            {(categories.length > 0 ? categories : ["Sonstiges"]).map(category => (
+                                <span key={category.toLocaleLowerCase("de")} className="inline-flex rounded-full bg-gray-700 px-2 py-0.5 text-[11px] text-gray-300">{category}</span>
+                            ))}
+                        </div>
                         <h3 className="mt-2 truncate font-semibold">{article.name}</h3>
                         <p className="mt-0.5 truncate text-xs text-gray-500">{article.sku || "Ohne Artikelnummer"}</p>
                         <p className="mt-0.5 truncate text-xs text-gray-500">{supplierName || "Ohne Lieferant"}</p>
@@ -262,6 +381,9 @@ export function ShopArticle({ article, imageUrl, supplierName, projectId, editMo
                             <div className="flex shrink-0 gap-0.5">
                                 <button type="button" onClick={() => onEdit(article)} className="rounded-md p-1.5 text-gray-400 hover:bg-gray-700 hover:text-white" aria-label={`${article.name} bearbeiten`}>
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="size-4" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" d="m4 16-.8 4 4-.8L18 8.4 15.6 6 4 16Zm9.8-8.2 2.4 2.4M14.8 6.8l1.5-1.5a1.7 1.7 0 0 1 2.4 0 1.7 1.7 0 0 1 0 2.4l-1.5 1.5" /></svg>
+                                </button>
+                                <button type="button" onClick={() => onDuplicate(article)} className="rounded-md p-1.5 text-gray-400 hover:bg-gray-700 hover:text-blue-300" aria-label={`${article.name} duplizieren`}>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="size-4" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" strokeWidth="1.7" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3" /></svg>
                                 </button>
                                 <button type="button" onClick={() => onDelete(article.id)} className="rounded-md p-1.5 text-gray-400 hover:bg-gray-700 hover:text-red-400" aria-label={`${article.name} löschen`}>
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="size-4" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" d="M6 7h12m-9 0V5h6v2m-7 0 1 13h6l1-13" /></svg>
@@ -273,7 +395,7 @@ export function ShopArticle({ article, imageUrl, supplierName, projectId, editMo
                 </div>
             </div>
 
-            <div className="mt-3 flex items-end justify-between gap-2 border-t border-gray-700 pt-3">
+            <div className={`mt-3 flex items-end justify-between gap-2 border-t border-gray-700 pt-3 ${listView ? "sm:mt-0 sm:min-w-64 sm:shrink-0 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0" : ""}`}>
                 <div>
                     <div className="text-[10px] uppercase tracking-wide text-gray-500">Nettopreis</div>
                     <div className="mt-0.5 text-base font-bold">{money.format(Number(article.netPrice) || 0)} <span className="text-xs font-normal text-gray-500">/ {article.unit}</span></div>
@@ -291,7 +413,7 @@ export function ShopArticle({ article, imageUrl, supplierName, projectId, editMo
     );
 }
 
-export function ShopGroup({ group, articleCount, editMode, onOpen, onEdit, onDelete }) {
+export function ShopGroup({ group, articleCount, editMode, listView = false, onOpen, onEdit, onDelete }) {
     return (
         <article
             role="button"
@@ -303,11 +425,15 @@ export function ShopGroup({ group, articleCount, editMode, onOpen, onEdit, onDel
                     onOpen();
                 }
             }}
-            className="group flex min-h-40 cursor-pointer flex-col rounded-lg border border-blue-900/60 bg-gray-800 p-3.5 shadow-md transition hover:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className={`group flex min-h-40 cursor-pointer flex-col rounded-lg border border-blue-900/60 bg-gray-800 p-3.5 shadow-md transition hover:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 ${listView ? "sm:min-h-0 sm:flex-row sm:items-center sm:gap-4" : ""}`}
         >
             <div className="flex min-w-0 flex-1 gap-3">
                 <div className="flex aspect-square size-24 shrink-0 items-center justify-center rounded-md bg-blue-950/30 text-blue-400">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="size-9 transition group-hover:scale-105" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 7.5 12 3l8 4.5-8 4.5-8-4.5Zm0 4.5 8 4.5 8-4.5M4 16.5l8 4.5 8-4.5" /></svg>
+                    {group.imageUrl ? (
+                        <img src={group.imageUrl} alt={`Gruppenbild ${group.name}`} loading="lazy" className="h-full w-full rounded-md object-contain" />
+                    ) : (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="size-9 transition group-hover:scale-105" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 7.5 12 3l8 4.5-8 4.5-8-4.5Zm0 4.5 8 4.5 8-4.5M4 16.5l8 4.5 8-4.5" /></svg>
+                    )}
                 </div>
                 <div className="flex min-w-0 flex-1 flex-col">
                 <div className="flex items-start justify-between gap-3">
@@ -329,7 +455,7 @@ export function ShopGroup({ group, articleCount, editMode, onOpen, onEdit, onDel
                 <p className="mt-2 line-clamp-2 flex-1 overflow-hidden text-xs leading-4.5 text-gray-400">{group.description || "Varianten dieser Artikelgruppe anzeigen."}</p>
                 </div>
             </div>
-            <div className="mt-3 flex items-center justify-between border-t border-gray-700 pt-3">
+            <div className={`mt-3 flex items-center justify-between border-t border-gray-700 pt-3 ${listView ? "sm:mt-0 sm:min-w-48 sm:shrink-0 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0" : ""}`}>
                 <span className="text-xs text-gray-400">{articleCount} Artikel</span>
                 <span className="text-xs font-medium text-blue-300">Öffnen →</span>
             </div>
@@ -337,7 +463,7 @@ export function ShopGroup({ group, articleCount, editMode, onOpen, onEdit, onDel
     );
 }
 
-export function GroupArticlesModal({ group, articles, imageUrls, suppliers = [], projectId, editMode, addingArticleId, onClose, onAdd, onEdit, onDelete }) {
+export function GroupArticlesModal({ group, articles, imageUrls, suppliers = [], projectId, editMode, addingArticleId, columns = 4, onClose, onAdd, onEdit, onDuplicate, onDelete }) {
     return (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/75 p-4" onMouseDown={event => {
             if (event.target === event.currentTarget) onClose();
@@ -355,9 +481,9 @@ export function GroupArticlesModal({ group, articles, imageUrls, suppliers = [],
                 {articles.length === 0 ? (
                     <div className="mt-6 rounded-xl border border-dashed border-gray-700 p-10 text-center text-gray-500">Diese Gruppe enthält noch keine Artikel.</div>
                 ) : (
-                    <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    <div className={`mt-6 grid gap-3 ${ARTICLE_GRID_CLASSES[columns] || ARTICLE_GRID_CLASSES[4]}`}>
                         {articles.map(article => (
-                            <ShopArticle key={article.id} article={article} imageUrl={imageUrls[article.imageFileId]} supplierName={suppliers.find(supplier => supplier.id === article.supplierId)?.name} projectId={projectId} editMode={editMode} adding={addingArticleId === article.id} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} />
+                            <ShopArticle key={article.id} article={article} imageUrl={article.imageUrl || imageUrls[article.imageFileId]} supplierName={suppliers.find(supplier => supplier.id === article.supplierId)?.name} projectId={projectId} editMode={editMode} listView={columns === 1} adding={addingArticleId === article.id} onAdd={onAdd} onEdit={onEdit} onDuplicate={onDuplicate} onDelete={onDelete} />
                         ))}
                     </div>
                 )}

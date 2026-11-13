@@ -1,30 +1,22 @@
 services:
-
   traefik:
-    image: traefik:v3.0
-    container_name: traefik
-
+    image: traefik:v3.7.15
+    restart: unless-stopped
     command:
-      - "--api.dashboard=true"
-      - "--api.insecure=true"
-
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-
-      - "--entrypoints.web.address=:80"
-
-
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=carpenters-proxy
+      - --entrypoints.web.address=:80
     ports:
       - "80:80"
-      - "8080:8080"
-
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-
     networks:
-      - carpenters-network
+      carpenters-proxy:
+        aliases:
+          - storage.localhost
 
-  frontend:
+  carpenters-frontend:
     build:
       context: ./Frontend
       dockerfile: Dockerfile.dev
@@ -43,17 +35,18 @@ services:
 
     labels:
       - "traefik.enable=true"
-
-      - "traefik.http.routers.frontend.rule=Host(`10.10.100.52`) && PathPrefix(`/`)"
-      - "traefik.http.routers.frontend.priority=1"   
-      - "traefik.http.routers.frontend.entrypoints=web"
-
-      - "traefik.http.services.frontend.loadbalancer.server.port=5173"
+      - "traefik.docker.network=carpenters-proxy"
+      - "traefik.http.routers.carpenters-frontend.rule=Host(`av.localhost`)"
+      - "traefik.http.routers.carpenters-frontend.priority=1"
+      - "traefik.http.routers.carpenters-frontend.entrypoints=web"
+      - "traefik.http.routers.carpenters-frontend.service=carpenters-frontend"
+      - "traefik.http.services.carpenters-frontend.loadbalancer.server.port=5173"
 
     networks:
       - carpenters-network
+      - carpenters-proxy
  
-  backendjs:
+  carpenters-backend:
     build:
       context: ./Backend
       dockerfile: Dockerfile.dev
@@ -67,6 +60,15 @@ services:
 
     environment:
       - NODE_ENV=development
+      - VALKEY_URL=redis://valkey:6379/0
+      - MEASUREMENT_OCR_SECRET=${MEASUREMENT_OCR_SECRET:?MEASUREMENT_OCR_SECRET muss in der root .env gesetzt sein}
+      - MEASUREMENT_OCR_RESOLVE_URL=http://carpenters-backend:5000/api/internal/measurement-ocr/resolve
+      - MEASUREMENT_OCR_CALLBACK_URL=http://carpenters-backend:5000/api/internal/measurement-ocr/result
+      - PAPERLESS_INTERNAL_BASE_URL=http://carpenters-backend:5000/api/internal/paperless
+      - PAPERLESS_SYNC_INTERVAL_MS=${PAPERLESS_SYNC_INTERVAL_MS:-60000}
+      # Für den Paperless-Workflow im LAN. In Production auf die feste
+      # öffentliche HTTPS-Domain setzen.
+      - CARPENTERS_PUBLIC_URL=${CARPENTERS_PUBLIC_URL:-http://10.10.100.52}
 
     volumes:
       - ./Backend:/app
@@ -80,17 +82,91 @@ services:
 
     labels:
       - "traefik.enable=true"
-
-      - "traefik.http.routers.backend.rule=Host(`10.10.100.52`) && PathPrefix(`/api`)"
-      - "traefik.http.routers.backend.priority=100"
-      - "traefik.http.routers.backend.entrypoints=web"
-
-      - "traefik.http.services.backend.loadbalancer.server.port=5000"
+      - "traefik.docker.network=carpenters-proxy"
+      - "traefik.http.routers.carpenters-backend.rule=Host(`av.localhost`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.carpenters-backend.priority=100"
+      - "traefik.http.routers.carpenters-backend.entrypoints=web"
+      - "traefik.http.routers.carpenters-backend.service=carpenters-backend"
+      - "traefik.http.services.carpenters-backend.loadbalancer.server.port=5000"
+      # Ausschließlich der mit einem eigenen Secret geschützte Paperless-Hook
+      # ist zusätzlich über die LAN-IP des Entwicklungsrechners erreichbar.
+      - "traefik.http.routers.carpenters-paperless-webhook.rule=Host(`${CARPENTERS_DEV_WEBHOOK_HOST:-10.10.100.52}`) && PathPrefix(`/api/integrations/paperless/webhook/`)"
+      - "traefik.http.routers.carpenters-paperless-webhook.priority=200"
+      - "traefik.http.routers.carpenters-paperless-webhook.entrypoints=web"
+      - "traefik.http.routers.carpenters-paperless-webhook.service=carpenters-backend"
 
     depends_on:
-      - postgres
+      - carpenters-postgres
       - garage
+      - carpenters-valkey
 
+    networks:
+      carpenters-network:
+        # Backward compatibility for OCR jobs queued before the backend service
+        # was renamed. New jobs use the canonical service name above.
+        aliases:
+          - backendjs
+      MoebelDesign:
+      carpenters-proxy:
+
+  carpenters-valkey:
+    image: valkey/valkey:8-alpine
+    restart: always
+    command: ["valkey-server", "--appendonly", "yes"]
+    volumes:
+      - measurement-ocr-valkey:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      carpenters-network:
+        aliases:
+          - valkey
+
+  contact-history-worker:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile.dev
+      additional_contexts:
+        engine: ./Engine
+    restart: always
+    command: ["node", "src/workers/contact-history.worker.js"]
+    env_file:
+      - ./Backend/.env
+    environment:
+      - NODE_ENV=development
+      - VALKEY_URL=redis://valkey:6379/0
+    volumes:
+      - ./Backend:/app
+      - ./Engine:/Engine:ro
+      - /app/node_modules
+    depends_on:
+      carpenters-valkey:
+        condition: service_healthy
+      carpenters-postgres:
+        condition: service_started
+    networks:
+      - carpenters-network
+
+  measurement-ocr:
+    build:
+      context: ./Services/MeasurementOCR
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      - VALKEY_URL=redis://valkey:6379/0
+      - MEASUREMENT_OCR_QUEUE=measurement:ocr:jobs
+      - MEASUREMENT_OCR_SECRET=${MEASUREMENT_OCR_SECRET:?MEASUREMENT_OCR_SECRET muss in der root .env gesetzt sein}
+      - MEASUREMENT_OCR_MAX_PAGES=${MEASUREMENT_OCR_MAX_PAGES:-50}
+      - PAPERLESS_QR_MAX_PAGES=${PAPERLESS_QR_MAX_PAGES:-5}
+      - LOG_LEVEL=${MEASUREMENT_OCR_LOG_LEVEL:-INFO}
+    depends_on:
+      carpenters-valkey:
+        condition: service_healthy
+      carpenters-backend:
+        condition: service_started
     networks:
       - carpenters-network
 
@@ -103,28 +179,17 @@ services:
 
     labels:
       - "traefik.enable=true"
-
-      - "traefik.http.routers.documentation.rule=Host(`10.10.100.52`) && PathPrefix(`/docs/`)"
-      - "traefik.http.routers.documentation.priority=110"
-      - "traefik.http.routers.documentation.entrypoints=web"
-      - "traefik.http.routers.documentation.middlewares=documentation-strip"
-
-      - "traefik.http.routers.documentation-root.rule=Host(`10.10.100.52`) && Path(`/docs`)"
-      - "traefik.http.routers.documentation-root.priority=111"
-      - "traefik.http.routers.documentation-root.entrypoints=web"
-      - "traefik.http.routers.documentation-root.middlewares=documentation-add-slash"
-      - "traefik.http.routers.documentation-root.service=documentation"
-
-      - "traefik.http.middlewares.documentation-strip.stripprefix.prefixes=/docs"
-      - "traefik.http.middlewares.documentation-add-slash.redirectregex.regex=^(.*)/docs$"
-      - "traefik.http.middlewares.documentation-add-slash.redirectregex.replacement=$${1}/docs/"
-      - "traefik.http.middlewares.documentation-add-slash.redirectregex.permanent=true"
-      - "traefik.http.services.documentation.loadbalancer.server.port=80"
+      - "traefik.docker.network=carpenters-proxy"
+      - "traefik.http.routers.carpenters-documentation.rule=Host(`docs.localhost`)"
+      - "traefik.http.routers.carpenters-documentation.entrypoints=web"
+      - "traefik.http.routers.carpenters-documentation.service=carpenters-documentation"
+      - "traefik.http.services.carpenters-documentation.loadbalancer.server.port=80"
 
     networks:
       - carpenters-network
+      - carpenters-proxy
 
-  postgres:
+  carpenters-postgres:
     image: postgres:16
 
     container_name: postgresql
@@ -141,7 +206,9 @@ services:
       - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
 
     networks:
-      - carpenters-network
+      carpenters-network:
+        aliases:
+          - postgres
 
   garage:
     image: dxflrs/garage:v2.3.0
@@ -155,18 +222,35 @@ services:
 
     labels:
       - "traefik.enable=true"
-
-      - "traefik.http.routers.garage.rule=Host(`10.10.100.52`) && PathPrefix(`/carpenters-storage`)"
-      - "traefik.http.routers.garage.priority=50"
-      - "traefik.http.routers.garage.entrypoints=web"
-
-      - "traefik.http.services.garage.loadbalancer.server.port=3900"
+      - "traefik.docker.network=carpenters-proxy"
+      - "traefik.http.routers.carpenters-garage.rule=Host(`storage.localhost`)"
+      - "traefik.http.routers.carpenters-garage.priority=50"
+      - "traefik.http.routers.carpenters-garage.entrypoints=web"
+      - "traefik.http.routers.carpenters-garage.service=carpenters-garage"
+      - "traefik.http.routers.carpenters-garage.middlewares=carpenters-storage-cors"
+      - "traefik.http.middlewares.carpenters-storage-cors.headers.accesscontrolallowmethods=GET,PUT,HEAD,OPTIONS"
+      - "traefik.http.middlewares.carpenters-storage-cors.headers.accesscontrolallowheaders=*"
+      - "traefik.http.middlewares.carpenters-storage-cors.headers.accesscontrolalloworiginlist=http://av.localhost,http://app.localhost,http://suite.localhost,http://localhost:5173,http://10.10.100.52"
+      - "traefik.http.middlewares.carpenters-storage-cors.headers.accesscontrolexposeheaders=ETag,Content-Length,Content-Type,Last-Modified"
+      - "traefik.http.middlewares.carpenters-storage-cors.headers.addvaryheader=true"
+      - "traefik.http.services.carpenters-garage.loadbalancer.server.port=3900"
 
 
 
     networks:
-      - carpenters-network
+      carpenters-network: {}
+      carpenters-proxy: {}
 
 networks:
   carpenters-network:
     driver: bridge
+  carpenters-proxy:
+    name: carpenters-proxy
+    external: true
+  MoebelDesign:
+    name: MoebelDesign
+    external: true
+
+volumes:
+  measurement-ocr-valkey:
+    name: carpentersproduction_measurement-ocr-valkey

@@ -1,10 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
-import { getProjectAssetUrl } from "../../../shared/cache/project-asset-cache.js";
+import {
+    getProjectAssetUrl,
+    storeLocalProjectAsset
+} from "../../../shared/cache/project-asset-cache.js";
+import { invalidateProjectAsset } from "../../../shared/cache/project-indexed-db.js";
 import { useParams } from "react-router";
 import SideBar from "../../../shared/components/sideBar.jsx";
 import ProjectBar from "../../../shared/components/projectBar.jsx";
+import PaperlessDocumentViewer from "../../../shared/components/PaperlessDocumentViewer.jsx";
 import { useAuth } from "../../../app/providers/AuthContext.js";
+import { getProjectRecord } from "../../../shared/projects/project-records.js";
+import {
+    getLocalProject,
+    saveLocalProject
+} from "../../../shared/offline/local-projects.js";
 
 const ATTACHMENT_CATEGORY = "production-attachment";
 const ACCEPTED_TYPES = new Set(["image/jpeg", "application/pdf"]);
@@ -61,6 +71,25 @@ function UploadModal({ existingFiles, onClose, onUploaded, onDeleted }) {
         setError("");
 
         try {
+            const localProject = await getLocalProject(projectId);
+            if (localProject) {
+                const descriptors = [];
+                for (const file of files) {
+                    descriptors.push(await storeLocalProjectAsset(
+                        projectId,
+                        file,
+                        { category: ATTACHMENT_CATEGORY }
+                    ));
+                }
+                await saveLocalProject({
+                    ...localProject,
+                    files: [...(localProject.files ?? []), ...descriptors]
+                });
+                await onUploaded();
+                onClose();
+                return;
+            }
+
             for (const file of files) {
                 const formData = new FormData();
                 formData.append("file", file);
@@ -83,6 +112,17 @@ function UploadModal({ existingFiles, onClose, onUploaded, onDeleted }) {
         setBusy(true);
         setError("");
         try {
+            const localProject = await getLocalProject(projectId);
+            if (localProject) {
+                await invalidateProjectAsset(file.id);
+                await saveLocalProject({
+                    ...localProject,
+                    files: (localProject.files ?? []).filter(item => item.id !== file.id)
+                });
+                await onDeleted();
+                return;
+            }
+
             await axios.delete(`/api/files/delete/${file.id}`);
             await onDeleted();
         } catch (deleteError) {
@@ -101,6 +141,11 @@ function UploadModal({ existingFiles, onClose, onUploaded, onDeleted }) {
         setSelectedResults(new Set());
         setSearched(false);
         try {
+            if (await getLocalProject(projectId)) {
+                setError("Die Artikelsuche ist erst nach der Kundenzuweisung und dem Projekt-Upload verfügbar.");
+                return;
+            }
+
             const { data } = await axios.post("/api/files/attachment-search", { projectId, articleNumber: query });
             setSearchResults(data.results || []);
             setUsedOpenWeb(Boolean(data.usedOpenWeb));
@@ -256,6 +301,7 @@ export default function ProjectAttachments() {
     const [attachments, setAttachments] = useState([]);
     const [columns, setColumns] = useState(2);
     const [focusedId, setFocusedId] = useState(null);
+    const [viewingPaperless, setViewingPaperless] = useState(null);
     const [editing, setEditing] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -264,8 +310,7 @@ export default function ProjectAttachments() {
         setLoading(true);
         setError("");
         try {
-            const { data } = await axios.get(`/api/projects/get/${projectId}`);
-            const nextProject = data.project;
+            const nextProject = await getProjectRecord(projectId);
             const files = (nextProject?.files || []).filter(file => file.category === ATTACHMENT_CATEGORY);
             const loaded = await Promise.all(files.map(async file => {
                 return { ...file, url: await getProjectAssetUrl(file) };
@@ -291,6 +336,7 @@ export default function ProjectAttachments() {
     }, []);
 
     const focused = useMemo(() => attachments.find(item => item.id === focusedId), [attachments, focusedId]);
+    const paperlessDocuments = project?.paperlessDocuments ?? [];
     const gridClass = columns === 1 ? "grid-cols-1" : columns === 3 ? "grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3" : "grid-cols-1 xl:grid-cols-2";
 
     const move = (index, direction) => {
@@ -357,6 +403,28 @@ export default function ProjectAttachments() {
                             ))}
                         </div>
                     )}
+
+                    {paperlessDocuments.length > 0 && (
+                        <section className="mt-6 rounded-2xl border border-violet-900/70 bg-violet-950/10 p-4 sm:p-5">
+                            <div className="mb-4">
+                                <h2 className="font-semibold text-violet-200">Dokumente aus Paperless</h2>
+                                <p className="mt-1 text-xs text-gray-500">Diese Dateien bleiben in Paperless und werden beim Öffnen von dort geladen.</p>
+                            </div>
+                            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                                {paperlessDocuments.map(document => (
+                                    <button
+                                        key={document.id}
+                                        type="button"
+                                        onClick={() => setViewingPaperless(document)}
+                                        className="flex min-w-0 items-center gap-3 rounded-xl border border-gray-700 bg-gray-800 p-3 text-left hover:border-violet-700 hover:bg-gray-700"
+                                    >
+                                        <img src={`/api/paperless/documents/${document.id}/thumbnail?v=2`} alt="" className="h-16 w-12 shrink-0 rounded bg-gray-950 object-contain" />
+                                        <span className="min-w-0"><span className="block truncate text-sm font-medium text-blue-300">{document.title}</span><span className="mt-1 block truncate text-xs text-gray-500">{document.documentType || document.originalFileName || "Paperless-Dokument"}</span></span>
+                                    </button>
+                                ))}
+                            </div>
+                        </section>
+                    )}
                 </div>
             </main>
 
@@ -370,6 +438,7 @@ export default function ProjectAttachments() {
                     <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-3"><AttachmentPreview attachment={focused} focused /></div>
                 </div>
             )}
+            {viewingPaperless && <PaperlessDocumentViewer document={viewingPaperless} onClose={() => setViewingPaperless(null)} />}
         </div>
     );
 }

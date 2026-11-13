@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
     cleanupStorage,
     createDatabaseBackup,
+    createShopDatabaseBackup,
     createStorageBackup,
     deleteStorageBackup,
     deleteStorageFolder,
@@ -10,6 +11,7 @@ import {
     getBackupDownload,
     getObjectDownload,
     importDatabaseBackup,
+    importShopDatabaseBackup,
     importStorageBackup,
     loadBackups,
     loadStorageOverview,
@@ -101,6 +103,7 @@ export default function StorageSettingsPanel() {
     const [backupName, setBackupName] = useState("");
     const fileInput = useRef(null);
     const databaseFileInput = useRef(null);
+    const shopDatabaseFileInput = useRef(null);
 
     const reload = async (options = {}) => {
         const nextPage = options.page ?? page;
@@ -186,8 +189,17 @@ export default function StorageSettingsPanel() {
 
     const importFile = (file, type = "full") => {
         if (!file) return;
-        setDialog({ type: type === "database" ? "importDatabase" : "import", file });
-        const input = type === "database" ? databaseFileInput : fileInput;
+        const dialogType = type === "database"
+            ? "importDatabase"
+            : type === "shop-database"
+                ? "importShopDatabase"
+                : "import";
+        setDialog({ type: dialogType, file });
+        const input = type === "database"
+            ? databaseFileInput
+            : type === "shop-database"
+                ? shopDatabaseFileInput
+                : fileInput;
         if (input.current) input.current.value = "";
     };
 
@@ -195,6 +207,7 @@ export default function StorageSettingsPanel() {
     const summary = overview?.summary || {};
     const fullBackups = backups.filter(backup => (backup.backupType || "full") === "full");
     const databaseBackups = backups.filter(backup => backup.backupType === "database");
+    const shopDatabaseBackups = backups.filter(backup => backup.backupType === "shop-database");
 
     return <div className="responsive-settings-panel h-full overflow-y-auto p-4 sm:p-6">
         <div className="mx-auto max-w-7xl space-y-6">
@@ -268,18 +281,28 @@ export default function StorageSettingsPanel() {
                 </div>
                 <BackupTable databaseOnly backups={databaseBackups} emptyMessage="Noch kein Datenbank-Backup vorhanden." onDownload={backup => void download(getBackupDownload(backup.id))} onRestore={backup => setDialog({ type: "restoreDatabase", backup })} onDelete={backup => setDialog({ type: "deleteBackup", backup })} />
                 <div className="border-t border-gray-700 bg-gray-900/40 px-5 py-3 text-xs text-gray-500">Ein Datenbank-Restore verändert keine Binärdateien in Garage. Dateimetadaten werden auf den Stand des Backups zurückgesetzt.</div>
+
+                <div className="flex flex-wrap items-start justify-between gap-4 border-y border-gray-700 p-4 sm:p-5">
+                    <div><h2 className="font-semibold">Shop-Datenbank-Backups</h2><p className="mt-1 text-sm text-gray-500">Den internen Artikelkatalog einschließlich Gruppen, Lieferanten und Shop-Zuordnungen separat übertragen.</p></div>
+                    <div className="flex flex-wrap gap-2"><input ref={shopDatabaseFileInput} type="file" accept=".cshopbackup,application/gzip" onChange={event => importFile(event.target.files?.[0], "shop-database")} className="hidden"/><button type="button" onClick={() => shopDatabaseFileInput.current?.click()} className="inline-flex items-center gap-2 rounded-lg border border-gray-600 px-3.5 py-2 text-sm hover:bg-gray-700"><Icon name="upload" className="h-4 w-4"/>Shop-Backup einspielen</button><button type="button" onClick={() => { setBackupName(`Shop-Datenbank-Backup ${new Intl.DateTimeFormat("de-DE", { dateStyle: "short", timeStyle: "short" }).format(new Date())}`); setDialog({ type: "createShopDatabaseBackup" }); }} className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-semibold hover:bg-emerald-500"><Icon name="storage" className="h-4 w-4"/>Shop-Datenbank sichern</button></div>
+                </div>
+                <BackupTable databaseOnly backups={shopDatabaseBackups} emptyMessage="Noch kein Shop-Datenbank-Backup vorhanden." onDownload={backup => void download(getBackupDownload(backup.id))} onRestore={backup => setDialog({ type: "restoreShopDatabase", backup })} onDelete={backup => setDialog({ type: "deleteBackup", backup })} />
+                <div className="border-t border-gray-700 bg-gray-900/40 px-5 py-3 text-xs text-gray-500">Enthalten sind ausschließlich Shop-Stammdaten. Kunden, Projekte, Bestellungen und Dateien – einschließlich Artikelbildern – werden nicht exportiert.</div>
             </section>
         </div>
 
         {dialog?.type === "createBackup" && <ConfirmDialog title="Manuelles Backup erstellen" confirmLabel="Backup erstellen" busy={busy} onCancel={() => setDialog(null)} onConfirm={() => void run(() => createStorageBackup(backupName), "Backup wurde erstellt.")}><label className="block text-left"><span className="mb-2 block text-xs font-medium text-gray-300">Bezeichnung</span><input autoFocus value={backupName} maxLength="120" onChange={event => setBackupName(event.target.value)} className="w-full rounded-lg border border-gray-600 bg-gray-950 px-3 py-2.5 text-white outline-none focus:border-blue-500" /></label><p className="mt-3">Die Erstellung kann je nach Datenmenge einige Minuten dauern.</p></ConfirmDialog>}
         {dialog?.type === "createDatabaseBackup" && <ConfirmDialog title="Datenbank-Backup erstellen" confirmLabel="Datenbank sichern" busy={busy} onCancel={() => setDialog(null)} onConfirm={() => void run(() => createDatabaseBackup(backupName), "Datenbank-Backup wurde erstellt.")}><label className="block text-left"><span className="mb-2 block text-xs font-medium text-gray-300">Bezeichnung</span><input autoFocus value={backupName} maxLength="120" onChange={event => setBackupName(event.target.value)} className="w-full rounded-lg border border-gray-600 bg-gray-950 px-3 py-2.5 text-white outline-none focus:border-violet-500" /></label><p className="mt-3">Gesichert werden die Betriebsdaten dieses Unternehmens, ohne Binärdateien aus Garage in das Archiv aufzunehmen.</p></ConfirmDialog>}
+        {dialog?.type === "createShopDatabaseBackup" && <ConfirmDialog title="Shop-Datenbank-Backup erstellen" confirmLabel="Shop-Datenbank sichern" busy={busy} onCancel={() => setDialog(null)} onConfirm={() => void run(() => createShopDatabaseBackup(backupName), "Shop-Datenbank-Backup wurde erstellt.")}><label className="block text-left"><span className="mb-2 block text-xs font-medium text-gray-300">Bezeichnung</span><input autoFocus value={backupName} maxLength="120" onChange={event => setBackupName(event.target.value)} className="w-full rounded-lg border border-gray-600 bg-gray-950 px-3 py-2.5 text-white outline-none focus:border-emerald-500" /></label><p className="mt-3">Gesichert werden nur Shop-Konfiguration, Lieferanten, Artikelgruppen, Artikel und Beschlag-Zuordnungen. Kunden- und Projektdaten sowie Artikelbilder bleiben vollständig außerhalb des Archivs.</p></ConfirmDialog>}
         {dialog?.type === "cleanup" && <ConfirmDialog title="Verwaiste Dateien bereinigen?" confirmLabel="Jetzt bereinigen" dangerous busy={busy} onCancel={() => setDialog(null)} onConfirm={() => void run(cleanupStorage, `${summary.orphanCount || 0} verwaiste Objekte wurden zur Löschung vorgemerkt.`)}>Es werden ausschließlich Garage-Objekte entfernt, die mit keinem Datei- oder Projektdatensatz mehr verknüpft sind.</ConfirmDialog>}
         {dialog?.type === "deleteObject" && <ConfirmDialog title="Datei dauerhaft löschen?" confirmLabel="Datei löschen" dangerous busy={busy} onCancel={() => setDialog(null)} onConfirm={() => void run(() => deleteStorageObject(dialog.object.id), "Datei wurde zur Löschung vorgemerkt.")}><strong className="text-gray-200">{objectLabel(dialog.object)}</strong> wird aus Garage und aus allen zugehörigen Datensätzen entfernt. Diese Aktion kann nur über ein Backup rückgängig gemacht werden.</ConfirmDialog>}
         {dialog?.type === "deleteFolder" && <ConfirmDialog title="Ordner samt Inhalt löschen?" confirmLabel="Ordner löschen" dangerous typed typedPhrase="ORDNER LÖSCHEN" busy={busy} onCancel={() => setDialog(null)} onConfirm={() => void run(() => deleteStorageFolder(dialog.folder.path), result => `${result.deletedObjects} Objekte und ${result.deletedFiles} Dateiverknüpfungen wurden entfernt.`)}>Der Ordner <strong className="text-gray-200">{dialog.folder.path}</strong> wird rekursiv gelöscht. Alle enthaltenen Garage-Dateien sowie ihre Datei- und Projektdatensätze werden dauerhaft entfernt.</ConfirmDialog>}
         {dialog?.type === "restore" && <ConfirmDialog title="Backup wiederherstellen?" confirmLabel="Backup einspielen" dangerous typed busy={busy} onCancel={() => setDialog(null)} onConfirm={() => void run(() => restoreStorageBackup(dialog.backup.id), "Backup wurde erfolgreich eingespielt.")}>Der aktuelle Stand der Betriebsdaten und Dateien wird durch <strong className="text-gray-200">{dialog.backup.name}</strong> ersetzt. Erstelle vorher ein aktuelles Backup, falls du zum jetzigen Stand zurückkehren möchtest.</ConfirmDialog>}
         {dialog?.type === "restoreDatabase" && <ConfirmDialog title="Datenbank wiederherstellen?" confirmLabel="Datenbank zurücksetzen" dangerous typed busy={busy} onCancel={() => setDialog(null)} onConfirm={() => void run(() => restoreStorageBackup(dialog.backup.id), "Datenbank-Backup wurde erfolgreich eingespielt.")}>Die tenantgebundenen Datenbanktabellen werden durch <strong className="text-gray-200">{dialog.backup.name}</strong> ersetzt. Die Binärdateien in Garage bleiben unverändert; ihre Metadaten stammen anschließend aus dem Backup.</ConfirmDialog>}
+        {dialog?.type === "restoreShopDatabase" && <ConfirmDialog title="Shop-Datenbank wiederherstellen?" confirmLabel="Shop-Katalog ersetzen" dangerous typed busy={busy} onCancel={() => setDialog(null)} onConfirm={() => void run(() => restoreStorageBackup(dialog.backup.id), "Shop-Datenbank-Backup wurde erfolgreich eingespielt.")}>Der aktuelle interne Artikelkatalog wird durch <strong className="text-gray-200">{dialog.backup.name}</strong> ersetzt. Alle Kunden-, Projekt- und Bestelldaten bleiben unverändert.</ConfirmDialog>}
         {dialog?.type === "import" && <ConfirmDialog title="Externes Backup einspielen?" confirmLabel="Datei einspielen" dangerous typed busy={busy} onCancel={() => setDialog(null)} onConfirm={() => void run(() => importStorageBackup(dialog.file), "Backup-Datei wurde erfolgreich eingespielt.")}>Die Datei <strong className="text-gray-200">{dialog.file.name}</strong> ersetzt den aktuellen Stand. Struktur, Version und Tenant-Zugehörigkeit des Archivformats werden vor dem Restore geprüft.</ConfirmDialog>}
         {dialog?.type === "importDatabase" && <ConfirmDialog title="Externes Datenbank-Backup einspielen?" confirmLabel="Datenbank einspielen" dangerous typed busy={busy} onCancel={() => setDialog(null)} onConfirm={() => void run(() => importDatabaseBackup(dialog.file), "Datenbank-Backup wurde erfolgreich eingespielt.")}>Die Datei <strong className="text-gray-200">{dialog.file.name}</strong> ersetzt die tenantgebundenen Datenbanktabellen. Garage-Dateien werden nicht überschrieben oder gelöscht.</ConfirmDialog>}
+        {dialog?.type === "importShopDatabase" && <ConfirmDialog title="Externes Shop-Datenbank-Backup einspielen?" confirmLabel="Shop-Katalog einspielen" dangerous typed busy={busy} onCancel={() => setDialog(null)} onConfirm={() => void run(() => importShopDatabaseBackup(dialog.file), "Shop-Datenbank-Backup wurde erfolgreich eingespielt.")}>Die Datei <strong className="text-gray-200">{dialog.file.name}</strong> ersetzt ausschließlich den internen Artikelkatalog. Sie darf auch aus einem anderen Unternehmen stammen; Kunden-, Projekt- und Bestelldaten werden nicht verändert.</ConfirmDialog>}
         {dialog?.type === "deleteBackup" && <ConfirmDialog title="Backup löschen?" confirmLabel="Backup löschen" dangerous busy={busy} onCancel={() => setDialog(null)} onConfirm={() => void run(() => deleteStorageBackup(dialog.backup.id), "Backup wurde gelöscht.")}>Das Archiv <strong className="text-gray-200">{dialog.backup.name}</strong> wird dauerhaft aus Garage gelöscht.</ConfirmDialog>}
     </div>;
 }

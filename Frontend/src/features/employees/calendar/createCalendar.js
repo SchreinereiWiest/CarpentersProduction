@@ -1,4 +1,4 @@
-import { createId, getCalendarWeek } from "./helper.js";
+import { createId, formatLocalDate, getCalendarWeek } from "./helper.js";
 
     export function createCalendarEntry(timeEntry, block, dayId, slotId) {
 
@@ -62,7 +62,9 @@ import { createId, getCalendarWeek } from "./helper.js";
 
         date.setDate(weekStart.getDate() + index);
 
-        const dateString = date.toISOString().split("T")[0];
+        // Kalendertage sind lokale Arbeitstage. Eine UTC-Konvertierung würde
+        // sie in positiven Zeitzonen auf den vorherigen Tag verschieben.
+        const dateString = formatLocalDate(date);
 
         week.push({
             day: day.id,

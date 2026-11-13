@@ -13,6 +13,7 @@ import {
   TONE_MAPPING_EXPOSURE
 } from "./lighting/lightingConfig.js";
 import StudioEnvironment from "./lighting/StudioEnvironment.jsx";
+import { useTheme } from "@app/theme/ThemeContext.js";
 
 function CadGroup({ parent, selected, onSelect }) {
   const [hovered, setHovered] = useState(false);
@@ -63,11 +64,17 @@ function GlbModel({ url }) {
 }
 
 export default function AufmasThreeView({ files = [] }) {
+  const { theme } = useTheme();
   const [content, setContent] = useState([]);
   const [glbUrl, setGlbUrl] = useState("");
   const [selected, setSelected] = useState(null);
   const [lightDirection, setLightDirection] = useState(DEFAULT_LIGHT_DIRECTION);
   const [lightStrength, setLightStrength] = useState(DEFAULT_LIGHT_STRENGTH);
+  const isLightTheme = theme === "light";
+  const sceneBackground = isLightTheme ? "#eef1ef" : "#111820";
+  const gridColors = isLightTheme
+    ? ["#b8c5be", "#d7ded9"]
+    : ["#36516b", "#263746"];
   const glbFile = useMemo(
     () => files.find((file) => file.fileName?.toLowerCase().endsWith(".glb")),
     [files]
@@ -146,7 +153,7 @@ export default function AufmasThreeView({ files = [] }) {
           toneMappingExposure: TONE_MAPPING_EXPOSURE
         }}
       >
-        <color attach="background" args={["#111820"]} />
+        <color attach="background" args={[sceneBackground]} />
         <StudioEnvironment />
         <ambientLight intensity={0.025} />
         <hemisphereLight args={["#dcecff", "#241b14", 0.12]} />
@@ -200,7 +207,7 @@ export default function AufmasThreeView({ files = [] }) {
             frames={1}
           />
         </Suspense>
-        <gridHelper args={[20, 20, "#36516b", "#263746"]} />
+        <gridHelper args={[20, 20, ...gridColors]} />
         <OrbitControls makeDefault />
       </Canvas>
       <LightSettingsPanel

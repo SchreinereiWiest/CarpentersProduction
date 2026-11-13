@@ -6,6 +6,7 @@ import {
 } from "../../../../Engine/src/calculation/estimation.mjs";
 import {
   buildCalculationSnapshot,
+  buildManualCalculationSnapshot,
   snapshotToEstimationCandidate,
   summarizePartList
 } from "../../../../Engine/src/calculation/snapshots.mjs";
@@ -160,6 +161,88 @@ export async function releaseProjectCalculationSnapshot({ projectId, releasedByI
   });
 }
 
+export async function createManualCalculationSnapshot({ input, releasedById }) {
+  const data = buildManualCalculationSnapshot(input);
+  return prisma.$transaction(async transaction => {
+    const snapshot = await transaction.calculationSnapshot.create({
+      data: { ...data, projectId: null, releasedById }
+    });
+    await transaction.auditLog.create({
+      data: {
+        actorUserId: releasedById,
+        action: "calculation.snapshot.manual.create",
+        entityType: "calculationSnapshot",
+        entityId: snapshot.id,
+        metadata: {
+          projectTitle: data.projectTitle,
+          actualHours: data.actualHours
+        }
+      }
+    });
+    return snapshot;
+  });
+}
+
+export async function updateManualCalculationSnapshot({ id, input, releasedById }) {
+  const existing = await prisma.calculationSnapshot.findFirst({
+    where: { id, projectId: null }
+  });
+  if (!existing) {
+    const error = new Error("Manuelle Nachkalkulation nicht gefunden.");
+    error.statusCode = 404;
+    error.code = "MANUAL_SNAPSHOT_NOT_FOUND";
+    throw error;
+  }
+  const data = buildManualCalculationSnapshot(input);
+  return prisma.$transaction(async transaction => {
+    const snapshot = await transaction.calculationSnapshot.update({
+      where: { id },
+      data: { ...data, projectId: null, releasedById, releasedAt: new Date() }
+    });
+    await transaction.auditLog.create({
+      data: {
+        actorUserId: releasedById,
+        action: "calculation.snapshot.manual.update",
+        entityType: "calculationSnapshot",
+        entityId: snapshot.id,
+        metadata: {
+          projectTitle: data.projectTitle,
+          actualHours: data.actualHours
+        }
+      }
+    });
+    return snapshot;
+  });
+}
+
+export async function deleteManualCalculationSnapshot({ id, deletedById }) {
+  const existing = await prisma.calculationSnapshot.findFirst({
+    where: { id, projectId: null }
+  });
+  if (!existing) {
+    const error = new Error("Manuelle Nachkalkulation nicht gefunden.");
+    error.statusCode = 404;
+    error.code = "MANUAL_SNAPSHOT_NOT_FOUND";
+    throw error;
+  }
+  return prisma.$transaction(async transaction => {
+    await transaction.calculationSnapshot.delete({ where: { id } });
+    await transaction.auditLog.create({
+      data: {
+        actorUserId: deletedById,
+        action: "calculation.snapshot.manual.delete",
+        entityType: "calculationSnapshot",
+        entityId: id,
+        metadata: {
+          projectTitle: existing.projectTitle,
+          actualHours: existing.actualHours
+        }
+      }
+    });
+    return existing;
+  });
+}
+
 export async function findApprovedSnapshotCandidates({ project, cabinets, partList, excludeProjectId, settings }) {
   const normalizedSettings = normalizeEstimationSettings(settings);
   const current = {
@@ -168,7 +251,13 @@ export async function findApprovedSnapshotCandidates({ project, cabinets, partLi
     listSummary: summarizePartList(partList)
   };
   const indexed = await prisma.calculationSnapshot.findMany({
-    where: { projectId: { not: excludeProjectId }, actualHours: { gt: 0 } },
+    where: {
+      actualHours: { gt: 0 },
+      OR: [
+        { projectId: null },
+        { projectId: { not: excludeProjectId } }
+      ]
+    },
     orderBy: { releasedAt: "desc" },
     take: normalizedSettings.candidatePoolSize
   });
@@ -221,6 +310,7 @@ export function presentCalculationSnapshot(snapshot) {
   return {
     id: snapshot.id,
     projectId: snapshot.projectId,
+    source: snapshot.projectId ? "project" : "manual",
     schemaVersion: snapshot.schemaVersion,
     sourceVersion: snapshot.sourceVersion,
     projectTitle: snapshot.projectTitle,

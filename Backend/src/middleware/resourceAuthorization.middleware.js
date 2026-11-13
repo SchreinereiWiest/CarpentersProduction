@@ -7,7 +7,12 @@ const missing = (res, resource) => res.status(404).json({ message: `${resource} 
 
 export const projectAccessWhere = user => isPrivileged(user)
     ? {}
-    : { status: "active" };
+    : {
+        OR: [
+            { status: "active" },
+            { createdById: user?.id }
+        ]
+    };
 
 export const authorizeProject = (parameter = "id") => async (req, res, next) => {
     const project = await prisma.project.findFirst({
@@ -49,6 +54,27 @@ export const authorizeCustomerBody = (field = "customerId") => async (req, res, 
     return authorizeCustomer("authorizationCustomerId")(req, res, next);
 };
 
+export const customerReferenceWhere = id => ({
+    id,
+    deletedAt: null
+});
+
+export const authorizeCustomerReference = (parameter = "id") => async (req, res, next) => {
+    const customer = await prisma.customer.findFirst({
+        where: customerReferenceWhere(req.params[parameter]),
+        select: { id: true }
+    });
+
+    if (!customer) return missing(res, "Customer");
+    req.authorizedCustomer = customer;
+    next();
+};
+
+export const authorizeCustomerReferenceBody = (field = "customerId") => async (req, res, next) => {
+    req.params.authorizationCustomerId = req.body[field];
+    return authorizeCustomerReference("authorizationCustomerId")(req, res, next);
+};
+
 export const canAccessFile = (user, file, { allowSharedShop = false } = {}) => {
     if (isPrivileged(user)) return true;
     if (file.category === 'management-document') return false;
@@ -56,7 +82,10 @@ export const canAccessFile = (user, file, { allowSharedShop = false } = {}) => {
     if (allowSharedShop && file.category === "shop") return true;
 
     if (file.project) {
-        return file.project.status === "active" && !file.project.deletedAt;
+        return !file.project.deletedAt && (
+            file.project.status === "active"
+            || file.project.createdById === user.id
+        );
     }
 
     return file.uploadedById === user.id
@@ -73,7 +102,7 @@ export const authorizeFile = (parameter = "id", options = {}) => async (req, res
             id: true,
             category: true,
             uploadedById: true,
-            project: { select: { status: true, deletedAt: true } },
+            project: { select: { status: true, deletedAt: true, createdById: true } },
             customer: { select: { createdById: true } }
         }
     });

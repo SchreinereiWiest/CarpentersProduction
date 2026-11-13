@@ -4,7 +4,7 @@ import { canAccessRequiredRole } from "./roleAuthorization.js";
 
 // User überprüfen und bei fehlendem User auf Login Seite weiterleiten
 
-export default function ProtectedElement({ children, requiredRole }) {
+export default function ProtectedElement({ children, requiredRole, requiredFeature, requiredFeatures = [] }) {
 
     const { user, loading } = useAuth();
 
@@ -24,6 +24,12 @@ export default function ProtectedElement({ children, requiredRole }) {
 
     
     if (!canAccessRequiredRole(user.role, requiredRole)) {
+        return <></>;
+    }
+
+    const features = new Set(user.features || []);
+    const neededFeatures = requiredFeature ? [requiredFeature, ...requiredFeatures] : requiredFeatures;
+    if (neededFeatures.some(feature => !features.has(feature))) {
         return <></>;
     }
     return children;

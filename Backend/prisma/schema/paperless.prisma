@@ -1,0 +1,99 @@
+model PaperlessConfiguration {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @unique @map("tenant_id") @db.Uuid
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  baseUrl      String  @map("base_url")
+  enabled      Boolean @default(false)
+  autoAssignQr Boolean @default(true) @map("auto_assign_qr")
+
+  lastConnectedAt   DateTime? @map("last_connected_at")
+  lastConnectionError String? @map("last_connection_error")
+  lastRemoteDocumentId Int?      @map("last_remote_document_id")
+  lastSyncAt            DateTime? @map("last_sync_at")
+  lastSyncError         String?   @map("last_sync_error")
+
+  folders   PaperlessFolder[]
+  documents PaperlessDocument[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, id])
+  @@map("paperless_configurations")
+}
+
+model PaperlessFolder {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  configurationId String                 @map("configuration_id") @db.Uuid
+  configuration   PaperlessConfiguration @relation(fields: [configurationId], references: [id], onDelete: Cascade)
+
+  name      String
+  sortOrder Int    @default(0) @map("sort_order")
+
+  documents PaperlessDocument[]
+  files     File[] @relation("ManagementDocumentFolderFiles")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, name])
+  @@index([configurationId, sortOrder])
+  @@map("paperless_folders")
+}
+
+model PaperlessDocument {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  configurationId String                 @map("configuration_id") @db.Uuid
+  configuration   PaperlessConfiguration @relation(fields: [configurationId], references: [id], onDelete: Cascade)
+
+  remoteDocumentId Int  @map("remote_document_id")
+  remoteVersionId  Int? @map("remote_version_id")
+
+  title            String
+  originalFileName String? @map("original_file_name")
+  mimeType         String? @map("mime_type")
+  checksum         String?
+  documentType     String? @map("document_type")
+  correspondent    String?
+  remoteCreatedAt  DateTime? @map("remote_created_at")
+  remoteAddedAt    DateTime? @map("remote_added_at")
+  remoteModifiedAt DateTime? @map("remote_modified_at")
+  remoteMetadata   Json? @map("remote_metadata")
+
+  status           String  @default("inbox")
+  qrStatus         String  @default("queued") @map("qr_status")
+  qrPayload        Json?   @map("qr_payload")
+  qrError          String? @map("qr_error")
+  assignmentSource String? @map("assignment_source")
+
+  customerId String? @map("customer_id") @db.Uuid
+  projectId  String? @map("project_id") @db.Uuid
+  folderId   String? @map("folder_id") @db.Uuid
+
+  customer Customer?        @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  project  Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  folder   PaperlessFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
+  linkedById String? @map("linked_by") @db.Uuid
+  linkedBy   User?   @relation(fields: [linkedById], references: [id], onDelete: SetNull)
+
+  receivedAt DateTime  @default(now()) @map("received_at")
+  linkedAt   DateTime? @map("linked_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, remoteDocumentId])
+  @@index([status, receivedAt])
+  @@index([projectId, linkedAt])
+  @@index([customerId, linkedAt])
+  @@index([folderId, linkedAt])
+  @@map("paperless_documents")
+}

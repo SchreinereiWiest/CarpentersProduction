@@ -1,6 +1,11 @@
 import { DEFAULT_CNC } from "../cncDefaults.js";
 import { createId } from "../../../shared/id.js";
 import { flattenTree } from "../../../shared/tree.js";
+import { createDrawerProgramsFromLegacy } from "../../sektions/front/frontAttachments.js";
+import {
+    MACHINING_SCHEMA_VERSION,
+    assertNeutralMachiningOperation
+} from "../../../postprocessor/machiningModel.js";
 
 export const getOperationSignature = (operation) => {
     const geometry = { ...(operation ?? {}) };
@@ -19,6 +24,7 @@ export const addOperation = (part, operation) => {
     }
 
     ensureCnc(part);
+    assertNeutralMachiningOperation(operation);
 
     const signature =
         getOperationSignature(operation);
@@ -53,11 +59,14 @@ export { createId };
 
 
 export const createEmptyCnc = () => ({
-    version: 1,
+    version: MACHINING_SCHEMA_VERSION,
 
     coordinateSystem: {
         unit: "mm",
-        origin: "top-left"
+        origin: "top-left",
+        xAxis: "right",
+        yAxis: "down",
+        depthDirection: "into-material"
     },
 
     operations: []
@@ -70,6 +79,10 @@ export const ensureCnc = (part) => {
 
     if (!part.CNC) {
         part.CNC = createEmptyCnc();
+    } else {
+        const emptyCnc = createEmptyCnc();
+        part.CNC.version = emptyCnc.version;
+        part.CNC.coordinateSystem = emptyCnc.coordinateSystem;
     }
 
     if (!Array.isArray(part.CNC.operations)) {
@@ -94,6 +107,11 @@ export const getCncConfig = (cabinet, defaultConfig) => {
     const custom = defaultConfig?.cncDefault ?? defaultConfig ?? {};
 
     return {
+
+        machiningAssignments: {
+            ...DEFAULT_CNC.machiningAssignments,
+            ...(custom.machiningAssignments ?? {})
+        },
 
         spax: {
             ...DEFAULT_CNC.spax,
@@ -134,6 +152,38 @@ export const getCncConfig = (cabinet, defaultConfig) => {
             materials: {
                 ...DEFAULT_CNC.legrabox.materials,
                 ...(custom.legrabox?.materials ?? {})
+            }
+        },
+
+        fronts: {
+            ...DEFAULT_CNC.fronts,
+            ...(custom.fronts ?? {}),
+            drawer: {
+                ...DEFAULT_CNC.fronts.drawer,
+                ...(custom.fronts?.drawer ?? {}),
+                programs: Array.isArray(custom.fronts?.drawer?.programs) ||
+                    Array.isArray(custom.fronts?.drawer?.groups) ||
+                    Array.isArray(custom.fronts?.drawer?.holes)
+                    ? createDrawerProgramsFromLegacy(custom.fronts.drawer)
+                    : DEFAULT_CNC.fronts.drawer.programs
+            },
+            door: {
+                ...DEFAULT_CNC.fronts.door,
+                ...(custom.fronts?.door ?? {}),
+                cup: {
+                    ...DEFAULT_CNC.fronts.door.cup,
+                    ...(custom.fronts?.door?.cup ?? {})
+                },
+                auxiliaryHoles: Array.isArray(custom.fronts?.door?.auxiliaryHoles)
+                    ? custom.fronts.door.auxiliaryHoles
+                    : DEFAULT_CNC.fronts.door.auxiliaryHoles,
+                corpus: {
+                    ...DEFAULT_CNC.fronts.door.corpus,
+                    ...(custom.fronts?.door?.corpus ?? {}),
+                    centerOffsets: Array.isArray(custom.fronts?.door?.corpus?.centerOffsets)
+                        ? custom.fronts.door.corpus.centerOffsets
+                        : DEFAULT_CNC.fronts.door.corpus.centerOffsets
+                }
             }
         },
 

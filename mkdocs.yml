@@ -60,6 +60,7 @@ nav:
       - Routing & Authentifizierung: frontend/routing-auth.md
       - State, API & Cache: frontend/state-data.md
       - Seiten & Komponenten: frontend/pages-components.md
+      - UI-/UX-Konzept: frontend/ui-ux-concept.md
       - Projektmodule: frontend/project-modules.md
       - Management & Betriebskalkulation: frontend/management.md
       - Funktionsreferenz: frontend/functions.md
@@ -90,11 +91,14 @@ nav:
       - Installation & Konfiguration: backend/installation.md
       - API-Referenz: backend/api.md
       - Authentifizierung: backend/authentication.md
+      - Lizenzierung: backend/licensing.md
       - Kunden: backend/customers.md
+      - FreePBX-/Asterisk-Telefonintegration: backend/freepbx.md
       - Projekte & Archive: backend/projects.md
       - Zeiterfassung: backend/time-tracking.md
       - Benutzer: backend/users.md
       - Dateien, Material & Einstellungen: backend/files-storage-settings.md
+      - Paperless-ngx-Integration: backend/paperless.md
       - Funktionsreferenz: backend/functions.md
       - Sicherheit & bekannte Risiken: backend/security.md
   - Datenbank: database/index.md

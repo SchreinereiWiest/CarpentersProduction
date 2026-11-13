@@ -47,3 +47,46 @@ Die Feldfreigabe ist rollenbasiert:
 
 - `admin` und `manager` erhalten die vollständigen Kundendaten.
 - `user` erhält nur `id`, `customerNumber`, Vorname, Nachname, Firma und Kundenstatus. Kontaktdaten, Bewertung, Quelle und Notizen werden nicht ausgegeben.
+
+## Automatischer Kontaktverlauf per IMAP
+
+Unter `Firmeneinstellungen → Advanced → Kontaktverlauf` kann ein Admin ein
+IMAP-Postfach verbinden. Die Endpunkte liegen unter
+`/api/contact-history` und benötigen die CRM-Lizenzfunktion sowie die
+Admin-Rolle.
+
+- `INBOX` und der automatisch über `\\Sent` beziehungsweise bekannte Namen
+  erkannte Gesendet-Ordner werden über IMAPS/TLS auf Port 993 ausschließlich
+  im Nur-Lese-Modus geöffnet. Beide Ordner besitzen einen getrennten
+  UIDVALIDITY-/UID-Cursor.
+- Absender-, Empfänger- und CC-Adressen werden normalisiert und mit der
+  E-Mail-Adresse nicht gelöschter Kunden desselben Mandanten verglichen.
+- Treffer werden als `Communication` mit `source = imap` dedupliziert und
+  unveränderlich im CRM-Kontaktverlauf angezeigt.
+- Nachrichten vom Kunden werden links, eigene Nachrichten an den Kunden rechts
+  dargestellt. Der kompakte Verlauf scrollt innerhalb einer begrenzten Höhe;
+  für große Historien steht ein durchscrollbares Vollbild-Modal zur Verfügung.
+- Anhänge werden nur als Metadaten übernommen. Ist Paperless aktiv, erzeugt
+  die Oberfläche eine Paperless-Suche nach dem Dateinamen; Binärdaten werden
+  nicht doppelt im CRM gespeichert.
+- Der Scheduler legt lediglich die Mandanten-ID in Valkey ab. Der separate
+  `contact-history-worker` entschlüsselt das App-Passwort erst im
+  Mandantenkontext und führt den Abruf aus.
+
+Beim erstmaligen Abruf wird der konfigurierte Zeitraum (7 bis 365 Tage)
+eingelesen. Danach begrenzen `UIDVALIDITY` und die letzte verarbeitete UID den
+inkrementellen Abruf. Fehler führen zu einem exponentiell verlängerten
+Wiederholungsintervall bis maximal 60 Minuten.
+
+## Telefonverlauf per FreePBX / Asterisk
+
+Unter demselben Einstellungsreiter kann ein Admin signierte Webhooks für
+eingehende Asterisk-Anrufe aktivieren. Während des Klingelns erscheinen bekannte
+Kunden global in einem Anruf-Modal; eine Statusleiste bleibt während des aktiven
+Gesprächs auch beim View-Wechsel erreichbar. Sie liegt im normalen Seitenfluss
+und verkleinert die Arbeitsfläche, statt Inhalte zu überdecken.
+
+Nach dem Auflegen wird der Anruf zeitlich zwischen den E-Mails im CRM-Verlauf
+einsortiert. Dauer und Rufnummer stammen aus dem Asterisk-Ereignis; der
+Gesprächsinhalt kann anschließend manuell erfasst werden. Technischer Vertrag
+und Einrichtung stehen unter [FreePBX-/Asterisk-Telefonintegration](freepbx.md).

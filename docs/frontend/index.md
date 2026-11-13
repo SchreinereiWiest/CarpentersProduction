@@ -55,6 +55,7 @@ Frontend/src/
 - [Routing & Authentifizierung](routing-auth.md)
 - [State, API & Cache](state-data.md)
 - [Seiten & Komponenten](pages-components.md)
+- [UI-/UX-Konzept](ui-ux-concept.md)
 - [Projektmodule](project-modules.md)
 - [Funktionsreferenz](functions.md)
 - [Risiken & Qualitätsregeln](quality.md)

@@ -13,6 +13,9 @@ export async function getCurrentLicense(req, res) {
 export async function activateCurrentLicense(req, res) {
     const licenseKey = String(req.body?.licenseKey ?? "").trim();
     if (!licenseKey) return res.status(400).json({ error: "Lizenzschlüssel ist erforderlich" });
+    if (licenseKey.length > 16_384) {
+        return res.status(400).json({ error: "Lizenzschlüssel ist zu lang" });
+    }
 
     const license = await activateLicense(req.tenant, licenseKey);
     res.json({ tenant: req.tenant, license });

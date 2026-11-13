@@ -45,6 +45,26 @@ export const saveProcurementCatalog = async payload => {
     return response.data;
 };
 
+export const loadArticleCatalog = async () => {
+    const response = await axios.get("/api/shop/article-catalog");
+    return response.data ?? { version: 1, entries: [] };
+};
+
+export const saveArticleCatalog = async entries => {
+    const response = await axios.put("/api/shop/article-catalog", { version: 1, entries });
+    return response.data;
+};
+
+export const fetchArticleCatalogShopData = async selection => {
+    const response = await axios.post("/api/shop/article-catalog/fetch", selection || {});
+    return response.data;
+};
+
+export const saveBrowserExtensionResults = async results => {
+    const response = await axios.post("/api/shop/article-catalog/browser-results", { results });
+    return response.data;
+};
+
 export const loadShopSettings = async () => {
     try {
         const response = await axios.get("/api/shop/settings");
@@ -57,6 +77,13 @@ export const loadShopSettings = async () => {
 
 export const saveShopSettings = async payload => {
     const response = await axios.put("/api/shop/settings", payload);
+    return response.data;
+};
+
+export const uploadSupplierDatanorm = async (supplierId, files) => {
+    const formData = new FormData();
+    for (const file of files) formData.append("files", file);
+    const response = await axios.post(`/api/shop/settings/suppliers/${supplierId}/datanorm`, formData);
     return response.data;
 };
 
@@ -73,4 +100,58 @@ export const uploadShopImage = async file => {
 export const loadShopImageUrl = async fileId => {
     if (!fileId) return null;
     return getS3FileUrl({ id: fileId });
+};
+
+export const loadPurchaseLists = async () => {
+    const response = await axios.get("/api/shop/lists");
+    return response.data?.lists ?? [];
+};
+
+export const createPurchaseList = async payload => {
+    const response = await axios.post("/api/shop/lists", payload);
+    return response.data?.lists ?? [];
+};
+
+export const updatePurchaseList = async (id, payload) => {
+    const response = await axios.put(`/api/shop/lists/${id}`, payload);
+    return response.data?.lists ?? [];
+};
+
+export const deletePurchaseList = id => axios.delete(`/api/shop/lists/${id}`);
+
+export const releasePurchaseList = async id => {
+    const response = await axios.post(`/api/shop/lists/${id}/release`);
+    return response.data;
+};
+
+export const loadNonProjectPurchases = async status => {
+    const response = await axios.get("/api/shop/non-project-purchases", { params: status ? { status } : {} });
+    return response.data?.items ?? [];
+};
+
+export const processNonProjectPurchases = async (ids, action) => {
+    const response = await axios.patch("/api/shop/non-project-purchases/process", { ids, action });
+    return response.data;
+};
+
+export const loadArticleArchive = async () => {
+    const response = await axios.get("/api/shop/archive");
+    return response.data?.entries ?? [];
+};
+
+export const createArticleArchiveEntry = async payload => {
+    const response = await axios.post("/api/shop/archive", payload);
+    return response.data?.entries ?? [];
+};
+
+export const updateArticleArchiveEntry = async (id, payload) => {
+    const response = await axios.put(`/api/shop/archive/${id}`, payload);
+    return response.data?.entries ?? [];
+};
+
+export const deleteArticleArchiveEntry = id => axios.delete(`/api/shop/archive/${id}`);
+
+export const activateArticleArchiveEntry = async id => {
+    const response = await axios.post(`/api/shop/archive/${id}/activate`);
+    return response.data;
 };

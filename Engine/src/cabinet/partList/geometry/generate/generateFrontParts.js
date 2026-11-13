@@ -15,11 +15,20 @@ export const generateFrontParts = ({
     const fronts =
         getLeafFronts(
             cabinet.fronts ?? []
-        );
+        ).filter(front => !front.isRemoved);
+
+    const hasHorizontalGrain =
+        cabinet.frontGrainDirection === "horizontal";
 
 
     fronts.forEach(
         (front, index) => {
+
+            const isDoor =
+                front.attachment?.type === "door";
+
+            const lengthOnDx =
+                isDoor || !hasHorizontalGrain;
 
             const frontThickness =
                 Number(
@@ -59,12 +68,16 @@ export const generateFrontParts = ({
 
                     L:
                         Number(
-                            front.height
+                            lengthOnDx
+                                ? front.height
+                                : front.width
                         ),
 
                     B:
                         Number(
-                            front.width
+                            lengthOnDx
+                                ? front.width
+                                : front.height
                         ),
 
                     T:
@@ -113,7 +126,12 @@ export const generateFrontParts = ({
                             "front",
 
                         frontId:
-                            front.id
+                            front.id,
+
+                        orientation:
+                            lengthOnDx
+                                ? "lengthOnDx"
+                                : "widthOnDx"
                     }
                 })
             );

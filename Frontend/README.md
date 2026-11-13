@@ -1,5 +1,17 @@
 # React + Vite
 
+## Themes
+
+Dark und Light Mode werden zentral unter `src/app/theme/` verwaltet:
+
+- `theme.css` enthält alle Farb-Tokens und die Kompatibilitätszuordnung für bestehende Tailwind-Gray-Klassen.
+- `theme.js` verwaltet gültige Theme-IDs sowie die lokale Persistenz.
+- `ThemeProvider.jsx` stellt das aktive Theme in React bereit.
+
+Neue Oberflächen sollten bevorzugt die `--theme-*` Variablen oder die
+`theme-*` Hilfsklassen verwenden. Die Theme-Auswahl befindet sich unter
+Firmeneinstellungen → Benutzeroberfläche und wird pro Browser gespeichert.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

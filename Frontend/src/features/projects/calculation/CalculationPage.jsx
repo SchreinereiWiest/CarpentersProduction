@@ -22,6 +22,7 @@ const money = new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR
 const decimal = new Intl.NumberFormat("de-DE", { maximumFractionDigits: 2 });
 
 const DEFAULT_MARKUPS = {
+  profitPercent: 20,
   cashDiscountPercent: 0,
   customerDiscountPercent: 0,
   vatPercent: 19
@@ -132,6 +133,7 @@ function CalculationRows({ result, full = false }) {
     ["Herstellungskosten der Erzeugung (HKdE)", result.productionCosts, true],
     [`Verwaltungsgemeinkosten (${decimal.format(result.administrationOverheadPercent)} %)`, result.administrationOverheadAmount],
     ["Herstellungskosten", result.manufacturingCosts, true],
+    [`Gewinnzuschlag (${decimal.format(result.profitPercent)} %)`, result.profitAmount],
     ["Barverkaufspreis", result.cashSellingPrice, true],
     [`Skonto (${decimal.format(result.cashDiscountPercent)} %)`, result.cashDiscountAmount],
     ["Zielverkaufspreis", result.targetSellingPrice, true],
@@ -144,6 +146,7 @@ function CalculationRows({ result, full = false }) {
     [`Materialzuschlag (${decimal.format(result.materialSurchargePercent)} %)`, result.materialSurchargeAmount],
     ["Materialkosten", result.materialCosts, true],
     [`Fertigung (${decimal.format(result.hours)} h × ${money.format(result.hourlyRate)})`, result.laborCosts],
+    [`Gewinnzuschlag (${decimal.format(result.profitPercent)} %)`, result.profitAmount],
     ["Barverkaufspreis", result.cashSellingPrice, true],
     [`Skonto (${decimal.format(result.cashDiscountPercent)} %)`, result.cashDiscountAmount],
     ["Zielverkaufspreis", result.targetSellingPrice, true],
@@ -176,7 +179,8 @@ function MarkupFields({ values, onChange }) {
     value === "" ? "" : Math.min(99.99, nonNegativeNumber(value))
   );
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <NumberInput label="Gewinnzuschlag" ariaLabel="Gewinnzuschlag" suffix="%" value={values.profitPercent} onChange={value => onChange("profitPercent", value)} />
       <NumberInput label="Skonto" suffix="%" max="99.99" value={values.cashDiscountPercent} onChange={changeDeduction("cashDiscountPercent")} />
       <NumberInput label="Rabatt" suffix="%" max="99.99" value={values.customerDiscountPercent} onChange={changeDeduction("customerDiscountPercent")} />
       <NumberInput label="Mehrwertsteuer" suffix="%" value={values.vatPercent} onChange={value => onChange("vatPercent", value)} />
@@ -368,7 +372,7 @@ function VarianceSummary({ preMode, quick, full, post }) {
     : full.costCenters.reduce((sum, row) => sum + nonNegativeNumber(row.hours), 0);
   const actualHours = post.costCenters.reduce((sum, row) => sum + nonNegativeNumber(row.hours), 0);
   const plannedCosts = preMode === "quick"
-    ? calculateQuick(quick).cashSellingPrice
+    ? calculateQuick(quick).materialCosts + calculateQuick(quick).laborCosts
     : calculateFull(full).manufacturingCosts;
   const actualCosts = calculateFull(post).manufacturingCosts;
   const cards = [

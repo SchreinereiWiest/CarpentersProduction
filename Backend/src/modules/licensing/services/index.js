@@ -1,6 +1,7 @@
 import { DatabaseLicenseProvider } from "./DatabaseLicenseProvider.js";
 import { DevelopmentLicenseProvider } from "./DevelopmentLicenseProvider.js";
 import { LicenseError } from "./LicenseProvider.js";
+import { RemoteLicenseProvider } from "./RemoteLicenseProvider.js";
 
 const CACHE_TTL_MS = Number(process.env.LICENSE_CACHE_TTL_MS) || 5 * 60 * 1000;
 
@@ -17,6 +18,7 @@ function configuredProvider() {
 
   if (name === "development") return new DevelopmentLicenseProvider();
   if (name === "database") return new DatabaseLicenseProvider();
+  if (name === "remote") return new RemoteLicenseProvider();
   throw new Error(`Unsupported LICENSE_PROVIDER: ${name}`);
 }
 

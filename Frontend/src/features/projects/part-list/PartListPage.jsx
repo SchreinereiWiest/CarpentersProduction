@@ -1,39 +1,37 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import SideBar from '../../../shared/components/sideBar.jsx';
 import axios from 'axios';
 import { useNavigate } from 'react-router';
 import { useParams } from 'react-router';
 import { useEffect } from "react";
-import { Link } from "react-router";
 import ProjectBar from '../../../shared/components/projectBar.jsx';
 import { loadCadFile } from '../measurement/import/cadLoader.js';
 import { processContent } from './listProcess.js';
-import { importCadData } from '../legacy-editor/importCAD.js';
 import { createPartsListPDF } from './createPDF.js';
 import {getProjectFile, uploadProjectFile} from "../../../shared/cache/project-cache.js";
 import {downloadFile, uploadJSONFile} from "../../../shared/api/file-api.js";
+import {
+    getProjectRecord,
+    updateLocalProjectRecord
+} from "../../../shared/projects/project-records.js";
 
 function ListMaterial() {
     const navigate = useNavigate();
     const { projectId } = useParams();
 
     const [project, setProject] = useState(null);
-    const [customer, setCustomer] = useState(null);
+    const [notes, setNotes] = useState("");
 
-    const [cadfiles, setcadfiles] = useState([]);
-    const [content, setContent] = useState([]);
     const [processedContent, setProcessedContent] = useState();
 
-    const [loadingGeneratedData, setLoadingGeneratedData] = useState(false);
+    const [updating, setUpdating] = useState(false);
 
-    // Fetch project and customer data when projectId changes
+    // Projektdaten und gespeicherte Notiz laden.
     useEffect(() => {
         const fetchProject = async () => {
-        const { data } = await axios.get(`/api/projects/get/${projectId}`);
-        setProject(data.project);
-
-        const customerdata = await axios.get(`/api/customers/get/${data.project.customerId}`);
-        setCustomer(customerdata.data.customer);
+        const loadedProject = await getProjectRecord(projectId);
+        setProject(loadedProject);
+        setNotes(loadedProject.internalNotes ?? "");
   
     };
 
@@ -41,15 +39,13 @@ function ListMaterial() {
     }, [projectId]);
 
 
-    async function UploadData() {
+    const UploadData = useCallback(async () => {
         // Datei existiert nicht
 
         const cadFiles = project?.files?.filter(file =>
             file.fileName?.startsWith("Planung.json") ||
             file.mimeType?.startsWith("model/gltf-binary")
         ) ?? [];
-
-        setcadfiles(cadFiles);
 
         const load = async () => {
 
@@ -62,7 +58,6 @@ function ListMaterial() {
                 if (!jsonFile) return;
 
                 const result = await loadCadFile(jsonFile);
-                setContent(result);
                 return result;
                 
             };
@@ -89,7 +84,38 @@ function ListMaterial() {
                             uploadFunction: {upload: uploadJSONFile, path:`/api/projects/generated/${projectId}/list`}
                         });
 
+                return response?.data ?? generatedData;
 
+
+    }, [project, projectId]);
+
+    async function handleUpdate() {
+        if (!project || updating) return;
+
+        setUpdating(true);
+
+        try {
+            const data = project.localOnly
+                ? await updateLocalProjectRecord(projectId, { internalNotes: notes })
+                : (await axios.put(`/api/projects/update/${projectId}`, {
+                    customerId: project.customerId,
+                    title: project.title,
+                    description: project.description,
+                    status: project.status,
+                    internalNotes: notes
+                })).data;
+
+            setProject((currentProject) => ({
+                ...currentProject,
+                ...data,
+                files: currentProject.files
+            }));
+            await UploadData();
+        } catch (error) {
+            console.error("Liste und Notizen konnten nicht aktualisiert werden", error);
+        } finally {
+            setUpdating(false);
+        }
     }
 
     //load generated data from server if exists, otherwise create and upload new data
@@ -100,8 +126,6 @@ function ListMaterial() {
         }
 
         const loadGeneratedData = async () => {
-
-            setLoadingGeneratedData(true);
 
             try {
 
@@ -134,10 +158,6 @@ function ListMaterial() {
                     error
                 );
 
-            } finally {
-
-                setLoadingGeneratedData(false);
-
             }
 
         };
@@ -145,17 +165,12 @@ function ListMaterial() {
 
         loadGeneratedData();
 
-    }, [projectId, project]);
+    }, [projectId, UploadData]);
 
 
 const leftItems = processedContent?.filter(
         item => item.Children.length > 0
     );
-
-    const rightItems = processedContent?.filter(
-        item => item.Children.length === 0
-    );
-
 
 return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden overscroll-none">
 
@@ -226,6 +241,11 @@ return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden ove
                                     {child.Herkunftsobjekt && (
                                         <span className="ml-2 text-sm text-gray-400">
                                             ({child.Herkunftsobjekt})
+                                        </span>
+                                    )}
+                                    {(child.CNC?.machiningVariants ?? []).some(variant => variant.mirrorX === true) && (
+                                        <span className="ml-2 rounded bg-blue-950 px-1.5 py-0.5 text-[10px] text-blue-300">
+                                            X-gespiegelt
                                         </span>
                                     )}
                                 </td>
@@ -325,7 +345,8 @@ return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden ove
             </button>
 
             <button
-                onClick={() => UploadData()}
+                onClick={handleUpdate}
+                disabled={updating || !project}
                 className="
                     flex
                     items-center
@@ -342,68 +363,29 @@ return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden ove
                     duration-200
                     hover:bg-gray-700
                     hover:text-white
+                    disabled:cursor-not-allowed
+                    disabled:opacity-50
                 "
             >
-                Update
+                {updating ? "Update …" : "Update"}
             </button>
 
         </div>
 
         {/* 2. Zeile */}
         <h2 className="xl:text-2xl text-lg font-semibold">
-            Einzelteile:
+            Notizen
         </h2>
 
     </div>
 
-                
-
-                <div className="space-y-3 mt-4">
-
-                    {rightItems?.map((item) => (
-
-                    <div key={item.PID} className="rounded-lg bg-gray-800 p-4">
-
-                        <div className="flex justify-between">
-
-                            <span className="font-medium">
-
-                                {item.Objektname}
-                                {item.Herkunftsobjekt && (
-                                    <span className="ml-2 text-sm text-gray-400">
-                                        ({item.Herkunftsobjekt})
-                                    </span>
-                                )}
-
-                            </span>
-
-
-                            <span>
-
-                                x {item.Anzahl}
-
-                            </span>
-
-                        </div>
-
-                        <div className="text-sm text-gray-400 mt-1 flex justify-between">
-
-                            <span>
-                            {item.L} × {item.B} × {item.T}
-                            </span>
-                            <span>
-
-                                {item.MID || "-"}
-
-                            </span>
-
-                        </div>
-
-                    </div>
-
-                    ))}
-
-                </div>
+                <textarea
+                    aria-label="Notizen"
+                    value={notes}
+                    onChange={(event) => setNotes(event.target.value)}
+                    placeholder="Notizen zur Teileliste …"
+                    className="mt-4 min-h-64 w-full resize-y rounded-lg border border-gray-700 bg-gray-800 p-4 text-gray-100 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
 
             </div>
 

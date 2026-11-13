@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { buildPartList } from "@Engine/cabinet/partList/buildPartList.js";
 
 const createRowKey = () => `row:${Date.now()}:${Math.random()}`;
@@ -17,18 +17,28 @@ export default function CabinetPresetModal({
     defaultConfig = {},
     dialogTitle = "Cabinet-Preset speichern",
     saveLabel = "Preset speichern",
+    allowPresetTypeSelection = false,
     onCancel,
-    onSave
+    onSave,
+    onSaveFunction
 }) {
+    const [presetType, setPresetType] = useState("cabinet");
     const [name, setName] = useState(initialName);
     const [rows, setRows] = useState([]);
     const [loading, setLoading] = useState(true);
     const [previewError, setPreviewError] = useState("");
     const [saveError, setSaveError] = useState("");
     const [saving, setSaving] = useState(false);
+    const cncProgramHeader = (cabinet?.functionConfig ?? []).find(entry => entry?.type === "cncPrograms");
+    const cncProgramCount = (cncProgramHeader?.recognizedProfiles?.length ?? 0) + (cncProgramHeader?.customPrograms?.length ?? 0);
+    const hasFunctionPresetContent = Boolean(cabinet?.sections?.length || cncProgramCount);
 
     useEffect(() => {
         let cancelled = false;
+
+        if (presetType === "function") {
+            return () => { cancelled = true; };
+        }
 
         const loadPartList = async () => {
             setLoading(true);
@@ -61,7 +71,7 @@ export default function CabinetPresetModal({
         return () => {
             cancelled = true;
         };
-    }, [cabinet, materials, defaultConfig]);
+    }, [cabinet, materials, defaultConfig, presetType]);
 
     const updateRow = (rowKey, changes) => {
         setRows(previous => previous.map(row =>
@@ -88,19 +98,28 @@ export default function CabinetPresetModal({
     };
 
     const save = async () => {
-        if (!name.trim() || loading || saving || previewError) return;
+        const cabinetBlocked = presetType === "cabinet" && (loading || previewError);
+        if (!name.trim() || saving || cabinetBlocked) return;
 
-        const partListPreset = rows.map(({ _editorRowKey, ...part }) => part);
+        const partListPreset = rows.map(row => {
+            const part = { ...row };
+            delete part._editorRowKey;
+            return part;
+        });
         setSaving(true);
         setSaveError("");
         try {
-            await onSave({
-                name: name.trim(),
-                cabinet: {
-                    ...cabinet,
-                    partListPreset
-                }
-            });
+            if (presetType === "function") {
+                await onSaveFunction({ name: name.trim(), cabinet });
+            } else {
+                await onSave({
+                    name: name.trim(),
+                    cabinet: {
+                        ...cabinet,
+                        partListPreset
+                    }
+                });
+            }
         } catch (saveError) {
             console.error("Cabinet-Preset konnte nicht gespeichert werden:", saveError);
             setSaveError("Das Preset konnte nicht gespeichert werden. Bitte versuche es erneut.");
@@ -120,10 +139,12 @@ export default function CabinetPresetModal({
                 <header className="flex items-start justify-between gap-4 border-b border-gray-700 p-5">
                     <div>
                         <h2 id="cabinet-preset-title" className="text-lg font-semibold text-white">
-                            {dialogTitle}
+                            {allowPresetTypeSelection ? "Preset speichern" : dialogTitle}
                         </h2>
                         <p className="mt-1 text-sm text-gray-400">
-                            Vergib einen Namen und passe die erzeugte Teileliste bei Bedarf an.
+                            {presetType === "function"
+                                ? "Speichert Sections und Function Config ohne Korpusmaße."
+                                : "Vergib einen Namen und passe die erzeugte Teileliste bei Bedarf an."}
                         </p>
                     </div>
                     <button type="button" onClick={onCancel} aria-label="Schließen" className="rounded px-2 py-1 text-gray-400 hover:bg-gray-800 hover:text-white">
@@ -132,6 +153,23 @@ export default function CabinetPresetModal({
                 </header>
 
                 <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
+                    {allowPresetTypeSelection && (
+                        <div className="flex w-fit rounded-lg border border-gray-700 bg-gray-950 p-1" role="group" aria-label="Preset-Typ">
+                            {[["cabinet", "Cabinet Preset"], ["function", "Function Preset"]].map(([type, label]) => (
+                                <button
+                                    key={type}
+                                    type="button"
+                                    onClick={() => setPresetType(type)}
+                                    className={`rounded-md px-4 py-2 text-sm font-medium transition ${presetType === type
+                                        ? "bg-blue-600 text-white"
+                                        : "text-gray-400 hover:bg-gray-800 hover:text-gray-200"
+                                    }`}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                    )}
                     <label className="block max-w-lg">
                         <span className="mb-1 block text-xs text-gray-400">Presetname</span>
                         <input
@@ -142,10 +180,15 @@ export default function CabinetPresetModal({
                                 if (event.key === "Enter" && name.trim() && !loading) save();
                             }}
                             className="w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
-                            placeholder="z. B. Unterschrank mit Auszug"
+                            placeholder={presetType === "function" ? "z. B. Drei Auszüge mit Fachboden" : "z. B. Unterschrank mit Auszug"}
                         />
                     </label>
 
+                    {presetType === "function" ? (
+                        <div className="rounded-lg border border-blue-900/70 bg-blue-950/30 p-4 text-sm text-blue-200">
+                            Gespeichert werden {cabinet?.sections?.length ?? 0} Hauptsektionen und {cncProgramCount} CNC-Konfigurationen einschließlich Custom-Programme. Beim Einfügen werden sie an den Zielkorpus übertragen.
+                        </div>
+                    ) : <>
                     <div className="flex items-center justify-between">
                         <div>
                             <h3 className="font-medium text-gray-200">Teileliste</h3>
@@ -215,6 +258,7 @@ export default function CabinetPresetModal({
                             </table>
                         </div>
                     )}
+                    </>}
                     {saveError && (
                         <div role="alert" className="rounded border border-red-900 bg-red-950/40 p-3 text-sm text-red-300">
                             {saveError}
@@ -226,8 +270,8 @@ export default function CabinetPresetModal({
                     <button type="button" onClick={onCancel} className="rounded border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800">
                         Abbrechen
                     </button>
-                    <button type="button" onClick={save} disabled={!name.trim() || loading || saving || Boolean(previewError)} className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
-                        {saving ? "Speichern …" : saveLabel}
+                    <button type="button" onClick={save} disabled={!name.trim() || saving || (presetType === "cabinet" && (loading || Boolean(previewError))) || (presetType === "function" && !hasFunctionPresetContent)} className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">
+                        {saving ? "Speichern …" : presetType === "function" ? "Function Preset speichern" : saveLabel}
                     </button>
                 </footer>
             </section>

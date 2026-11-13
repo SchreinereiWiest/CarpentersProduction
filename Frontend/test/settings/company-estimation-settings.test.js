@@ -20,10 +20,21 @@ describe("company settings", () => {
         }
       }
     })).toMatchObject({
-      schemaVersion: 5,
+      schemaVersion: 8,
       userInterface: {
         showTips: true,
-        lineLockThresholdCm: 5
+        lineLockThresholdCm: 5,
+        measurementLabelSizePercent: 100,
+        measurementLabelOffsetY: -30,
+        measurementFormFieldWidthMm: 32,
+        measurementFormFieldHeightMm: 10,
+        workspaceLayout: "single",
+        workspaceScalePercent: 100,
+        keybindings: {
+          sidebar: "Alt+1",
+          projectBar: "Alt+2",
+          apply: "Ctrl+Enter"
+        }
       },
       estimation: {
         candidatePoolSize: 500,
@@ -52,7 +63,18 @@ describe("company settings", () => {
       userInterface: { showTips: false, lineLockThresholdCm: "7,5" }
     }).userInterface).toEqual({
       showTips: false,
-      lineLockThresholdCm: 7.5
+      lineLockThresholdCm: 7.5,
+      measurementLabelSizePercent: 100,
+      measurementLabelOffsetY: -30,
+      measurementFormFieldWidthMm: 32,
+      measurementFormFieldHeightMm: 10,
+      workspaceLayout: "single",
+      workspaceScalePercent: 100,
+      keybindings: {
+        sidebar: "Alt+1",
+        projectBar: "Alt+2",
+        apply: "Ctrl+Enter"
+      }
     });
   });
 
@@ -60,5 +82,60 @@ describe("company settings", () => {
     expect(normalizeCompanySettings({
       userInterface: { lineLockThresholdCm: -2 }
     }).userInterface.lineLockThresholdCm).toBe(0);
+  });
+
+  it("normalizes the Aufmaß label size and vertical offset", () => {
+    const settings = normalizeCompanySettings({
+      userInterface: {
+        measurementLabelSizePercent: 240,
+        measurementLabelOffsetY: "-42,5"
+      }
+    });
+
+    expect(settings.userInterface.measurementLabelSizePercent).toBe(200);
+    expect(settings.userInterface.measurementLabelOffsetY).toBe(-42.5);
+  });
+
+  it("normalizes the printable measurement field dimensions", () => {
+    const settings = normalizeCompanySettings({
+      userInterface: {
+        measurementFormFieldWidthMm: 12,
+        measurementFormFieldHeightMm: "14,5"
+      }
+    });
+
+    expect(settings.userInterface.measurementFormFieldWidthMm).toBe(20);
+    expect(settings.userInterface.measurementFormFieldHeightMm).toBe(14.5);
+  });
+
+  it("normalizes workspace layout and preserves configured keybindings", () => {
+    const settings = normalizeCompanySettings({
+      userInterface: {
+        workspaceLayout: "grid",
+        workspaceScalePercent: 65,
+        keybindings: {
+          sidebar: "Ctrl+B",
+          projectBar: "Ctrl+P",
+          apply: "Alt+Enter"
+        }
+      }
+    });
+
+    expect(settings.userInterface.workspaceLayout).toBe("grid");
+    expect(settings.userInterface.workspaceScalePercent).toBe(65);
+    expect(settings.userInterface.keybindings).toEqual({
+      sidebar: "Ctrl+B",
+      projectBar: "Ctrl+P",
+      apply: "Alt+Enter"
+    });
+  });
+
+  it("limits the workspace scale to the supported range", () => {
+    expect(normalizeCompanySettings({
+      userInterface: { workspaceScalePercent: 20 }
+    }).userInterface.workspaceScalePercent).toBe(50);
+    expect(normalizeCompanySettings({
+      userInterface: { workspaceScalePercent: "140" }
+    }).userInterface.workspaceScalePercent).toBe(125);
   });
 });

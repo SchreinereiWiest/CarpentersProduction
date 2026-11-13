@@ -15,6 +15,10 @@ import { validateAttachmentSearchSettings } from "../attachment-search/attachmen
 
 export const getSettingsData = async (req, res) => {
 
+    // The response can contain a short-lived presigned S3 URL. It must never
+    // be reused from a browser or intermediary HTTP cache after it expires.
+    res.set("Cache-Control", "no-store");
+
     const {name} = req.params;
 
     let fileName = "";
@@ -26,6 +30,10 @@ export const getSettingsData = async (req, res) => {
 
         case "cabinetPreset":
         fileName = "settings-cabinetPreset.json";
+        break;
+
+        case "functionPreset":
+        fileName = "settings-functionPreset.json";
         break;
 
         case "nesting": 
@@ -121,6 +129,10 @@ export async function createSettingsData(req,res){
 
         case "cabinetPreset":
         fileName = "settings-cabinetPreset.json";
+        break;
+
+        case "functionPreset":
+        fileName = "settings-functionPreset.json";
         break;
 
         case "nesting": 

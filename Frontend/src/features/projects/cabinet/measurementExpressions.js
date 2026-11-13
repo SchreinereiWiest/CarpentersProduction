@@ -189,8 +189,8 @@ const resolveFunctionExpressions = (func, cabinet, variables) => {
     };
 
     if (func.type === "shelf") {
-        const compartmentCount = resolvedValue(expressions, "compartmentCount", variables, { min: 1 });
-        if (compartmentCount !== undefined) update({ compartmentCount });
+        const shelfCount = resolvedValue(expressions, "compartmentCount", variables);
+        if (shelfCount !== undefined) update({ compartmentCount: shelfCount + 1 });
 
         const cabinetDepth = Math.max(0, Number(cabinet.depth ?? 0));
         const shelfDepth = resolvedValue(expressions, "shelfDepth", variables, { max: cabinetDepth });

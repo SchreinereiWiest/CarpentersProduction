@@ -1,25 +1,15 @@
 
 
-const tabs = [
-    {
-        id: "company",
-        label: "Unternehmen"
-    },
-    {
-        id: "estimation",
-        label: "Stundenschätzung"
-    },
-    {
-        id: "ai",
-        label: "AI"
-    },
-    {
-        id: "programSettings",
-        label: "Programmeinstellungen"
-    },
+import { useAuth } from '../../app/providers/AuthContext.js';
+
+export const primarySettingsTabs = [
     {
         id: "userInterface",
         label: "Benutzeroberfläche"
+    },
+    {
+        id: "users",
+        label: "Benutzer"
     },
     {
         id: "cache",
@@ -27,23 +17,26 @@ const tabs = [
     },
     {
         id: "storage",
-        label: "Storage"
-    },
-    {
-        id: "users",
-        label: "Benutzer"
+        label: "Storage",
+        requiredFeature: "work-preparation"
     },
     {
         id: "project",
-        label: "Projekt"
+        label: "Projekt",
+        requiredFeature: "work-preparation"
     },
     {
         id: "cnc",
-        label: "CNC"
+        label: "CNC",
+        requiredFeature: "work-preparation"
     },
     {
-        id: "shop",
-        label: "Shop"
+        id: "programSettings",
+        label: "Programmeinstellungen"
+    },
+    {
+        id: "advanced",
+        label: "Advanced"
     }
 ];
 
@@ -51,6 +44,13 @@ export default function SettingsBar({
     selected,
     onSelect
 }) {
+
+    const { user } = useAuth();
+    const features = new Set(user?.features || []);
+    const visibleTabs = primarySettingsTabs.filter(tab =>
+        (!tab.requiredFeature || features.has(tab.requiredFeature))
+        && (!tab.excludedFeature || !features.has(tab.excludedFeature))
+    );
 
     return (
         <nav aria-label="Einstellungsbereiche" className="settings-bar
@@ -70,10 +70,9 @@ export default function SettingsBar({
                 overflow-x-auto
             ">
 
-                {tabs.map(tab => {
+                {visibleTabs.map(tab => {
 
-                    const active =
-                        selected === tab.id;
+                    const active = selected === tab.id;
 
                     return (
                         <button
@@ -82,19 +81,16 @@ export default function SettingsBar({
                             onClick={() =>
                                 onSelect(tab.id)
                             }
+                            aria-current={active ? "page" : undefined}
                             className={`
                                 h-11
                                 rounded-lg
                                 px-4
                                 text-sm
                                 transition
-
                                 ${
                                     active
-                                        ? `
-                                            bg-gray-900
-                                            text-white
-                                        `
+                                        ? `bg-gray-900 text-white`
                                         : `
                                             text-gray-400
                                             hover:bg-gray-700
@@ -103,7 +99,7 @@ export default function SettingsBar({
                                 }
                             `}
                         >
-                            {tab.label}
+                            <span className="whitespace-nowrap">{tab.label}</span>
                         </button>
                     );
                 })}

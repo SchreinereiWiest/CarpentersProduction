@@ -13,6 +13,7 @@ import { s3Upload, s3Download } from "../infrastructure/storage/s3.js"
 import { enqueueStorageDeletions, processStorageDeletions } from "../infrastructure/storage/storage-deletion.service.js";
 import { getTenantId } from "../infrastructure/database/tenant-context.js";
 import { publishFileChange } from "../modules/files/file-change-events.service.js";
+import { enqueueLocalDocumentQrInspection } from "../modules/paperless/paperless-qr.service.js";
 
 export async function createUpload(req, res) {
 
@@ -193,6 +194,18 @@ export async function createUpload(req, res) {
             fileName: fileEntry.fileName,
             serverVersion: fileEntry.serverVersion
         });
+
+        if (fileEntry.category === "management-document") {
+            try {
+                await enqueueLocalDocumentQrInspection(fileEntry.id);
+            } catch (qrError) {
+                console.error("Local document QR inspection could not be queued:", qrError);
+                await prisma.file.update({
+                    where: { id: fileEntry.id },
+                    data: { status: "qr-failed" }
+                });
+            }
+        }
 
 
         /*

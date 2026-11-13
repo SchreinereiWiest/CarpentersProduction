@@ -1,0 +1,31 @@
+model CalendarEvent {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  ownerUserId String @map("owner_user_id") @db.Uuid
+  owner       User   @relation("CalendarEventOwner", fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  createdById String @map("created_by") @db.Uuid
+  createdBy   User   @relation("CalendarEventCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  projectId String?  @map("project_id") @db.Uuid
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  scope       String   @default("personal")
+  type        String   @default("other")
+  title       String
+  description String?
+  startAt     DateTime @map("start_at") @db.Timestamptz(3)
+  endAt       DateTime @map("end_at") @db.Timestamptz(3)
+  allDay      Boolean  @default(false) @map("all_day")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, startAt, endAt])
+  @@index([ownerUserId, startAt])
+  @@index([projectId, startAt])
+  @@map("calendar_events")
+}

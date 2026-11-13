@@ -1,0 +1,27 @@
+<module>
+  <rawname>carpenters</rawname>
+  <name>Carpenters CRM Adapter</name>
+  <version>17.0.1</version>
+  <publisher>Carpenters</publisher>
+  <license>GPLv3+</license>
+  <licenselink>https://www.gnu.org/licenses/gpl-3.0.html</licenselink>
+  <type>setup</type>
+  <category>Settings</category>
+  <candisable>yes</candisable>
+  <canuninstall>yes</canuninstall>
+  <menuitems>
+    <carpenters>Carpenters CRM Adapter</carpenters>
+  </menuitems>
+  <depends>
+    <version>17.0.1</version>
+    <phpversion>8.2.0</phpversion>
+    <module>pm2</module>
+  </depends>
+  <description>Connects local Asterisk AMI call events to the secure Carpenters CRM phone-history webhooks.</description>
+  <changelog>
+    *17.0.1* Initial FreePBX 17 module with secure environment management and PM2 process supervision.
+  </changelog>
+  <supported>
+    <version>17.0</version>
+  </supported>
+</module>

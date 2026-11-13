@@ -10,12 +10,19 @@ model Tenant {
   slug   String @unique
   status String @default("active")
 
-  memberships          TenantMembership[]
-  license              TenantLicense?
-  syncMutations        SyncMutation[]
-  shopConfiguration    ShopConfiguration?
-  calculationSnapshots CalculationSnapshot[]
-  secrets              TenantSecret[]
+  memberships             TenantMembership[]
+  license                 TenantLicense?
+  syncMutations           SyncMutation[]
+  shopConfiguration       ShopConfiguration?
+  shopCatalogEntries      ShopCatalogEntry[]
+  supplierCatalogArticles SupplierCatalogArticle[]
+  calculationSnapshots    CalculationSnapshot[]
+  secrets                 TenantSecret[]
+  calendarEvents         CalendarEvent[]
+  paperlessConfiguration PaperlessConfiguration?
+  contactHistoryConfiguration ContactHistoryConfiguration?
+  freePbxConfiguration        FreePbxConfiguration?
+  phoneCalls                  PhoneCall[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -107,6 +114,11 @@ model User {
   memberships                  TenantMembership[]
   releasedCalculationSnapshots CalculationSnapshot[] @relation("CalculationSnapshotReleasedBy")
   tenantBackups                TenantBackup[]
+  measurementPrintRuns         MeasurementPrintRun[] @relation("MeasurementPrintRunCreatedBy")
+  measurementScans             MeasurementScan[]     @relation("MeasurementScanUploadedBy")
+  calendarEventsOwned          CalendarEvent[]       @relation("CalendarEventOwner")
+  calendarEventsCreated        CalendarEvent[]       @relation("CalendarEventCreatedBy")
+  paperlessDocumentsLinked     PaperlessDocument[]
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")

@@ -173,7 +173,7 @@ export const downloadProjectData = async ({ mode, projectIds = [], onProgress })
     // benötigt. Erst nach der Projektregistrierung darf der Interceptor sie
     // gemäß der Cache-Regel speichern.
     await axios.get("/api/auth/me", { withCredentials: true });
-    for (const settingName of ["company", "cabinet", "cabinetPreset", "nesting", "cnc"]) {
+    for (const settingName of ["company", "cabinet", "cabinetPreset", "functionPreset", "nesting", "cnc"]) {
         try {
             const sourcePath = `/api/settings/${settingName}`;
             const content = await downloadFile(sourcePath);

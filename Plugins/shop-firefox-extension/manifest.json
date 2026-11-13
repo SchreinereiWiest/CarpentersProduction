@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "CarpentersProduction Product Fetch",
+  "version": "2.0.2",
+  "description": "Prüft, verknüpft und bearbeitet Händlerartikel im angemeldeten Firefox-Profil für CarpentersProduction.",
+  "permissions": ["tabs", "storage", "activeTab", "scripting"],
+  "host_permissions": ["https://*/*"],
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "action": {
+    "default_title": "Product-Fetch-Sidebar öffnen"
+  },
+  "sidebar_action": {
+    "default_title": "Carpenters · Product Fetch",
+    "default_panel": "sidebar/sidebar.html",
+    "open_at_install": false
+  },
+  "commands": {
+    "_execute_sidebar_action": {
+      "suggested_key": {
+        "default": "Alt+Shift+H"
+      }
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*/Purchasing*"],
+      "js": ["app-bridge.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "av-product-fetch@carpenters-production.local",
+      "strict_min_version": "128.0"
+    }
+  }
+}

@@ -1,5 +1,9 @@
 
 import {addOperation} from "../../cncHelpers.js";
+import {
+    MACHINING_INTENT_IDS,
+    MACHINING_KINDS
+} from "../../../../../postprocessor/machiningModel.js";
 
 /* =========================================================
  * Fachboden / Lochreihe
@@ -95,15 +99,35 @@ export const compileShelf = ({
         );
 
 
-    const start =
+    let start =
         sectionY +
         endFromTop;
 
 
-    const end =
+    let end =
         sectionY +
         sectionHeight -
         startFromBottom;
+
+
+    const rangeStart = start;
+    const rangeEnd = end;
+
+
+    if (
+        func.holeRow?.centered === true &&
+        Number.isFinite(spacing) &&
+        spacing > 0 &&
+        end >= start
+    ) {
+        const availableLength = end - start;
+        const intervalCount = Math.floor((availableLength + 1e-9) / spacing);
+        const usedLength = intervalCount * spacing;
+        const edgeOffset = (availableLength - usedLength) / 2;
+
+        start += edgeOffset;
+        end -= edgeOffset;
+    }
 
 
     const partDepth =
@@ -116,25 +140,29 @@ export const compileShelf = ({
             boundary.part,
             {
 
-                type: "LR",
+                kind: MACHINING_KINDS.DRILL_ROW,
+                intentId: MACHINING_INTENT_IDS.SHELF_PIN_ROW,
 
                 face:
                     boundary.face ??
                     "A",
 
-                axis: "L",
+                axis: "x",
 
-                fixedAxis: "B",
-
-                frontOffset: frontOffset,
-
-                backOffset: partDepth - backOffset,
+                crossPositions: [frontOffset, partDepth - backOffset],
 
                 start,
 
                 end,
 
                 spacing,
+
+                centered:
+                    func.holeRow?.centered === true,
+
+                rangeStart,
+
+                rangeEnd,
 
                 depth:
                     config.shelf.depth,
@@ -152,7 +180,10 @@ export const compileShelf = ({
                         section.id,
 
                     functionId:
-                        func.id
+                        func.id,
+
+                    centered:
+                        func.holeRow?.centered === true
 
                 }
 

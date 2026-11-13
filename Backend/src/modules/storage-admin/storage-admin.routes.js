@@ -4,7 +4,7 @@ import os from "os";
 import express from "express";
 import multer from "multer";
 
-import { authenticate, authorizeRoles } from "../../middleware/auth.middleware.js";
+import { authenticate, authorizeRoles, requireFeature } from "../../middleware/auth.middleware.js";
 import {
     cleanupOrphanedObjects,
     deleteStorageFolder,
@@ -15,10 +15,12 @@ import {
 import {
     createBackup,
     createDatabaseBackup,
+    createShopDatabaseBackup,
     deleteBackup,
     downloadBackup,
     importBackup,
     importDatabaseBackup,
+    importShopDatabaseBackup,
     listBackups,
     restoreBackup
 } from "./storage-backup.controller.js";
@@ -32,7 +34,7 @@ const backupUpload = multer({
     limits: { fileSize: 10 * 1024 * 1024 * 1024, files: 1 }
 });
 
-router.use(authenticate, authorizeRoles("admin"));
+router.use(authenticate, requireFeature("work-preparation"), authorizeRoles("admin"));
 
 router.get("/overview", getStorageOverview);
 router.get("/objects/:id/download", downloadStorageObject);
@@ -48,5 +50,7 @@ router.delete("/backups/:id", deleteBackup);
 router.post("/backups/import", backupUpload.single("backup"), importBackup);
 router.post("/database-backups", createDatabaseBackup);
 router.post("/database-backups/import", backupUpload.single("backup"), importDatabaseBackup);
+router.post("/shop-database-backups", createShopDatabaseBackup);
+router.post("/shop-database-backups/import", backupUpload.single("backup"), importShopDatabaseBackup);
 
 export default router;

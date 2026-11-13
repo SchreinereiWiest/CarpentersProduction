@@ -3,6 +3,7 @@ import { createUuid } from "../utils/uuid.js";
 let state = {
     online: typeof navigator === "undefined" ? true : navigator.onLine,
     pendingRequests: 0,
+    activeRequests: [],
     syncing: false,
     notices: []
 };
@@ -19,8 +20,39 @@ export const subscribeOfflineStatus = listener => {
 };
 
 export const getOfflineStatusSnapshot = () => state;
-export const beginNetworkRequest = () => emit({ pendingRequests: state.pendingRequests + 1 });
-export const endNetworkRequest = () => emit({ pendingRequests: Math.max(0, state.pendingRequests - 1) });
+
+const sanitizeRequestUrl = url => {
+    const rawUrl = String(url ?? "");
+    if (!rawUrl) return "Unbekannte Ressource";
+
+    try {
+        const parsed = new URL(rawUrl, "http://localhost");
+        return parsed.pathname || "/";
+    } catch {
+        return rawUrl.split("?")[0].split("#")[0];
+    }
+};
+
+export const beginNetworkRequest = ({ method = "GET", url } = {}) => {
+    const normalizedMethod = String(method).toUpperCase();
+    const request = {
+        id: createUuid(),
+        method: normalizedMethod,
+        url: sanitizeRequestUrl(url),
+        direction: ["GET", "HEAD"].includes(normalizedMethod) ? "download" : "upload",
+        startedAt: Date.now()
+    };
+    const activeRequests = [...state.activeRequests, request];
+    emit({ activeRequests, pendingRequests: activeRequests.length });
+    return request.id;
+};
+
+export const endNetworkRequest = id => {
+    const activeRequests = id
+        ? state.activeRequests.filter(request => request.id !== id)
+        : state.activeRequests.slice(1);
+    emit({ activeRequests, pendingRequests: activeRequests.length });
+};
 export const setNetworkOnline = online => emit({ online });
 export const setSyncing = syncing => emit({ syncing });
 
