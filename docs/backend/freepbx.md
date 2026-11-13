@@ -27,7 +27,7 @@ AMI-/Webhook-Adapter erforderlich. `Modules → SMS` enthält nur SMS-/MMS-Hooks
 und ist für Anrufereignisse nicht geeignet.
 
 Ein passender, von Sangomas CRM-Modul unabhängiger Adapter liegt bereits unter
-[`Plugins/freepbx`](../../Plugins/freepbx/README.md). Das fertige Tar-Gzip-Paket
+[`Plugins/freepbx`](https://github.com/SchreinereiWiest/CarpentersProduction/tree/Master/Plugins/freepbx). Das fertige Tar-Gzip-Paket
 wird über `Admin → Module Admin → Upload Modules` installiert. Es verbindet sich
 nur mit dem lokalen AMI-Port, wird vom FreePBX-PM2-Modul überwacht und sendet die
 drei HTTPS-Aufrufe an Carpenters. Eine eigene Einstellungsseite verwaltet die
