@@ -40,6 +40,7 @@ import PublicRoute from "./routing/PublicRoute.jsx";
 import CalendarPage from "../features/calendar/CalendarPage.jsx";
 import CustomerCrmPage from "../features/customers/pages/CustomerCrmPage.jsx";
 import WorkspaceRoot from "../shared/workspace/WorkspaceRoot.jsx";
+import GlobalPhoneCallLayer from "../features/contact-history/GlobalPhoneCallLayer.jsx";
 
 function LegacyCadRedirect() {
   const { projectId } = useParams();
@@ -52,10 +53,11 @@ const protectedPage = (element, requiredRole = "user", requiredFeatures = []) =>
 
 export default function AppRouter() {
   return (
-    <WorkspaceRoot>
-      <OfflineStatusCenter />
-      <CacheRefreshBoundary>
-        <Routes>
+    <GlobalPhoneCallLayer>
+      <WorkspaceRoot>
+        <OfflineStatusCenter />
+        <CacheRefreshBoundary>
+          <Routes>
           <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
           <Route path="/" element={protectedPage(<DashboardPage />, undefined)} />
 
@@ -108,8 +110,9 @@ export default function AppRouter() {
           <Route path="/CompanySettings" element={protectedPage(<CompanySettingsPage />, "adminOnly")} />
           <Route path="/User" element={protectedPage(<UserProfilePage />)} />
           <Route path="/Offline/Merge/:conflictKey" element={protectedPage(<OfflineMergePage />, "user", ["work-preparation"])} />
-        </Routes>
-      </CacheRefreshBoundary>
-    </WorkspaceRoot>
+          </Routes>
+        </CacheRefreshBoundary>
+      </WorkspaceRoot>
+    </GlobalPhoneCallLayer>
   );
 }

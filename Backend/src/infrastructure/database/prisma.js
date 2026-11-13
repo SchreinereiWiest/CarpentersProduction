@@ -61,7 +61,9 @@ const TENANT_DELEGATES = new Set([
     "paperlessConfiguration",
     "paperlessFolder",
     "paperlessDocument",
-    "contactHistoryConfiguration"
+    "contactHistoryConfiguration",
+    "freePbxConfiguration",
+    "phoneCall"
 ]);
 
 const READ_WITH_WHERE = new Set([

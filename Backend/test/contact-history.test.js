@@ -10,6 +10,11 @@ import {
 } from "../src/modules/contact-history/contact-history.service.js";
 import { parseValkeyReply } from "../src/infrastructure/queue/valkey.js";
 import { findSentMailbox } from "../src/modules/contact-history/contact-history-imap.service.js";
+import {
+  normalizeCountryCode,
+  normalizePhoneNumber,
+  parseFreePbxWebhook
+} from "../src/modules/contact-history/freepbx.service.js";
 
 test("contact history accepts a TLS-only IMAP configuration", () => {
   const configuration = contactHistoryConfigurationData({
@@ -70,4 +75,27 @@ test("Valkey worker parser handles queue replies without exposing payloads", () 
     offset: 24
   });
   assert.equal(parseValkeyReply(Buffer.from("$5\r\npar")), null);
+});
+
+test("FreePBX normalizes German local and international caller numbers", () => {
+  assert.equal(normalizeCountryCode("0049"), "+49");
+  assert.equal(normalizePhoneNumber("0711 / 123 45-0", "+49"), "+49711123450");
+  assert.equal(normalizePhoneNumber("0049 711 123450", "+49"), "+49711123450");
+  assert.equal(normalizePhoneNumber("+49 (711) 123450", "+49"), "+49711123450");
+  assert.equal(normalizePhoneNumber("49711123450", "+49"), "+49711123450");
+  assert.equal(normalizePhoneNumber("anonymous", "+49"), null);
+});
+
+test("FreePBX accepts Asterisk linkedid aliases and rejects incomplete hooks", () => {
+  const event = parseFreePbxWebhook("ringing", {
+    Linkedid: "asterisk-1794567890.42",
+    CallerIDNum: "0711123450",
+    Exten: "20",
+    timestamp: "2026-11-13T10:00:00.000Z"
+  }, "+49");
+  assert.equal(event.externalId, "asterisk-1794567890.42");
+  assert.equal(event.normalizedCallerNumber, "+49711123450");
+  assert.equal(event.calledNumber, "20");
+  assert.throws(() => parseFreePbxWebhook("ringing", { caller_number: "0711123450" }), /call_id/);
+  assert.throws(() => parseFreePbxWebhook("unknown", {}), /Unbekanntes/);
 });

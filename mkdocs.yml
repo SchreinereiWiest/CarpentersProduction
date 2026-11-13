@@ -93,6 +93,7 @@ nav:
       - Authentifizierung: backend/authentication.md
       - Lizenzierung: backend/licensing.md
       - Kunden: backend/customers.md
+      - FreePBX-/Asterisk-Telefonintegration: backend/freepbx.md
       - Projekte & Archive: backend/projects.md
       - Zeiterfassung: backend/time-tracking.md
       - Benutzer: backend/users.md

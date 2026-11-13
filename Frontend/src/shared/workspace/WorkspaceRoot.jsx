@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 
 import SideBar from "../components/sideBar.jsx";
@@ -193,7 +193,7 @@ export default function WorkspaceRoot({ children }) {
     }, [activePane, panes]);
 
     const activeRoute = paneRoutes[activePane] || currentRoute;
-    const openInActivePane = path => {
+    const openInActivePane = useCallback(path => {
         const frame = frameRefs.current[activePane];
         if (frame && readyFrames.current[activePane]) {
             frame.contentWindow?.postMessage({
@@ -210,7 +210,17 @@ export default function WorkspaceRoot({ children }) {
             index === activePane ? path : entry
         ));
         navigate(path);
-    };
+    }, [activePane, navigate]);
+
+    useEffect(() => {
+        if (paneMode) return undefined;
+        const handleGlobalNavigation = event => {
+            const path = event.detail?.path;
+            if (typeof path === "string" && path.startsWith("/")) openInActivePane(path);
+        };
+        window.addEventListener("carpenters-global-navigate", handleGlobalNavigation);
+        return () => window.removeEventListener("carpenters-global-navigate", handleGlobalNavigation);
+    }, [openInActivePane, paneMode]);
 
     if (paneMode) {
         return (

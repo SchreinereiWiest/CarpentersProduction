@@ -22,6 +22,14 @@ export async function deleteCustomerCommunication(customerId, communicationId) {
   await axios.delete(`/api/customers/crm/${customerId}/communications/${communicationId}`);
 }
 
+export async function savePhoneCallNote(customerId, communicationId, content) {
+  const { data } = await axios.put(
+    `/api/customers/crm/${customerId}/communications/${communicationId}/phone-note`,
+    { content }
+  );
+  return data.communication;
+}
+
 export async function createCustomerAppointment(customerId, payload) {
   const { data } = await axios.post(`/api/customers/crm/${customerId}/appointments`, payload);
   return data.appointment;

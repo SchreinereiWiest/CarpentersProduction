@@ -1,5 +1,13 @@
 # Plugin-Builds
 
+## FreePBX
+
+`Plugins/freepbx` enthält ein über die FreePBX-Modulverwaltung hochladbares
+Modul für FreePBX 17. Es liest eingehende Anrufzustände über einen ausschließlich
+lokalen AMI-Benutzer und überträgt sie an die signierten Carpenters-Webhooks.
+Installation, Passwort-/ENV-Verwaltung und Sicherheit sind in
+`Plugins/freepbx/README.md` beschrieben.
+
 ## Palette CAD 10
 
 Der selbstentpackende Einzeldatei-Installer wird aus dem Ordner `Plugins` mit

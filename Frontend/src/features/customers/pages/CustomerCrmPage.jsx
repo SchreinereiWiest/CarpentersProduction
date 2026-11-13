@@ -11,6 +11,7 @@ import {
   deleteCustomerAppointment,
   deleteCustomerCommunication,
   loadCustomerCrm,
+  savePhoneCallNote,
   updateCustomerAppointment
 } from "../crm/customerCrmApi.js";
 import {
@@ -55,8 +56,47 @@ const paperlessSearchUrl = (baseUrl, attachmentName) => {
   }
 };
 
-const CommunicationCard = ({ communication, busy, onRemove, paperlessBaseUrl, fullscreen = false }) => {
+const formatDuration = seconds => {
+  const total = Math.max(0, Number(seconds) || 0);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const remaining = total % 60;
+  return [hours ? `${hours} Std.` : null, minutes ? `${minutes} Min.` : null, `${remaining} Sek.`].filter(Boolean).join(" ");
+};
+
+const PhoneCallNoteEditor = ({ communication, busy, onSave, fullscreen }) => {
+  const [content, setContent] = useState(communication.content || "");
+  const changed = content.trim() !== (communication.content || "").trim();
+  const inputId = `phone-note-${fullscreen ? "fullscreen" : "inline"}-${communication.id}`;
+  return (
+    <form
+      className="mt-4 border-t border-slate-700 pt-3"
+      onSubmit={event => {
+        event.preventDefault();
+        void onSave(communication, content);
+      }}
+    >
+      <label className="block text-xs font-medium text-slate-300" htmlFor={inputId}>Gesprächsinhalt</label>
+      <textarea
+        id={inputId}
+        value={content}
+        maxLength={10_000}
+        rows={3}
+        onChange={event => setContent(event.target.value)}
+        placeholder="Gesprächsinhalt, Vereinbarungen oder Rückruf notieren …"
+        className="mt-2 w-full resize-y rounded-lg border border-slate-600 bg-slate-950/70 px-3 py-2 text-left text-sm text-slate-200 outline-none focus:border-sky-500"
+      />
+      <div className="mt-2 flex items-center justify-between gap-3">
+        <span className="text-[11px] text-slate-500">{content.length} / 10.000 Zeichen</span>
+        <button type="submit" disabled={busy || !changed} className="rounded-md bg-sky-600 px-3 py-1.5 text-xs font-semibold hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-50">Gesprächsinhalt speichern</button>
+      </div>
+    </form>
+  );
+};
+
+const CommunicationCard = ({ communication, busy, onRemove, onSavePhoneNote, paperlessBaseUrl, fullscreen = false }) => {
   const importedEmail = communication.source === "imap";
+  const phoneCall = communication.source === "asterisk";
   const outbound = importedEmail && communication.direction === "outbound";
   return (
     <div className={`flex ${outbound ? "justify-end" : "justify-start"}`}>
@@ -69,26 +109,29 @@ const CommunicationCard = ({ communication, busy, onRemove, paperlessBaseUrl, fu
             <div className={`flex flex-wrap items-center gap-2 ${outbound ? "justify-end" : "justify-start"}`}>
               <span className="rounded-full bg-sky-500/15 px-2 py-1 text-[11px] font-semibold text-sky-300">{communicationLabels[communication.type] ?? communication.type}</span>
               {importedEmail && <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${outbound ? "bg-blue-500/20 text-blue-200" : "bg-emerald-500/15 text-emerald-300"}`}>Automatisch · {outbound ? "Ausgehend" : "Eingehend"}</span>}
+              {phoneCall && <span className={`rounded-full px-2 py-1 text-[11px] font-semibold ${communication.phoneCall?.status === "missed" ? "bg-amber-500/15 text-amber-300" : "bg-emerald-500/15 text-emerald-300"}`}>Automatisch · {communication.phoneCall?.status === "missed" ? "Verpasst" : "Telefonat"}</span>}
               <h3 className="break-words font-medium">{communication.subject || "Ohne Betreff"}</h3>
             </div>
-            <p className={`mt-1 text-xs text-slate-500 ${outbound ? "text-right" : "text-left"}`}>{formatDateTime(communication.occurredAt || communication.createdAt)} · {importedEmail ? "IMAP-Abruf" : actorDisplayName(communication.createdBy)}{communication.project ? ` · ${communication.project.title}` : ""}</p>
+            <p className={`mt-1 text-xs text-slate-500 ${outbound ? "text-right" : "text-left"}`}>{formatDateTime(communication.occurredAt || communication.createdAt)} · {importedEmail ? "IMAP-Abruf" : phoneCall ? `Asterisk · ${formatDuration(communication.phoneCall?.durationSeconds)}` : actorDisplayName(communication.createdBy)}{communication.project ? ` · ${communication.project.title}` : ""}</p>
             {importedEmail && <p className={`mt-1 break-all text-xs text-slate-400 ${outbound ? "text-right" : "text-left"}`}>Von: {communication.fromAddress || "—"} · An: {(communication.toAddresses || []).join(", ") || "—"}</p>}
+            {phoneCall && <p className="mt-1 text-left text-xs text-slate-400">Rufnummer: {communication.phoneCall?.callerNumber || communication.fromAddress || "—"}{communication.phoneCall?.answeredAt ? ` · Angenommen ${formatDateTime(communication.phoneCall.answeredAt)}` : ""}</p>}
           </div>
-          {!importedEmail && <button type="button" disabled={busy} onClick={() => onRemove(communication)} className="shrink-0 text-xs text-rose-400 hover:text-rose-300">Löschen</button>}
+          {!importedEmail && !phoneCall && <button type="button" disabled={busy} onClick={() => onRemove(communication)} className="shrink-0 text-xs text-rose-400 hover:text-rose-300">Löschen</button>}
         </div>
-        <p className={`mt-3 whitespace-pre-wrap break-words text-sm text-slate-300 ${outbound ? "text-right" : "text-left"}`}>{communication.content}</p>
+        {communication.content && !phoneCall && <p className={`mt-3 whitespace-pre-wrap break-words text-sm text-slate-300 ${outbound ? "text-right" : "text-left"}`}>{communication.content}</p>}
         {(communication.attachments || []).length > 0 && <div className={`mt-3 flex flex-wrap gap-2 ${outbound ? "justify-end" : "justify-start"}`}>{communication.attachments.map((attachment, index) => {
           const href = paperlessSearchUrl(paperlessBaseUrl, attachment.name);
           const label = `${attachment.name || "Anhang"}${attachment.size ? ` · ${Math.ceil(attachment.size / 1024)} KB` : ""}`;
           return href ? <a key={`${attachment.name}-${index}`} href={href} target="_blank" rel="noopener noreferrer" className="rounded-full border border-violet-800 bg-violet-950/30 px-3 py-1 text-xs text-violet-200 hover:bg-violet-900/40" title="In Paperless suchen">{label} ↗</a> : <span key={`${attachment.name}-${index}`} className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-400">{label}</span>;
         })}</div>}
         {communication.followUpDate && <p className={`mt-3 text-xs font-medium text-amber-300 ${outbound ? "text-right" : "text-left"}`}>Wiedervorlage: {formatDateTime(communication.followUpDate)}</p>}
+        {phoneCall && <PhoneCallNoteEditor key={`${communication.id}:${communication.updatedAt || communication.content}`} communication={communication} busy={busy} onSave={onSavePhoneNote} fullscreen={fullscreen} />}
       </article>
     </div>
   );
 };
 
-const CommunicationTimeline = ({ communications, busy, onRemove, paperlessBaseUrl, fullscreen = false }) => (
+const CommunicationTimeline = ({ communications, busy, onRemove, onSavePhoneNote, paperlessBaseUrl, fullscreen = false }) => (
   <div className={`${fullscreen ? "space-y-4" : "max-h-[34rem] space-y-3 overflow-y-auto overscroll-contain pr-2"}`}>
     {communications.length === 0 && <EmptyState>Noch keine Kundenkontakte erfasst.</EmptyState>}
     {communications.map(communication => (
@@ -97,6 +140,7 @@ const CommunicationTimeline = ({ communications, busy, onRemove, paperlessBaseUr
         communication={communication}
         busy={busy}
         onRemove={onRemove}
+        onSavePhoneNote={onSavePhoneNote}
         paperlessBaseUrl={paperlessBaseUrl}
         fullscreen={fullscreen}
       />
@@ -206,6 +250,14 @@ export default function CustomerCrmPage() {
     }
   };
 
+  const updatePhoneCallNote = async (communication, content) => {
+    try {
+      await runMutation(() => savePhoneCallNote(userid, communication.id, content));
+    } catch {
+      // Die globale Fehlermeldung wurde bereits gesetzt.
+    }
+  };
+
   const removeAppointment = async appointment => {
     if (!window.confirm("Diesen Kundentermin wirklich löschen?")) return;
     try {
@@ -297,7 +349,7 @@ export default function CustomerCrmPage() {
                         <button type="button" onClick={() => setContactHistoryFullscreen(true)} className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-medium text-sky-300 hover:bg-slate-800">Vollbild öffnen</button>
                       </div>
                     </div>
-                    {communications.length === 0 ? <EmptyState>Noch keine Kundenkontakte erfasst.</EmptyState> : <CommunicationTimeline communications={communications} busy={busy} onRemove={removeCommunication} paperlessBaseUrl={crm?.integrations?.paperlessBaseUrl} />}
+                    {communications.length === 0 ? <EmptyState>Noch keine Kundenkontakte erfasst.</EmptyState> : <CommunicationTimeline communications={communications} busy={busy} onRemove={removeCommunication} onSavePhoneNote={updatePhoneCallNote} paperlessBaseUrl={crm?.integrations?.paperlessBaseUrl} />}
                   </section>
 
                   <section className="rounded-xl border border-slate-800 bg-slate-900 p-4 sm:p-5">
@@ -424,7 +476,7 @@ export default function CustomerCrmPage() {
               <button type="button" aria-label="Vollbild schließen" onClick={() => setContactHistoryFullscreen(false)} className="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 hover:bg-slate-800">Schließen ✕</button>
             </header>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6">
-              <CommunicationTimeline communications={communications} busy={busy} onRemove={removeCommunication} paperlessBaseUrl={crm?.integrations?.paperlessBaseUrl} fullscreen />
+              <CommunicationTimeline communications={communications} busy={busy} onRemove={removeCommunication} onSavePhoneNote={updatePhoneCallNote} paperlessBaseUrl={crm?.integrations?.paperlessBaseUrl} fullscreen />
             </div>
           </section>
         </div>

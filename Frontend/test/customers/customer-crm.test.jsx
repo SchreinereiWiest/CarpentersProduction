@@ -8,7 +8,8 @@ const mocks = vi.hoisted(() => ({
   createAppointment: vi.fn(),
   updateAppointment: vi.fn(),
   deleteCommunication: vi.fn(),
-  deleteAppointment: vi.fn()
+  deleteAppointment: vi.fn(),
+  savePhoneNote: vi.fn()
 }));
 
 vi.mock("../../src/features/customers/crm/customerCrmApi.js", () => ({
@@ -17,7 +18,8 @@ vi.mock("../../src/features/customers/crm/customerCrmApi.js", () => ({
   createCustomerAppointment: mocks.createAppointment,
   updateCustomerAppointment: mocks.updateAppointment,
   deleteCustomerCommunication: mocks.deleteCommunication,
-  deleteCustomerAppointment: mocks.deleteAppointment
+  deleteCustomerAppointment: mocks.deleteAppointment,
+  savePhoneCallNote: mocks.savePhoneNote
 }));
 
 vi.mock("../../src/shared/components/sideBar.jsx", () => ({
@@ -156,5 +158,50 @@ describe("Kunden-CRM", () => {
     expect(document.body.style.overflow).toBe("hidden");
     fireEvent.mouseDown(dialog.parentElement);
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("zeigt Asterisk-Telefonate mit Dauer und speicherbarer Gesprächsnotiz", async () => {
+    mocks.load.mockResolvedValue({
+      ...crmData,
+      customer: {
+        ...crmData.customer,
+        projects: [],
+        communications: [{
+          id: "call-communication-1",
+          type: "phone",
+          source: "asterisk",
+          direction: "inbound",
+          subject: "Eingehender Anruf",
+          content: "",
+          fromAddress: "+49711123450",
+          occurredAt: "2026-11-13T09:00:00.000Z",
+          phoneCall: {
+            status: "ended",
+            callerNumber: "+49711123450",
+            answeredAt: "2026-11-13T09:00:05.000Z",
+            endedAt: "2026-11-13T09:02:10.000Z",
+            durationSeconds: 125
+          }
+        }]
+      },
+      calendarEvents: []
+    });
+    mocks.savePhoneNote.mockResolvedValue({ id: "call-communication-1", content: "Rückruf vereinbart" });
+
+    render(
+      <MemoryRouter initialEntries={["/Kontakte/info/customer-1/crm"]}>
+        <Routes><Route path="/Kontakte/info/:userid/crm" element={<CustomerCrmPage />} /></Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText("Automatisch · Telefonat")).toBeInTheDocument();
+    expect(screen.getByText(/Asterisk · 2 Min. 5 Sek./)).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText(/Gesprächsinhalt, Vereinbarungen/), { target: { value: "Rückruf vereinbart" } });
+    fireEvent.click(screen.getByRole("button", { name: "Gesprächsinhalt speichern" }));
+    await waitFor(() => expect(mocks.savePhoneNote).toHaveBeenCalledWith(
+      "customer-1",
+      "call-communication-1",
+      "Rückruf vereinbart"
+    ));
   });
 });

@@ -34,6 +34,7 @@ model Customer {
   projects       Project[]
   addresses      CustomerAddress[]
   communications Communication[]
+  phoneCalls     PhoneCall[]
   appointments   Appointment[]
   files              File[]
   paperlessDocuments PaperlessDocument[]
@@ -157,6 +158,8 @@ model Communication {
   createdById String? @map("created_by") @db.Uuid
   createdBy   User?   @relation(fields: [createdById], references: [id])
 
+  phoneCall PhoneCall?
+
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
@@ -197,6 +200,56 @@ model ContactHistoryConfiguration {
 
   @@unique([tenantId, id])
   @@map("contact_history_configurations")
+}
+
+model FreePbxConfiguration {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @unique @map("tenant_id") @db.Uuid
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  enabled            Boolean   @default(false)
+  defaultCountryCode String    @default("+49") @map("default_country_code")
+  lastWebhookAt      DateTime? @map("last_webhook_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, id])
+  @@map("freepbx_configurations")
+}
+
+model PhoneCall {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  externalId             String  @map("external_id")
+  direction              String  @default("inbound")
+  status                 String  @default("ringing")
+  callerNumber           String  @map("caller_number")
+  normalizedCallerNumber String  @map("normalized_caller_number")
+  calledNumber           String? @map("called_number")
+
+  customerId String?   @map("customer_id") @db.Uuid
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  communicationId String?        @unique @map("communication_id") @db.Uuid
+  communication   Communication? @relation(fields: [communicationId], references: [id], onDelete: SetNull)
+
+  startedAt       DateTime  @map("started_at")
+  answeredAt      DateTime? @map("answered_at")
+  endedAt         DateTime? @map("ended_at")
+  durationSeconds Int?      @map("duration_seconds")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, externalId])
+  @@index([status, startedAt])
+  @@index([customerId, startedAt])
+  @@map("phone_calls")
 }
 
 model Appointment {

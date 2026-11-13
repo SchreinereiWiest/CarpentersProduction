@@ -10,6 +10,7 @@ import {
   deleteAppointment,
   deleteCommunication,
   getCustomerCrm,
+  savePhoneCallNote,
   updateAppointment,
   updateCommunication
 } from "./customer-crm.controller.js";
@@ -34,6 +35,7 @@ router.post("/update/:id", authorizeRoles("admin", "manager"), updateCustomer);
 router.get("/crm/:id", authorizeRoles("admin", "manager"), getCustomerCrm);
 router.post("/crm/:id/communications", authorizeRoles("admin", "manager"), createCommunication);
 router.put("/crm/:id/communications/:communicationId", authorizeRoles("admin", "manager"), updateCommunication);
+router.put("/crm/:id/communications/:communicationId/phone-note", authorizeRoles("admin", "manager"), savePhoneCallNote);
 router.delete("/crm/:id/communications/:communicationId", authorizeRoles("admin", "manager"), deleteCommunication);
 router.post("/crm/:id/appointments", authorizeRoles("admin", "manager"), createAppointment);
 router.put("/crm/:id/appointments/:appointmentId", authorizeRoles("admin", "manager"), updateAppointment);

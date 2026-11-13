@@ -10,7 +10,19 @@ const projectSelect = { id: true, title: true, status: true, projectNumber: true
 
 const communicationInclude = {
   project: { select: projectSelect },
-  createdBy: { select: actorSelect }
+  createdBy: { select: actorSelect },
+  phoneCall: {
+    select: {
+      id: true,
+      status: true,
+      callerNumber: true,
+      calledNumber: true,
+      startedAt: true,
+      answeredAt: true,
+      endedAt: true,
+      durationSeconds: true
+    }
+  }
 };
 
 const appointmentInclude = {
@@ -146,8 +158,8 @@ export async function updateCommunication(req, res) {
     where: { id: req.params.communicationId, customerId: req.params.id, deletedAt: null }
   });
   if (!current) throw new CrmValidationError("Kontakteintrag nicht gefunden.", 404, "COMMUNICATION_NOT_FOUND");
-  if (current.source === "imap") {
-    throw new CrmValidationError("Automatisch importierte E-Mails sind unveränderlich.", 409, "IMPORTED_COMMUNICATION_IMMUTABLE");
+  if (current.source !== "manual") {
+    throw new CrmValidationError("Automatisch importierte Kontakteinträge sind unveränderlich.", 409, "IMPORTED_COMMUNICATION_IMMUTABLE");
   }
   const data = communicationData(req.body, current);
   await validateReferences(req.params.id, data);
@@ -165,11 +177,46 @@ export async function deleteCommunication(req, res) {
     select: { id: true, source: true }
   });
   if (!current) throw new CrmValidationError("Kontakteintrag nicht gefunden.", 404, "COMMUNICATION_NOT_FOUND");
-  if (current.source === "imap") {
-    throw new CrmValidationError("Automatisch importierte E-Mails bleiben für einen nachvollziehbaren Kontaktverlauf erhalten.", 409, "IMPORTED_COMMUNICATION_IMMUTABLE");
+  if (current.source !== "manual") {
+    throw new CrmValidationError("Automatisch importierte Kontakteinträge bleiben für einen nachvollziehbaren Kontaktverlauf erhalten.", 409, "IMPORTED_COMMUNICATION_IMMUTABLE");
   }
   await prisma.communication.update({ where: { id: current.id }, data: { deletedAt: new Date() } });
   return res.status(204).end();
+}
+
+export async function savePhoneCallNote(req, res) {
+  const current = await prisma.communication.findFirst({
+    where: { id: req.params.communicationId, customerId: req.params.id, deletedAt: null },
+    select: { id: true, source: true }
+  });
+  if (!current) throw new CrmValidationError("Kontakteintrag nicht gefunden.", 404, "COMMUNICATION_NOT_FOUND");
+  if (current.source !== "asterisk") {
+    throw new CrmValidationError("Eine Gesprächsnotiz kann nur zu einem automatisch erfassten Telefonat gespeichert werden.", 409, "PHONE_NOTE_NOT_AVAILABLE");
+  }
+  const content = typeof req.body?.content === "string" ? req.body.content.trim() : "";
+  if (content.length > 10_000 || /\0/.test(content)) {
+    throw new CrmValidationError("Die Gesprächsnotiz darf höchstens 10.000 Zeichen enthalten.", 400, "PHONE_NOTE_INVALID");
+  }
+  const communication = await prisma.$transaction(async transaction => {
+    const updated = await transaction.communication.update({
+      where: { id: current.id },
+      data: { content },
+      include: communicationInclude
+    });
+    await transaction.auditLog.create({
+      data: {
+        actorUserId: req.user.id,
+        action: "crm.phone-call.note.update",
+        entityType: "Communication",
+        entityId: current.id,
+        metadata: { customerId: req.params.id, hasContent: Boolean(content) },
+        ipAddress: req.ip || null,
+        userAgent: req.get("user-agent") || null
+      }
+    });
+    return updated;
+  });
+  return res.json({ communication });
 }
 
 export async function createAppointment(req, res) {

@@ -77,3 +77,16 @@ Beim erstmaligen Abruf wird der konfigurierte Zeitraum (7 bis 365 Tage)
 eingelesen. Danach begrenzen `UIDVALIDITY` und die letzte verarbeitete UID den
 inkrementellen Abruf. Fehler führen zu einem exponentiell verlängerten
 Wiederholungsintervall bis maximal 60 Minuten.
+
+## Telefonverlauf per FreePBX / Asterisk
+
+Unter demselben Einstellungsreiter kann ein Admin signierte Webhooks für
+eingehende Asterisk-Anrufe aktivieren. Während des Klingelns erscheinen bekannte
+Kunden global in einem Anruf-Modal; eine Statusleiste bleibt während des aktiven
+Gesprächs auch beim View-Wechsel erreichbar. Sie liegt im normalen Seitenfluss
+und verkleinert die Arbeitsfläche, statt Inhalte zu überdecken.
+
+Nach dem Auflegen wird der Anruf zeitlich zwischen den E-Mails im CRM-Verlauf
+einsortiert. Dauer und Rufnummer stammen aus dem Asterisk-Ereignis; der
+Gesprächsinhalt kann anschließend manuell erfasst werden. Technischer Vertrag
+und Einrichtung stehen unter [FreePBX-/Asterisk-Telefonintegration](freepbx.md).

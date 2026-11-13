@@ -27,11 +27,22 @@ const settings = {
   passwordConfigured: false
 };
 
+const freePbxSettings = {
+  tenantId: "11111111-1111-4111-8111-111111111111",
+  configured: true,
+  enabled: false,
+  defaultCountryCode: "+49",
+  secretConfigured: true
+};
+
 describe("Kontaktverlauf-Einstellungen", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    axios.get.mockResolvedValue({ data: settings });
-    axios.put.mockResolvedValue({ data: { ...settings, enabled: true, passwordConfigured: true } });
+    axios.get.mockImplementation(url => Promise.resolve({ data: url.includes("freepbx") ? freePbxSettings : settings }));
+    axios.put.mockImplementation((url) => Promise.resolve({ data: url.includes("freepbx")
+      ? { ...freePbxSettings, enabled: true }
+      : { ...settings, enabled: true, passwordConfigured: true }
+    }));
   });
 
   it("speichert ausschließlich ein neues App-Passwort und erzwingt IMAPS 993", async () => {
@@ -54,5 +65,44 @@ describe("Kontaktverlauf-Einstellungen", () => {
       })
     ));
     expect(screen.getByLabelText("App-Passwort")).toHaveValue("");
+  });
+
+  it("zeigt getrennte FreePBX-Hooks und speichert die Landesvorwahl", async () => {
+    render(<ContactHistorySettingsPanel />);
+    expect(await screen.findByRole("heading", { name: "FreePBX / Asterisk-Anrufverlauf" })).toBeInTheDocument();
+    expect(screen.getByText(/Einstellungen → Asterisk-Manager/)).toBeInTheDocument();
+    expect(screen.getByText(/Sangoma-CRM-Modul ist nicht erforderlich/)).toBeInTheDocument();
+    expect(screen.getByText(/carpenters-17\.0\.1\.tar\.gz/)).toBeInTheDocument();
+    expect(screen.getByText(/FreePBX besitzt im Core keine allgemeine Telefonie-Webhook-Seite/)).toBeInTheDocument();
+    expect(screen.getByText(/webhook\/11111111-1111-4111-8111-111111111111\/ringing/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Webhook-Secret erneuern" })).toBeEnabled();
+    fireEvent.click(screen.getByLabelText("FreePBX-Webhooks aktivieren"));
+    fireEvent.change(screen.getByLabelText("Standard-Landesvorwahl"), { target: { value: "+43" } });
+    fireEvent.click(screen.getByRole("button", { name: "Telefonie speichern" }));
+    await waitFor(() => expect(axios.put).toHaveBeenCalledWith(
+      "/api/contact-history/freepbx/settings",
+      { enabled: true, defaultCountryCode: "+43" }
+    ));
+  });
+
+  it("erneuert das FreePBX-Webhook-Secret und zeigt es einmalig an", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    axios.post.mockResolvedValue({
+      data: {
+        ...freePbxSettings,
+        secretUpdatedAt: "2026-11-13T12:00:00.000Z",
+        webhookSecret: "new-one-time-webhook-secret"
+      }
+    });
+
+    render(<ContactHistorySettingsPanel />);
+    const rotateButton = await screen.findByRole("button", { name: "Webhook-Secret erneuern" });
+    fireEvent.click(rotateButton);
+
+    await waitFor(() => expect(axios.post).toHaveBeenCalledWith(
+      "/api/contact-history/freepbx/settings/rotate-secret"
+    ));
+    expect(await screen.findByText("new-one-time-webhook-secret")).toBeInTheDocument();
+    expect(screen.getByText(/Neues Webhook-Secret erzeugt/)).toBeInTheDocument();
   });
 });

@@ -23,6 +23,7 @@ import paperlessRoutes from "./modules/paperless/paperless.routes.js";
 import paperlessWebhookRoutes from "./modules/paperless/paperless-webhook.routes.js";
 import paperlessInternalRoutes from "./modules/paperless/paperless-internal.routes.js";
 import contactHistoryRoutes from "./modules/contact-history/contact-history.routes.js";
+import freePbxWebhookRoutes from "./modules/contact-history/freepbx-webhook.routes.js";
 
 export function createApp() {
   const app = express();
@@ -49,6 +50,7 @@ export function createApp() {
   app.use("/api/internal/measurement-ocr", measurementOcrInternalRoutes);
   app.use("/api/internal/paperless", paperlessInternalRoutes);
   app.use("/api/integrations/paperless", paperlessWebhookRoutes);
+  app.use("/api/integrations/freepbx", freePbxWebhookRoutes);
   app.use(verifyRequestOrigin);
   app.use(verifyCsrfToken);
 
