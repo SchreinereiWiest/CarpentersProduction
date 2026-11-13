@@ -8,7 +8,7 @@ const KEY_VERSION = 1;
 
 function configurationError() {
     return Object.assign(
-        new Error("Der Tenant-Secret-Master-Schlüssel ist nicht korrekt konfiguriert."),
+        new Error("Der Tenant-Secret-Master-Schlüssel ist nicht korrekt konfiguriert. TENANT_SECRET_ENCRYPTION_KEY muss 64 Hex-Zeichen enthalten oder Base64-kodiert genau 32 Byte ergeben."),
         { statusCode: 503, code: "AI_SECRET_ENCRYPTION_UNAVAILABLE" }
     );
 }
