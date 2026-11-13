@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { advancedSettingsTabs } from "../../src/features/company-settings/CompanySettingsPage.jsx";
+import { advancedSettingsTabs } from "../../src/features/company-settings/advancedSettingsTabs.js";
 import { primarySettingsTabs } from "../../src/shared/components/settingsBar.jsx";
 
 describe("settings navigation", () => {
@@ -8,6 +8,6 @@ describe("settings navigation", () => {
     expect(ids).not.toContain("shop");
     expect(ids).not.toContain("company");
     expect(ids.at(-1)).toBe("advanced");
-    expect(advancedSettingsTabs.map(tab => tab.id)).toEqual(expect.arrayContaining(["shop", "company", "documents"]));
+    expect(advancedSettingsTabs.map(tab => tab.id)).toEqual(expect.arrayContaining(["shop", "company", "documents", "contactHistory"]));
   });
 });

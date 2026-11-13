@@ -15,6 +15,7 @@ Diese Seite beschreibt den Ist-Stand des geprüften Backend-Quellcodes. Sie ist 
 | Verteilte Löschungen | Fach- und Metadaten, Audit-Eintrag und idempotenter Löschjob werden atomar geschrieben; ein Worker wiederholt Garage-Löschungen |
 | Cookie und Transport | `httpOnly`, `SameSite=Strict`, 72-Stunden-Laufzeit; in `NODE_ENV=production` zusätzlich `Secure` und HTTPS-Pflicht |
 | CSRF und CORS | vollständige Origin-Allowlist sowie Double-Submit-Token über `XSRF-TOKEN` und `X-XSRF-TOKEN` |
+| IMAP-Kontaktverlauf | nur Admin und CRM-Lizenz; TLS 1.2+ mit Zertifikatsprüfung; nur Port 993 und `INBOX` read-only; App-Passwort mandantenbezogen AES-GCM-verschlüsselt; keine Zugangsdaten in Queue oder API-Antwort; Serverfehler werden redigiert |
 
 ## Hoch
 

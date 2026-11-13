@@ -22,6 +22,7 @@ import calendarRoutes from "./modules/calendar/calendar.routes.js";
 import paperlessRoutes from "./modules/paperless/paperless.routes.js";
 import paperlessWebhookRoutes from "./modules/paperless/paperless-webhook.routes.js";
 import paperlessInternalRoutes from "./modules/paperless/paperless-internal.routes.js";
+import contactHistoryRoutes from "./modules/contact-history/contact-history.routes.js";
 
 export function createApp() {
   const app = express();
@@ -66,6 +67,7 @@ export function createApp() {
   app.use("/api/measurement-ocr", measurementOcrRoutes);
   app.use("/api/calendar", calendarRoutes);
   app.use("/api/paperless", paperlessRoutes);
+  app.use("/api/contact-history", contactHistoryRoutes);
 
   app.use((error, _req, res, _next) => {
     if (res.headersSent) {

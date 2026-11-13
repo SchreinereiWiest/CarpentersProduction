@@ -91,4 +91,70 @@ describe("Kunden-CRM", () => {
       expect.objectContaining({ type: "letter", content: "Angebot per Post versendet" })
     ));
   });
+
+  it("zeigt importierte E-Mails unveränderlich mit Paperless-Suche an", async () => {
+    mocks.load.mockResolvedValue({
+      ...crmData,
+      customer: {
+        ...crmData.customer,
+        projects: [],
+        communications: [
+          {
+            id: "mail-1",
+            type: "email",
+            source: "imap",
+            direction: "inbound",
+            subject: "Neue Zeichnung",
+            content: "Anbei die freigegebene Zeichnung.",
+            fromAddress: "anna@example.de",
+            toAddresses: ["crm@example.de"],
+            occurredAt: "2026-11-10T08:30:00.000Z",
+            attachments: [{ name: "zeichnung.pdf", size: 2048 }]
+          },
+          {
+            id: "mail-2",
+            type: "email",
+            source: "imap",
+            direction: "outbound",
+            subject: "AW: Neue Zeichnung",
+            content: "Vielen Dank, die Zeichnung passt.",
+            fromAddress: "crm@example.de",
+            toAddresses: ["anna@example.de"],
+            occurredAt: "2026-11-10T09:00:00.000Z",
+            attachments: []
+          }
+        ]
+      },
+      calendarEvents: [],
+      integrations: { paperlessBaseUrl: "https://paperless.example.de" }
+    });
+
+    render(
+      <MemoryRouter initialEntries={["/Kontakte/info/customer-1/crm"]}>
+        <Routes>
+          <Route path="/Kontakte/info/:userid/crm" element={<CustomerCrmPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText("Neue Zeichnung")).toBeInTheDocument();
+    expect(screen.getByText("Automatisch · Eingehend")).toBeInTheDocument();
+    expect(screen.getByText("Automatisch · Ausgehend")).toBeInTheDocument();
+    const incomingCard = screen.getByText("Neue Zeichnung").closest("article");
+    const outgoingCard = screen.getByText("AW: Neue Zeichnung").closest("article");
+    expect(incomingCard.parentElement).toHaveClass("justify-start");
+    expect(outgoingCard.parentElement).toHaveClass("justify-end");
+    expect(incomingCard.parentElement.parentElement).toHaveClass("max-h-[34rem]", "overflow-y-auto");
+    const paperlessLink = screen.getByTitle("In Paperless suchen");
+    expect(paperlessLink).toHaveAttribute("href", "https://paperless.example.de/documents?query=zeichnung.pdf");
+    expect(screen.queryByRole("button", { name: "Löschen" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Vollbild öffnen" }));
+    const dialog = screen.getByRole("dialog", { name: /Kontaktverlauf · Anna Muster/ });
+    expect(dialog).toBeInTheDocument();
+    expect(dialog.parentElement).toHaveClass("backdrop-blur-md");
+    expect(document.body.style.overflow).toBe("hidden");
+    fireEvent.mouseDown(dialog.parentElement);
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
 });

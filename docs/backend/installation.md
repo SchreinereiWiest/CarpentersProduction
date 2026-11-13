@@ -18,6 +18,12 @@ pnpm run dev
 
 `pnpm run dev` startet `tsx watch src/server.js`; `pnpm start` startet `node src/server.js`. Beide Varianten lauschen auf Port `5000`.
 
+Der automatische CRM-Kontaktverlauf benötigt zusätzlich Valkey und den
+separaten Worker `pnpm run worker:contact-history`. Docker Compose startet
+diesen Dienst als `contact-history-worker` automatisch. IMAP-Zugangsdaten
+werden nicht als Umgebungsvariablen konfiguriert, sondern ausschließlich über
+die Firmeneinstellungen verschlüsselt gespeichert.
+
 ## Umgebungsvariablen
 
 Die Werte werden über `Backend/.env` geladen. Die Datei wird aus `Backend/.env.example` erzeugt, ist ignoriert und darf keine echten Zugangsdaten im Repository enthalten.

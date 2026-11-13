@@ -125,6 +125,31 @@ services:
         aliases:
           - valkey
 
+  contact-history-worker:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile.dev
+      additional_contexts:
+        engine: ./Engine
+    restart: always
+    command: ["node", "src/workers/contact-history.worker.js"]
+    env_file:
+      - ./Backend/.env
+    environment:
+      - NODE_ENV=development
+      - VALKEY_URL=redis://valkey:6379/0
+    volumes:
+      - ./Backend:/app
+      - ./Engine:/Engine:ro
+      - /app/node_modules
+    depends_on:
+      carpenters-valkey:
+        condition: service_healthy
+      carpenters-postgres:
+        condition: service_started
+    networks:
+      - carpenters-network
+
   measurement-ocr:
     build:
       context: ./Services/MeasurementOCR

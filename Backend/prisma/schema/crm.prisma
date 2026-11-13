@@ -139,6 +139,19 @@ model Communication {
   subject String?
   content String
 
+  // Automatisch importierte E-Mails bleiben vom manuell erfassten Verlauf
+  // unterscheidbar. Die externe ID ist nur zusammen mit Kunde und Quelle
+  // eindeutig, weil dieselbe Nachricht mehrere bekannte Empfänger haben kann.
+  source      String    @default("manual")
+  externalId  String?   @map("external_id")
+  messageId   String?   @map("message_id")
+  direction   String?
+  fromAddress String?   @map("from_address")
+  toAddresses String[]  @default([]) @map("to_addresses")
+  ccAddresses String[]  @default([]) @map("cc_addresses")
+  occurredAt  DateTime? @map("occurred_at")
+  attachments Json?
+
   followUpDate DateTime? @map("follow_up_date")
 
   createdById String? @map("created_by") @db.Uuid
@@ -149,7 +162,41 @@ model Communication {
   deletedAt DateTime? @map("deleted_at")
 
   @@unique([tenantId, id])
+  @@unique([tenantId, customerId, source, externalId])
+  @@index([customerId, occurredAt])
   @@map("communications")
+}
+
+model ContactHistoryConfiguration {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @unique @map("tenant_id") @db.Uuid
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  enabled             Boolean @default(false)
+  host                String
+  port                Int     @default(993)
+  username            String
+  accountEmail        String  @map("account_email")
+  mailbox             String  @default("INBOX")
+  initialSyncDays     Int     @default(90) @map("initial_sync_days")
+  syncIntervalMinutes Int     @default(5) @map("sync_interval_minutes")
+
+  uidValidity         String?   @map("uid_validity")
+  lastUid             Int       @default(0) @map("last_uid")
+  sentMailbox         String?   @map("sent_mailbox")
+  sentUidValidity     String?   @map("sent_uid_validity")
+  lastSentUid         Int       @default(0) @map("last_sent_uid")
+  lastConnectedAt     DateTime? @map("last_connected_at")
+  lastSyncAt          DateTime? @map("last_sync_at")
+  lastSyncError       String?   @map("last_sync_error")
+  consecutiveFailures Int       @default(0) @map("consecutive_failures")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, id])
+  @@map("contact_history_configurations")
 }
 
 model Appointment {

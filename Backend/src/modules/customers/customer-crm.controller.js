@@ -115,7 +115,15 @@ export async function getCustomerCrm(req, res) {
   ).sort((first, second) => new Date(first.startAt) - new Date(second.startAt));
 
   const projects = customer.projects.map(({ calendarEvents: _events, ...project }) => project);
-  return res.json({ customer: { ...customer, projects }, calendarEvents });
+  const paperless = await prisma.paperlessConfiguration.findFirst({
+    where: { enabled: true },
+    select: { baseUrl: true }
+  });
+  return res.json({
+    customer: { ...customer, projects },
+    calendarEvents,
+    integrations: { paperlessBaseUrl: paperless?.baseUrl || null }
+  });
 }
 
 export async function createCommunication(req, res) {
@@ -138,6 +146,9 @@ export async function updateCommunication(req, res) {
     where: { id: req.params.communicationId, customerId: req.params.id, deletedAt: null }
   });
   if (!current) throw new CrmValidationError("Kontakteintrag nicht gefunden.", 404, "COMMUNICATION_NOT_FOUND");
+  if (current.source === "imap") {
+    throw new CrmValidationError("Automatisch importierte E-Mails sind unveränderlich.", 409, "IMPORTED_COMMUNICATION_IMMUTABLE");
+  }
   const data = communicationData(req.body, current);
   await validateReferences(req.params.id, data);
   const communication = await prisma.communication.update({
@@ -151,9 +162,12 @@ export async function updateCommunication(req, res) {
 export async function deleteCommunication(req, res) {
   const current = await prisma.communication.findFirst({
     where: { id: req.params.communicationId, customerId: req.params.id, deletedAt: null },
-    select: { id: true }
+    select: { id: true, source: true }
   });
   if (!current) throw new CrmValidationError("Kontakteintrag nicht gefunden.", 404, "COMMUNICATION_NOT_FOUND");
+  if (current.source === "imap") {
+    throw new CrmValidationError("Automatisch importierte E-Mails bleiben für einen nachvollziehbaren Kontaktverlauf erhalten.", 409, "IMPORTED_COMMUNICATION_IMMUTABLE");
+  }
   await prisma.communication.update({ where: { id: current.id }, data: { deletedAt: new Date() } });
   return res.status(204).end();
 }

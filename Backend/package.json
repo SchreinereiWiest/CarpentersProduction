@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "tsx watch src/server.js",
+    "worker:contact-history": "node src/workers/contact-history.worker.js",
     "test": "node --test test/*.test.js test/management/*.test.js",
     "test:security": "node --test test/auth.middleware.test.js test/attachment-search.test.js",
     "test:management": "node --test test/management/foundations.test.js test/management/setup.test.js",
@@ -28,7 +29,9 @@
     "express-fileupload": "^1.5.2",
     "form-data": "^4.0.6",
     "iconv-lite": "^0.7.3",
+    "imapflow": "^2.11.0",
     "jsonwebtoken": "^9.0.3",
+    "mailparser": "^3.14.3",
     "multer": "^2.5.0",
     "pg": "^8.23.1",
     "tar-stream": "^3.2.2",

@@ -60,7 +60,8 @@ const TENANT_DELEGATES = new Set([
     "calendarEvent",
     "paperlessConfiguration",
     "paperlessFolder",
-    "paperlessDocument"
+    "paperlessDocument",
+    "contactHistoryConfiguration"
 ]);
 
 const READ_WITH_WHERE = new Set([

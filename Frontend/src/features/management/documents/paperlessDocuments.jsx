@@ -384,8 +384,6 @@ export function PaperlessInbox({ connected = true }) {
     };
 
     const dismiss = async document => {
-        const location = document.source === "carpenters" ? "Carpenters" : "Paperless";
-        if (!window.confirm(`„${document.title}“ aus dem Dokumenteingang ausblenden? Die Datei bleibt in ${location} erhalten.`)) return;
         try {
             const url = document.source === "carpenters"
                 ? `/api/paperless/local-documents/${document.id}/dismiss`
@@ -399,10 +397,7 @@ export function PaperlessInbox({ connected = true }) {
 
     const deleteRemote = async document => {
         const local = document.source === "carpenters";
-        const question = local
-            ? `„${document.title}“ wirklich dauerhaft aus Carpenters und Garage löschen?`
-            : `„${document.title}“ wirklich in den Paperless-Papierkorb verschieben? Die Referenz wird auch aus Carpenters entfernt.`;
-        if (!window.confirm(question)) return;
+        if (local && !window.confirm(`„${document.title}“ wirklich dauerhaft aus Carpenters und Garage löschen?`)) return;
         try {
             await axios.delete(local ? `/api/files/delete/${document.id}` : `/api/paperless/documents/${document.id}`);
             await load();

@@ -40,15 +40,8 @@ import HourlyRatesSettingsPanel
     from "./panels/hourlyRatesSettingsPanel.jsx";
 import { useAuth } from "../../app/providers/AuthContext.js";
 import PaperlessSettingsPanel from "./panels/paperlessSettingsPanel.jsx";
-
-export const advancedSettingsTabs = [
-    { id: "estimation", label: "Stundenschätzung", requiredFeature: "calculation" },
-    { id: "hourlyRates", label: "Stundensätze", requiredFeature: "calculation", excludedFeature: "business-management" },
-    { id: "ai", label: "AI", requiredFeature: "work-preparation" },
-    { id: "company", label: "Unternehmen" },
-    { id: "documents", label: "Dokumente" },
-    { id: "shop", label: "Shop", requiredFeature: "shop" }
-];
+import ContactHistorySettingsPanel from "./panels/contactHistorySettingsPanel.jsx";
+import { advancedSettingsTabs } from "./advancedSettingsTabs.js";
 
 
 export default function CompanySettings() {
@@ -139,6 +132,11 @@ export default function CompanySettings() {
             case "documents":
                 return (
                     <PaperlessSettingsPanel />
+                );
+
+            case "contactHistory":
+                return (
+                    <ContactHistorySettingsPanel />
                 );
 
             case "programSettings":

@@ -84,7 +84,7 @@ describe("Paperless-Dokumentbereich", () => {
     });
     axios.post.mockResolvedValue({ data: {} });
     axios.delete.mockResolvedValue({ data: {} });
-    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const confirm = vi.spyOn(window, "confirm");
 
     render(<MemoryRouter><ManagementDocuments /></MemoryRouter>);
 
@@ -99,6 +99,7 @@ describe("Paperless-Dokumentbereich", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "In Paperless löschen" }));
     await waitFor(() => expect(axios.delete).toHaveBeenCalledWith("/api/paperless/documents/document-1"));
+    expect(confirm).not.toHaveBeenCalled();
   });
 
   it("lädt Belege wahlweise direkt nach Paperless oder in Carpenters hoch", async () => {
