@@ -75,6 +75,11 @@ services:
       - ./Engine:/Engine:ro
       - /app/node_modules
 
+    volumes:
+      - ./Backend:/app
+      - ./Engine:/Engine:ro
+      - /app/node_modules
+
     # Ermöglicht dem Backend-Container den Zugriff auf eine auf demselben
     # Linux-Host laufende Open-WebUI-Instanz (z. B. Port 3000).
     extra_hosts:
