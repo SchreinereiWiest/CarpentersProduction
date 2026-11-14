@@ -23,12 +23,35 @@ model Tenant {
   contactHistoryConfiguration ContactHistoryConfiguration?
   freePbxConfiguration        FreePbxConfiguration?
   phoneCalls                  PhoneCall[]
+  onboarding                 TenantOnboarding?
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([name])
   @@map("tenants")
+}
+
+model TenantOnboarding {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String    @unique @map("tenant_id") @db.Uuid
+  status         String    @default("pending")
+  currentStep    String    @default("welcome") @map("current_step")
+  completedSteps String[]  @default([]) @map("completed_steps")
+  skippedSteps   String[]  @default([]) @map("skipped_steps")
+  version        Int       @default(1)
+  resetCount     Int       @default(0) @map("reset_count")
+  startedById    String?   @map("started_by") @db.Uuid
+  completedById  String?   @map("completed_by") @db.Uuid
+  startedAt      DateTime  @default(now()) @map("started_at")
+  completedAt    DateTime? @map("completed_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, id])
+  @@map("tenant_onboarding")
 }
 
 model TenantSecret {

@@ -640,13 +640,13 @@ export default function CalculationView() {
         <div className="shrink-0 border-b border-gray-700"><ProjectBar selected={11} /></div>
         <div className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-[1600px] p-3 sm:p-5 xl:p-8">
-            <div className="flex flex-wrap items-start justify-between gap-5">
+            <div data-tour="project-calculation-summary" className="flex flex-wrap items-start justify-between gap-5">
               <div>
                 <p className="text-sm font-medium uppercase tracking-widest text-blue-400">Projektkalkulation</p>
                 <h1 className="mt-1 text-2xl font-bold xl:text-3xl">{project?.title || "Projekt"}</h1>
                 <p className="mt-2 max-w-3xl text-gray-400">Vor- und Nachkalkulation mit Einkaufswerten, Betriebsstundensätzen und historischen Vergleichsprojekten.</p>
               </div>
-              <div className="flex flex-wrap items-center gap-3">
+              <div data-tour="project-calculation-save" className="flex flex-wrap items-center gap-3">
                 <div className="rounded-xl border border-gray-700 bg-gray-800 px-4 py-2.5 text-right">
                   <div className="text-xs uppercase tracking-wide text-gray-500">Materialbasis</div>
                   <div className="mt-0.5 font-semibold">{money.format(materialCost)}</div>
@@ -657,7 +657,7 @@ export default function CalculationView() {
               </div>
             </div>
 
-            <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+            <div data-tour="project-calculation-tabs" className="mt-6 flex flex-wrap items-center justify-between gap-3">
               <SegmentedTabs
                 value={section}
                 onChange={setSection}
@@ -707,7 +707,7 @@ export default function CalculationView() {
             {loading ? (
               <div className="mt-6 rounded-2xl border border-gray-700 bg-gray-800 p-12 text-center text-gray-400">Kalkulationsdaten werden geladen …</div>
             ) : (
-              <div className="mt-6">
+              <div data-tour="project-calculation-content" className="mt-6">
                 {section === "pre" && preMode === "quick" && (
                   <QuickCalculation
                     materialCost={materialCost}

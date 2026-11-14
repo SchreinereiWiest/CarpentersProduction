@@ -959,17 +959,18 @@ export default function Purchasing() {
                         )}
                     </div>
 
-                    <div className="mt-7 flex border-b border-gray-700">
+                    <div data-tour="shop-tabs" className="mt-7 flex border-b border-gray-700">
                         <div className="flex min-w-0 flex-1 overflow-x-auto [&>button]:shrink-0 [&>button]:whitespace-nowrap">
-                            <button type="button" onClick={() => setActiveTab("released")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "released" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Freigegebene Artikel</button>
-                            <button type="button" onClick={() => setActiveTab("shop")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "shop" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Interner Shop</button>
-                            <button type="button" onClick={() => setActiveTab("catalog")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "catalog" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Katalog</button>
-                            <button type="button" onClick={() => setActiveTab("purchased")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "purchased" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Gekaufte Artikel</button>
-                            <button type="button" onClick={() => setActiveTab("lists")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "lists" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Listen</button>
-                            <button type="button" onClick={() => setActiveTab("archive")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "archive" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Archiv</button>
+                            <button data-tour="shop-tab-released" type="button" onClick={() => setActiveTab("released")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "released" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Freigegebene Artikel</button>
+                            <button data-tour="shop-tab-shop" type="button" onClick={() => setActiveTab("shop")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "shop" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Interner Shop</button>
+                            <button data-tour="shop-tab-catalog" type="button" onClick={() => setActiveTab("catalog")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "catalog" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Katalog</button>
+                            <button data-tour="shop-tab-purchased" type="button" onClick={() => setActiveTab("purchased")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "purchased" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Gekaufte Artikel</button>
+                            <button data-tour="shop-tab-lists" type="button" onClick={() => setActiveTab("lists")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "lists" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Listen</button>
+                            <button data-tour="shop-tab-archive" type="button" onClick={() => setActiveTab("archive")} className={`border-b-2 px-5 py-3 font-medium ${activeTab === "archive" ? "border-blue-500 text-white" : "border-transparent text-gray-400 hover:text-white"}`}>Archiv</button>
                         </div>
                         {canEdit && (
                             <button
+                                data-tour="shop-fetch"
                                 type="button"
                                 onClick={() => setShowShopFetchModal(true)}
                                 disabled={fetchingShopData || articleCatalogSaving || loading}
@@ -986,7 +987,7 @@ export default function Purchasing() {
                     <div className="mt-6">
                         {activeTab === "released" ? (
                             <>
-                                <div className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-gray-700 bg-gray-800 p-4">
+                                <div data-tour="shop-released-actions" className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-gray-700 bg-gray-800 p-4">
                                     <div className="flex flex-wrap items-center gap-3">
                                         <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-600 px-3 py-2 text-sm text-gray-200 hover:bg-gray-700">
                                             <input type="checkbox" checked={allReleasedSelected} disabled={releaseKeys.length === 0 || Boolean(processingAction)} onChange={toggleAllReleased} className="size-4 accent-blue-600" />
@@ -1019,7 +1020,7 @@ export default function Purchasing() {
                             </>
                         ) : activeTab === "catalog" ? (
                             <>
-                                <div className="mb-6 flex flex-wrap items-end justify-between gap-4 rounded-xl border border-gray-700 bg-gray-800 p-4">
+                                <div data-tour="shop-catalog-controls" className="mb-6 flex flex-wrap items-end justify-between gap-4 rounded-xl border border-gray-700 bg-gray-800 p-4">
                                     <label className="min-w-64 flex-1">
                                         <span className="mb-1.5 block text-xs uppercase tracking-wide text-gray-500">Katalog durchsuchen</span>
                                         <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Artikelnummer, Bezeichnung oder Lieferant" className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 outline-none focus:border-blue-500" />
@@ -1045,10 +1046,10 @@ export default function Purchasing() {
                                 )}
                             </>
                         ) : activeTab === "purchased" ? (
-                            <PurchasedHistory groups={purchasedGroups} suppliers={suppliers} loading={loading} />
+                            <div data-tour="shop-purchased"><PurchasedHistory groups={purchasedGroups} suppliers={suppliers} loading={loading} /></div>
                         ) : activeTab === "lists" ? (
                             <>
-                                <div className="mb-6 flex flex-wrap items-end justify-between gap-4 rounded-xl border border-gray-700 bg-gray-800 p-4">
+                                <div data-tour="shop-lists-controls" className="mb-6 flex flex-wrap items-end justify-between gap-4 rounded-xl border border-gray-700 bg-gray-800 p-4">
                                     <label className="min-w-64 flex-1">
                                         <span className="mb-1.5 block text-xs uppercase tracking-wide text-gray-500">Listen durchsuchen</span>
                                         <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Liste, Kategorie oder Artikel" className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 outline-none focus:border-blue-500" />
@@ -1072,7 +1073,7 @@ export default function Purchasing() {
                             </>
                         ) : activeTab === "archive" ? (
                             <>
-                                <div className="mb-6 flex flex-wrap items-end justify-between gap-4 rounded-xl border border-gray-700 bg-gray-800 p-4">
+                                <div data-tour="shop-archive-controls" className="mb-6 flex flex-wrap items-end justify-between gap-4 rounded-xl border border-gray-700 bg-gray-800 p-4">
                                     <label className="min-w-64 flex-1">
                                         <span className="mb-1.5 block text-xs uppercase tracking-wide text-gray-500">Archiv durchsuchen</span>
                                         <input value={search} onChange={event => setSearch(event.target.value)} placeholder="Artikel, Lieferant, Nummer oder Kategorie" className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 outline-none focus:border-blue-500" />
@@ -1096,7 +1097,7 @@ export default function Purchasing() {
                             </>
                         ) : (
                             <>
-                                <div className="flex flex-wrap items-end justify-between gap-4 rounded-xl border border-gray-700 bg-gray-800 p-4">
+                                <div data-tour="shop-controls" className="flex flex-wrap items-end justify-between gap-4 rounded-xl border border-gray-700 bg-gray-800 p-4">
                                     <div className="flex flex-1 flex-wrap items-end gap-4">
                                         <label className="min-w-64 flex-1">
                                             <span className="mb-1.5 block text-xs uppercase tracking-wide text-gray-500">Artikel suchen</span>

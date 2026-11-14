@@ -360,7 +360,7 @@ export default function ProjectAttachments() {
                             <h1 className="text-2xl font-bold">Anlagen</h1>
                             <p className="mt-1 text-sm text-gray-400">{project?.title ? `${project.title} · ` : ""}Pläne und Referenzen für die Fertigung</p>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div data-tour="project-attachments-actions" className="flex items-center gap-3">
                             <div className="flex rounded-lg border border-gray-700 bg-gray-800 p-1" aria-label="Rasterspalten">
                                 {[1, 2, 3].map(count => (
                                     <button key={count} type="button" onClick={() => setColumns(count)} aria-label={`${count} Spalten`} aria-pressed={columns === count} className={`h-9 w-9 rounded-md text-sm ${columns === count ? "bg-blue-600 text-white" : "text-gray-400 hover:bg-gray-700 hover:text-white"}`}>{count}</button>
@@ -370,6 +370,7 @@ export default function ProjectAttachments() {
                         </div>
                     </header>
 
+                    <div data-tour="project-attachments-library">
                     {error && <p className="rounded-xl border border-red-900 bg-red-950/40 p-4 text-red-300" role="alert">{error}</p>}
                     {loading ? <div className="py-16 text-center text-gray-400">Anlagen werden geladen …</div> : attachments.length === 0 ? (
                         <div className="rounded-2xl border border-dashed border-gray-700 bg-gray-800/30 px-6 py-20 text-center">
@@ -403,9 +404,10 @@ export default function ProjectAttachments() {
                             ))}
                         </div>
                     )}
+                    </div>
 
                     {paperlessDocuments.length > 0 && (
-                        <section className="mt-6 rounded-2xl border border-violet-900/70 bg-violet-950/10 p-4 sm:p-5">
+                        <section data-tour="project-attachments-paperless" className="mt-6 rounded-2xl border border-violet-900/70 bg-violet-950/10 p-4 sm:p-5">
                             <div className="mb-4">
                                 <h2 className="font-semibold text-violet-200">Dokumente aus Paperless</h2>
                                 <p className="mt-1 text-xs text-gray-500">Diese Dateien bleiben in Paperless und werden beim Öffnen von dort geladen.</p>

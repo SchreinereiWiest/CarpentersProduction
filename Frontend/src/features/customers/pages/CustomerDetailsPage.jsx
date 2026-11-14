@@ -56,8 +56,8 @@ export default function CustomerDetailsPage() {
               <h1 className="mt-1 text-2xl font-bold sm:text-3xl">{customerName}</h1>
               <p className="mt-1 text-sm text-slate-400">{customer?.companyName || "Privatkunde"}</p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Link to={`/Kontakte/info/${userid}/crm`} className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold hover:bg-sky-500">CRM-Ansicht</Link>
+            <div data-tour="contact-detail-actions" className="flex flex-wrap gap-2">
+              <Link data-tour-contact-crm-route={`/Kontakte/info/${userid}/crm`} to={`/Kontakte/info/${userid}/crm`} className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold hover:bg-sky-500">CRM-Ansicht</Link>
               <Link to={`/Kontakte/edit/${userid}`} className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800">Bearbeiten</Link>
               <button type="button" onClick={() => setShowImport(true)} className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800">Projekt importieren</button>
               <Link to={`/Kontakte/NewProject/${userid}`} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold hover:bg-emerald-500">+ Projekt</Link>
@@ -67,7 +67,7 @@ export default function CustomerDetailsPage() {
           {error && <div role="alert" className="mt-4 rounded-lg border border-rose-800 bg-rose-950/50 p-3 text-sm text-rose-300">{error}</div>}
 
           <div className="mt-5 flex flex-col items-start gap-5 lg:flex-row">
-            <aside className="w-full shrink-0 space-y-4 lg:w-80 xl:w-96">
+            <aside data-tour="contact-detail-data" className="w-full shrink-0 space-y-4 lg:w-80 xl:w-96">
               <section className="rounded-xl border border-slate-800 bg-gray-800 p-4">
                 <div className="flex items-center justify-between"><h2 className="font-semibold">Kontakt</h2><span className="rounded-full bg-emerald-500/15 px-2 py-1 text-[11px] font-semibold text-emerald-300">{customer?.customerStatus || "active"}</span></div>
                 <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3">
@@ -99,7 +99,7 @@ export default function CustomerDetailsPage() {
               {(customer?.paperlessDocuments ?? []).length > 0 && <section className="rounded-xl border border-violet-900/60 bg-gray-800 p-4"><h2 className="font-semibold text-violet-200">Paperless-Dokumente</h2><div className="mt-3 space-y-2">{customer.paperlessDocuments.map(document => <button key={document.id} type="button" onClick={() => setViewingPaperless(document)} className="flex w-full items-center gap-3 rounded-lg bg-gray-900 p-2 text-left hover:bg-slate-700"><img src={`/api/paperless/documents/${document.id}/thumbnail?v=2`} alt="" loading="lazy" className="h-14 w-11 shrink-0 rounded bg-slate-950 object-contain"/><span className="min-w-0"><span className="block truncate text-sm text-sky-300">{document.title}</span><span className="block truncate text-xs text-slate-500">{document.documentType || document.originalFileName || "Paperless-Dokument"}</span></span></button>)}</div></section>}
             </aside>
 
-            <section className="min-w-0 w-full flex-1 overflow-hidden rounded-xl border border-slate-800 bg-gray-800">
+            <section data-tour="contact-detail-projects" className="min-w-0 w-full flex-1 overflow-hidden rounded-xl border border-slate-800 bg-gray-800">
               <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3 sm:px-5">
                 <div><h2 className="font-semibold">Projekte</h2><p className="text-xs text-slate-500">{projects.length} dem Kunden zugeordnet</p></div>
               </div>

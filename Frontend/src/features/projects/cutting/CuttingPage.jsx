@@ -413,7 +413,7 @@ function CutingView() {
                 </div>
 
                 <div className="relative flex-1 overflow-hidden">
-                    <div className="absolute top-2 xl:top-4 left-2 xl:left-4 right-2 xl:right-4 z-20">
+                    <div data-tour="project-cut-sheets" className="absolute top-2 xl:top-4 left-2 xl:left-4 right-2 xl:right-4 z-20">
                         <div className="bg-gray-800/95 backdrop-blur border border-gray-700 rounded-xl shadow-xl p-2 xl:p-3">
                             <div className="flex items-center gap-2 xl:gap-3">
                                 <div className="text-xs xl:text-sm text-gray-400 whitespace-nowrap">
@@ -443,7 +443,7 @@ function CutingView() {
                         </div>
                     </div>
 
-                    <div className="absolute top-20 xl:top-24 right-2 xl:right-4 z-20 flex w-[min(24rem,calc(100%-1rem))] flex-col gap-2 xl:gap-3">
+                    <div data-tour="project-cut-stack" className="absolute top-20 xl:top-24 right-2 xl:right-4 z-20 flex w-[min(24rem,calc(100%-1rem))] flex-col gap-2 xl:gap-3">
                         <div className="flex items-center gap-1 xl:gap-3 bg-gray-800/90 backdrop-blur border border-gray-700 rounded-lg px-2 xl:px-4 py-2 xl:py-3 shadow-lg">
                             <span className="rounded-lg border border-gray-700 bg-gray-900 px-2 xl:px-4 py-2 whitespace-nowrap text-gray-400 text-xs xl:text-sm">
                                 Stapel {stacks.length ? activeStackIndex + 1 : 0} | {stacks.length}
@@ -524,7 +524,7 @@ function CutingView() {
                         </div>
                     </div>
 
-                    <div className="absolute top-20 xl:top-24 left-2 xl:left-4 z-20 max-w-[min(24rem,calc(100%-1rem))]">
+                    <div data-tour="project-cut-part" className="absolute top-20 xl:top-24 left-2 xl:left-4 z-20 max-w-[min(24rem,calc(100%-1rem))]">
                         <div className="bg-gray-800/90 backdrop-blur border border-gray-700 rounded-lg px-2 xl:px-4 py-2 xl:py-3 shadow-lg max-h-[calc(100vh-12rem)] overflow-y-auto">
                             {activeStack ? (
                                 <>
@@ -601,7 +601,7 @@ function CutingView() {
                         </div>
                     </div>
 
-                    <div className="absolute inset-0">
+                    <div data-tour="project-cut-canvas" className="absolute inset-0">
                         <Canvas
                             orthographic
                             camera={{ zoom: 25, position: [0, 0, 20] }}

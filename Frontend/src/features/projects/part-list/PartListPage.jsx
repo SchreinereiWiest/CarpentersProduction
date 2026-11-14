@@ -187,7 +187,7 @@ return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden ove
         <div className="flex flex-1 flex-col overflow-y-auto lg:flex-row">
 
             {/* LINKER BEREICH */}
-            <div className="w-full p-3 sm:p-5 lg:w-2/3 xl:p-8">
+            <div data-tour="project-parts-list" className="w-full p-3 sm:p-5 lg:w-2/3 xl:p-8">
 
                 {leftItems?.map((item) => (
 
@@ -286,12 +286,12 @@ return (<div className="bg-gray-900 text-white h-screen flex overflow-hidden ove
 
             {/* RECHTER BEREICH */}
 
-            <div className="w-full min-w-0 border-t border-gray-700 p-3 sm:p-5 lg:w-1/3 lg:border-l lg:border-t-0 xl:p-8">
+            <div data-tour="project-parts-sidebar" className="w-full min-w-0 border-t border-gray-700 p-3 sm:p-5 lg:w-1/3 lg:border-l lg:border-t-0 xl:p-8">
 
     <div className="flex flex-col gap-3">
 
         {/* 1. Zeile – Buttons */}
-        <div className="flex flex-wrap gap-2">
+        <div data-tour="project-parts-actions" className="flex flex-wrap gap-2">
 
             <button
                 onClick={() => createPartsListPDF(processedContent)}

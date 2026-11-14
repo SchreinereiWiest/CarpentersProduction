@@ -25,6 +25,7 @@ import paperlessInternalRoutes from "./modules/paperless/paperless-internal.rout
 import contactHistoryRoutes from "./modules/contact-history/contact-history.routes.js";
 import freePbxWebhookRoutes from "./modules/contact-history/freepbx-webhook.routes.js";
 import dashboardRoutes from "./modules/dashboard/dashboard.routes.js";
+import onboardingRoutes from "./modules/onboarding/onboarding.routes.js";
 
 export function createApp() {
   const app = express();
@@ -72,6 +73,7 @@ export function createApp() {
   app.use("/api/paperless", paperlessRoutes);
   app.use("/api/contact-history", contactHistoryRoutes);
   app.use("/api/dashboard", dashboardRoutes);
+  app.use("/api/onboarding", onboardingRoutes);
 
   app.use((error, _req, res, _next) => {
     if (res.headersSent) {

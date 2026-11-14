@@ -41,7 +41,7 @@ function ProjectOverview() {
 
         <main className="h-full min-w-0 flex-1 overflow-y-auto pt-4 sm:pt-5 xl:pt-10">
 
-            <div className="mx-4 flex flex-wrap items-center gap-3 sm:mx-8">
+            <div data-tour="projects-actions" className="mx-4 flex flex-wrap items-center gap-3 sm:mx-8">
             <button
              onClick={() => navigate(`/projects/create`, {
                     state: {
@@ -78,7 +78,7 @@ function ProjectOverview() {
         </button>
         </div>
 
-            <div className="mx-4 mt-4 overflow-hidden rounded-lg sm:mx-8">
+            <div data-tour="projects-list" className="mx-4 mt-4 overflow-hidden rounded-lg sm:mx-8">
                         <table className="responsive-card-table w-full table-fixed">
                             <thead>
                                 <tr className="bg-gray-800">
@@ -94,7 +94,7 @@ function ProjectOverview() {
                             <tbody>
 
                                 {projects?.map((project) => (
-                                <tr key={project.id} className="bg-gray-700 hover:bg-gray-600 transition duration-300 cursor-pointer"
+                                <tr key={project.id} data-tour-project-route={`/Projects/${project.id}`} className="bg-gray-700 hover:bg-gray-600 transition duration-300 cursor-pointer"
                                     onClick={()=> {navigate(`/Projects/${project.id}`)}}
                                     >
                                     <td data-label="Titel" className="xl:py-4 py-3 px-6">

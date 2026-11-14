@@ -123,7 +123,7 @@ export default function HourlyRates() {
     setImportState(null);
   };
 
-  return <div className="space-y-6">
+  return <div data-tour="management-rates" className="space-y-6">
     <div>
       <h1 className="text-2xl font-semibold">Stunden- und Maschinenstundensätze {year}</h1>
       <p className="mt-1 max-w-4xl text-sm text-gray-400">Lineare Vollkostenkalkulation für alle Tätigkeiten aus den Unternehmenseinstellungen. Beträge werden netto und als Jahreswerte erfasst; die fertigen Selbstkostensätze stehen danach automatisch in jeder Projektkalkulation bereit.</p>

@@ -293,7 +293,7 @@ export default function CustomerCrmPage() {
               </div>
               <p className="mt-1 text-sm text-slate-400">Kontakte, Termine, Projekte und Kundenhistorie an einem Ort</p>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div data-tour="contact-crm-actions" className="flex flex-wrap gap-2">
               <Link to={`/Kontakte/edit/${userid}`} className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800">Stammdaten bearbeiten</Link>
               <button type="button" onClick={() => setForm(form === "communication" ? null : "communication")} className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold hover:bg-sky-500">+ Kontakt</button>
               <button type="button" onClick={() => setForm(form === "appointment" ? null : "appointment")} className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold hover:bg-violet-500">+ Termin</button>
@@ -341,7 +341,7 @@ export default function CustomerCrmPage() {
 
               <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
                 <div className="space-y-5">
-                  <section className="rounded-xl border border-slate-800 bg-slate-900 p-4 sm:p-5">
+                  <section data-tour="contact-crm-history" className="rounded-xl border border-slate-800 bg-slate-900 p-4 sm:p-5">
                     <div className="mb-4 flex items-center justify-between gap-3">
                       <div><h2 className="font-semibold">Kontaktverlauf</h2><p className="text-xs text-slate-500">Telefonie, E-Mail, Schriftverkehr und Notizen</p></div>
                       <div className="flex items-center gap-3">
@@ -352,7 +352,7 @@ export default function CustomerCrmPage() {
                     {communications.length === 0 ? <EmptyState>Noch keine Kundenkontakte erfasst.</EmptyState> : <CommunicationTimeline communications={communications} busy={busy} onRemove={removeCommunication} onSavePhoneNote={updatePhoneCallNote} paperlessBaseUrl={crm?.integrations?.paperlessBaseUrl} />}
                   </section>
 
-                  <section className="rounded-xl border border-slate-800 bg-slate-900 p-4 sm:p-5">
+                  <section data-tour="contact-crm-appointments" className="rounded-xl border border-slate-800 bg-slate-900 p-4 sm:p-5">
                     <div className="mb-4 flex items-center justify-between gap-3">
                       <div><h2 className="font-semibold">Termine & Kalender</h2><p className="text-xs text-slate-500">Kundentermine und automatisch verknüpfte Projektplanung</p></div>
                       <Link to="/Calendar" className="text-xs text-sky-400 hover:text-sky-300">Kalender öffnen</Link>
@@ -391,7 +391,7 @@ export default function CustomerCrmPage() {
                     </div>
                   </section>
 
-                  <section className="rounded-xl border border-slate-800 bg-slate-900 p-4 sm:p-5">
+                  <section data-tour="contact-crm-projects" className="rounded-xl border border-slate-800 bg-slate-900 p-4 sm:p-5">
                     <div className="mb-4 flex items-center justify-between"><h2 className="font-semibold">Projekte</h2><span className="text-xs text-slate-500">{projects.length} gesamt</span></div>
                     <div className="grid gap-3 md:grid-cols-2">
                       {projects.length === 0 && <div className="md:col-span-2"><EmptyState>Keine Projekte zugeordnet.</EmptyState></div>}

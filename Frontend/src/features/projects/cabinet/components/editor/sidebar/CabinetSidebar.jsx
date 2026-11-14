@@ -1,4 +1,3 @@
-import React from "react";
 import { CabinetList } from "../../view/cabinetList.view.jsx";
 import FormulaNumberInput from "../FormulaNumberInput.jsx";
 
@@ -50,7 +49,7 @@ const updateDimension = (field, expression, evaluation) => {
 
 return (
 
-<aside className="
+<aside data-tour="project-cabinet-list" className="
             flex
             h-full
             min-h-0

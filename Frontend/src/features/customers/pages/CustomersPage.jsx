@@ -68,6 +68,7 @@ return (
             <div className="flex flex-col gap-3 px-4 sm:px-6 lg:relative lg:flex-row lg:items-center">
                 <form
                     onSubmit={handleSearch}
+                    data-tour="contacts-search"
                     className="flex w-full max-w-xl rounded-full border bg-gray-50 px-4 py-2 focus-within:border-gray-300 sm:mx-auto sm:px-6">
                     <input type="search" placeholder="Kunden suchen"
                         aria-label="Kunden suchen"
@@ -84,7 +85,7 @@ return (
                 </form>
 
                 <div className="lg:absolute lg:right-12 xl:right-24">
-                    <Link to="/Kontakte/new"
+                    <Link data-tour="contacts-new" to="/Kontakte/new"
                         className="flex h-12 w-full items-center justify-center rounded-full bg-gray-700 px-4 text-white transition duration-300 hover:bg-gray-600 lg:mx-4 lg:w-auto">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
                             className="size-6">
@@ -99,7 +100,7 @@ return (
 
             </div>
 
-            <div className="mx-4 overflow-hidden rounded-lg pt-6 md:mx-10 md:pt-10">
+            <div data-tour="contacts-list" className="mx-4 overflow-hidden rounded-lg pt-6 md:mx-10 md:pt-10">
                 <table className="responsive-card-table w-full table-fixed">
                     <thead>
                         <tr className="bg-gray-800">
@@ -117,6 +118,7 @@ return (
   {customers.map((customer) => (
     <tr
       key={customer.id}
+      data-tour-contact-route={`/Kontakte/info/${customer.id}`}
       className="bg-gray-700 hover:bg-gray-600 transition duration-300 cursor-pointer"
       onClick={() => {navigate(`/Kontakte/info/${customer.id}`)}}
     >

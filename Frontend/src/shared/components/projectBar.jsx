@@ -19,11 +19,11 @@ function ProjectBar({selected=0, projectId: providedProjectId, onNavigate}) {
     };
 
 return (
-<nav aria-label="Projektnavigation" data-keybinding-target="project-bar" onClick={handleNavigation} className="project-bar bg-gray-800 xl:h-20 h-16 w-full overflow-x-auto overflow-y-hidden">
+<nav aria-label="Projektnavigation" data-keybinding-target="project-bar" data-tour="project-bar" onClick={handleNavigation} className="project-bar bg-gray-800 xl:h-20 h-16 w-full overflow-x-auto overflow-y-hidden">
     <div className="project-bar__items relative flex w-max min-w-full xl:space-x-3 space-x-2 xl:p-3 p-2"
          >
 
-        <Link to={`/Projects/${projectId}`} aria-label="Projektübersicht" title="Projektübersicht" className={selected===0
+        <Link data-tour="project-nav-overview" to={`/Projects/${projectId}`} aria-label="Projektübersicht" title="Projektübersicht" className={selected===0
             ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             
@@ -37,7 +37,7 @@ return (
             </svg>
         </Link>
 
-        <Link to={`/Projects/Aufmas/${projectId}`} aria-label="Aufmaß" title="Aufmaß" className={selected===1
+        <Link data-tour="project-nav-measurement" to={`/Projects/Aufmas/${projectId}`} aria-label="Aufmaß" title="Aufmaß" className={selected===1
             ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             
@@ -51,7 +51,7 @@ return (
 
         </Link>
 
-        <Link to={`/Projects/Cabinet/${projectId}`} aria-label="Schrankkonfigurator" title="Schrankkonfigurator" className={selected===2
+        <Link data-tour="project-nav-cabinet" to={`/Projects/Cabinet/${projectId}`} aria-label="Schrankkonfigurator" title="Schrankkonfigurator" className={selected===2
             ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             
@@ -64,7 +64,7 @@ return (
 
         </Link>
 
-        <Link to={`/Projects/List/${projectId}`} aria-label="Stückliste" title="Stückliste" className={selected===3
+        <Link data-tour="project-nav-parts" to={`/Projects/List/${projectId}`} aria-label="Stückliste" title="Stückliste" className={selected===3
             ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             
@@ -77,7 +77,7 @@ return (
 
         </Link>
 
-        <Link to={`/Projects/Nesting/${projectId}`} aria-label="Nesting" title="Nesting" className={selected===4
+        <Link data-tour="project-nav-nesting" to={`/Projects/Nesting/${projectId}`} aria-label="Nesting" title="Nesting" className={selected===4
             ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             }>
@@ -88,7 +88,7 @@ return (
 
         </Link>
 
-        <Link to={`/Projects/Cut/${projectId}`} aria-label="Zuschnitt" title="Zuschnitt" className={selected===5
+        <Link data-tour="project-nav-cut" to={`/Projects/Cut/${projectId}`} aria-label="Zuschnitt" title="Zuschnitt" className={selected===5
             ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             }>
@@ -100,7 +100,7 @@ return (
 
         </Link>
 
-        <Link to={`/Projects/Cnc/${projectId}`} aria-label="CNC" title="CNC" className={selected===6
+        <Link data-tour="project-nav-cnc" to={`/Projects/Cnc/${projectId}`} aria-label="CNC" title="CNC" className={selected===6
             ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             }>
@@ -112,7 +112,7 @@ return (
 
         </Link>
 
-        <Link to={`/Projects/Attachments/${projectId}`} aria-label="Anlagen und Fertigungspläne" title="Anlagen und Fertigungspläne" className={selected===10
+        <Link data-tour="project-nav-attachments" to={`/Projects/Attachments/${projectId}`} aria-label="Anlagen und Fertigungspläne" title="Anlagen und Fertigungspläne" className={selected===10
             ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             }>
@@ -123,7 +123,7 @@ return (
 
         </Link>
 
-        <Link to={`/Projects/Time/${projectId}`} aria-label="Zeiterfassung" title="Zeiterfassung" className={selected===7
+        <Link data-tour="project-nav-time" to={`/Projects/Time/${projectId}`} aria-label="Zeiterfassung" title="Zeiterfassung" className={selected===7
             ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             }>
@@ -135,7 +135,7 @@ return (
         </Link>
 
         <ProtectedElement requiredRole="user" requiredFeature="shop">
-        <Link to={`/Projects/Purchasing/${projectId}`} aria-label="Projekt-Einkaufswagen" title="Projekt-Einkaufswagen" className={selected===9
+        <Link data-tour="project-nav-purchasing" to={`/Projects/Purchasing/${projectId}`} aria-label="Projekt-Einkaufswagen" title="Projekt-Einkaufswagen" className={selected===9
             ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             }>
@@ -149,7 +149,7 @@ return (
 
         <ProtectedElement requiredRole="user" requiredFeature="calculation">
 
-            <Link to={`/Projects/Calculation/${projectId}`} aria-label="Kalkulation" title="Kalkulation" className={selected===11
+            <Link data-tour="project-nav-calculation" to={`/Projects/Calculation/${projectId}`} aria-label="Kalkulation" title="Kalkulation" className={selected===11
                 ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
                 : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
                 }>
@@ -163,7 +163,7 @@ return (
             </Link>
         </ProtectedElement>
 
-        <Link to={`/Projects/Settings/${projectId}`} aria-label="Projekteinstellungen" title="Projekteinstellungen" className={selected===8
+        <Link data-tour="project-nav-settings" to={`/Projects/Settings/${projectId}`} aria-label="Projekteinstellungen" title="Projekteinstellungen" className={selected===8
             ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center xl:h-14 xl:w-14 h-12 w-12 rounded-lg"
             }>

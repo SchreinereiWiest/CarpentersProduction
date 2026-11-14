@@ -45,7 +45,7 @@ export default function AnnualGoals() {
     if (success) setForm(current => ({ ...current, title: type.label, targetValue: "", note: "" }));
   };
 
-  return <div className="space-y-6">
+  return <div data-tour="management-goals" className="space-y-6">
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div><h1 className="text-2xl font-semibold">Jahreszielplanung {year}</h1><p className="mt-1 text-sm text-gray-400">Soll zum Stichtag festlegen, Zwischenstände dokumentieren und nach Jahresende mit dem Istwert vergleichen.</p></div>
       <div className="flex flex-wrap gap-2">

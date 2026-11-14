@@ -43,6 +43,7 @@ import PaperlessSettingsPanel from "./panels/paperlessSettingsPanel.jsx";
 import ContactHistorySettingsPanel from "./panels/contactHistorySettingsPanel.jsx";
 import { advancedSettingsTabs } from "./advancedSettingsTabs.js";
 import ManagementSettingsPanel from "./panels/managementSettingsPanel.jsx";
+import ResetSettingsPanel from "./panels/resetSettingsPanel.jsx";
 
 
 export default function CompanySettings() {
@@ -168,6 +169,11 @@ export default function CompanySettings() {
             case "storage":
                 return (
                     <StorageSettingsPanel />
+                );
+
+            case "reset":
+                return (
+                    <ResetSettingsPanel />
                 );
 
 

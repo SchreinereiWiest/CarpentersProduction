@@ -954,7 +954,7 @@ export default function AufmasWorkspace() {
         <div className="z-20 shrink-0 border-b border-[#2a3741] bg-[#172029]">
           <ProjectBar selected={1} />
         </div>
-        <header className="flex h-11 shrink-0 items-center justify-between border-b border-[#2a3741] bg-[#121a21] px-4">
+        <header data-tour="project-measurement-status" className="flex h-11 shrink-0 items-center justify-between border-b border-[#2a3741] bg-[#121a21] px-4">
           <div className="flex min-w-0 items-center gap-3">
             <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#728492]">
               Aufmaß
@@ -1021,7 +1021,7 @@ export default function AufmasWorkspace() {
               objectCount={activeListedObjects.length}
             />
           )}
-          <section className="min-h-0 min-w-0">
+          <section data-tour="project-measurement-canvas" className="min-h-0 min-w-0">
             {activeView?.type === "three" ? (
               <AufmasThreeView files={project?.files ?? []} />
             ) : activeView?.type === "images" ? (
@@ -1070,7 +1070,7 @@ export default function AufmasWorkspace() {
               />
             )}
           </section>
-          <div className="aufmas-right-sidebar grid min-h-0 border-l border-[#2a3741] bg-[#172029]">
+          <div data-tour="project-measurement-properties" className="aufmas-right-sidebar grid min-h-0 border-l border-[#2a3741] bg-[#172029]">
             <PropertiesPanel
               selected={selected}
               objects={activeListedObjects}
@@ -1103,7 +1103,7 @@ export default function AufmasWorkspace() {
               />
             </div>
           </div>
-          <div className="aufmas-views min-h-0 border-t border-[#2a3741]">
+          <div data-tour="project-measurement-views" className="aufmas-views min-h-0 border-t border-[#2a3741]">
             <ViewStrip
               views={views}
               activeViewId={activeViewId}

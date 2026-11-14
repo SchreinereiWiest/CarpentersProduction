@@ -42,6 +42,9 @@ import CalendarPage from "../features/calendar/CalendarPage.jsx";
 import CustomerCrmPage from "../features/customers/pages/CustomerCrmPage.jsx";
 import WorkspaceRoot from "../shared/workspace/WorkspaceRoot.jsx";
 import GlobalPhoneCallLayer from "../features/contact-history/GlobalPhoneCallLayer.jsx";
+import OnboardingGate from "../features/onboarding/OnboardingGate.jsx";
+import OnboardingPage from "../features/onboarding/OnboardingPage.jsx";
+import GuidedHelpProvider from "../features/guided-help/GuidedHelpProvider.jsx";
 
 function LegacyCadRedirect() {
   const { projectId } = useParams();
@@ -58,8 +61,11 @@ export default function AppRouter() {
       <WorkspaceRoot>
         <OfflineStatusCenter />
         <CacheRefreshBoundary>
+          <OnboardingGate>
+          <GuidedHelpProvider>
           <Routes>
           <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+          <Route path="/init" element={protectedPage(<OnboardingPage />, "admin")} />
           <Route path="/" element={protectedPage(<DashboardPage />, undefined)} />
 
           <Route path="/Management" element={protectedPage(<ManagementLayout />, "admin", ["business-management"])}>
@@ -116,6 +122,8 @@ export default function AppRouter() {
           <Route path="/User" element={protectedPage(<UserProfilePage />)} />
           <Route path="/Offline/Merge/:conflictKey" element={protectedPage(<OfflineMergePage />, "user", ["work-preparation"])} />
           </Routes>
+          </GuidedHelpProvider>
+          </OnboardingGate>
         </CacheRefreshBoundary>
       </WorkspaceRoot>
     </GlobalPhoneCallLayer>

@@ -376,7 +376,7 @@ export default function ProjectSettings() {
             {/* Project status */}
             {/* -------------------------------- */}
 
-            <section className="bg-gray-800 border border-gray-700 rounded-xl xl:p-6 p-4 xl:mb-6 mb-4">
+            <section data-tour="project-settings-status" className="bg-gray-800 border border-gray-700 rounded-xl xl:p-6 p-4 xl:mb-6 mb-4">
               <div className="mb-5">
                 <h2 className="text-lg font-semibold">Projektstatus</h2>
 
@@ -479,7 +479,7 @@ export default function ProjectSettings() {
             {/* Edit project */}
             {/* -------------------------------- */}
 
-            <section className="bg-gray-800 border border-gray-700 rounded-xl xl:p-6 p-4 xl:mb-6 mb-4">
+            <section data-tour="project-settings-details" className="bg-gray-800 border border-gray-700 rounded-xl xl:p-6 p-4 xl:mb-6 mb-4">
               <div className="mb-6">
                 <h2 className="text-lg font-semibold">Projekt bearbeiten</h2>
 
@@ -737,7 +737,7 @@ export default function ProjectSettings() {
 
             {/* Project export */}
 
-            <section className="bg-gray-800 border border-gray-700 rounded-xl xl:p-6 p-4 xl:mb-6 mb-4">
+            <section data-tour="project-settings-export" className="bg-gray-800 border border-gray-700 rounded-xl xl:p-6 p-4 xl:mb-6 mb-4">
               <div className="flex items-center justify-between xl:gap-6 gap-3">
                 <div>
                   <h2 className="text-lg font-semibold">
@@ -771,7 +771,7 @@ export default function ProjectSettings() {
             {/* Danger zone */}
             {/* -------------------------------- */}
 
-            <section className="border border-red-900/60 bg-red-950/20 rounded-xl xl:p-6 p-4 mb-10">
+            <section data-tour="project-settings-danger" className="border border-red-900/60 bg-red-950/20 rounded-xl xl:p-6 p-4 mb-10">
               <div className="flex items-center justify-between xl:gap-6 gap-2">
                 <div>
                   <h2 className="text-lg font-semibold text-red-400">

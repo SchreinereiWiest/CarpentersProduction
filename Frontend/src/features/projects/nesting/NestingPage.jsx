@@ -882,7 +882,7 @@ function NestingView() {
         </div>
 
             {/* Content-Bereich */} <div className="relative flex-1 overflow-hidden"> {/* Navigation der Hauptplatten
-                */} <div className="absolute xl:top-4 top-2 xl:left-4 left-2 xl:right-4 right-2 z-20">
+                */} <div data-tour="project-nesting-sheets" className="absolute xl:top-4 top-2 xl:left-4 left-2 xl:right-4 right-2 z-20">
                     <div className="bg-gray-800/95 backdrop-blur border border-gray-700 rounded-xl shadow-xl xl:p-3 p-2">
                         <div className="flex items-center xl:gap-3 gap-2">
                             <div className="xl:text-sm text-xs text-gray-400 whitespace-nowrap"> Hauptplatten </div>
@@ -935,7 +935,7 @@ function NestingView() {
                     </div>
                 </div> )}
 
-                {activeStrip && ( <div className="absolute xl:top-61 xl:left-4 top-56 left-2 z-20">
+                {activeStrip && ( <div data-tour="project-nesting-selection" className="absolute xl:top-61 xl:left-4 top-56 left-2 z-20">
                     <div className="bg-gray-800/90 backdrop-blur border border-gray-700 rounded-lg xl:px-4 px-2 py-3 shadow-lg">
                         <div className="text-gray-400 mb-1"><span className="xl:text-sm text-xs">{isDirect2DNesting ? "Aktives Bauteil" : "Aktiver Strip"}</span> <span className="ml-8 font-semibold text-white xl:text-l text-sm">{activeStrip.id}</span></div>
                         <div className="font-semibold text-white xl:text-lg text-sm"> {activeStrip.placedWidth} x {activeStrip.placedHeight} </div>
@@ -983,7 +983,7 @@ function NestingView() {
 
                 </div> )}
 
-                <div className="absolute xl:top-24 top-20 right-4 z-20">
+                <div data-tour="project-nesting-actions" className="absolute xl:top-24 top-20 right-4 z-20">
     <div className="
         flex
         items-center
@@ -1108,7 +1108,7 @@ function NestingView() {
 
                 )}
 
-                <div className="absolute inset-0">
+                <div data-tour="project-nesting-canvas" className="absolute inset-0">
                     <Canvas orthographic camera={{ zoom: 6, position: [0, 0, 2] }}>
                         <group scale={[0.01,-0.01,0.01]} position={[-75, 9,0]}>
                             <NestingScene result={activeSheet} setActiveStrip={selectStrip}

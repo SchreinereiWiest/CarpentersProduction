@@ -7,7 +7,7 @@ export default function CncPartSidebar({
 }) {
 
   return (
-    <aside className="min-h-0 overflow-y-auto border-r border-gray-700 bg-gray-900">
+    <aside data-tour="project-cnc-parts" className="min-h-0 overflow-y-auto border-r border-gray-700 bg-gray-900">
 
       {/* Header */}
       <div className="h-14 flex items-center px-4 border-b border-gray-700 font-semibold">

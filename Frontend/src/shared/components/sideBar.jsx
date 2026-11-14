@@ -51,6 +51,7 @@ function SideBar({selected=0, onNavigate}) {
 return (
 <nav
     aria-label="Sidebar"
+    data-tour="global-sidebar"
     data-keybinding-target="sidebar"
     onClick={handleNavigation}
     className="

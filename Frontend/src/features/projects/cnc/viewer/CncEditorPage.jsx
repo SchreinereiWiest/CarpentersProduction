@@ -928,7 +928,7 @@ export default function CncEditor() {
                                         )
                                     }
 
-                                    <div className="ml-auto flex items-center gap-3">
+                                    <div data-tour="project-cnc-export" className="ml-auto flex items-center gap-3">
 
                                         {
                                             exportNotice && (
@@ -991,7 +991,7 @@ export default function CncEditor() {
                                     min-h-0
                                 ">
 
-                                    <div className="
+                                    <div data-tour="project-cnc-viewport" className="
                                         relative
                                         h-full
                                         w-full

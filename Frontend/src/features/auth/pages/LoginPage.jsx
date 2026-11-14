@@ -59,7 +59,7 @@ function Login() {
             }, { withCredentials: true });
 
             await checkAuth();
-            navigate("/");
+            navigate(setupMode ? "/init" : "/");
         } catch (requestError) {
             console.error(requestError);
             const response = requestError.response?.data;

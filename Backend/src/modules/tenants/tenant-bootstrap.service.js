@@ -53,6 +53,43 @@ export async function tenantNeedsBootstrap(tenantId, database = systemPrisma) {
 }
 
 /**
+ * Sichert auch für extern oder per CLI angelegte Mandanten den gewünschten
+ * Erststart ab. Migrierte Bestandsmandanten besitzen bereits einen als
+ * abgeschlossen markierten Datensatz und werden dadurch nicht umgeleitet.
+ */
+export async function ensureOnboardingForFirstAdminLogin(tenantId, userId, database = systemPrisma) {
+    try {
+        return await database.$transaction(async transaction => {
+            await transaction.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
+            const existing = await transaction.tenantOnboarding.findUnique({ where: { tenantId } });
+            if (existing) return existing;
+            const onboarding = await transaction.tenantOnboarding.create({
+                data: { tenantId, status: "pending", currentStep: "welcome", startedById: userId }
+            });
+            await transaction.auditLog.create({
+                data: {
+                    tenantId,
+                    actorUserId: userId,
+                    action: "tenant.onboarding_started",
+                    entityType: "TenantOnboarding",
+                    entityId: onboarding.id,
+                    metadata: { trigger: "first_admin_login" }
+                }
+            });
+            return onboarding;
+        });
+    } catch (error) {
+        if (error?.code === "P2002") {
+            return database.$transaction(async transaction => {
+                await transaction.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
+                return transaction.tenantOnboarding.findUnique({ where: { tenantId } });
+            });
+        }
+        throw error;
+    }
+}
+
+/**
  * Legt genau den ersten Administrator eines leeren Mandanten an. Der
  * Lizenzschlüssel dient nur als einmaliger Besitznachweis und wird weder als
  * Benutzerpasswort noch in der Carpenters-Datenbank gespeichert.
@@ -80,6 +117,7 @@ export async function bootstrapTenantAdmin(tenant, body, database = systemPrisma
             // Serialisiert konkurrierende Einrichtungsversuche je Tenant. Die
             // erneute Prüfung innerhalb der Transaktion schließt Doppel-Admins aus.
             await transaction.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${tenant.id}))`;
+            await transaction.$executeRaw`SELECT set_config('app.tenant_id', ${tenant.id}, true)`;
             if (!(await tenantNeedsBootstrap(tenant.id, transaction))) {
                 throw new TenantBootstrapError(
                     "Die Ersteinrichtung dieses Unternehmens ist bereits abgeschlossen",
@@ -113,6 +151,14 @@ export async function bootstrapTenantAdmin(tenant, body, database = systemPrisma
             });
             await transaction.tenantMembership.create({
                 data: { tenantId: tenant.id, userId: user.id, role: "admin", isActive: true }
+            });
+            await transaction.tenantOnboarding.create({
+                data: {
+                    tenantId: tenant.id,
+                    status: "pending",
+                    currentStep: "welcome",
+                    startedById: user.id
+                }
             });
             await transaction.auditLog.create({
                 data: {

@@ -1005,7 +1005,7 @@ export default function CabinetEditor() {
             gap-2
             px-3
         ">
-                        <div className="cabinet-editor-toolbar-actions flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
+                        <div data-tour="project-cabinet-toolbar" className="cabinet-editor-toolbar-actions flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
                         <button
                             type="button"
                             onClick={() => toggleViewMode("front")}
@@ -1169,7 +1169,7 @@ export default function CabinetEditor() {
             min-h-0
         ">
 
-                        <div className="relative h-full w-full overflow-hidden">
+                        <div data-tour="project-cabinet-viewport" className="relative h-full w-full overflow-hidden">
 
                             <CabinetViewport
                                 cabinet={activeCabinet}

@@ -94,7 +94,7 @@ export default function PropertiesSidebar({
 
     return (
 
-        <aside className="
+        <aside data-tour="project-cabinet-properties" className="
             min-h-0
             overflow-y-auto
             border-l

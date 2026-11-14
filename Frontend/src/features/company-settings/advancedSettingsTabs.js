@@ -6,5 +6,6 @@ export const advancedSettingsTabs = [
     { id: "management", label: "Management", requiredFeature: "business-management" },
     { id: "documents", label: "Dokumente" },
     { id: "contactHistory", label: "Kontaktverlauf", requiredFeature: "crm" },
-    { id: "shop", label: "Shop", requiredFeature: "shop" }
+    { id: "shop", label: "Shop", requiredFeature: "shop" },
+    { id: "reset", label: "Reset" }
 ];

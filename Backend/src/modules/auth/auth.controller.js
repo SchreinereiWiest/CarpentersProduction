@@ -11,6 +11,7 @@ import { comparePassword } from "../../shared/security/passwords.js";
 import { assertActiveLicense, LicenseError } from "../licensing/services/index.js";
 import {
   bootstrapTenantAdmin,
+  ensureOnboardingForFirstAdminLogin,
   TenantBootstrapError,
   tenantNeedsBootstrap
 } from "../tenants/tenant-bootstrap.service.js";
@@ -91,6 +92,9 @@ export const login = async (req, res) => {
 
     // Ohne aktive, zum Firmennamen passende Lizenz wird keine Sitzung erzeugt.
     const license = await assertActiveLicense(tenant);
+    if (membership.role === "admin") {
+      await ensureOnboardingForFirstAdminLogin(tenant.id, user.id);
+    }
 
     // tenantId und authVersion binden die Sitzung an Firma und Kontostand. Die
     // Rolle wird serverseitig trotzdem bei jedem Request neu aus der Membership

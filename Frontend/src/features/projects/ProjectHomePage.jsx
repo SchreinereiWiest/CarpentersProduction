@@ -129,7 +129,7 @@ fetchProject();
                 <div className="overflow-y-auto px-4 pt-4 sm:pl-8">
 
                     {/* Kunde + Bilder */}
-                    <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                    <div data-tour="project-home-summary" className="flex flex-col gap-2 md:flex-row md:items-center">
 
                         <h2 className="mt-2 truncate text-xl font-bold sm:text-2xl md:w-1/5">
                             {customer?.lastName ?? (project?.localOnly ? "Lokales Projekt ohne Kunde" : "")}
@@ -140,6 +140,7 @@ fetchProject();
                         </h2>
 
                         <button
+                            data-tour="project-home-print"
                             type="button"
                             onClick={createPDF}
                             disabled={!project || creatingPDF}
@@ -167,7 +168,7 @@ fetchProject();
                     </h2>
 
                     {/* Beschreibung + Bilder */}
-                    <div className="flex flex-col md:flex-row">
+                    <div data-tour="project-home-content" className="flex flex-col md:flex-row">
 
                         {/* Beschreibung */}
                         <div className="w-full md:w-1/5 pt-4 pr-4">

@@ -77,13 +77,13 @@ export default function ManagementOverview() {
   };
 
   return <div className="space-y-6">
-    <div className="grid gap-4 sm:grid-cols-3">
+    <div data-tour="management-metrics" className="grid gap-4 sm:grid-cols-3">
       <Metric label="Aktive Mitarbeitende" value={activeEmployees.length} />
       <Metric label="Laufende Zuweisungen" value={workspace.assignments.length} />
       <Metric label="Noch nicht zugewiesene Projekte" value={workspace.projects.filter(item => !assignedProjectIds.has(item.id)).length} />
     </div>
 
-    <section className="rounded-2xl border border-gray-700 bg-gray-800 p-5">
+    <section data-tour="management-assignment" className="rounded-2xl border border-gray-700 bg-gray-800 p-5">
       <div className="mb-5">
         <h1 className="text-xl font-semibold">Auftrag zuweisen</h1>
         <p className="mt-1 text-sm text-gray-400">Ein Projekt kann mehreren Mitarbeitenden zugewiesen werden. Das Infofeld dokumentiert Umfang, Übergaben oder bereits erledigte Arbeiten.</p>
@@ -145,7 +145,7 @@ export default function ManagementOverview() {
       })}
     </div>
 
-    <section className="rounded-2xl border border-gray-700 bg-gray-800 p-5">
+    <section data-tour="management-employees" className="rounded-2xl border border-gray-700 bg-gray-800 p-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2 className="text-xl font-semibold">Mitarbeiterdaten {year}</h2>

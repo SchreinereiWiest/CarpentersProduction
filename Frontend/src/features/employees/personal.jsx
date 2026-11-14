@@ -90,7 +90,7 @@ export default function Personal() {
                     gap-4
                 ">
 
-                    <div className="personal-calendar">
+                    <div data-tour="employee-calendar" className="personal-calendar">
                         <EmployeeCalendar
 
                             data={Calendar}
@@ -98,7 +98,7 @@ export default function Personal() {
                         />
                     </div>
 
-                    <div className="personal-open-times">
+                    <div data-tour="employee-open-times" className="personal-open-times">
                         <MissingTimes
 
                             entries={Calendar.missingEntries}

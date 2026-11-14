@@ -87,6 +87,7 @@ export default function TimeTracking() {
             lg:space-y-0
         ">
 
+            <div data-tour="project-time-controls">
             {localOnly ? (
                 <div className="rounded-xl border border-amber-800 bg-amber-950/30 p-5 text-sm text-amber-200">
                     Die Zeiterfassung ist verfügbar, sobald das lokale Projekt in den Projekteinstellungen einem Kunden zugewiesen und hochgeladen wurde.
@@ -102,14 +103,15 @@ export default function TimeTracking() {
                 workTypes={settings.workTypes}
 
             />}
+            </div>
 
-            <TimeHistory
+            <div data-tour="project-time-history"><TimeHistory
 
                 entries={entries}
 
                 workTypes={settings.workTypes}
 
-            />
+            /></div>
 
         </div>
 
