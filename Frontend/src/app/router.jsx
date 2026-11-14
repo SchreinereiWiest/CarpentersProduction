@@ -112,7 +112,7 @@ export default function AppRouter() {
           <Route path="/Kontakte/edit/:userid" element={protectedPage(<EditContactPage />, "admin", ["crm"])} />
           <Route path="/Kontakte/NewProject/:userId" element={protectedPage(<CabinetEditorPage />, "admin", ["crm", "work-preparation"])} />
 
-          <Route path="/CompanySettings" element={protectedPage(<CompanySettingsPage />, "adminOnly")} />
+          <Route path="/CompanySettings" element={protectedPage(<CompanySettingsPage />, "user")} />
           <Route path="/User" element={protectedPage(<UserProfilePage />)} />
           <Route path="/Offline/Merge/:conflictKey" element={protectedPage(<OfflineMergePage />, "user", ["work-preparation"])} />
           </Routes>

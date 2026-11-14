@@ -171,6 +171,44 @@ function AssignmentDialog({ document, library = false, onClose, onAssigned }) {
     );
 }
 
+function DocumentAssigneeDialog({ document, onClose, onAssigned }) {
+    const [assignees, setAssignees] = useState([]);
+    const [userId, setUserId] = useState(document.assignedTo?.id || "");
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState("");
+
+    useEffect(() => {
+        axios.get("/api/paperless/assignment-options")
+            .then(({ data }) => setAssignees(data.documentAssignees || []))
+            .catch(requestError => setError(requestError.response?.data?.message || "Bearbeiter konnten nicht geladen werden."));
+    }, []);
+
+    const submit = async event => {
+        event.preventDefault();
+        setBusy(true);
+        setError("");
+        try {
+            await axios.put(`/api/paperless/documents/${document.id}/assignee`, { userId: userId || null });
+            await onAssigned();
+            onClose();
+        } catch (requestError) {
+            setError(requestError.response?.data?.message || "Der Bearbeiter konnte nicht gespeichert werden.");
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return <div className="fixed inset-0 z-[70] grid place-items-center bg-black/70 p-4" role="presentation" onMouseDown={event => event.target === event.currentTarget && onClose()}>
+        <form onSubmit={submit} role="dialog" aria-modal="true" aria-labelledby="document-assignee-title" className="w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4"><div><h2 id="document-assignee-title" className="text-xl font-semibold">Dokument zur Bearbeitung freigeben</h2><p className="mt-1 truncate text-sm text-slate-400">{document.title}</p></div><button type="button" onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-800">✕</button></div>
+            {error && <p role="alert" className="mt-4 rounded-lg border border-red-800 bg-red-950/40 p-3 text-sm text-red-300">{error}</p>}
+            <label className="mt-5 block text-sm text-slate-300">Bearbeiter<select value={userId} onChange={event => setUserId(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-600 bg-slate-950 px-3 py-2.5 outline-none focus:border-blue-500"><option value="">Nicht zugewiesen</option>{assignees.map(assignee => <option key={assignee.id} value={assignee.id}>{assignee.name} · Manager</option>)}</select></label>
+            <p className="mt-3 text-xs leading-5 text-slate-500">Zugewiesene Dokumente erscheinen im Modul „Zu bearbeitende Dokumente“ auf der Manager-Startseite.</p>
+            <div className="mt-6 flex justify-end gap-3"><button type="button" disabled={busy} onClick={onClose} className="rounded-lg border border-slate-600 px-4 py-2 text-sm hover:bg-slate-800">Abbrechen</button><button type="submit" disabled={busy} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold hover:bg-blue-500 disabled:opacity-50">{busy ? "Speichert …" : "Bearbeiter speichern"}</button></div>
+        </form>
+    </div>;
+}
+
 function ManualDocumentUploadDialog({ connected = true, onClose, onPaperlessUploaded, onLocalUploaded }) {
     const { refresh } = useManagement();
     const [storage, setStorage] = useState(connected ? "dms" : "carpenters");
@@ -242,7 +280,7 @@ function ManualDocumentUploadDialog({ connected = true, onClose, onPaperlessUplo
     );
 }
 
-const DocumentCard = ({ document, library = false, onOpen, onAssign, onUnlink, onDismiss, onDeleteRemote }) => (
+const DocumentCard = ({ document, library = false, onOpen, onAssign, onAssignUser, onUnlink, onDismiss, onDeleteRemote }) => (
     <article className="group overflow-hidden rounded-xl border border-slate-700 bg-slate-800/70 transition hover:border-slate-600 hover:shadow-xl">
         <button type="button" onClick={() => onOpen(document)} aria-label={`${document.title} in Vorschau öffnen`} className="relative block h-52 w-full overflow-hidden bg-slate-950 text-left">
             <Thumbnail document={document} library={library} />
@@ -250,8 +288,8 @@ const DocumentCard = ({ document, library = false, onOpen, onAssign, onUnlink, o
         </button>
         <div className="p-4">
             <div className="flex items-start justify-between gap-3"><div className="min-w-0"><button type="button" onClick={() => onOpen(document)} className="block max-w-full truncate text-left font-medium text-blue-300 hover:underline" title={document.title}>{document.title}</button><p className="mt-1 truncate text-xs text-slate-500">{document.fileName || document.documentType || "Paperless-Dokument"}</p></div><span className={`shrink-0 rounded-full px-2 py-1 text-[11px] ${document.source === "carpenters" ? "bg-sky-950 text-sky-300" : "bg-violet-950 text-violet-300"}`}>{document.source === "carpenters" ? "Carpenters" : document.documentType || "Paperless"}</span></div>
-            <div className="mt-3 space-y-1 text-xs text-slate-400"><p>{document.correspondent || "Ohne Korrespondent"}</p><p>{formatDate(document.addedAt || document.remoteAddedAt || document.receivedAt)}</p>{document.linked && <p className="text-emerald-300">{targetLabel(document.linked)}</p>}{!library && document.status === "linked" && <p className="text-emerald-300">{targetLabel(document)}</p>}</div>
-            <div className="mt-4 flex flex-wrap gap-2"><button type="button" onClick={() => onOpen(document)} className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs hover:bg-slate-700">Vorschau</button>{onAssign && (!document.linked || document.linked.status === "dismissed") && <button type="button" onClick={() => onAssign(document)} className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium hover:bg-blue-500">Zuordnen</button>}{onDismiss && <button type="button" onClick={() => onDismiss(document)} className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-700">Ausblenden</button>}{onDeleteRemote && <button type="button" onClick={() => onDeleteRemote(document)} className="rounded-lg border border-red-900 px-3 py-1.5 text-xs text-red-300 hover:bg-red-950/50">{document.source === "carpenters" ? "Datei löschen" : "In Paperless löschen"}</button>}{onUnlink && <button type="button" onClick={() => onUnlink(document)} className="rounded-lg border border-red-900 px-3 py-1.5 text-xs text-red-300 hover:bg-red-950/50">Verknüpfung lösen</button>}</div>
+            <div className="mt-3 space-y-1 text-xs text-slate-400"><p>{document.correspondent || "Ohne Korrespondent"}</p><p>{formatDate(document.addedAt || document.remoteAddedAt || document.receivedAt)}</p>{document.linked && <p className="text-emerald-300">{targetLabel(document.linked)}</p>}{!library && document.status === "linked" && <p className="text-emerald-300">{targetLabel(document)}</p>}{document.assignedTo && <p className="text-blue-300">Bearbeitung: {document.assignedTo.name}</p>}</div>
+            <div className="mt-4 flex flex-wrap gap-2"><button type="button" onClick={() => onOpen(document)} className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs hover:bg-slate-700">Vorschau</button>{onAssign && (!document.linked || document.linked.status === "dismissed") && <button type="button" onClick={() => onAssign(document)} className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium hover:bg-blue-500">Zuordnen</button>}{onAssignUser && !library && document.source !== "carpenters" && <button type="button" onClick={() => onAssignUser(document)} className="rounded-lg border border-blue-800 px-3 py-1.5 text-xs text-blue-300 hover:bg-blue-950/50">{document.assignedTo ? "Bearbeiter ändern" : "Bearbeiter"}</button>}{onDismiss && <button type="button" onClick={() => onDismiss(document)} className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-700">Ausblenden</button>}{onDeleteRemote && <button type="button" onClick={() => onDeleteRemote(document)} className="rounded-lg border border-red-900 px-3 py-1.5 text-xs text-red-300 hover:bg-red-950/50">{document.source === "carpenters" ? "Datei löschen" : "In Paperless löschen"}</button>}{onUnlink && <button type="button" onClick={() => onUnlink(document)} className="rounded-lg border border-red-900 px-3 py-1.5 text-xs text-red-300 hover:bg-red-950/50">Verknüpfung lösen</button>}</div>
         </div>
     </article>
 );
@@ -343,10 +381,12 @@ export function PaperlessInbox({ connected = true }) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [assigning, setAssigning] = useState(null);
+    const [assigningUser, setAssigningUser] = useState(null);
     const [viewing, setViewing] = useState(null);
     const [syncing, setSyncing] = useState(false);
     const [showUpload, setShowUpload] = useState(false);
     const [message, setMessage] = useState("");
+    const deepLinkOpened = useRef(false);
 
     const load = useCallback(async () => {
         try {
@@ -354,8 +394,15 @@ export function PaperlessInbox({ connected = true }) {
                 axios.get("/api/paperless/documents"),
                 axios.get("/api/paperless/local-documents")
             ]);
-            setDocuments(paperlessResponse.data.documents || []);
+            const paperlessDocuments = paperlessResponse.data.documents || [];
+            setDocuments(paperlessDocuments);
             setLocalDocuments(localResponse.data.documents || []);
+            const requestedDocumentId = new URLSearchParams(window.location.search).get("document");
+            const requestedDocument = requestedDocumentId && paperlessDocuments.find(document => document.id === requestedDocumentId);
+            if (!deepLinkOpened.current && requestedDocument) {
+                deepLinkOpened.current = true;
+                setViewing({ document: requestedDocument });
+            }
         } catch (requestError) {
             setError(requestError.response?.data?.message || "Dokumente konnten nicht geladen werden.");
         } finally {
@@ -450,11 +497,12 @@ export function PaperlessInbox({ connected = true }) {
         <div className="space-y-5">
             {message && <p role="status" className="rounded-lg border border-emerald-900 bg-emerald-950/30 p-3 text-sm text-emerald-300">{message}</p>}
             {error && <p role="alert" className="rounded-lg border border-red-800 bg-red-950/40 p-3 text-sm text-red-300">{error}</p>}
-            {automatic.length > 0 && <section className="rounded-xl border border-emerald-900 bg-emerald-950/20 p-5"><h2 className="font-semibold text-emerald-200">Automatisch zugeordnet</h2><div className="mt-3 space-y-2">{automatic.map(document => <button key={document.id} type="button" onClick={() => openDocument(document)} className="flex w-full flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-900/70 px-4 py-3 text-left text-sm hover:bg-slate-800"><span><span className="font-medium text-slate-100">{document.title}</span><span className="ml-2 text-slate-400">wurde per QR-Code zugeordnet.</span></span><span className="text-emerald-300">{targetLabel(document)} →</span></button>)}</div></section>}
-            <section className="rounded-xl border border-slate-700 bg-slate-800/30 p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-semibold">Dokumenteingang</h2><p className="mt-1 text-sm text-slate-500">Neue Belege aus Paperless und Carpenters gemeinsam prüfen und zuordnen.</p></div><div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => setShowUpload(true)} className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold hover:bg-blue-500">Beleg hochladen</button>{connected && <button type="button" disabled={syncing} onClick={syncNow} className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs hover:bg-slate-700 disabled:opacity-50">{syncing ? "Synchronisiert …" : "Jetzt synchronisieren"}</button>}<span className="rounded-full bg-blue-950 px-3 py-1 text-xs text-blue-300">{inbox.length} offen</span></div></div>{loading ? <p className="py-10 text-center text-slate-500">Dokumente werden geladen …</p> : inbox.length === 0 ? <p className="mt-4 rounded-lg border border-dashed border-slate-700 p-8 text-center text-sm text-slate-500">Keine offenen Dokumente.</p> : <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{inbox.map(document => <DocumentCard key={`${document.source}-${document.id}`} document={document} onOpen={openDocument} onAssign={setAssigning} onDismiss={dismiss} onDeleteRemote={deleteRemote} />)}</div>}</section>
-            {recentManual.length > 0 && <section className="rounded-xl border border-slate-700 bg-slate-800/30 p-5"><h2 className="font-semibold">Zuletzt verknüpft</h2><div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{recentManual.map(document => <DocumentCard key={`${document.source}-${document.id}`} document={document} onOpen={openDocument} onUnlink={unlink} />)}</div></section>}
+            {automatic.length > 0 && <section className="rounded-xl border border-emerald-900 bg-emerald-950/20 p-5"><h2 className="font-semibold text-emerald-200">Automatisch zugeordnet</h2><div className="mt-3 space-y-2">{automatic.map(document => <div key={`${document.source}-${document.id}`} className="flex flex-wrap items-center gap-2 rounded-lg bg-slate-900/70 p-2"><button type="button" onClick={() => openDocument(document)} className="min-w-0 flex-1 px-2 py-1 text-left text-sm hover:text-white"><span className="font-medium text-slate-100">{document.title}</span><span className="ml-2 text-slate-400">wurde per QR-Code zugeordnet.</span><span className="mt-1 block text-emerald-300">{targetLabel(document)} →</span></button>{document.source !== "carpenters" && <button type="button" onClick={() => setAssigningUser(document)} className="rounded-lg border border-blue-800 px-3 py-1.5 text-xs text-blue-300 hover:bg-blue-950/50">{document.assignedTo ? `Bearbeitung: ${document.assignedTo.name}` : "Bearbeiter"}</button>}</div>)}</div></section>}
+            <section className="rounded-xl border border-slate-700 bg-slate-800/30 p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-semibold">Dokumenteingang</h2><p className="mt-1 text-sm text-slate-500">Neue Belege aus Paperless und Carpenters gemeinsam prüfen und zuordnen.</p></div><div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => setShowUpload(true)} className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold hover:bg-blue-500">Beleg hochladen</button>{connected && <button type="button" disabled={syncing} onClick={syncNow} className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs hover:bg-slate-700 disabled:opacity-50">{syncing ? "Synchronisiert …" : "Jetzt synchronisieren"}</button>}<span className="rounded-full bg-blue-950 px-3 py-1 text-xs text-blue-300">{inbox.length} offen</span></div></div>{loading ? <p className="py-10 text-center text-slate-500">Dokumente werden geladen …</p> : inbox.length === 0 ? <p className="mt-4 rounded-lg border border-dashed border-slate-700 p-8 text-center text-sm text-slate-500">Keine offenen Dokumente.</p> : <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{inbox.map(document => <DocumentCard key={`${document.source}-${document.id}`} document={document} onOpen={openDocument} onAssign={setAssigning} onAssignUser={setAssigningUser} onDismiss={dismiss} onDeleteRemote={deleteRemote} />)}</div>}</section>
+            {recentManual.length > 0 && <section className="rounded-xl border border-slate-700 bg-slate-800/30 p-5"><h2 className="font-semibold">Zuletzt verknüpft</h2><div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{recentManual.map(document => <DocumentCard key={`${document.source}-${document.id}`} document={document} onOpen={openDocument} onAssignUser={setAssigningUser} onUnlink={unlink} />)}</div></section>}
             {connected && <QrGenerator />}
             {assigning && <AssignmentDialog document={assigning} onClose={() => setAssigning(null)} onAssigned={load} />}
+            {assigningUser && <DocumentAssigneeDialog document={assigningUser} onClose={() => setAssigningUser(null)} onAssigned={load} />}
             {viewing && <PaperlessDocumentViewer document={viewing.document} contentUrl={viewing.contentUrl} sourceLabel={viewing.sourceLabel} onSaved={load} onClose={() => setViewing(null)} />}
             {showUpload && <ManualDocumentUploadDialog connected={connected} onClose={() => setShowUpload(false)} onLocalUploaded={async () => { await load(); setMessage("Der Beleg wurde in Carpenters gespeichert und wird jetzt auf einen QR-Code geprüft."); }} onPaperlessUploaded={async result => { await load(); setMessage(result.status === "imported" ? "Der Beleg wurde in Paperless übernommen und wird geprüft." : "Der Beleg wurde an Paperless übergeben und erscheint nach der Verarbeitung automatisch im Eingang."); }} />}
         </div>

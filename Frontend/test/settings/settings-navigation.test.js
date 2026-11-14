@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { advancedSettingsTabs } from "../../src/features/company-settings/advancedSettingsTabs.js";
-import { primarySettingsTabs } from "../../src/shared/components/settingsBar.jsx";
+import { primarySettingsTabs } from "../../src/shared/components/settings-tabs.js";
 
 describe("settings navigation", () => {
   it("keeps Shop and Company in Advanced", () => {

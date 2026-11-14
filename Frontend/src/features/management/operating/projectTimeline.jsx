@@ -315,11 +315,11 @@ function TimelineControls({ viewStart, setViewStart, visibleCount, setVisibleCou
 }
 
 function TimelineHeader({ visibleDays, visibleCount, cellWidth, leftLabel }) {
-  return <div className="grid border-b border-gray-700 bg-gray-950" style={{ gridTemplateColumns: `300px ${visibleCount * cellWidth}px` }}><div className="sticky left-0 z-30 border-r border-gray-700 bg-gray-950 p-3 text-xs font-semibold uppercase text-gray-500">{leftLabel}</div><div className="grid" style={{ gridTemplateColumns: `repeat(${visibleCount}, ${cellWidth}px)` }}>{visibleDays.map(day => <div key={dateKey(day)} className={`border-r py-2 text-center text-[10px] ${day.getDay() === 1 ? "border-l-2 border-l-gray-600" : "border-gray-800"} ${[0, 6].includes(day.getDay()) ? "bg-gray-900 text-gray-600" : "text-gray-400"}`}><span className="block">{day.toLocaleDateString("de-DE", { weekday: "short" }).slice(0, 2)}</span><strong className="block text-xs">{day.getDate()}</strong><span>{day.getMonth() + 1}.</span></div>)}</div></div>;
+  return <div className="grid border-b border-gray-700 bg-gray-950" style={{ gridTemplateColumns: `300px ${visibleCount * cellWidth}px` }}><div className="sticky left-0 z-30 border-r border-gray-700 bg-gray-950 p-3 text-xs font-semibold uppercase text-gray-500">{leftLabel}</div><div className="grid" style={{ gridTemplateColumns: `repeat(${visibleCount}, ${cellWidth}px)` }}>{visibleDays.map(day => <div key={dateKey(day)} className={`border-r border-gray-800 py-2 text-center text-[10px] ${[0, 6].includes(day.getDay()) ? "bg-gray-900 text-gray-600" : "text-gray-400"}`}><span className="block">{day.toLocaleDateString("de-DE", { weekday: "short" }).slice(0, 2)}</span><strong className="block text-xs">{day.getDate()}</strong><span>{day.getMonth() + 1}.</span></div>)}</div></div>;
 }
 
 function TimelineGrid({ visibleDays, visibleCount, cellWidth, children }) {
-  return <div className="relative grid" style={{ gridTemplateColumns: `repeat(${visibleCount}, ${cellWidth}px)` }}>{visibleDays.map(day => <div key={dateKey(day)} className={`border-r ${day.getDay() === 1 ? "border-l-2 border-l-gray-600" : "border-gray-800"} ${[0, 6].includes(day.getDay()) ? "bg-gray-950/70" : "bg-gray-900/30"}`} />)}{children}</div>;
+  return <div className="relative grid" style={{ gridTemplateColumns: `repeat(${visibleCount}, ${cellWidth}px)` }}>{visibleDays.map(day => <div key={dateKey(day)} className={`border-r border-gray-800 ${[0, 6].includes(day.getDay()) ? "bg-gray-950/70" : "bg-gray-900/30"}`} />)}{children}</div>;
 }
 
 function PlanBar({ start, end, viewStart, visibleCount, cellWidth = CELL_WIDTH, label, preview, draggable, readOnly, compact, summary, color, onDragStart, onDragEnd, onDoubleClick, onRemove }) {

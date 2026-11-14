@@ -94,6 +94,19 @@ Benutzerverwaltung Teil der ausgenommenen `/CompanySettings`-Route ist.
 | `PUT` | `/user/password/:id` | `changeUserPassword` | Passwort ersetzen |
 | `DELETE` | `/user/delete/:id` | `deleteUser` | Benutzer soft-löschen |
 
+Angemeldete Benutzer können unabhängig von der Admin-Benutzerverwaltung ihre persönlichen Startseitenpräferenzen lesen und ändern:
+
+| Methode | Pfad | Zweck |
+|---|---|---|
+| `GET` | `/user/me/preferences` | normalisierte Einstellungen der aktuellen Firmenmitgliedschaft laden |
+| `PUT` | `/user/me/preferences` | persönliche Modulreihenfolge und ausgeblendete Startseitenmodule speichern |
+
+## Startseite
+
+| Methode | Pfad | Schutz | Zweck |
+|---|---|---|---|
+| `GET` | `/dashboard` | angemeldet; Inhalte zusätzlich rollen- und lizenzbezogen | Zuweisungen, aktuelle Kalenderwoche sowie Manager-/Adminmodule laden |
+
 ## Lizenzierung
 
 Beide Endpunkte sind ausschließlich für Administratoren des aktuellen Mandanten verfügbar. Die Lizenzprüfung selbst wird zusätzlich bereits durch die Authentifizierungs-Middleware erzwungen.

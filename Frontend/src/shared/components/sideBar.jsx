@@ -241,7 +241,7 @@ return (
                 </Link>
         </ProtectedElement>
 
-        <ProtectedElement requiredRole="adminOnly">
+        <ProtectedElement requiredRole="user">
             <Link to="/CompanySettings" aria-label="Firmeneinstellungen" title="Firmeneinstellungen" className={SideBarCollapsed ? selected===8
                 ? "bg-gray-900 text-white flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
                 : "text-gray-400 hover:bg-gray-700 flex-shrink-0 inline-flex items-center justify-center h-14 w-full rounded-lg"
@@ -256,7 +256,7 @@ return (
                         clipRule="evenodd" />
                 </svg>
 
-                <span className={SideBarCollapsed ? "hidden" : "pl-2 block" }>Firmenseinstellungen</span>
+                <span className={SideBarCollapsed ? "hidden" : "pl-2 block" }>Einstellungen</span>
             </Link>
         </ProtectedElement>
 

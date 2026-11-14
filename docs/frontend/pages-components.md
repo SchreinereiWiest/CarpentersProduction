@@ -12,7 +12,7 @@
 
 ## Anmeldung und Start
 
-`Login` verwaltet Login, Passwort und Fehlermeldung lokal. Nach erfolgreichem Request wird die Identität neu geladen. `HomeAdmin` bildet die geschützte Startseite und bindet die globale Sidebar ein.
+`Login` verwaltet Login, Passwort und Fehlermeldung lokal. Nach erfolgreichem Request wird die Identität neu geladen. `DashboardPage` bildet die geschützte, rollenabhängige Startseite. Mitarbeiter sehen Zuweisungen und Kalenderdaten, Manager zusätzlich ihre DMS-Bearbeitungsliste und Administratoren betriebsweite Termine, Einkauf, Lieferungen sowie den nach konfigurierten Tags gefilterten Dokumenteingang.
 
 ## Kunden
 
@@ -78,6 +78,7 @@ Die Teilelisten-Gruppierung des Standardkorpus wird in importierte Cabinets
 | `UserSettingsPanel` | Benutzer laden, anlegen, ändern, Passwort setzen und soft-löschen |
 | `CabinetSettingsPanel` | Korpus-, Material-, Verbinder- und Fertigungsvorgaben |
 | `CncSettingsPanel` | CNC-Geometrien, Bohrraster, Fräs- und Beschlagparameter |
+| `UserInterfaceSettingsPanel` | persönliche Startseitenmodule sowie für Administratoren die firmenweiten DMS-Anzeigetags |
 
 ## Darstellungsprinzipien
 

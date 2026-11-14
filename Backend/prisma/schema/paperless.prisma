@@ -84,6 +84,9 @@ model PaperlessDocument {
   linkedById String? @map("linked_by") @db.Uuid
   linkedBy   User?   @relation(fields: [linkedById], references: [id], onDelete: SetNull)
 
+  assignedToId String? @map("assigned_to") @db.Uuid
+  assignedTo   User?   @relation("PaperlessDocumentAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
   receivedAt DateTime  @default(now()) @map("received_at")
   linkedAt   DateTime? @map("linked_at")
   createdAt  DateTime  @default(now()) @map("created_at")
@@ -95,5 +98,6 @@ model PaperlessDocument {
   @@index([projectId, linkedAt])
   @@index([customerId, linkedAt])
   @@index([folderId, linkedAt])
+  @@index([assignedToId, status])
   @@map("paperless_documents")
 }

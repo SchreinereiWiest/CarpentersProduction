@@ -27,6 +27,7 @@ Frontend/src/
 │   ├── auth/                Anmeldung
 │   ├── customers/           Kundenverwaltung
 │   ├── employees/           Mitarbeiterkalender und Zeiterfassung
+│   ├── dashboard/           rollenabhängige persönliche Arbeitsübersicht
 │   ├── inventory/           Material- und Lagerverwaltung
 │   ├── management/          Betriebsrechnung und Dokumente
 │   ├── projects/            Projekt- und Fertigungsmodule
@@ -55,6 +56,7 @@ Frontend/src/
 - [Routing & Authentifizierung](routing-auth.md)
 - [State, API & Cache](state-data.md)
 - [Seiten & Komponenten](pages-components.md)
+- [Rollenabhängige Startseite](dashboard.md)
 - [UI-/UX-Konzept](ui-ux-concept.md)
 - [Projektmodule](project-modules.md)
 - [Funktionsreferenz](functions.md)

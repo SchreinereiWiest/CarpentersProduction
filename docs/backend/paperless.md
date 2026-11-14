@@ -125,6 +125,7 @@ Editor nicht verändert.
 | `POST` | `/api/paperless/sync` | Pull-Abgleich sofort ausführen |
 | `POST` | `/api/paperless/upload` | Beleg ausschließlich an Paperless übergeben und Verarbeitung starten |
 | `PUT` | `/api/paperless/documents/:id/assignment` | Referenz zuordnen |
+| `PUT` | `/api/paperless/documents/:id/assignee` | Manager/Admin als persönlichen Bearbeiter setzen oder entfernen |
 | `POST` | `/api/paperless/documents/:id/dismiss` | Nur aus Carpenters-Eingang ausblenden |
 | `PUT/DELETE` | `/api/paperless/local-documents/:id/assignment` | Internen Beleg zuordnen oder Verknüpfung lösen |
 | `POST` | `/api/paperless/local-documents/:id/dismiss` | Internen Beleg aus dem Eingang ausblenden |
@@ -140,6 +141,8 @@ Editor nicht verändert.
 Alle Browser-Endpunkte sind sitzungs- und rollenbasiert geschützt. Der externe
 Webhook verwendet ein separates, rotierbares Secret; interne Worker-Endpunkte
 verwenden `MEASUREMENT_OCR_SECRET`.
+
+Die Bearbeiterfreigabe speichert nur die User-ID eines aktiven Manager-Accounts derselben TenantMembership. Zugewiesene Dokumente werden über `/api/dashboard` ausschließlich dem betreffenden Manager als Bearbeitungsliste bereitgestellt.
 
 ## Development über das interne Netzwerk
 

@@ -157,7 +157,9 @@ export function normalizeRemoteDocument(document, names = {}) {
     remoteModifiedAt: safeDate(document.modified),
     remoteMetadata: {
       archiveSerialNumber: document.archive_serial_number ?? null,
-      tags: Array.isArray(document.tags) ? document.tags : [],
+      tags: Array.isArray(document.tags)
+        ? document.tags.map(tag => relatedName(tag, names.tags) || String(tag))
+        : [],
       storagePath: document.storage_path ?? null,
       pageCount: document.page_count ?? latestVersion?.page_count ?? null
     }
@@ -174,11 +176,12 @@ async function loadNameMap(path) {
 }
 
 export async function loadPaperlessTaxonomies() {
-  const [documentTypes, correspondents] = await Promise.all([
+  const [documentTypes, correspondents, tags] = await Promise.all([
     loadNameMap("document_types/"),
-    loadNameMap("correspondents/")
+    loadNameMap("correspondents/"),
+    loadNameMap("tags/")
   ]);
-  return { documentTypes, correspondents };
+  return { documentTypes, correspondents, tags };
 }
 
 export async function fetchRemoteDocument(remoteDocumentId, { names } = {}) {
@@ -238,7 +241,8 @@ export async function upsertPaperlessDocument(remoteDocumentId, { qrStatus = "qu
 export const paperlessDocumentInclude = {
   project: { select: { id: true, title: true, projectNumber: true } },
   customer: { select: { id: true, firstName: true, lastName: true, companyName: true, customerNumber: true } },
-  folder: { select: { id: true, name: true } }
+  folder: { select: { id: true, name: true } },
+  assignedTo: { select: { id: true, firstName: true, lastName: true, login: true } }
 };
 
 export function presentPaperlessDocument(document) {
@@ -256,6 +260,11 @@ export function presentPaperlessDocument(document) {
     qrStatus: document.qrStatus,
     qrError: document.qrError,
     assignmentSource: document.assignmentSource,
+    tags: Array.isArray(document.remoteMetadata?.tags) ? document.remoteMetadata.tags.map(String) : [],
+    assignedTo: document.assignedTo ? {
+      id: document.assignedTo.id,
+      name: [document.assignedTo.firstName, document.assignedTo.lastName].filter(Boolean).join(" ") || document.assignedTo.login
+    } : null,
     project: document.project || null,
     customer: document.customer || null,
     folder: document.folder || null,

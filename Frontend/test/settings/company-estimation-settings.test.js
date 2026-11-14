@@ -23,7 +23,7 @@ describe("company settings", () => {
         }
       }
     })).toMatchObject({
-      schemaVersion: 11,
+      schemaVersion: 12,
       workWeek: expect.arrayContaining([
         expect.objectContaining({ weekday: 1, label: "Montag", enabled: true, start: "08:00", end: "17:00" })
       ]),
@@ -84,6 +84,9 @@ describe("company settings", () => {
         sidebar: "Alt+1",
         projectBar: "Alt+2",
         apply: "Ctrl+Enter"
+      },
+      home: {
+        documentTags: ["Rechnung", "Auftragsbestätigung", "Angebot"]
       }
     });
   });
@@ -147,6 +150,15 @@ describe("company settings", () => {
     expect(normalizeCompanySettings({
       userInterface: { workspaceScalePercent: "140" }
     }).userInterface.workspaceScalePercent).toBe(125);
+  });
+
+  it("normalizes the document tags used by the admin dashboard", () => {
+    expect(normalizeCompanySettings({
+      userInterface: { home: { documentTags: [" Rechnung ", "Angebot", "Rechnung", ""] } }
+    }).userInterface.home.documentTags).toEqual(["Rechnung", "Angebot"]);
+    expect(normalizeCompanySettings({
+      userInterface: { home: { documentTags: [] } }
+    }).userInterface.home.documentTags).toEqual([]);
   });
 
   it("uses weekday-specific hours for short working days", () => {

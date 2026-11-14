@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-import prisma from "../../infrastructure/database/prisma.js";
+import prisma, { systemPrisma } from "../../infrastructure/database/prisma.js";
 import { getTenantId } from "../../infrastructure/database/tenant-context.js";
 import { enqueueStorageDeletions } from "../../infrastructure/storage/storage-deletion.service.js";
 import { s3Download, s3Upload } from "../../infrastructure/storage/s3.js";
@@ -69,7 +69,7 @@ export async function uploadPaperlessDocument(req, res) {
 
 export async function getAssignmentOptions(req, res) {
   const search = String(req.query.search || "").trim().slice(0, 120);
-  const [projects, customers, configuration] = await Promise.all([
+  const [projects, customers, configuration, documentAssignees] = await Promise.all([
     prisma.project.findMany({
       where: {
         deletedAt: null,
@@ -96,9 +96,23 @@ export async function getAssignmentOptions(req, res) {
       orderBy: [{ companyName: "asc" }, { lastName: "asc" }],
       take: 200
     }),
-    getPaperlessConfiguration({ required: false })
+    getPaperlessConfiguration({ required: false }),
+    systemPrisma.tenantMembership.findMany({
+      where: { tenantId: req.tenant.id, isActive: true, role: "manager", user: { isActive: true, deletedAt: null } },
+      include: { user: { select: { id: true, firstName: true, lastName: true, login: true } } },
+      orderBy: [{ user: { lastName: "asc" } }, { user: { firstName: "asc" } }]
+    })
   ]);
-  return res.json({ projects, customers, folders: configuration?.folders ?? [] });
+  return res.json({
+    projects,
+    customers,
+    folders: configuration?.folders ?? [],
+    documentAssignees: documentAssignees.map(item => ({
+      id: item.user.id,
+      name: [item.user.firstName, item.user.lastName].filter(Boolean).join(" ") || item.user.login,
+      role: item.role
+    }))
+  });
 }
 
 async function resolveAssignment(body) {
@@ -499,6 +513,35 @@ export async function updatePaperlessAssignment(req, res) {
   const document = await prisma.paperlessDocument.findFirst({ where: { id: req.params.documentId } });
   if (!document) return res.status(404).json({ message: "Dokument nicht gefunden." });
   const updated = await assignDocument(document, await resolveAssignment(req.body), req.user);
+  return res.json({ document: presentPaperlessDocument(updated) });
+}
+
+export async function updatePaperlessAssignee(req, res) {
+  const document = await prisma.paperlessDocument.findFirst({ where: { id: req.params.documentId } });
+  if (!document) return res.status(404).json({ message: "Dokument nicht gefunden." });
+  const requestedUserId = req.body?.userId ? String(req.body.userId) : null;
+  if (requestedUserId && !UUID.test(requestedUserId)) return res.status(400).json({ message: "Ungültiger Bearbeiter." });
+  if (requestedUserId) {
+    const membership = await systemPrisma.tenantMembership.findFirst({
+      where: { tenantId: req.tenant.id, userId: requestedUserId, isActive: true, role: "manager", user: { isActive: true, deletedAt: null } }
+    });
+    if (!membership) return res.status(404).json({ message: "Bearbeiter wurde nicht gefunden." });
+  }
+  const updated = await prisma.$transaction(async transaction => {
+    const result = await transaction.paperlessDocument.update({
+      where: { id: document.id }, data: { assignedToId: requestedUserId }, include: paperlessDocumentInclude
+    });
+    await transaction.auditLog.create({
+      data: {
+        actorUserId: req.user.id,
+        action: "paperless.document.assign_user",
+        entityType: "PaperlessDocument",
+        entityId: document.id,
+        metadata: { remoteDocumentId: document.remoteDocumentId, assignedToId: requestedUserId }
+      }
+    });
+    return result;
+  });
   return res.json({ document: presentPaperlessDocument(updated) });
 }
 

@@ -51,7 +51,7 @@ Die folgenden Punkte ergeben sich aus der aktuellen Routen-, Komponenten- und Se
 
 - Die Seiten bauen ihre Grundstruktur jeweils selbst aus `SideBar`, `main`, optionaler `ProjectBar`, Header und Scrollbereich. Abstände, Farben und Titelhierarchien unterscheiden sich deshalb sichtbar.
 - Es werden sowohl `gray`- als auch `slate`-Paletten sowie einige fachbereichsspezifische feste Farben verwendet. Das Theme-System fängt einen Teil davon ab, aber die visuelle Sprache bleibt uneinheitlich.
-- Die Startseite ist derzeit leer und bietet keine Orientierung oder Wiederaufnahme zuletzt genutzter Arbeit.
+- Die Startseite ist als ruhige, rollenabhängige Arbeitsübersicht umgesetzt und kann pro Account modular geordnet oder reduziert werden.
 - Die Projektliste verwendet teilweise englische Bezeichnungen wie „Create Project“, „Title“, „Customer“ und „StartDate“, während der übrige Bereich überwiegend deutsch ist.
 - Die Projektübersicht zeigt Bilder und Basisdaten, beantwortet aber noch nicht sofort die wichtigsten Fragen: Wo steht das Projekt? Was ist als Nächstes relevant? Wo gibt es unvollständige Daten?
 - Lade-, Leer-, Fehler- und Erfolgszustände sind je nach Modul unterschiedlich gestaltet.

@@ -48,12 +48,13 @@ import ManagementSettingsPanel from "./panels/managementSettingsPanel.jsx";
 export default function CompanySettings() {
 
     const { user } = useAuth();
+    const isAdmin = user?.role === "admin";
     const [searchParams] = useSearchParams();
 
     const [
         selectedSection,
         setSelectedSection
-    ] = useState(() => searchParams.get("section") === "advanced" ? "advanced" : "userInterface");
+    ] = useState(() => isAdmin && searchParams.get("section") === "advanced" ? "advanced" : "userInterface");
 
     const [selectedAdvancedSection, setSelectedAdvancedSection] = useState(() => searchParams.get("tab") || "estimation");
     const features = new Set(user?.features || []);
@@ -63,6 +64,7 @@ export default function CompanySettings() {
     );
 
     const selectPrimarySection = section => {
+        if (!isAdmin && section !== "userInterface") return;
         setSelectedSection(section);
         if (section === "advanced" && !visibleAdvancedTabs.some(tab => tab.id === selectedAdvancedSection)) {
             setSelectedAdvancedSection(visibleAdvancedTabs[0]?.id ?? "estimation");
@@ -71,6 +73,8 @@ export default function CompanySettings() {
 
 
     const renderSection = () => {
+
+        if (!isAdmin) return <UserInterfaceSettingsPanel />;
 
         const section = selectedSection === "advanced" ? selectedAdvancedSection : selectedSection;
 
@@ -210,7 +214,7 @@ export default function CompanySettings() {
 
                 </div>
 
-                {selectedSection === "advanced" && (
+                {isAdmin && selectedSection === "advanced" && (
                     <nav aria-label="Advanced Settings" className="shrink-0 border-b border-gray-700 bg-gray-900">
                         <div className="flex h-12 items-end gap-1 overflow-x-auto px-4">
                             {visibleAdvancedTabs.map(tab => {

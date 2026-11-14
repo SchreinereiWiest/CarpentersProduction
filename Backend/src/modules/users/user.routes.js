@@ -7,6 +7,8 @@ import {
     changeUserPassword,
     deleteUser,
     getCurrentUser,
+    getCurrentUserPreferences,
+    updateCurrentUserPreferences,
     updateCurrentUser,
     changeCurrentUserPassword
 } from "./user.controller.js";
@@ -15,6 +17,10 @@ import { authenticate, authenticateAdmin } from "../../middleware/auth.middlewar
 const router = express.Router();
 
 router.get("/me", authenticate, getCurrentUser);
+
+router.get("/me/preferences", authenticate, getCurrentUserPreferences);
+
+router.put("/me/preferences", authenticate, updateCurrentUserPreferences);
 
 router.put("/me", authenticate, updateCurrentUser);
 

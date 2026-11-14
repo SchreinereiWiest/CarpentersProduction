@@ -12,7 +12,7 @@ const DEFAULT_BREAKS = [
 const dayBreaks = () => DEFAULT_BREAKS.map(entry => ({ ...entry }));
 
 export const DEFAULT_COMPANY_SETTINGS = {
-    schemaVersion: 11,
+    schemaVersion: 12,
     workingHours: {
         start: "07:00",
         end: "16:45"
@@ -66,6 +66,9 @@ export const DEFAULT_COMPANY_SETTINGS = {
             sidebar: "Alt+1",
             projectBar: "Alt+2",
             apply: "Ctrl+Enter"
+        },
+        home: {
+            documentTags: ["Rechnung", "Auftragsbestätigung", "Angebot"]
         }
     },
     estimation: {
@@ -163,6 +166,11 @@ export function normalizeCompanySettings(data) {
         ...DEFAULT_COMPANY_SETTINGS.userInterface,
         ...(data?.userInterface ?? {})
     };
+    const homeDocumentTags = [...new Set((Array.isArray(userInterface.home?.documentTags)
+        ? userInterface.home.documentTags
+        : DEFAULT_COMPANY_SETTINGS.userInterface.home.documentTags)
+        .map(value => String(value || "").trim())
+        .filter(Boolean))].slice(0, 20);
     const estimation = normalizeEstimationSettings(data?.estimation);
     const ollama = {
         ...DEFAULT_COMPANY_SETTINGS.estimation.ollama,
@@ -177,7 +185,7 @@ export function normalizeCompanySettings(data) {
         : [];
 
     return {
-        schemaVersion: 11,
+        schemaVersion: 12,
         workingHours,
         workWeek,
         specialWorkRules,
@@ -223,7 +231,10 @@ export function normalizeCompanySettings(data) {
             workspaceScalePercent: normalizeWorkspaceScalePercent(
                 userInterface.workspaceScalePercent
             ),
-            keybindings: normalizeKeybindings(userInterface.keybindings)
+            keybindings: normalizeKeybindings(userInterface.keybindings),
+            home: {
+                documentTags: homeDocumentTags
+            }
         },
         estimation: {
             ...estimation,
@@ -375,7 +386,7 @@ function createBlocks(start, end, breaks) {
 }
 
 export function scheduledWorkBlocksForDate(settings, date) {
-    const normalized = settings?.schemaVersion === 11 ? settings : normalizeCompanySettings(settings);
+    const normalized = settings?.schemaVersion === 12 ? settings : normalizeCompanySettings(settings);
     const value = date instanceof Date ? new Date(date) : new Date(`${date}T12:00:00`);
     const day = normalized.workWeek.find(entry => entry.weekday === value.getDay());
     if (!day?.enabled || specialWorkRuleForDate(normalized, value)) return [];
@@ -419,7 +430,7 @@ const calendarDayNumber = date => Date.UTC(date.getFullYear(), date.getMonth(), 
 const weekStartNumber = date => calendarDayNumber(date) - (((date.getDay() || 7) - 1));
 
 export function specialWorkRuleForDate(settings, date) {
-    const normalized = settings?.schemaVersion === 11 ? settings : normalizeCompanySettings(settings);
+    const normalized = settings?.schemaVersion === 12 ? settings : normalizeCompanySettings(settings);
     const value = date instanceof Date ? date : new Date(`${date}T12:00:00`);
     return normalized.specialWorkRules.find(rule => {
         if (!rule.enabled || rule.kind !== "recurring-day-off" || value.getDay() !== rule.weekday) return false;
