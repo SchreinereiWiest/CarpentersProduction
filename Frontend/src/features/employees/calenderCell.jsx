@@ -44,6 +44,8 @@ export default function DayColumn({
                 overflow-hidden
             ">
 
+                {!dayData?.blocks?.length && <div className="grid min-h-48 flex-1 place-items-center rounded-lg border border-dashed border-gray-700 bg-gray-950/50 p-4 text-center"><div><p className="font-medium text-red-300">Betriebsfrei</p><p className="mt-1 text-xs text-gray-500">{dayData?.dayOffReason || "Kein Arbeitszeitblock für diesen Tag"}</p></div></div>}
+
                 {
 
                     dayData?.blocks.map(block => (

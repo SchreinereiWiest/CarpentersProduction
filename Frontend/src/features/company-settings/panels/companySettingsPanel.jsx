@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import axios from "axios";
 
 import { uploadJSONFile } from "../../../shared/api/file-api.js";
 import {
     CUSTOM_WORK_TYPE_ID,
+    companyFreeDaysForRange,
     DEFAULT_COMPANY_SETTINGS,
     loadCompanySettings,
     normalizeCompanySettings,
@@ -33,27 +35,24 @@ function createWorkTypeId(label, existingIds) {
 }
 
 function validateSettings(config) {
-    const start = timeToMinutes(config.workingHours.start);
-    const end = timeToMinutes(config.workingHours.end);
-
-    if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end) {
-        return "Das Arbeitsende muss nach dem Arbeitsbeginn liegen.";
-    }
-
-    const sortedBreaks = [...config.breaks]
-        .sort((left, right) => timeToMinutes(left.start) - timeToMinutes(right.start));
-
-    for (let index = 0; index < sortedBreaks.length; index += 1) {
-        const breakEntry = sortedBreaks[index];
-        const breakStart = timeToMinutes(breakEntry.start);
-        const breakEnd = timeToMinutes(breakEntry.end);
-
-        if (breakStart < start || breakEnd > end || breakStart >= breakEnd) {
-            return `Die Pause „${breakEntry.label || index + 1}“ muss vollständig innerhalb der Arbeitszeit liegen.`;
+    for (const day of config.workWeek) {
+        if (!day.enabled) continue;
+        const dayStart = timeToMinutes(day.start);
+        const dayEnd = timeToMinutes(day.end);
+        if (!Number.isFinite(dayStart) || !Number.isFinite(dayEnd) || dayStart >= dayEnd) {
+            return `${day.label}: Das Arbeitsende muss nach dem Arbeitsbeginn liegen.`;
         }
-
-        if (index > 0 && breakStart < timeToMinutes(sortedBreaks[index - 1].end)) {
-            return "Pausenzeiten dürfen sich nicht überschneiden.";
+        const sortedBreaks = [...day.breaks].sort((left, right) => timeToMinutes(left.start) - timeToMinutes(right.start));
+        for (let index = 0; index < sortedBreaks.length; index += 1) {
+            const breakEntry = sortedBreaks[index];
+            const breakStart = timeToMinutes(breakEntry.start);
+            const breakEnd = timeToMinutes(breakEntry.end);
+            if (breakStart < dayStart || breakEnd > dayEnd || breakStart >= breakEnd) {
+                return `${day.label}: Die Pause „${breakEntry.label || index + 1}“ muss vollständig innerhalb der Tagesarbeitszeit liegen.`;
+            }
+            if (index > 0 && breakStart < timeToMinutes(sortedBreaks[index - 1].end)) {
+                return `${day.label}: Pausenzeiten dürfen sich nicht überschneiden.`;
+            }
         }
     }
 
@@ -81,6 +80,7 @@ export default function CompanySettingsPanel() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState(null);
+    const [calendarYear, setCalendarYear] = useState(() => new Date().getFullYear());
 
     useEffect(() => {
         const load = async () => {
@@ -100,50 +100,63 @@ export default function CompanySettingsPanel() {
         load();
     }, []);
 
-    const sortedBreaks = useMemo(
-        () => [...config.breaks].sort(
-            (left, right) => timeToMinutes(left.start) - timeToMinutes(right.start)
-        ),
-        [config.breaks]
-    );
-
-    const updateWorkingHours = (key, value) => {
+    const updateWorkDay = (weekday, key, value) => {
         setConfig(previous => ({
             ...previous,
-            workingHours: {
-                ...previous.workingHours,
-                [key]: value
-            }
+            workWeek: previous.workWeek.map(day => day.weekday === weekday ? { ...day, [key]: value } : day)
         }));
     };
 
-    const updateBreak = (id, key, value) => {
+    const updateDayBreak = (weekday, id, key, value) => {
         setConfig(previous => ({
             ...previous,
-            breaks: previous.breaks.map(entry => (
-                entry.id === id ? { ...entry, [key]: value } : entry
-            ))
+            workWeek: previous.workWeek.map(day => day.weekday === weekday ? {
+                ...day,
+                breaks: day.breaks.map(entry => entry.id === id ? { ...entry, [key]: value } : entry)
+            } : day)
         }));
     };
 
-    const addBreak = () => {
-        const id = `break-${Date.now()}`;
-
+    const addDayBreak = weekday => {
+        const id = `day-${weekday}-break-${Date.now()}`;
         setConfig(previous => ({
             ...previous,
-            breaks: [
-                ...previous.breaks,
-                { id, label: "Neue Pause", start: "10:00", end: "10:15" }
-            ]
+            workWeek: previous.workWeek.map(day => day.weekday === weekday ? {
+                ...day,
+                breaks: [...day.breaks, { id, label: "Neue Pause", start: "10:00", end: "10:15" }]
+            } : day)
         }));
     };
 
-    const removeBreak = id => {
+    const removeDayBreak = (weekday, id) => {
         setConfig(previous => ({
             ...previous,
-            breaks: previous.breaks.filter(entry => entry.id !== id)
+            workWeek: previous.workWeek.map(day => day.weekday === weekday
+                ? { ...day, breaks: day.breaks.filter(entry => entry.id !== id) }
+                : day)
         }));
     };
+
+    const addSpecialRule = () => setConfig(previous => ({
+        ...previous,
+        specialWorkRules: [...previous.specialWorkRules, {
+            id: `work-rule-${Date.now()}`,
+            label: "Jeder zweite Freitag frei",
+            kind: "recurring-day-off",
+            enabled: true,
+            weekday: 5,
+            intervalWeeks: 2,
+            anchorDate: `${new Date().getFullYear()}-01-02`
+        }]
+    }));
+    const updateSpecialRule = (id, key, value) => setConfig(previous => ({
+        ...previous,
+        specialWorkRules: previous.specialWorkRules.map(rule => rule.id === id ? { ...rule, [key]: value } : rule)
+    }));
+    const removeSpecialRule = id => setConfig(previous => ({
+        ...previous,
+        specialWorkRules: previous.specialWorkRules.filter(rule => rule.id !== id)
+    }));
 
     const updateWorkType = (id, label) => {
         setConfig(previous => ({
@@ -176,10 +189,7 @@ export default function CompanySettingsPanel() {
     };
 
     const save = async () => {
-        const normalized = normalizeCompanySettings({
-            ...config,
-            breaks: sortedBreaks
-        });
+        const normalized = normalizeCompanySettings(config);
         const validationMessage = validateSettings(normalized);
 
         if (validationMessage) {
@@ -202,9 +212,33 @@ export default function CompanySettingsPanel() {
 
             setConfig(normalized);
             setMessage({ type: "success", text: "Unternehmenseinstellungen gespeichert." });
+            return true;
         } catch (error) {
             console.error("Unternehmenseinstellungen konnten nicht gespeichert werden:", error);
             setMessage({ type: "error", text: "Unternehmenseinstellungen konnten nicht gespeichert werden." });
+            return false;
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const syncFreeDays = async () => {
+        if (!await save()) return;
+        setSaving(true);
+        try {
+            const from = new Date(calendarYear, 0, 1, 0, 0, 0, 0);
+            const to = new Date(calendarYear + 1, 0, 1, 0, 0, 0, 0);
+            const days = companyFreeDaysForRange(config, from, to).map(day => {
+                const start = new Date(`${day.date}T00:00:00`);
+                const end = new Date(start);
+                end.setDate(end.getDate() + 1);
+                return { ...day, startAt: start.toISOString(), endAt: end.toISOString() };
+            });
+            await axios.post("/api/calendar/company-days/sync", { from: from.toISOString(), to: to.toISOString(), days });
+            setMessage({ type: "success", text: `${days.length} wiederkehrende freie Tage für ${calendarYear} wurden im Kalender aktualisiert.` });
+        } catch (error) {
+            console.error("Freie Tage konnten nicht synchronisiert werden:", error);
+            setMessage({ type: "error", text: "Die freien Tage konnten nicht in den Kalender eingetragen werden." });
         } finally {
             setSaving(false);
         }
@@ -216,7 +250,7 @@ export default function CompanySettingsPanel() {
 
     return (
         <div className="responsive-settings-panel h-full overflow-y-auto p-6">
-            <div className="max-w-4xl space-y-6">
+            <div className="max-w-6xl space-y-6">
                 <div>
                     <h1 className="text-xl font-semibold">Unternehmen</h1>
                     <p className="mt-1 text-sm text-gray-500">
@@ -235,59 +269,65 @@ export default function CompanySettingsPanel() {
                 )}
 
                 <section className="rounded-xl border border-gray-700 bg-gray-800 p-5">
-                    <div className="text-xs uppercase tracking-wide text-gray-500">Reguläre Arbeitszeit</div>
-                    <div className="mt-4 grid max-w-xl grid-cols-1 gap-4 sm:grid-cols-2">
-                        <TimeField
-                            label="Arbeitsbeginn"
-                            value={config.workingHours.start}
-                            onChange={value => updateWorkingHours("start", value)}
-                        />
-                        <TimeField
-                            label="Arbeitsende"
-                            value={config.workingHours.end}
-                            onChange={value => updateWorkingHours("end", value)}
-                        />
+                    <div className="text-xs uppercase tracking-wide text-gray-500">Arbeitswoche und Tagespausen</div>
+                    <p className="mt-2 text-sm text-gray-400">
+                        Jeder Tag besitzt eigene Arbeits- und Pausenzeiten. Diese Blöcke steuern Zeiterfassung, Jahreskapazität und die stündliche Urlaubsabrechnung.
+                    </p>
+                    <div className="mt-4 space-y-4">
+                        {config.workWeek.map(day => (
+                            <div key={day.weekday} className={`rounded-xl border p-4 ${day.enabled ? "border-gray-700 bg-gray-900" : "border-gray-800 bg-gray-900/40"}`}>
+                                <div className="grid items-end gap-3 sm:grid-cols-[minmax(120px,1fr)_110px_150px_150px_auto]">
+                                    <strong className="self-center text-base text-gray-200">{day.label}</strong>
+                                    <label className="flex items-center gap-2 self-center text-xs text-gray-400">
+                                        <input type="checkbox" checked={day.enabled} onChange={event => updateWorkDay(day.weekday, "enabled", event.target.checked)} />
+                                        Arbeitstag
+                                    </label>
+                                    <TimeField label="Arbeitsbeginn" value={day.start} onChange={value => updateWorkDay(day.weekday, "start", value)} />
+                                    <TimeField label="Arbeitsende" value={day.end} onChange={value => updateWorkDay(day.weekday, "end", value)} />
+                                    <button type="button" disabled={!day.enabled} onClick={() => addDayBreak(day.weekday)} className="rounded-lg border border-gray-600 px-3 py-2 text-xs hover:bg-gray-700 disabled:opacity-40">Pause hinzufügen</button>
+                                </div>
+                                {day.enabled && <div className="mt-3 space-y-2 border-t border-gray-800 pt-3">
+                                    {!day.breaks.length && <p className="text-xs text-gray-600">Keine Pause – der Tagesblock läuft durchgehend.</p>}
+                                    {day.breaks.map(entry => (
+                                        <div key={entry.id} className="grid items-end gap-2 sm:grid-cols-[1fr_140px_140px_auto]">
+                                            <TextField label="Pause" value={entry.label} onChange={value => updateDayBreak(day.weekday, entry.id, "label", value)} />
+                                            <TimeField label="Von" value={entry.start} onChange={value => updateDayBreak(day.weekday, entry.id, "start", value)} />
+                                            <TimeField label="Bis" value={entry.end} onChange={value => updateDayBreak(day.weekday, entry.id, "end", value)} />
+                                            <DeleteButton label={`${day.label}: Pause löschen`} onClick={() => removeDayBreak(day.weekday, entry.id)} />
+                                        </div>
+                                    ))}
+                                </div>}
+                            </div>
+                        ))}
                     </div>
                 </section>
 
                 <section className="rounded-xl border border-gray-700 bg-gray-800 p-5">
                     <div className="flex items-center justify-between gap-4">
                         <div>
-                            <div className="text-xs uppercase tracking-wide text-gray-500">Pausenzeiten</div>
+                            <div className="text-xs uppercase tracking-wide text-gray-500">Wiederkehrende Sonderregeln</div>
                             <p className="mt-2 text-sm text-gray-400">
-                                Pausen teilen den Kalender automatisch in Arbeitszeitblöcke.
+                                Beispielsweise kann jeder zweite Freitag als betriebsfrei definiert werden. Das Ankerdatum bestimmt, welche Woche die erste freie Woche ist.
                             </p>
                         </div>
-                        <button
-                            type="button"
-                            onClick={addBreak}
-                            className="rounded-lg bg-gray-700 px-4 py-2 text-sm hover:bg-gray-600"
-                        >
-                            Pause hinzufügen
-                        </button>
+                        <button type="button" onClick={addSpecialRule} className="rounded-lg bg-gray-700 px-4 py-2 text-sm hover:bg-gray-600">Sonderregel hinzufügen</button>
                     </div>
-
                     <div className="mt-4 space-y-3">
-                        {sortedBreaks.map(entry => (
-                            <div key={entry.id} className="grid grid-cols-1 items-end gap-3 rounded-lg bg-gray-900 p-3 sm:grid-cols-[1fr_140px_140px_auto]">
-                                <TextField
-                                    label="Bezeichnung"
-                                    value={entry.label}
-                                    onChange={value => updateBreak(entry.id, "label", value)}
-                                />
-                                <TimeField
-                                    label="Von"
-                                    value={entry.start}
-                                    onChange={value => updateBreak(entry.id, "start", value)}
-                                />
-                                <TimeField
-                                    label="Bis"
-                                    value={entry.end}
-                                    onChange={value => updateBreak(entry.id, "end", value)}
-                                />
-                                <DeleteButton label="Pause löschen" onClick={() => removeBreak(entry.id)} />
+                        {!config.specialWorkRules.length && <div className="rounded-lg border border-dashed border-gray-700 p-5 text-center text-sm text-gray-500">Keine wiederkehrende Sonderregel angelegt.</div>}
+                        {config.specialWorkRules.map(rule => (
+                            <div key={rule.id} className="grid items-end gap-3 rounded-lg bg-gray-900 p-3 lg:grid-cols-[auto_1fr_160px_120px_160px_auto]">
+                                <label className="flex items-center gap-2 self-center text-xs text-gray-400"><input type="checkbox" checked={rule.enabled} onChange={event => updateSpecialRule(rule.id, "enabled", event.target.checked)} />Aktiv</label>
+                                <TextField label="Bezeichnung" value={rule.label} onChange={value => updateSpecialRule(rule.id, "label", value)} />
+                                <label><span className="mb-1 block text-xs text-gray-500">Wochentag</span><select value={rule.weekday} onChange={event => updateSpecialRule(rule.id, "weekday", Number(event.target.value))} className="w-full rounded border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white">{config.workWeek.map(day => <option key={day.weekday} value={day.weekday}>{day.label}</option>)}</select></label>
+                                <label><span className="mb-1 block text-xs text-gray-500">Alle … Wochen</span><input type="number" min="1" max="52" value={rule.intervalWeeks} onChange={event => updateSpecialRule(rule.id, "intervalWeeks", event.target.value)} className="w-full rounded border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white" /></label>
+                                <label><span className="mb-1 block text-xs text-gray-500">Ankerdatum</span><input type="date" value={rule.anchorDate} onChange={event => updateSpecialRule(rule.id, "anchorDate", event.target.value)} className="w-full rounded border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white" /></label>
+                                <DeleteButton label="Sonderregel löschen" onClick={() => removeSpecialRule(rule.id)} />
                             </div>
                         ))}
+                    </div>
+                    <div className="mt-5 flex flex-wrap items-end justify-between gap-4 rounded-xl border border-blue-950 bg-blue-950/30 p-4">
+                        <div><p className="text-sm font-medium text-blue-200">Betriebsfreie Tage in den Kalender übertragen</p><p className="mt-1 text-xs text-blue-300/70">Automatisch erzeugte Einträge des gewählten Jahres werden ersetzt. Einmalige freie Tage können im Kalender als „Betriebsfrei“ angelegt werden.</p></div>
+                        <div className="flex items-end gap-2"><label className="text-xs text-gray-400">Kalenderjahr<input type="number" min="2000" max="2200" value={calendarYear} onChange={event => setCalendarYear(Number(event.target.value))} className="mt-1 block w-28 rounded border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white" /></label><button type="button" disabled={saving} onClick={syncFreeDays} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium hover:bg-blue-500 disabled:opacity-50">Speichern und eintragen</button></div>
                     </div>
                 </section>
 

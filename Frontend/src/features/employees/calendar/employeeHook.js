@@ -5,7 +5,6 @@ import {loadDayEntries, loadWeek} from "./loadCalendar.js";
 import { createWeek } from "./createCalendar.js";
 import { insertSlot } from "./SlotsCalendar.js";
 import {saveEditedSlot, saveWeek} from "./saveCalendar.js";
-import { createWorkBlocks } from "../../../shared/settings/company-settings.js";
 
 export function useEmployeeCalendar(companySettings) {
 
@@ -49,33 +48,19 @@ export function useEmployeeCalendar(companySettings) {
 
     const [today] = useState(() => formatLocalDate(new Date()));
 
-    const [days, setDays] = useState([
-        {
-            id: 0,
-            label: "Montag"
-        },
-        {
-            id: 1,
-            label: "Dienstag"
-        },
-        {
-            id: 2,
-            label: "Mittwoch"
-        },
-        {
-            id: 3,
-            label: "Donnerstag"
-        },
-        {
-            id: 4,
-            label: "Freitag"
-        }
-    ]);
+    const days = useMemo(() => companySettings.workWeek
+        .filter(day => day.enabled)
+        .sort((left, right) => ((left.weekday + 6) % 7) - ((right.weekday + 6) % 7))
+        .map(day => ({ id: (day.weekday + 6) % 7, weekday: day.weekday, label: day.label })), [companySettings.workWeek]);
 
-    const blocks = useMemo(
-        () => createWorkBlocks(companySettings),
-        [companySettings]
-    );
+    const blocks = useMemo(() => {
+        const dayId = editingSlot?.position?.day ?? selectedSlot?.position?.day;
+        const day = weekData.find(entry => entry.day === dayId) || weekData[0];
+        return (day?.blocks || []).map(block => ({
+            ...block,
+            id: Number(String(block.id).split("-").at(-1))
+        }));
+    }, [editingSlot, selectedSlot, weekData]);
 
     const workTypes = companySettings.workTypes;
 
@@ -129,14 +114,14 @@ export function useEmployeeCalendar(companySettings) {
             weekOffset,
             user,
             days,
-            blocks
+            blocks,
+            companySettings
         },
         newWeekOffset
     );
 
     setWeekOffset(newWeekOffset);
     setWeekData(result.weekData);
-    setDays(result.days);
     // console.log(weekData);
     }
 
@@ -152,14 +137,14 @@ export function useEmployeeCalendar(companySettings) {
             weekOffset,
             user,
             days,
-            blocks
+            blocks,
+            companySettings
         },
         newWeekOffset
     );
 
     setWeekOffset(newWeekOffset);
     setWeekData(result.weekData);
-    setDays(result.days);
     // console.log(weekData);
     }
 
@@ -394,6 +379,7 @@ export function useEmployeeCalendar(companySettings) {
 
         days,
         blocks,
+        companySettings,
         workTypes,
 
         missingEntries,

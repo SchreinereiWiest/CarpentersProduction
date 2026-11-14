@@ -7,6 +7,7 @@ export const CALENDAR_TYPES = [
   { key: "manufacturing", label: "Fertigung", color: "#f59e0b", scope: "production" },
   { key: "installation", label: "Montage", color: "#10b981", scope: "production" },
   { key: "appointment", label: "Einzeltermin", color: "#f43f5e", scope: "production" },
+  { key: "company-closed", label: "Betriebsfrei", color: "#ef4444", scope: "production" },
   { key: "personal-appointment", type: "appointment", label: "Privater Termin", color: "#ec4899", scope: "personal" },
   { key: "personal-vacation", type: "vacation", label: "Urlaub", color: "#22c55e", scope: "personal" },
   { key: "personal-other", type: "other", label: "Persönlich / Sonstiges", color: "#06b6d4", scope: "personal" }

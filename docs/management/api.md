@@ -1,59 +1,43 @@
-# API und Speicherung
+# Management-API
 
-Alle Managementrouten verlangen eine authentifizierte Admin- oder Managerrolle. Der Basis-Pfad lautet `/api/management`. `year` ist das Startjahr des Geschäftsjahrs; ohne Angabe gilt das aktuelle Berliner Kalenderjahr.
+Alle Routen unter `/api/management` erfordern `business-management` sowie eine Admin- oder Managerrolle. Schreibvorgänge laufen mandantenbezogen in einer serialisierbaren Transaktion und erzeugen einen Audit-Eintrag.
 
-## Aktive Endpunkte
+## Arbeitsbereich
 
 | Methode | Pfad | Zweck |
 | --- | --- | --- |
-| GET | `/api/management?year=2026` | Konsistenter Jahres-Snapshot mit Entwurf, Rechnung und Vorjahr |
-| GET | `/api/management/references` | Aktive Personalkonten und Betriebsdokumente |
-| PUT | `/api/management/settings?year=2026` | Jahresentwurf mit `{config, revision}` speichern |
-| POST | `/api/management/setup/approve?year=2026` | Gespeicherten Entwurf mit `{revision, note?}` freigeben |
+| GET | `/workspace?year=2026` | Mitarbeitende, Projekte, Zuweisungen, Board- und Roadmapdaten, Zeit-/Urlaubssummen, Jahresziele und Stundensatzstand laden |
+| POST | `/assignments` | Projekt mit `{projectId, assigneeId, info}` zuweisen oder Info aktualisieren |
+| DELETE | `/assignments/:id` | Zuweisung entfernen |
+| POST | `/assignments/:id/calendar` | Ganztägigen Produktionszeitraum mit `{startAt, endAt, allDay}` anlegen oder aktualisieren |
+| PUT | `/projects/:projectId/stage` | Zusätzlichen Management-Status mit `{stageId, position}` speichern |
+| PUT | `/projects/:projectId/schedule` | Gantt-Planzeilen und -balken mit `{rows}` speichern; Gesamtzeitraum wird abgeleitet |
+| POST | `/projects/:projectId/schedule/calendar` | Gantt-Plan samt Gesamtzeitraum als verknüpften Kalendereintrag mit `{rows, calendarType, startAt, endAt}` anlegen oder aktualisieren |
+| DELETE | `/projects/:projectId/schedule` | Vorläufigen Roadmap-Zeitraum entfernen |
+| PUT | `/employees/:userId/profile` | Urlaubstage und Jahresgehalt mit `{vacationDays, annualSalary}` speichern |
 
-Betriebsdateien verwenden die vorhandenen geschützten Datei-Endpunkte. Ein CSV-Import erfolgt zunächst im Browser und wird anschließend über dieselbe Konfigurations-API validiert und gespeichert.
+## Jahresziele
 
-## Snapshotstruktur
+| Methode | Pfad | Zweck |
+| --- | --- | --- |
+| POST | `/goals?year=2026` | Soll-Ziel anlegen |
+| PUT | `/goals/:id?year=2026` | Ziel oder abschließenden Istwert aktualisieren |
+| DELETE | `/goals/:id` | Ziel samt Zwischenständen löschen |
+| POST | `/goals/:id/checkpoints` | Datierten Zwischenstand anlegen |
+| DELETE | `/goals/:id/checkpoints/:checkpointId` | Zwischenstand löschen |
 
-| Feld | Bedeutung |
-| --- | --- |
-| `year`, `revision` | Startjahr und zuletzt gespeicherte Änderungsrevision |
-| `config` | Aktueller, vorbereiteter Jahresentwurf |
-| `timeEntries` | Abgeschlossene Berichte aus dem für Jahr/Vorjahr benötigten Abfragefenster |
-| `setupCalculation` | Planvorschau des aktuellen Entwurfs |
-| `operationalConfig` | Freigegebene Eingaben mit aktuellen Ist-Feldern |
-| `operatingPlan` | Fixierte Rechnung der letzten Freigabe, vorher die Entwurfsrechnung |
-| `operatingActual` | Laufende Ist-Kosten und Stunden anhand veröffentlichter Regeln |
-| `previous` | Vorjahreskonfiguration, Vorjahresplan und Vorjahres-Ist oder `null` |
+Zielwerte sind Dezimalzahlen. `typeLabel` und `unit` werden beim Erstellen mitgespeichert, damit spätere Änderungen der Firmeneinstellungen historische Vergleiche nicht umbenennen.
 
-Die Zeitabfrage besitzt einen Zeitzonenpuffer. Erst das gemeinsame Stundenmodul entscheidet anhand Berliner Kalendertage und Geschäftsjahr, welche Berichte fachlich zur aktuellen Rechnung gehören. Passwort-, E-Mail- oder sonstige unbenötigte Benutzerfelder werden nicht in diese Berichte projiziert.
+## Stundensätze
 
-## Konfiguration
+`PUT /rates?year=2026` akzeptiert `activities`, `overheadCosts` und `profitPercent`. Der Server normalisiert und berechnet alle Sätze erneut. Das Ergebnis wird als `rateCalculation` in der `ManagementPeriod` gespeichert. Der Projektendpunkt `/api/projects/calculation-context/:id` stellt diese Sätze als Management-Kostenstellen bereit.
 
-`ManagementPeriod.config` enthält Umfang, Startmonat, Eröffnungsbestände, Gewinnaufschlag, Easy-Sätze, Kostenstellen, Kostenarten, Verteilungsschlüssel und `setup`.
+Die Oberfläche kann produktive Jahresstunden und Personalkosten aus Zeitbuchungen und Mitarbeiterprofilen vorbelegen. Das Jahresgehalt eines Mitarbeiters wird proportional zu seinen produktiven Stunden auf die konfigurierten Kostenstellen verteilt. Der Anteil einer Kostenstelle an sämtlichen produktiven Stunden bildet zugleich den Schlüssel für die Gemeinkostenverteilung. Maschinenkosten, Maschinenstunden, sonstige direkte Kosten und Maschinenanteil bleiben manuelle Kalkulationswerte.
 
-`setup` enthält Betriebsname, Initialisierungsstatus, Stunden-/Zinsmethode, Materialbestand, Anlagen, Restschulden, Jahreskosten, Personalplanung und Freigabehistorie. Historische Buchungsregeln und manuelle BAB-Ergänzungen gehören nicht mehr zum aktiven Modell.
+Die Projektplanung speichert bei `PUT /projects/:projectId/schedule` nun bevorzugt `{rows}`. Jede Zeile enthält `id`, `label` und beliebig viele Balken mit `id`, `start` und `end`. `plannedStart` und `plannedEnd` werden serverseitig aus dem frühesten beziehungsweise spätesten Balken abgeleitet. Das alte Datumsformat bleibt als Übergang kompatibel.
 
-Die serverseitige Validierung prüft Datentypen, Grenzen, doppelte IDs, echte Datumswerte, Kostenstellen-/Schlüsselreferenzen und Personalkonten. Fachliche Vollständigkeit wird vor der Freigabe geprüft; ein Entwurf kann noch fehlende Freigabeangaben enthalten.
+Die Kalenderübertragung akzeptiert die Typen `project`, `measurement`, `planning`, `manufacturing`, `installation` und `appointment`. Sie speichert die aktuellen Gantt-Zeilen mit und aktualisiert bei erneuter Übertragung denselben Kalendereintrag. Beim Löschen der Projektplanung wird auch dieser verknüpfte Eintrag entfernt.
 
-## Revision und Transaktionen
+`POST /api/calendar/company-days/sync` ersetzt die automatisch aus Arbeitszeit-Sonderregeln erzeugten Einträge eines Kalenderjahres. Manuell im Kalender angelegte Termine vom Typ `company-closed` bleiben erhalten.
 
-Ein Speichervorgang verlangt die zuletzt geladene Revision. Existiert das Jahr noch nicht, ist Revision `0` erforderlich. Jede erfolgreiche Änderung erhöht die Revision. Eine zwischenzeitliche Änderung führt zu `409` und wird nicht überschrieben.
-
-Read-Snapshots verwenden `RepeatableRead`. Änderungen und Auditnachweis werden gemeinsam unter `Serializable` geschrieben. Auditaktionen sind `management.settings.save` und `management.setup.approve`. Ein gescheiterter Audit- oder Datenbankschreibvorgang veröffentlicht keine halbe Änderung.
-
-## Freigabesnapshot
-
-Eine Freigabe liest den gespeicherten Entwurf, validiert erneut und verwendet die dann aktuellen abgeschlossenen Berichte. Gespeichert werden Versionsnummer, Zeitpunkt, Benutzer-ID, Notiz, unabhängige Eingaben, BAB/Rechnung, Sätze, Maschinenübersicht und Plankosten. Der eingebettete Konfigurationssnapshot enthält keine rekursive Freigabehistorie.
-
-Clientseitig gesendete Freigaben werden beim Speichern ignoriert. Die Historie stammt immer aus dem zuvor gespeicherten Jahresmodell. Neue Ist-Summen und Berichte können die laufende Rechnung ändern; veröffentlichte Planwerte bleiben fixiert.
-
-## Übergang und entfernte APIs
-
-Vor der ersten gespeicherten Einrichtung übernimmt `legacyInventory.js` vorhandene Anlagen und Restschulden aus früheren Tabellen. Nach `setup.initialized = true` werden diese Tabellen für das Jahresmodell nicht erneut geladen.
-
-Endpunkte für `/transactions`, `/payments`, `/rules/apply`, separate `/assets`, `/loans` und `/repayments` wurden entfernt. Die alte Antwort `calculation`, Geschäftsvorfälle, Bruttobetragsrechnung und der Parameter `basis` gehören nicht mehr zum aktiven API-Vertrag. Anlagen und Restschulden werden innerhalb der Jahreskonfiguration gepflegt. Bestehende Tabellen und Datensätze werden nicht gelöscht.
-
-## Fehler
-
-`400` kennzeichnet ungültige oder unvollständige Eingaben, `401` fehlende Anmeldung, `403` fehlende Rolle, `409` veraltete Revision/Parallelkonflikt. Entfernte Routen sind nicht mehr vorhanden und führen zu `404`. Unerwartete Fehler liefern eine allgemeine Meldung; technische Fehlerdetails werden serverseitig protokolliert.
+Die früheren Snapshot-, Entwurfs- und Freigaberouten bleiben vorerst für vorhandene Installationen lesbar, werden von der neuen Managementoberfläche aber nicht mehr verwendet.

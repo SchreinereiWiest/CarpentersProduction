@@ -44,7 +44,24 @@ export async function loadWeek(userId, Cal, weekOffset) {
         }
     };
 
-    const emptyWeek = createWeek(Cal, weekOffset);
+    let emptyWeek = createWeek(Cal, weekOffset);
+    try {
+        const rangeEnd = new Date(weekStart);
+        rangeEnd.setDate(rangeEnd.getDate() + 7);
+        const { data: calendarData } = await axios.get("/api/calendar/events", {
+            params: { from: weekStart.toISOString(), to: rangeEnd.toISOString() }
+        });
+        const companyDays = (calendarData.events || []).filter(event => event.type === "company-closed");
+        emptyWeek = emptyWeek.map(day => {
+            const start = new Date(`${day.date}T00:00:00`);
+            const end = new Date(start);
+            end.setDate(end.getDate() + 1);
+            const closure = companyDays.find(event => new Date(event.startAt) < end && new Date(event.endAt) > start);
+            return closure ? { ...day, blocks: [], dayOffReason: closure.title || "Betriebsfrei" } : day;
+        });
+    } catch (error) {
+        console.warn("Betriebsfreie Kalendertage konnten nicht geladen werden", error);
+    }
     let data = await loadStoredWeek(dateString);
 
     if (!Array.isArray(data) || data.length === 0) {
@@ -72,13 +89,17 @@ export function normalizeWeekDates(storedWeek, emptyWeek) {
             ...storedDay,
             day: templateDay.day,
             date: templateDay.date,
-            blocks: (storedDay.blocks ?? templateDay.blocks).map(block => ({
-                ...block,
-                slots: (block.slots ?? []).map(slot => ({
+            dayOffReason: templateDay.dayOffReason,
+            blocks: templateDay.blocks.map(templateBlock => {
+                const storedBlock = storedDay.blocks?.find(block => block.start === templateBlock.start && block.end === templateBlock.end);
+                return {
+                ...templateBlock,
+                slots: (storedBlock?.slots ?? templateBlock.slots).map(slot => ({
                     ...slot,
+                    position: { ...slot.position, day: templateDay.day, block: Number(String(templateBlock.id).split("-").at(-1)) },
                     date: templateDay.date
                 }))
-            }))
+            };})
         };
     });
 }
@@ -98,7 +119,7 @@ export async function loadDayEntries(weekData, user, Cal) {
                 // console.log(entry);
 
                 if(entry.userId !== user.id) continue;
-                const block = getBlockForEntry(entry, Cal.blocks);
+                const block = getBlockForEntry(entry, day.blocks);
 
                 // console.log(block);
 

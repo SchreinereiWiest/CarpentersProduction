@@ -25,6 +25,10 @@ export async function saveManagementConfig(req, res) {
       }
       const existing = await db.managementPeriod.findFirst({ where: { year } });
       if ((existing?.revision || 0) !== revision) invalid('Einstellungen wurden zwischenzeitlich geändert. Bitte neu laden.', 409);
+      // Die neue direkte Stundensatzrechnung ist kein Feld des historischen
+      // Einrichtungsformulars und darf von einem alten Client nicht entfernt
+      // oder überschrieben werden.
+      if (existing?.config?.rateCalculation) config.rateCalculation = structuredClone(existing.config.rateCalculation);
       config.setup.approvals = existing?.config?.setup?.approvals || [];
       for (const staff of config.setup.staff) {
         if (staff.userId && !await db.tenantMembership.findFirst({
@@ -47,6 +51,7 @@ export async function approveManagementSetup(req, res) {
       const period = await db.managementPeriod.findFirst({ where: { year } });
       if (!period || period.revision !== versionValue(req.body?.revision)) invalid('Einrichtung zuerst speichern oder neu laden.', 409);
       const config = validateConfig(period.config);
+      if (period.config?.rateCalculation) config.rateCalculation = structuredClone(period.config.rateCalculation);
       const calculation = calculateSetup(config, { year, timeEntries: await loadTimeEntries(db, year) });
       const errors = setupChecks(config, calculation);
       if (errors.length) invalid(errors.join(' '));

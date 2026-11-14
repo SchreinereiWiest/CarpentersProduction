@@ -100,3 +100,114 @@ model ManagementRepayment {
   @@index([loanId])
   @@map("management_repayments")
 }
+
+model ManagementAssignment {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String         @map("tenant_id") @db.Uuid
+  projectId       String         @map("project_id") @db.Uuid
+  project         Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assigneeId      String         @map("assignee_id") @db.Uuid
+  assignee        User           @relation("ManagementAssignmentAssignee", fields: [assigneeId], references: [id], onDelete: Restrict)
+  createdById     String         @map("created_by") @db.Uuid
+  createdBy       User           @relation("ManagementAssignmentCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  info            String?
+  calendarEventId String?        @unique @map("calendar_event_id") @db.Uuid
+  calendarEvent   CalendarEvent? @relation(fields: [calendarEventId], references: [id], onDelete: SetNull)
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+
+  @@unique([tenantId, projectId, assigneeId])
+  @@unique([tenantId, id])
+  @@index([assigneeId])
+  @@index([projectId])
+  @@map("management_assignments")
+}
+
+model ManagementProjectStage {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  projectId String   @unique @map("project_id") @db.Uuid
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  stageId   String   @map("stage_id")
+  position  Int      @default(0)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, projectId])
+  @@unique([tenantId, id])
+  @@index([stageId, position])
+  @@map("management_project_stages")
+}
+
+model ManagementProjectSchedule {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  projectId    String   @unique @map("project_id") @db.Uuid
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  plannedStart DateTime @map("planned_start") @db.Date
+  plannedEnd   DateTime @map("planned_end") @db.Date
+  plan         Json     @default("[]")
+  calendarEventId String? @unique @map("calendar_event_id") @db.Uuid
+  calendarEvent   CalendarEvent? @relation("ManagementScheduleCalendarEvent", fields: [calendarEventId], references: [id], onDelete: SetNull)
+  calendarType    String? @map("calendar_type")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, projectId])
+  @@unique([tenantId, id])
+  @@index([plannedStart, plannedEnd])
+  @@map("management_project_schedules")
+}
+
+model ManagementEmployeeProfile {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  year         Int
+  vacationDays Decimal  @default(30) @map("vacation_days") @db.Decimal(6, 2)
+  annualSalary Decimal  @default(0) @map("annual_salary") @db.Decimal(14, 2)
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, userId, year])
+  @@unique([tenantId, id])
+  @@index([year])
+  @@map("management_employee_profiles")
+}
+
+model ManagementAnnualGoal {
+  id          String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String                     @map("tenant_id") @db.Uuid
+  year        Int
+  typeId      String                     @map("type_id")
+  typeLabel   String                     @map("type_label")
+  unit        String
+  title       String
+  targetValue Decimal                    @map("target_value") @db.Decimal(16, 2)
+  targetDate  DateTime                   @map("target_date") @db.Date
+  actualValue Decimal?                   @map("actual_value") @db.Decimal(16, 2)
+  actualDate  DateTime?                  @map("actual_date") @db.Date
+  note        String?
+  createdById String                     @map("created_by") @db.Uuid
+  createdBy   User                       @relation("ManagementAnnualGoalCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  checkpoints ManagementGoalCheckpoint[]
+  createdAt   DateTime                   @default(now()) @map("created_at")
+  updatedAt   DateTime                   @updatedAt @map("updated_at")
+
+  @@unique([tenantId, id])
+  @@index([year, typeId])
+  @@map("management_annual_goals")
+}
+
+model ManagementGoalCheckpoint {
+  id        String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String               @map("tenant_id") @db.Uuid
+  goalId    String               @map("goal_id") @db.Uuid
+  goal      ManagementAnnualGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  date      DateTime             @db.Date
+  value     Decimal              @db.Decimal(16, 2)
+  note      String?
+  createdAt DateTime             @default(now()) @map("created_at")
+
+  @@unique([tenantId, id])
+  @@index([goalId, date])
+  @@map("management_goal_checkpoints")
+}

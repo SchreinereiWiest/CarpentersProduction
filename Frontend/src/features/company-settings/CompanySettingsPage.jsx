@@ -42,6 +42,7 @@ import { useAuth } from "../../app/providers/AuthContext.js";
 import PaperlessSettingsPanel from "./panels/paperlessSettingsPanel.jsx";
 import ContactHistorySettingsPanel from "./panels/contactHistorySettingsPanel.jsx";
 import { advancedSettingsTabs } from "./advancedSettingsTabs.js";
+import ManagementSettingsPanel from "./panels/managementSettingsPanel.jsx";
 
 
 export default function CompanySettings() {
@@ -112,6 +113,11 @@ export default function CompanySettings() {
             case "company":
                 return (
                     <CompanySettingsPanel />
+                );
+
+            case "management":
+                return (
+                    <ManagementSettingsPanel />
                 );
 
             case "estimation":

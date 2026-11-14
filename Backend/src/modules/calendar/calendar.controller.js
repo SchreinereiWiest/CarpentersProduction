@@ -24,7 +24,8 @@ const typeLabels = {
   planning: "Planung",
   manufacturing: "Fertigung",
   installation: "Montage",
-  appointment: "Termin"
+  appointment: "Termin",
+  "company-closed": "Betriebsfrei"
 };
 
 const forbidden = message => {
@@ -90,6 +91,48 @@ export async function listCalendarProjects(req, res) {
     orderBy: [{ status: "asc" }, { title: "asc" }]
   });
   return res.json({ projects });
+}
+
+export async function syncCompanyDays(req, res) {
+  const from = new Date(req.body?.from);
+  const to = new Date(req.body?.to);
+  const days = Array.isArray(req.body?.days) ? req.body.days : [];
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to <= from) {
+    throw new CalendarValidationError("Der Kalenderzeitraum ist ungültig.");
+  }
+  if (to.getTime() - from.getTime() > 370 * 24 * 60 * 60 * 1000 || days.length > 200) {
+    throw new CalendarValidationError("Es kann höchstens ein Kalenderjahr synchronisiert werden.");
+  }
+  const normalized = days.map((day, index) => {
+    const startAt = new Date(day?.startAt);
+    const endAt = new Date(day?.endAt);
+    if (Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime()) || endAt <= startAt || startAt < from || endAt > to) {
+      throw new CalendarValidationError(`Freier Tag ${index + 1} ist ungültig.`);
+    }
+    const ruleId = String(day?.ruleId || "rule").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 80);
+    return {
+      ownerUserId: req.user.id,
+      createdById: req.user.id,
+      scope: "production",
+      type: "company-closed",
+      title: String(day?.label || "Betriebsfrei").trim().slice(0, 200) || "Betriebsfrei",
+      description: `[work-schedule:auto:${ruleId}]`,
+      startAt,
+      endAt,
+      allDay: true
+    };
+  });
+  await prisma.$transaction(async db => {
+    await db.calendarEvent.deleteMany({
+      where: {
+        scope: "production", type: "company-closed",
+        description: { startsWith: "[work-schedule:auto:" },
+        startAt: { gte: from, lt: to }
+      }
+    });
+    if (normalized.length) await db.calendarEvent.createMany({ data: normalized });
+  });
+  return res.json({ count: normalized.length });
 }
 
 export async function createCalendarEvent(req, res) {

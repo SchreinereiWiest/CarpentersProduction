@@ -59,6 +59,19 @@ test("personal calendar entries cannot use production-only types", () => {
   }), /nur für die Produktionsplanung/);
 });
 
+test("company-wide days off are production entries without a project", () => {
+  const dayOff = normalizeCalendarEvent({
+    scope: "production",
+    type: "company-closed",
+    title: "Betriebsfrei",
+    startAt: "2026-11-13T00:00:00.000Z",
+    endAt: "2026-11-14T00:00:00.000Z",
+    allDay: true
+  });
+  assert.equal(dayOff.projectId, null);
+  assert.equal(dayOff.type, "company-closed");
+});
+
 test("calendar ranges are ordered and bounded", () => {
   assert.throws(() => calendarRange({
     from: "2026-11-01T00:00:00.000Z",

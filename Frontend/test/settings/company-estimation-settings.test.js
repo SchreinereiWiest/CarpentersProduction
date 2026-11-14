@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  averageScheduledDayMinutes,
+  companyFreeDaysForRange,
   DEFAULT_COMPANY_SETTINGS,
-  normalizeCompanySettings
+  normalizeCompanySettings,
+  scheduledMinutesForDate
 } from "../../src/shared/settings/company-settings.js";
 
 describe("company settings", () => {
@@ -20,7 +23,14 @@ describe("company settings", () => {
         }
       }
     })).toMatchObject({
-      schemaVersion: 8,
+      schemaVersion: 11,
+      workWeek: expect.arrayContaining([
+        expect.objectContaining({ weekday: 1, label: "Montag", enabled: true, start: "08:00", end: "17:00" })
+      ]),
+      management: {
+        workflowStates: expect.arrayContaining([{ id: "inbox", label: "Eingang" }]),
+        goalTypes: expect.arrayContaining([{ id: "revenue", label: "Umsatzentwicklung", unit: "€" }])
+      },
       userInterface: {
         showTips: true,
         lineLockThresholdCm: 5,
@@ -137,5 +147,30 @@ describe("company settings", () => {
     expect(normalizeCompanySettings({
       userInterface: { workspaceScalePercent: "140" }
     }).userInterface.workspaceScalePercent).toBe(125);
+  });
+
+  it("uses weekday-specific hours for short working days", () => {
+    const settings = normalizeCompanySettings({
+      workWeek: DEFAULT_COMPANY_SETTINGS.workWeek.map(day => day.weekday === 5
+        ? { ...day, end: "12:00" }
+        : day)
+    });
+    expect(scheduledMinutesForDate(settings, new Date(2026, 10, 13, 12))).toBe(285);
+    expect(averageScheduledDayMinutes(settings)).toBe(477);
+  });
+
+  it("supports day-specific breaks and every-second-week day-off rules", () => {
+    const settings = normalizeCompanySettings({
+      workWeek: DEFAULT_COMPANY_SETTINGS.workWeek.map(day => day.weekday === 5
+        ? { ...day, end: "13:00", breaks: [day.breaks[0]] }
+        : day),
+      specialWorkRules: [{
+        id: "alternate-friday", label: "Jeder zweite Freitag frei", enabled: true,
+        weekday: 5, intervalWeeks: 2, anchorDate: "2026-01-02"
+      }]
+    });
+    expect(scheduledMinutesForDate(settings, new Date(2026, 0, 2, 12))).toBe(0);
+    expect(scheduledMinutesForDate(settings, new Date(2026, 0, 9, 12))).toBe(345);
+    expect(companyFreeDaysForRange(settings, "2026-01-01", "2026-02-01")).toHaveLength(3);
   });
 });

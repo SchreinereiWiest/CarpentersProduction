@@ -31,9 +31,10 @@ import UserProfilePage from "../features/user-profile/UserProfilePage.jsx";
 import OfflineMergePage from "../features/offline/OfflineMergeView.jsx";
 import ManagementLayout from "../features/management/layout/managementLayout.jsx";
 import ManagementOverview from "../features/management/operating/overview.jsx";
-import ManagementHours from "../features/management/operating/hours.jsx";
-import ManagementOperatingCosts from "../features/management/operating/operatingCosts.jsx";
-import ManagementSetup from "../features/management/setup/setup.jsx";
+import ManagementBoard from "../features/management/operating/projectBoard.jsx";
+import ManagementTimeline from "../features/management/operating/projectTimeline.jsx";
+import ManagementGoals from "../features/management/operating/annualGoals.jsx";
+import ManagementRates from "../features/management/operating/hourlyRates.jsx";
 import { ManagementDocuments } from "../features/management/documents/documents.jsx";
 import ProtectedRoute from "./routing/ProtectedRoute.jsx";
 import PublicRoute from "./routing/PublicRoute.jsx";
@@ -63,13 +64,17 @@ export default function AppRouter() {
 
           <Route path="/Management" element={protectedPage(<ManagementLayout />, "admin", ["business-management"])}>
             <Route index element={<ManagementOverview />} />
-            <Route path="Setup/:step" element={<ManagementSetup />} />
-            <Route path="Hours" element={<ManagementHours />} />
-            <Route path="Costs" element={<ManagementOperatingCosts />} />
-            <Route path="CostAccounting" element={<Navigate to="/Management/Setup/Bab" replace />} />
-            <Route path="Calculation" element={<Navigate to="/Management/Setup/Bab" replace />} />
-            <Route path="Assets" element={<Navigate to="/Management/Setup/Assets" replace />} />
-            <Route path="Settings" element={<Navigate to="/Management/Setup/Business" replace />} />
+            <Route path="Board" element={<ManagementBoard />} />
+            <Route path="Timeline" element={<ManagementTimeline />} />
+            <Route path="Goals" element={<ManagementGoals />} />
+            <Route path="Rates" element={<ManagementRates />} />
+            <Route path="Setup/:step" element={<Navigate to="/Management/Rates" replace />} />
+            <Route path="Hours" element={<Navigate to="/Management" replace />} />
+            <Route path="Costs" element={<Navigate to="/Management/Rates" replace />} />
+            <Route path="CostAccounting" element={<Navigate to="/Management/Rates" replace />} />
+            <Route path="Calculation" element={<Navigate to="/Management/Rates" replace />} />
+            <Route path="Assets" element={<Navigate to="/Management/Rates" replace />} />
+            <Route path="Settings" element={<Navigate to="/CompanySettings?section=advanced&tab=management" replace />} />
             <Route path="Transactions" element={<Navigate to="/Management" replace />} />
           </Route>
           <Route path="/Documents" element={protectedPage(<ManagementLayout sidebarSelected={3} />, "admin", ["business-management"])}>

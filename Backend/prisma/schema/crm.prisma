@@ -115,6 +115,9 @@ model Project {
   measurementPrintRuns   MeasurementPrintRun[]
   measurementScans       MeasurementScan[]
   calendarEvents         CalendarEvent[]
+  managementAssignments  ManagementAssignment[]
+  managementStage        ManagementProjectStage?
+  managementSchedule     ManagementProjectSchedule?
   paperlessDocuments     PaperlessDocument[]
 
   createdAt DateTime  @default(now()) @map("created_at")

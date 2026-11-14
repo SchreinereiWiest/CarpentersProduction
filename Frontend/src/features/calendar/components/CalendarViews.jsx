@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import {
   calendarDays,
+  dateKey,
   eventOverlapsDay,
   monthGridStart,
   startOfDay,
@@ -129,7 +130,7 @@ export function WeekView({ date, events, onSelect, onCreateAt }) {
   );
 }
 
-export function MonthView({ date, events, onSelect, onCreateAt }) {
+export function MonthView({ date, events, onSelect, onCreateAt, periodSelection, onSelectDay }) {
   const days = calendarDays(monthGridStart(date), 42);
   const currentMonth = new Date(date).getMonth();
   return (
@@ -142,13 +143,26 @@ export function MonthView({ date, events, onSelect, onCreateAt }) {
           {days.map(day => {
             const dayEvents = events.filter(event => eventOverlapsDay(event, day)).slice(0, 4);
             const hiddenCount = events.filter(event => eventOverlapsDay(event, day)).length - dayEvents.length;
+            const key = dateKey(day);
+            const selectionStart = periodSelection?.start ? dateKey(periodSelection.start) : null;
+            const selectionEnd = periodSelection?.end ? dateKey(periodSelection.end) : null;
+            const inSelection = Boolean(selectionStart && key >= selectionStart && key <= selectionEnd);
+            const isSelectionStart = key === selectionStart;
+            const isProvisionalEnd = key === selectionEnd;
             return (
               <div
                 key={day.toISOString()}
-                onDoubleClick={() => onCreateAt(day)}
-                className={`min-h-28 border-b border-r border-slate-700 p-1 text-left align-top last:border-r-0 ${day.getMonth() !== currentMonth ? "bg-slate-900/50 text-slate-600" : "text-slate-300"} ${isToday(day) ? "bg-sky-950/40" : ""}`}
+                role={onSelectDay ? "button" : undefined}
+                tabIndex={onSelectDay ? 0 : undefined}
+                aria-label={onSelectDay ? `${weekdayFormatter.format(day)} als Projektzeitraum auswählen` : undefined}
+                onClick={() => onSelectDay?.(day)}
+                onKeyDown={event => { if (onSelectDay && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); onSelectDay(day); } }}
+                onDoubleClick={() => { if (!onSelectDay) onCreateAt(day); }}
+                className={`min-h-28 border-b border-r border-slate-700 p-1 text-left align-top last:border-r-0 ${day.getMonth() !== currentMonth ? "bg-slate-900/50 text-slate-600" : "text-slate-300"} ${isToday(day) ? "bg-sky-950/40" : ""} ${inSelection ? "bg-blue-950/70 ring-1 ring-inset ring-blue-700/70" : ""} ${onSelectDay ? "cursor-pointer hover:bg-blue-950/40 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-400" : ""}`}
               >
-                <span className={`mb-1 flex size-6 items-center justify-center rounded-full text-xs ${isToday(day) ? "bg-sky-500 font-bold text-white" : ""}`}>{day.getDate()}</span>
+                <span className={`mb-1 flex size-6 items-center justify-center rounded-full text-xs ${isToday(day) ? "bg-sky-500 font-bold text-white" : ""} ${isSelectionStart ? "bg-blue-500 font-bold text-white ring-2 ring-blue-200" : ""} ${isProvisionalEnd && !isSelectionStart ? "ring-2 ring-violet-400" : ""}`}>{day.getDate()}</span>
+                {isSelectionStart && <span className="mb-1 block rounded bg-blue-600 px-1 text-[9px] font-semibold text-white">Start</span>}
+                {isProvisionalEnd && !isSelectionStart && <span className="mb-1 block rounded bg-violet-700 px-1 text-[9px] font-semibold text-white">vorl. Ende</span>}
                 <span className="block space-y-1">
                   {dayEvents.map(event => (
                     <span key={event.id} className="block">

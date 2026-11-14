@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 import SideBar from "../../shared/components/sideBar.jsx";
 import { useAuth } from "../../app/providers/AuthContext.js";
 import CalendarEventForm from "./components/CalendarEventForm.jsx";
@@ -7,6 +7,8 @@ import CalendarFilters from "./components/CalendarFilters.jsx";
 import { DayView, MonthView, WeekView } from "./components/CalendarViews.jsx";
 import {
   CALENDAR_TYPES,
+  addDays,
+  dateKey,
   formatViewTitle,
   moveFocus,
   viewRange,
@@ -16,6 +18,7 @@ import {
   loadCalendarEvents,
   loadCalendarProjects,
   removeCalendarEvent,
+  saveAssignmentCalendarPeriod,
   saveCalendarEvent
 } from "./engine/calendarApi.js";
 
@@ -23,10 +26,14 @@ const initialFilters = Object.fromEntries(CALENDAR_TYPES.map(item => [item.key, 
 
 export default function CalendarPage() {
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const projectPeriod = location.state?.projectPeriod || null;
   const admin = user?.role === "admin";
   const [view, setView] = useState(() => {
     const requested = searchParams.get("view");
+    if (projectPeriod) return "month";
     return ["day", "week", "month"].includes(requested) ? requested : "week";
   });
   const [focusDate, setFocusDate] = useState(() => {
@@ -37,7 +44,8 @@ export default function CalendarPage() {
   const [projects, setProjects] = useState([]);
   const [filters, setFilters] = useState(initialFilters);
   const [selectedEvent, setSelectedEvent] = useState(null);
-  const [panelOpen, setPanelOpen] = useState(() => typeof window !== "undefined" && window.innerWidth >= 1280);
+  const [selectionStart, setSelectionStart] = useState(null);
+  const [panelOpen, setPanelOpen] = useState(() => !projectPeriod && typeof window !== "undefined" && window.innerWidth >= 1280);
   const [loadedRange, setLoadedRange] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -136,6 +144,42 @@ export default function CalendarPage() {
     }
   };
 
+  const selectProjectPeriodDay = async day => {
+    if (!projectPeriod || saving) return;
+    const clicked = new Date(day);
+    clicked.setHours(0, 0, 0, 0);
+    if (!selectionStart) {
+      setSelectionStart(clicked);
+      setError("");
+      return;
+    }
+    if (clicked < selectionStart) {
+      setError("Der Endtag darf nicht vor dem ausgewählten Starttag liegen.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      await saveAssignmentCalendarPeriod(projectPeriod.assignmentId, {
+        startAt: selectionStart.toISOString(),
+        endAt: addDays(clicked, 1).toISOString(),
+        allDay: true
+      });
+      await refreshEvents();
+      setSelectionStart(null);
+      navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+    } catch (saveError) {
+      setError(saveError?.response?.data?.message || "Der Projektzeitraum konnte nicht in den Kalender übernommen werden.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const provisionalEnd = projectPeriod && selectionStart
+    ? new Date(`${projectPeriod.preliminaryEnd}T12:00:00`)
+    : null;
+  const selectionEnd = provisionalEnd && provisionalEnd >= selectionStart ? provisionalEnd : selectionStart;
+
   const eventReadOnly = Boolean(selectedEvent?.scope === "production" && !admin);
 
   return (
@@ -152,20 +196,24 @@ export default function CalendarPage() {
               </div>
               <h1 className="min-w-0 flex-1 text-center text-base font-semibold capitalize text-white sm:text-lg">{formatViewTitle(view, focusDate)}</h1>
               <div className={`flex items-center gap-2 transition-[margin] ${panelOpen ? "" : "mt-9"}`}>
-                <button type="button" onClick={() => createAt(focusDate)} className="rounded-lg bg-sky-600 px-3 py-2 text-xs font-semibold text-white hover:bg-sky-500 sm:px-4">+ Termin</button>
+                {!projectPeriod && <button type="button" onClick={() => createAt(focusDate)} className="rounded-lg bg-sky-600 px-3 py-2 text-xs font-semibold text-white hover:bg-sky-500 sm:px-4">+ Termin</button>}
                 <button type="button" onClick={() => setPanelOpen(open => !open)} aria-label="Kalendereinstellungen" className={`rounded-lg border px-3 py-2 text-sm ${panelOpen ? "border-sky-500 bg-sky-950 text-sky-300" : "border-slate-700 text-slate-300 hover:bg-slate-800"}`}>☰</button>
               </div>
             </div>
             <div className="mt-3 flex justify-center">
               <div className="grid grid-cols-3 rounded-lg bg-slate-800 p-1">
                 {[["day", "Tag"], ["week", "Woche"], ["month", "Monat"]].map(([value, label]) => (
-                  <button key={value} type="button" onClick={() => setView(value)} className={`rounded-md px-4 py-1.5 text-xs font-medium ${view === value ? "bg-slate-600 text-white shadow" : "text-slate-400 hover:text-white"}`}>{label}</button>
+                  <button key={value} type="button" disabled={Boolean(projectPeriod && value !== "month")} onClick={() => setView(value)} className={`rounded-md px-4 py-1.5 text-xs font-medium disabled:cursor-not-allowed disabled:opacity-35 ${view === value ? "bg-slate-600 text-white shadow" : "text-slate-400 hover:text-white"}`}>{label}</button>
                 ))}
               </div>
             </div>
           </header>
 
           <div className="min-h-0 flex-1 overflow-auto p-2 sm:p-4">
+            {projectPeriod && <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-700 bg-blue-950/60 p-4 text-sm text-blue-100">
+              <div><strong>Projektzeitraum planen: {projectPeriod.projectTitle}</strong><span className="ml-2 text-blue-300">für {projectPeriod.assigneeName}</span><p className="mt-1 text-xs text-blue-200/80">{selectionStart ? `Start ${dateKey(selectionStart)} ist markiert. Das vorläufige Ende ${projectPeriod.preliminaryEnd} dient als Vorschau – klicke jetzt den gewünschten Endtag an.` : `Klicke zuerst den Starttag an. Danach wird der vorläufige Zeitraum bis ${projectPeriod.preliminaryEnd} farbig angezeigt.`}</p></div>
+              <button type="button" onClick={() => navigate(-1)} className="rounded-lg border border-blue-600 px-3 py-2 text-xs hover:bg-blue-900">Planung abbrechen</button>
+            </div>}
             {error && <div role="alert" className="mb-3 rounded-lg border border-rose-800 bg-rose-950/50 p-3 text-sm text-rose-300">{error}</div>}
             {loading ? (
               <div className="grid h-64 place-items-center text-sm text-slate-400">Kalender wird geladen…</div>
@@ -174,7 +222,7 @@ export default function CalendarPage() {
             ) : view === "week" ? (
               <WeekView date={focusDate} events={shownEvents} onSelect={selectEvent} onCreateAt={createAt} />
             ) : (
-              <MonthView date={focusDate} events={shownEvents} onSelect={selectEvent} onCreateAt={createAt} />
+              <MonthView date={focusDate} events={shownEvents} onSelect={selectEvent} onCreateAt={createAt} periodSelection={projectPeriod ? { start: selectionStart, end: selectionEnd } : null} onSelectDay={projectPeriod ? selectProjectPeriodDay : null} />
             )}
           </div>
         </section>

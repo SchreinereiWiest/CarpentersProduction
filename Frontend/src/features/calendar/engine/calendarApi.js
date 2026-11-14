@@ -23,3 +23,8 @@ export async function saveCalendarEvent(event) {
 export async function removeCalendarEvent(id) {
   await axios.delete(`/api/calendar/events/${id}`);
 }
+
+export async function saveAssignmentCalendarPeriod(assignmentId, period) {
+  const { data } = await axios.post(`/api/management/assignments/${assignmentId}/calendar`, period);
+  return data.calendarEvent;
+}

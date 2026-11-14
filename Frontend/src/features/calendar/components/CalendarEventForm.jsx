@@ -16,7 +16,8 @@ const productionTypes = [
   ["planning", "Planung"],
   ["manufacturing", "Fertigung"],
   ["installation", "Montage"],
-  ["appointment", "Einzeltermin"]
+  ["appointment", "Einzeltermin"],
+  ["company-closed", "Betriebsfrei"]
 ];
 
 const personalTypes = [
@@ -133,7 +134,7 @@ export default function CalendarEventForm({
 
       {form.scope === "production" && (
         <label className={labelClass}>
-          Projekt {form.type !== "appointment" && <span className="text-rose-400">*</span>}
+          Projekt {["project", "measurement", "planning", "manufacturing", "installation"].includes(form.type) && <span className="text-rose-400">*</span>}
           <select className={inputClass} value={form.projectId} disabled={readOnly} onChange={e => set("projectId", e.target.value)}>
             <option value="">Ohne Projekt</option>
             {projectGroups.active.length > 0 && (

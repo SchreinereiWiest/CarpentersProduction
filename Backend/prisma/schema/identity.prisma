@@ -118,6 +118,10 @@ model User {
   measurementScans             MeasurementScan[]     @relation("MeasurementScanUploadedBy")
   calendarEventsOwned          CalendarEvent[]       @relation("CalendarEventOwner")
   calendarEventsCreated        CalendarEvent[]       @relation("CalendarEventCreatedBy")
+  managementAssignments       ManagementAssignment[] @relation("ManagementAssignmentAssignee")
+  managementAssignmentsCreated ManagementAssignment[] @relation("ManagementAssignmentCreatedBy")
+  managementAnnualGoalsCreated ManagementAnnualGoal[] @relation("ManagementAnnualGoalCreatedBy")
+  managementEmployeeProfiles   ManagementEmployeeProfile[]
   paperlessDocumentsLinked     PaperlessDocument[]
 
   createdAt DateTime  @default(now()) @map("created_at")

@@ -6,6 +6,7 @@ export const CALENDAR_TYPES = new Set([
   "manufacturing",
   "installation",
   "appointment",
+  "company-closed",
   "vacation",
   "other"
 ]);
