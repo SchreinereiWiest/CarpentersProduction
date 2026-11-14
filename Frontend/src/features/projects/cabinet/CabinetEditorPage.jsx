@@ -23,18 +23,19 @@ import CabinetSidebar from "./components/editor/sidebar/CabinetSidebar.jsx";
 import PropertiesSidebar from "./components/editor/properties/PropertiesSidebar.jsx";
 import { saveCabinetProject } from "./services/projectSave.js";
 import { useNavigate } from 'react-router';
-import {getProjectFile} from "../../../shared/cache/project-cache.js";
+import {getProjectFile, uploadProjectFile} from "../../../shared/cache/project-cache.js";
 import {downloadFile, uploadJSONFile} from "../../../shared/api/file-api.js";
 import { getGlobalFile, uploadGlobalFile } from "../../../shared/cache/global-cache.js";
 import axios from "axios";
 import CabinetPresetModal from "./components/editor/CabinetPresetModal.jsx";
+import MeasurementVariablesModal from "./components/editor/MeasurementVariablesModal.jsx";
 import { useAuth } from "../../../app/providers/AuthContext.js";
 import {
     extractMeasurementVariables,
     resolveCabinetFunctionExpressions,
     resolveCabinetMeasurementExpressions
 } from "./measurementExpressions.js";
-import { getAufmasWorkspaceCache } from "../measurement/state/workspaceCache.js";
+import { getAufmasWorkspaceCache, setAufmasWorkspaceCache } from "../measurement/state/workspaceCache.js";
 import { createProjectRecord } from "../legacy-editor/uploadProject.js";
 import CustomerSearch from "../legacy-editor/customerSearch.jsx";
 import { getProjectRecord } from "../../../shared/projects/project-records.js";
@@ -70,6 +71,14 @@ export default function CabinetEditor() {
     const [cabinets, setCabinets] = useState([]);
 
     const [measurementVariables, setMeasurementVariables] = useState([]);
+
+    const [linkedMeasurementVariables, setLinkedMeasurementVariables] = useState([]);
+
+    const [manualMeasurementVariables, setManualMeasurementVariables] = useState([]);
+
+    const [aufmasData, setAufmasData] = useState(null);
+
+    const [showMeasurementVariablesModal, setShowMeasurementVariablesModal] = useState(false);
 
     const [cabinetPresets, setCabinetPresets] = useState([]);
 
@@ -785,13 +794,22 @@ export default function CabinetEditor() {
 
     useEffect(() => {
         if (mode !== "edit" || !projectId) {
-            setMeasurementVariables([]);
             return;
         }
 
+        const applyAufmasData = data => {
+            const normalized = data && typeof data === "object" ? data : null;
+            const linked = extractMeasurementVariables({ objects: normalized?.objects });
+            const manual = Array.isArray(normalized?.variables) ? normalized.variables : [];
+            setAufmasData(normalized);
+            setLinkedMeasurementVariables(linked);
+            setManualMeasurementVariables(manual);
+            setMeasurementVariables(extractMeasurementVariables(normalized));
+        };
+
         const cachedAufmas = getAufmasWorkspaceCache(projectId);
         if (Array.isArray(cachedAufmas?.objects)) {
-            setMeasurementVariables(extractMeasurementVariables({ objects: cachedAufmas.objects }));
+            applyAufmasData(cachedAufmas);
             return;
         }
 
@@ -804,16 +822,53 @@ export default function CabinetEditor() {
                 path: `/api/projects/generated/${projectId}/aufmas`
             }
         }).then(data => {
-            if (!cancelled) setMeasurementVariables(extractMeasurementVariables(data));
+            if (!cancelled) applyAufmasData(data);
         }).catch(error => {
             if (error.response?.status !== 404 && error.code !== "OFFLINE_RESOURCE_UNAVAILABLE") {
                 console.warn("Aufmaßverknüpfungen konnten nicht geladen werden", error);
             }
-            if (!cancelled) setMeasurementVariables([]);
+            if (!cancelled) applyAufmasData(null);
         });
 
         return () => { cancelled = true; };
     }, [mode, projectId]);
+
+    const saveMeasurementVariables = async variables => {
+        if (mode !== "edit" || !projectId) return;
+
+        const payload = {
+            version: 1,
+            views: [],
+            objects: [],
+            todos: [],
+            completed: false,
+            ...(aufmasData ?? {}),
+            variables
+        };
+        const result = await uploadProjectFile({
+            projectId,
+            file: "aufmas.json",
+            data: payload,
+            uploadFunction: {
+                upload: uploadJSONFile,
+                path: `/api/projects/generated/${projectId}/aufmas`
+            }
+        });
+
+        const saveStatus = result?.status === "pending" ? "local" : "saved";
+        const cachedAufmas = getAufmasWorkspaceCache(projectId);
+        if (cachedAufmas) {
+            setAufmasWorkspaceCache(projectId, {
+                ...cachedAufmas,
+                variables,
+                saveStatus
+            });
+        }
+        setAufmasData(payload);
+        setManualMeasurementVariables(variables);
+        setMeasurementVariables(extractMeasurementVariables(payload));
+        setShowMeasurementVariablesModal(false);
+    };
 
     useEffect(() => {
         if (!measurementVariables.length || !cabinets.length) return;
@@ -1098,6 +1153,18 @@ export default function CabinetEditor() {
                                 Preset speichern
                             </button>
                         )}
+
+                        <button
+                            type="button"
+                            disabled={mode !== "edit" || !projectId}
+                            onClick={() => setShowMeasurementVariablesModal(true)}
+                            title={mode === "edit"
+                                ? "Aufmaßvariablen anzeigen und verwalten"
+                                : "Variablen stehen nach dem Anlegen des Projekts zur Verfügung"}
+                            className="shrink-0 whitespace-nowrap rounded border border-gray-700 bg-gray-800/90 px-3 py-2 text-sm text-gray-200 shadow-lg hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                            Variablen
+                        </button>
 
                         <div className="mx-2 h-6 w-px shrink-0 bg-gray-700" />
                         </div>
@@ -1417,6 +1484,15 @@ export default function CabinetEditor() {
                 onCancel={() => setPresetEditorCabinet(null)}
                 onSave={handleSaveCabinetPreset}
                 onSaveFunction={handleSaveFunctionPreset}
+            />
+        )}
+
+        {showMeasurementVariablesModal && (
+            <MeasurementVariablesModal
+                linkedVariables={linkedMeasurementVariables}
+                variables={manualMeasurementVariables}
+                onCancel={() => setShowMeasurementVariablesModal(false)}
+                onSave={saveMeasurementVariables}
             />
         )}
 

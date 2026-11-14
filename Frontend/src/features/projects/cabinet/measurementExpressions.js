@@ -139,11 +139,26 @@ export const evaluateMeasurementExpression = (expression, variables = []) => {
 
 export const extractMeasurementVariables = aufmas => {
     const variablesByName = new Map();
+    (Array.isArray(aufmas?.variables) ? aufmas.variables : []).forEach(variable => {
+        const name = String(variable?.name ?? "").trim();
+        const rawValue = String(variable?.value ?? "").trim().replace(",", ".");
+        const value = Number(rawValue);
+        const unit = variable?.unit || "mm";
+        if (!VARIABLE_NAME.test(name) || !rawValue || !Number.isFinite(value) || unit !== "mm") return;
+        variablesByName.set(name.toLocaleUpperCase("de-DE"), {
+            name,
+            value,
+            unit,
+            label: variable?.label || name,
+            status: variable?.status || "manual"
+        });
+    });
     (Array.isArray(aufmas?.objects) ? aufmas.objects : []).forEach(object => {
         const name = String(object?.variableName ?? "").trim();
-        const value = Number(String(object?.value ?? "").replace(",", "."));
+        const rawValue = String(object?.value ?? "").trim().replace(",", ".");
+        const value = Number(rawValue);
         const unit = object.unit || "mm";
-        if (!VARIABLE_NAME.test(name) || !Number.isFinite(value) || unit !== "mm") return;
+        if (!VARIABLE_NAME.test(name) || !rawValue || !Number.isFinite(value) || unit !== "mm") return;
         variablesByName.set(name.toLocaleUpperCase("de-DE"), {
             name,
             value,

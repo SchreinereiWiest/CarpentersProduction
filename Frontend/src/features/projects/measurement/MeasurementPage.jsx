@@ -92,6 +92,9 @@ export default function AufmasWorkspace() {
     () => cachedWorkspace?.views ?? DEFAULT_VIEWS
   );
   const [objects, setObjects] = useState(() => cachedWorkspace?.objects ?? []);
+  const [variables, setVariables] = useState(
+    () => cachedWorkspace?.variables ?? []
+  );
   const [todos, setTodos] = useState(
     () => cachedWorkspace?.todos ?? DEFAULT_TODOS
   );
@@ -142,6 +145,7 @@ export default function AufmasWorkspace() {
           version: 1,
           views: cachedWorkspace.views ?? DEFAULT_VIEWS,
           objects: cachedWorkspace.objects ?? [],
+          variables: cachedWorkspace.variables ?? [],
           todos: cachedWorkspace.todos ?? DEFAULT_TODOS,
           completed: Boolean(cachedWorkspace.isCompleted)
         })
@@ -242,6 +246,7 @@ export default function AufmasWorkspace() {
               : DEFAULT_VIEWS;
           setViews(loadedViews);
           setObjects(Array.isArray(saved.objects) ? saved.objects : []);
+          setVariables(Array.isArray(saved.variables) ? saved.variables : []);
           setTodos(Array.isArray(saved.todos) ? saved.todos : DEFAULT_TODOS);
           setIsCompleted(Boolean(saved.completed));
           setActiveViewId(loadedViews[0].id);
@@ -249,6 +254,7 @@ export default function AufmasWorkspace() {
             version: 1,
             views: loadedViews,
             objects: saved.objects ?? [],
+            variables: saved.variables ?? [],
             todos: saved.todos ?? DEFAULT_TODOS,
             completed: Boolean(saved.completed)
           });
@@ -306,6 +312,7 @@ export default function AufmasWorkspace() {
       project,
       views,
       objects,
+      variables,
       todos,
       activeViewId,
       selectedId,
@@ -334,6 +341,7 @@ export default function AufmasWorkspace() {
     saveStatus,
     selectedId,
     todos,
+    variables,
     views
   ]);
 
@@ -440,6 +448,7 @@ export default function AufmasWorkspace() {
       version: 1,
       views,
       objects,
+      variables,
       todos,
       completed: isCompleted
     };
@@ -465,7 +474,7 @@ export default function AufmasWorkspace() {
       }
     }, 750);
     return () => window.clearTimeout(timeoutId);
-  }, [hydrated, isCompleted, objects, projectId, todos, views]);
+  }, [hydrated, isCompleted, objects, projectId, todos, variables, views]);
 
   useEffect(() => {
     const onKeyDown = (event) => {
@@ -778,15 +787,18 @@ export default function AufmasWorkspace() {
     const loadedViews =
       Array.isArray(saved.views) && saved.views.length ? saved.views : DEFAULT_VIEWS;
     const loadedObjects = Array.isArray(saved.objects) ? saved.objects : [];
+    const loadedVariables = Array.isArray(saved.variables) ? saved.variables : [];
     const loadedTodos = Array.isArray(saved.todos) ? saved.todos : DEFAULT_TODOS;
     setViews(loadedViews);
     setObjects(loadedObjects);
+    setVariables(loadedVariables);
     setTodos(loadedTodos);
     setIsCompleted(Boolean(saved.completed));
     lastSavedPayload.current = JSON.stringify({
       version: 1,
       views: loadedViews,
       objects: loadedObjects,
+      variables: loadedVariables,
       todos: loadedTodos,
       completed: Boolean(saved.completed)
     });
@@ -839,6 +851,7 @@ export default function AufmasWorkspace() {
       version: 1,
       views,
       objects,
+      variables,
       todos,
       completed: isCompleted
     };
@@ -846,6 +859,7 @@ export default function AufmasWorkspace() {
       project,
       views,
       objects,
+      variables,
       todos,
       activeViewId,
       selectedId,

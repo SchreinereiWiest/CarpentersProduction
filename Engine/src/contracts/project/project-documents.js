@@ -13,6 +13,9 @@ const measurementDocument = value => {
   for (const key of ["views", "objects", "todos"]) {
     if (!Array.isArray(value[key])) throw new TypeError(`measurement.${key} must be an array`);
   }
+  if (value.variables != null && !Array.isArray(value.variables)) {
+    throw new TypeError("measurement.variables must be an array");
+  }
   if (value.completed != null && typeof value.completed !== "boolean") {
     throw new TypeError("measurement.completed must be a boolean");
   }

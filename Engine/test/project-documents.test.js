@@ -16,6 +16,7 @@ test("accepts valid measurement data", () => {
     views: [],
     objects: [],
     todos: [],
+    variables: [{ name: "SOCKEL", value: 120, unit: "mm" }],
     completed: false
   });
 
@@ -25,6 +26,10 @@ test("accepts valid measurement data", () => {
 test("rejects malformed or unknown project documents with a client error", () => {
   assert.throws(
     () => assertProjectDocument("aufmas", { views: [], objects: [] }),
+    error => error.code === "INVALID_PROJECT_DOCUMENT" && error.statusCode === 400
+  );
+  assert.throws(
+    () => assertProjectDocument("aufmas", { views: [], objects: [], todos: [], variables: {} }),
     error => error.code === "INVALID_PROJECT_DOCUMENT" && error.statusCode === 400
   );
   assert.throws(
