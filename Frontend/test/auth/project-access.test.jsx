@@ -92,30 +92,18 @@ describe('Manager- und Adminprivilegien', () => {
     expect(screen.getByText('Startseite')).toBeInTheDocument();
   });
 
-  it('erlaubt ausschließlich dem Admin die Firmeneinstellungen', () => {
-    authState.user = { id: 'admin-id', role: 'admin' };
-
-    renderProtectedPage({
-      path: '/CompanySettings',
-      requiredRole: 'adminOnly',
-      label: 'Firmeneinstellungen',
-    });
-
-    expect(screen.getByText('Firmeneinstellungen')).toBeInTheDocument();
-  });
-
-  it.each(['manager', 'user'])(
-    'verweigert der Rolle %s die Firmeneinstellungen',
+  it.each(['user', 'manager', 'admin'])(
+    'erlaubt der Rolle %s den rollenabhängigen Einstellungsbereich',
     (role) => {
       authState.user = { id: `${role}-id`, role };
 
       renderProtectedPage({
         path: '/CompanySettings',
-        requiredRole: 'adminOnly',
-        label: 'Firmeneinstellungen',
+        requiredRole: 'user',
+        label: 'Einstellungen',
       });
 
-      expect(screen.getByText('Startseite')).toBeInTheDocument();
+      expect(screen.getByText('Einstellungen')).toBeInTheDocument();
     },
   );
 });

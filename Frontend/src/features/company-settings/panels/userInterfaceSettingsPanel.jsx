@@ -22,6 +22,14 @@ import {
     normalizeCompanySettings
 } from "../../../shared/settings/company-settings.js";
 
+const interfaceTabs = [
+    ["home", "Startseite"],
+    ["general", "Allgemein"],
+    ["measurement", "Aufmaß"],
+    ["keybindings", "Tastatur"],
+    ["workspace", "Fensterlayout"]
+];
+
 export default function UserInterfaceSettingsPanel() {
     const { user } = useAuth();
     const { theme, setTheme } = useTheme();
@@ -32,7 +40,10 @@ export default function UserInterfaceSettingsPanel() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState(null);
-    const [activeTab, setActiveTab] = useState(() => searchParams.get("uitab") === "home" || !isAdmin ? "home" : "general");
+    const [activeTab, setActiveTab] = useState(() => {
+        const requested = searchParams.get("uitab");
+        return interfaceTabs.some(([id]) => id === requested) ? requested : isAdmin ? "general" : "home";
+    });
 
     useEffect(() => {
         let active = true;
@@ -134,7 +145,27 @@ export default function UserInterfaceSettingsPanel() {
                 await axios.put("/api/user/me/preferences", { home: normalizedHome });
                 setHomePreferences(normalizedHome);
             }
-            if (activeTab !== "home" || isAdmin) {
+            if (activeTab !== "home") {
+                const normalized = normalizeCompanySettings(companySettings);
+                if (isAdmin) {
+                    await uploadGlobalFile({
+                        file: "settings-company.json",
+                        data: normalized,
+                        uploadFunction: {
+                            upload: uploadJSONFile,
+                            path: "/api/settings/company"
+                        }
+                    });
+                } else {
+                    const personalUserInterface = Object.fromEntries(
+                        Object.entries(normalized.userInterface).filter(([key]) => key !== "home")
+                    );
+                    await axios.put("/api/user/me/preferences", { userInterface: personalUserInterface });
+                }
+                setCompanySettings(normalized);
+                persistWorkspacePreferences(normalized.userInterface);
+            }
+            if (activeTab === "home" && isAdmin) {
                 const normalized = normalizeCompanySettings(companySettings);
                 await uploadGlobalFile({
                     file: "settings-company.json",
@@ -145,7 +176,6 @@ export default function UserInterfaceSettingsPanel() {
                     }
                 });
                 setCompanySettings(normalized);
-                persistWorkspacePreferences(normalized.userInterface);
             }
             setMessage({
                 type: "success",
@@ -177,7 +207,7 @@ export default function UserInterfaceSettingsPanel() {
                     <div>
                         <h1 className="text-xl font-semibold">Benutzeroberfläche</h1>
                         <p className="mt-1 text-sm text-gray-500">
-                            Darstellung und Bedienhilfen zentral verwalten.
+                            {isAdmin ? "Darstellung und Bedienhilfen zentral verwalten." : "Darstellung und Bedienhilfen persönlich für deinen Account verwalten."}
                         </p>
                     </div>
                     <button
@@ -203,16 +233,12 @@ export default function UserInterfaceSettingsPanel() {
 
                 <nav aria-label="Bereiche der Benutzeroberfläche" className="overflow-x-auto border-b border-gray-700">
                     <div className="flex min-w-max gap-1">
-                        {(isAdmin ? [
-                            ["home", "Startseite"],
-                            ["general", "Allgemein"],
-                            ["measurement", "Aufmaß"],
-                            ["keybindings", "Tastatur"],
-                            ["workspace", "Fensterlayout"]
-                        ] : [["home", "Startseite"]]).map(([id, label]) => (
+                        {interfaceTabs.map(([id, label]) => (
                             <button
                                 key={id}
                                 type="button"
+                                role="tab"
+                                aria-selected={activeTab === id}
                                 onClick={() => setActiveTab(id)}
                                 aria-current={activeTab === id ? "page" : undefined}
                                 className={`border-b-2 px-4 py-3 text-sm font-medium transition ${

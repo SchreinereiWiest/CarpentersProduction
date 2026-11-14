@@ -4,7 +4,7 @@ import axios from "axios";
 import { uploadJSONFile } from "../../../shared/api/file-api.js";
 import {
     CUSTOM_WORK_TYPE_ID,
-    companyFreeDaysForRange,
+    companyFreeDaysCalendarPayload,
     DEFAULT_COMPANY_SETTINGS,
     loadCompanySettings,
     normalizeCompanySettings,
@@ -211,34 +211,25 @@ export default function CompanySettingsPanel() {
             });
 
             setConfig(normalized);
-            setMessage({ type: "success", text: "Unternehmenseinstellungen gespeichert." });
+            const calendar = companyFreeDaysCalendarPayload(normalized, calendarYear);
+            try {
+                await axios.post("/api/calendar/company-days/sync", calendar);
+                setMessage({
+                    type: "success",
+                    text: `Unternehmenseinstellungen gespeichert. ${calendar.days.length} wiederkehrende freie Tage für ${calendar.year} wurden im Kalender aktualisiert.`
+                });
+            } catch (calendarError) {
+                console.error("Freie Tage konnten nicht synchronisiert werden:", calendarError);
+                setMessage({
+                    type: "error",
+                    text: "Unternehmenseinstellungen wurden gespeichert, die betriebsfreien Tage konnten aber nicht in den Kalender übertragen werden."
+                });
+            }
             return true;
         } catch (error) {
             console.error("Unternehmenseinstellungen konnten nicht gespeichert werden:", error);
             setMessage({ type: "error", text: "Unternehmenseinstellungen konnten nicht gespeichert werden." });
             return false;
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const syncFreeDays = async () => {
-        if (!await save()) return;
-        setSaving(true);
-        try {
-            const from = new Date(calendarYear, 0, 1, 0, 0, 0, 0);
-            const to = new Date(calendarYear + 1, 0, 1, 0, 0, 0, 0);
-            const days = companyFreeDaysForRange(config, from, to).map(day => {
-                const start = new Date(`${day.date}T00:00:00`);
-                const end = new Date(start);
-                end.setDate(end.getDate() + 1);
-                return { ...day, startAt: start.toISOString(), endAt: end.toISOString() };
-            });
-            await axios.post("/api/calendar/company-days/sync", { from: from.toISOString(), to: to.toISOString(), days });
-            setMessage({ type: "success", text: `${days.length} wiederkehrende freie Tage für ${calendarYear} wurden im Kalender aktualisiert.` });
-        } catch (error) {
-            console.error("Freie Tage konnten nicht synchronisiert werden:", error);
-            setMessage({ type: "error", text: "Die freien Tage konnten nicht in den Kalender eingetragen werden." });
         } finally {
             setSaving(false);
         }
@@ -326,8 +317,8 @@ export default function CompanySettingsPanel() {
                         ))}
                     </div>
                     <div className="mt-5 flex flex-wrap items-end justify-between gap-4 rounded-xl border border-blue-950 bg-blue-950/30 p-4">
-                        <div><p className="text-sm font-medium text-blue-200">Betriebsfreie Tage in den Kalender übertragen</p><p className="mt-1 text-xs text-blue-300/70">Automatisch erzeugte Einträge des gewählten Jahres werden ersetzt. Einmalige freie Tage können im Kalender als „Betriebsfrei“ angelegt werden.</p></div>
-                        <div className="flex items-end gap-2"><label className="text-xs text-gray-400">Kalenderjahr<input type="number" min="2000" max="2200" value={calendarYear} onChange={event => setCalendarYear(Number(event.target.value))} className="mt-1 block w-28 rounded border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white" /></label><button type="button" disabled={saving} onClick={syncFreeDays} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium hover:bg-blue-500 disabled:opacity-50">Speichern und eintragen</button></div>
+                        <div><p className="text-sm font-medium text-blue-200">Betriebsfreie Tage im Kalender</p><p className="mt-1 text-xs text-blue-300/70">Bei jedem Speichern werden automatisch erzeugte Einträge des gewählten Jahres ersetzt. Sie erscheinen im Firmenkalender als „Betriebsfrei“. Einmalige freie Tage können weiterhin direkt im Kalender angelegt werden.</p></div>
+                        <div className="flex items-end gap-2"><label className="text-xs text-gray-400">Kalenderjahr<input type="number" min="2000" max="2200" value={calendarYear} onChange={event => setCalendarYear(Number(event.target.value))} className="mt-1 block w-28 rounded border border-gray-700 bg-gray-900 px-3 py-2 text-sm text-white" /></label><button type="button" disabled={saving} onClick={save} className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium hover:bg-blue-500 disabled:opacity-50">Speichern und Kalender aktualisieren</button></div>
                     </div>
                 </section>
 

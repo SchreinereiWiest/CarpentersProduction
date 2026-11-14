@@ -99,13 +99,23 @@ Angemeldete Benutzer können unabhängig von der Admin-Benutzerverwaltung ihre p
 | Methode | Pfad | Zweck |
 |---|---|---|
 | `GET` | `/user/me/preferences` | normalisierte Einstellungen der aktuellen Firmenmitgliedschaft laden |
-| `PUT` | `/user/me/preferences` | persönliche Modulreihenfolge und ausgeblendete Startseitenmodule speichern |
+| `PUT` | `/user/me/preferences` | persönliche Startseitenmodule sowie für User/Manager erlaubte UI- und Cachewerte speichern |
 
 ## Startseite
 
 | Methode | Pfad | Schutz | Zweck |
 |---|---|---|---|
 | `GET` | `/dashboard` | angemeldet; Inhalte zusätzlich rollen- und lizenzbezogen | Zuweisungen, aktuelle Kalenderwoche sowie Manager-/Adminmodule laden |
+
+## Firmenkalender
+
+| Methode | Pfad | Schutz | Zweck |
+|---|---|---|---|
+| `GET` | `/calendar/events` | angemeldet | Alle nicht privaten Firmentermine und die eigenen privaten Termine im Zeitraum laden |
+| `POST` | `/calendar/events` | angemeldet | Termin anlegen; ohne `isPrivate: true` ist er firmenweit sichtbar |
+| `PUT` | `/calendar/events/:id` | Eigentümer; Produktionsplanung Admin | Termin und Privatstatus ändern |
+| `DELETE` | `/calendar/events/:id` | Eigentümer; Produktionsplanung Admin | Termin löschen |
+| `POST` | `/calendar/company-days/sync` | Admin | Sonderregeln eines Jahres als firmenweites „Betriebsfrei“ synchronisieren |
 
 ## Lizenzierung
 

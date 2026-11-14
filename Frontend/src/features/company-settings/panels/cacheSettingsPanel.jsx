@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { normalizePersonalCache } from "@Engine/preferences/client.mjs";
+import { useAuth } from "../../../app/providers/AuthContext.js";
 import { getGlobalFile, uploadGlobalFile } from "../../../shared/cache/global-cache.js";
 import { downloadFile, uploadJSONFile } from "../../../shared/api/file-api.js";
 import {
@@ -34,6 +36,8 @@ const formatBytes = value => {
 };
 
 export default function CacheSettingsPanel() {
+    const { user } = useAuth();
+    const isAdmin = user?.role === "admin";
     const [config, setConfig] = useState({
         ...DEFAULT_CONFIG,
         offlineMode: isOfflineModeEnabled()
@@ -50,12 +54,15 @@ export default function CacheSettingsPanel() {
     const refreshSummary = async () => setSummary(await getOfflineStorageSummary());
 
     useEffect(() => {
-        Promise.allSettled([
-            getGlobalFile({
+        const settingsRequest = isAdmin
+            ? getGlobalFile({
                 file: "settings-cache.json",
                 loadFromServer: { download: downloadFile, path: "/api/settings/cache" },
                 noExpiration: true
-            }),
+            })
+            : axios.get("/api/user/me/preferences").then(({ data }) => normalizePersonalCache(data?.preferences?.cache));
+        Promise.allSettled([
+            settingsRequest,
             axios.get("/api/projects/getAll"),
             getOfflineStorageSummary()
         ]).then(([settingsResult, projectsResult, summaryResult]) => {
@@ -77,7 +84,7 @@ export default function CacheSettingsPanel() {
             if (summaryResult.status === "fulfilled") setSummary(summaryResult.value);
             setLoading(false);
         });
-    }, []);
+    }, [isAdmin]);
 
     const updateConfig = (key, value) => setConfig(previous => ({ ...previous, [key]: value }));
 
@@ -108,11 +115,15 @@ export default function CacheSettingsPanel() {
         try {
             await setOfflineModeEnabled(data.offlineMode);
             await setCacheRetentionDays(data.cacheRetentionDays);
-            await uploadGlobalFile({
-                file: "settings-cache.json",
-                data,
-                uploadFunction: { upload: uploadJSONFile, path: "/api/settings/cache" }
-            });
+            if (isAdmin) {
+                await uploadGlobalFile({
+                    file: "settings-cache.json",
+                    data,
+                    uploadFunction: { upload: uploadJSONFile, path: "/api/settings/cache" }
+                });
+            } else {
+                await axios.put("/api/user/me/preferences", { cache: data });
+            }
             setConfig(previous => ({ ...previous, cacheRetentionDays: data.cacheRetentionDays }));
             const cleanup = await runCacheCleanup({
                 force: true,
@@ -124,11 +135,11 @@ export default function CacheSettingsPanel() {
                 type: "success",
                 text: deleted > 0
                     ? `Offline-Einstellungen gespeichert. ${deleted} veraltete Cache-Einträge wurden gelöscht.`
-                    : "Offline-Einstellungen gespeichert."
+                    : isAdmin ? "Offline-Einstellungen gespeichert." : "Persönliche Offline-Einstellungen gespeichert."
             });
         } catch (error) {
             console.error("Offline-Einstellungen konnten nicht gespeichert werden", error);
-            setMessage({ type: "error", text: "Die Einstellungen konnten nicht auf dem Server gespeichert werden." });
+            setMessage({ type: "error", text: "Die persönlichen Cache-Einstellungen konnten nicht gespeichert werden." });
         } finally {
             setSaving(false);
         }
@@ -188,7 +199,7 @@ export default function CacheSettingsPanel() {
             <div className="max-w-4xl space-y-6">
                 <header>
                     <h1 className="text-xl font-semibold">Offline-Modus</h1>
-                    <p className="mt-1 text-sm text-gray-500">Projekte und Anwendungsdaten lokal speichern, bearbeiten und später versioniert synchronisieren.</p>
+                    <p className="mt-1 text-sm text-gray-500">Projekte und Anwendungsdaten persönlich für diesen Account und lokal auf diesem Gerät verwalten.</p>
                 </header>
 
                 {message && (

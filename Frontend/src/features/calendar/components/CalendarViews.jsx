@@ -22,11 +22,11 @@ function EventBlock({ event, compact = false, continuation = false, onSelect }) 
     <button
       type="button"
       onClick={click => { click.stopPropagation(); onSelect(event); }}
-      title={`${event.title}${event.project ? ` – ${event.project.title}` : ""}`}
+      title={`${event.isPrivate ? "Privat · " : ""}${event.title}${event.project ? ` – ${event.project.title}` : ""}`}
       className={`w-full overflow-hidden border-l-4 text-left text-white shadow-sm transition hover:brightness-110 ${compact ? "h-5 px-1 text-[10px] leading-5" : "rounded-md px-2 py-1 text-xs"} ${continuation ? "rounded-none" : "rounded-md"}`}
       style={{ backgroundColor: `${definition.color}cc`, borderLeftColor: definition.color }}
     >
-      <span className="font-semibold">{time && `${time} `}{event.title}</span>
+      <span className="font-semibold">{event.isPrivate && <span aria-label="Privat">🔒 </span>}{time && `${time} `}{event.title}</span>
       {!compact && event.project && <span className="block truncate opacity-80">{event.project.title}</span>}
     </button>
   );

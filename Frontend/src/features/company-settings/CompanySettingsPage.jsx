@@ -54,7 +54,11 @@ export default function CompanySettings() {
     const [
         selectedSection,
         setSelectedSection
-    ] = useState(() => isAdmin && searchParams.get("section") === "advanced" ? "advanced" : "userInterface");
+    ] = useState(() => {
+        const requested = searchParams.get("section");
+        if (!isAdmin) return requested === "cache" ? "cache" : "userInterface";
+        return requested === "advanced" ? "advanced" : requested || "userInterface";
+    });
 
     const [selectedAdvancedSection, setSelectedAdvancedSection] = useState(() => searchParams.get("tab") || "estimation");
     const features = new Set(user?.features || []);
@@ -64,7 +68,7 @@ export default function CompanySettings() {
     );
 
     const selectPrimarySection = section => {
-        if (!isAdmin && section !== "userInterface") return;
+        if (!isAdmin && !["userInterface", "cache"].includes(section)) return;
         setSelectedSection(section);
         if (section === "advanced" && !visibleAdvancedTabs.some(tab => tab.id === selectedAdvancedSection)) {
             setSelectedAdvancedSection(visibleAdvancedTabs[0]?.id ?? "estimation");
@@ -74,7 +78,9 @@ export default function CompanySettings() {
 
     const renderSection = () => {
 
-        if (!isAdmin) return <UserInterfaceSettingsPanel />;
+        if (!isAdmin) {
+            return selectedSection === "cache" ? <CacheSettingsPanel /> : <UserInterfaceSettingsPanel />;
+        }
 
         const section = selectedSection === "advanced" ? selectedAdvancedSection : selectedSection;
 

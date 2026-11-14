@@ -24,6 +24,7 @@ describe("Kalender-Engine", () => {
       description: "",
       projectId: "project-1",
       allDay: true,
+      isPrivate: true,
       startDate: "2026-10-28",
       startTime: "08:00",
       endDate: "2026-10-28",
@@ -31,6 +32,7 @@ describe("Kalender-Engine", () => {
       duration: 3
     });
     expect((new Date(payload.endAt) - new Date(payload.startAt)) / 86_400_000).toBe(3);
+    expect(payload.isPrivate).toBe(true);
   });
 
   it("erkennt mehrtägige Termine an jedem betroffenen Tag", () => {

@@ -2,6 +2,7 @@ import prisma from "../../infrastructure/database/prisma.js";
 import {
   CalendarValidationError,
   calendarRange,
+  calendarVisibilityWhere,
   normalizeCalendarEvent
 } from "./calendar.validation.js";
 
@@ -64,10 +65,7 @@ export async function listCalendarEvents(req, res) {
     where: {
       startAt: { lt: to },
       endAt: { gt: from },
-      OR: [
-        { scope: "production" },
-        { scope: "personal", ownerUserId: req.user.id }
-      ]
+      ...calendarVisibilityWhere(req.user.id)
     },
     include: eventInclude,
     orderBy: [{ startAt: "asc" }, { endAt: "asc" }]
@@ -119,7 +117,8 @@ export async function syncCompanyDays(req, res) {
       description: `[work-schedule:auto:${ruleId}]`,
       startAt,
       endAt,
-      allDay: true
+      allDay: true,
+      isPrivate: false
     };
   });
   await prisma.$transaction(async db => {

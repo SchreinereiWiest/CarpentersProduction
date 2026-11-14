@@ -19,6 +19,7 @@ model CalendarEvent {
   startAt     DateTime @map("start_at") @db.Timestamptz(3)
   endAt       DateTime @map("end_at") @db.Timestamptz(3)
   allDay      Boolean  @default(false) @map("all_day")
+  isPrivate   Boolean  @default(false) @map("is_private")
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)

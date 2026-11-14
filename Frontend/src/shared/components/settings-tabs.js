@@ -1,7 +1,7 @@
 export const primarySettingsTabs = [
     { id: "userInterface", label: "Benutzeroberfläche" },
     { id: "users", label: "Benutzer", requiredRole: "adminOnly" },
-    { id: "cache", label: "Cache", requiredRole: "adminOnly" },
+    { id: "cache", label: "Persönlicher Cache", requiredRole: "user" },
     { id: "storage", label: "Storage", requiredRole: "adminOnly", requiredFeature: "work-preparation" },
     { id: "project", label: "Projekt", requiredRole: "adminOnly", requiredFeature: "work-preparation" },
     { id: "cnc", label: "CNC", requiredRole: "adminOnly", requiredFeature: "work-preparation" },

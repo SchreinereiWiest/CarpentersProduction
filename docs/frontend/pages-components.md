@@ -74,11 +74,11 @@ Die Teilelisten-Gruppierung des Standardkorpus wird in importierte Cabinets
 | Panel | Inhalt |
 |---|---|
 | `CompanySettingsPanel` | Arbeitszeiten, Pausen und Tätigkeitsarten |
-| `CacheSettingsPanel` | Cache-Gültigkeit und Invalidierung |
+| `CacheSettingsPanel` | persönlicher Offline-Modus, Projektvorladen, Cache-Gültigkeit und lokale Invalidierung; globale Ablage nur für Admins |
 | `UserSettingsPanel` | Benutzer laden, anlegen, ändern, Passwort setzen und soft-löschen |
 | `CabinetSettingsPanel` | Korpus-, Material-, Verbinder- und Fertigungsvorgaben |
 | `CncSettingsPanel` | CNC-Geometrien, Bohrraster, Fräs- und Beschlagparameter |
-| `UserInterfaceSettingsPanel` | persönliche Startseitenmodule sowie für Administratoren die firmenweiten DMS-Anzeigetags |
+| `UserInterfaceSettingsPanel` | persönliche Startseitenmodule und sämtliche clientbezogenen UI-Optionen; für Administratoren zusätzlich die firmenweiten DMS-Anzeigetags |
 
 ## Darstellungsprinzipien
 

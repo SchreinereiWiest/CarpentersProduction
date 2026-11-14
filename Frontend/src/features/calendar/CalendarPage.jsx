@@ -180,7 +180,10 @@ export default function CalendarPage() {
     : null;
   const selectionEnd = provisionalEnd && provisionalEnd >= selectionStart ? provisionalEnd : selectionStart;
 
-  const eventReadOnly = Boolean(selectedEvent?.scope === "production" && !admin);
+  const eventReadOnly = Boolean(selectedEvent && (
+    (selectedEvent.scope === "production" && !admin)
+    || (selectedEvent.scope === "personal" && selectedEvent.ownerUserId !== user?.id)
+  ));
 
   return (
     <div className="flex h-dvh overflow-hidden bg-slate-950 text-white">
@@ -233,7 +236,7 @@ export default function CalendarPage() {
             <aside className="absolute inset-y-0 right-0 z-40 w-[min(90vw,360px)] overflow-y-auto border-l border-slate-700 bg-slate-800 p-4 shadow-2xl xl:relative xl:z-10 xl:w-80 xl:shrink-0 xl:shadow-none">
               <div className="mb-5 flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-sky-400">{admin ? "Planung & Einstellungen" : "Mein Kalender"}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-sky-400">{admin ? "Planung & Einstellungen" : "Firmenkalender"}</p>
                   <p className="mt-1 text-xs text-slate-400">Termine planen und Ansichten filtern</p>
                 </div>
                 <button type="button" onClick={() => setPanelOpen(false)} aria-label="Seitenmenü schließen" className="rounded-lg p-2 text-slate-400 hover:bg-slate-700 hover:text-white">✕</button>

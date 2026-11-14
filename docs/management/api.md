@@ -38,6 +38,6 @@ Die Projektplanung speichert bei `PUT /projects/:projectId/schedule` nun bevorzu
 
 Die Kalenderübertragung akzeptiert die Typen `project`, `measurement`, `planning`, `manufacturing`, `installation` und `appointment`. Sie speichert die aktuellen Gantt-Zeilen mit und aktualisiert bei erneuter Übertragung denselben Kalendereintrag. Beim Löschen der Projektplanung wird auch dieser verknüpfte Eintrag entfernt.
 
-`POST /api/calendar/company-days/sync` ersetzt die automatisch aus Arbeitszeit-Sonderregeln erzeugten Einträge eines Kalenderjahres. Manuell im Kalender angelegte Termine vom Typ `company-closed` bleiben erhalten.
+`POST /api/calendar/company-days/sync` ersetzt die automatisch aus Arbeitszeit-Sonderregeln erzeugten Einträge eines Kalenderjahres. Das Unternehmen-Settingspanel ruft diesen Sync bei jedem Speichern für das ausgewählte Kalenderjahr auf. Die Einträge sind nicht privat und für alle Firmenmitglieder als „Betriebsfrei“ sichtbar. Manuell im Kalender angelegte Termine vom Typ `company-closed` bleiben erhalten.
 
 Die früheren Snapshot-, Entwurfs- und Freigaberouten bleiben vorerst für vorhandene Installationen lesbar, werden von der neuen Managementoberfläche aber nicht mehr verwendet.

@@ -3,6 +3,7 @@ import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { normalizeHomePreferences } from "../../../../Engine/src/dashboard/home.mjs";
 import prisma, { systemPrisma } from "../../infrastructure/database/prisma.js";
 import { s3Upload } from "../../infrastructure/storage/s3.js";
+import { calendarVisibilityWhere } from "../calendar/calendar.validation.js";
 
 const berlinDateKey = value => new Intl.DateTimeFormat("en-CA", {
   timeZone: "Europe/Berlin", year: "numeric", month: "2-digit", day: "2-digit"
@@ -108,14 +109,7 @@ export async function getDashboard(req, res) {
     ? prisma.calendarEvent.findMany({
         where: {
           startAt: { lt: week.queryEnd }, endAt: { gt: week.queryStart },
-          ...(role === "admin" ? {
-            OR: [{ scope: "production" }, { scope: "personal", ownerUserId: req.user.id }]
-          } : {
-            OR: [
-              { ownerUserId: req.user.id },
-              { project: { managementAssignments: { some: { assigneeId: req.user.id } } } }
-            ]
-          })
+          ...calendarVisibilityWhere(req.user.id)
         },
         include: { project: { select: { id: true, title: true, projectNumber: true } } },
         orderBy: [{ startAt: "asc" }, { endAt: "asc" }]

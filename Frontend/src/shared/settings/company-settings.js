@@ -1,6 +1,8 @@
 import { downloadFile } from "../api/file-api.js";
 import { getGlobalFile } from "../cache/global-cache.js";
 import { normalizeEstimationSettings } from "@Engine/calculation/estimation.mjs";
+import { sanitizePersonalUserInterface } from "@Engine/preferences/client.mjs";
+import axios from "axios";
 
 export const CUSTOM_WORK_TYPE_ID = "__custom__";
 
@@ -461,6 +463,19 @@ export function companyFreeDaysForRange(settings, from, to) {
     return days;
 }
 
+export function companyFreeDaysCalendarPayload(settings, year) {
+    const selectedYear = Math.min(2200, Math.max(2000, Math.round(Number(year) || new Date().getFullYear())));
+    const from = new Date(selectedYear, 0, 1, 0, 0, 0, 0);
+    const to = new Date(selectedYear + 1, 0, 1, 0, 0, 0, 0);
+    const days = companyFreeDaysForRange(settings, from, to).map(day => {
+        const start = new Date(`${day.date}T00:00:00`);
+        const end = new Date(start);
+        end.setDate(end.getDate() + 1);
+        return { ...day, startAt: start.toISOString(), endAt: end.toISOString() };
+    });
+    return { from: from.toISOString(), to: to.toISOString(), days, year: selectedYear };
+}
+
 export function getWorkTypeLabel(workTypes, workType, customWorkType) {
     if (customWorkType) return customWorkType;
 
@@ -476,7 +491,25 @@ export async function loadCompanySettings() {
         }
     });
 
-    return normalizeCompanySettings(data);
+    const settings = normalizeCompanySettings(data);
+    try {
+        const { data: personal } = await axios.get("/api/user/me/preferences");
+        const overrides = sanitizePersonalUserInterface(personal?.preferences?.userInterface);
+        return {
+            ...settings,
+            userInterface: {
+                ...settings.userInterface,
+                ...overrides,
+                keybindings: {
+                    ...settings.userInterface.keybindings,
+                    ...(overrides.keybindings || {})
+                },
+                home: settings.userInterface.home
+            }
+        };
+    } catch {
+        return settings;
+    }
 }
 
 function minutesToTime(minutes) {

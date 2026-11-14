@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   averageScheduledDayMinutes,
+  companyFreeDaysCalendarPayload,
   companyFreeDaysForRange,
   DEFAULT_COMPANY_SETTINGS,
   normalizeCompanySettings,
@@ -184,5 +185,14 @@ describe("company settings", () => {
     expect(scheduledMinutesForDate(settings, new Date(2026, 0, 2, 12))).toBe(0);
     expect(scheduledMinutesForDate(settings, new Date(2026, 0, 9, 12))).toBe(345);
     expect(companyFreeDaysForRange(settings, "2026-01-01", "2026-02-01")).toHaveLength(3);
+    const calendar = companyFreeDaysCalendarPayload(settings, 2026);
+    expect(calendar).toMatchObject({ year: 2026, days: expect.arrayContaining([
+      expect.objectContaining({
+        ruleId: "alternate-friday",
+        label: "Jeder zweite Freitag frei",
+        date: "2026-01-02"
+      })
+    ]) });
+    expect(new Date(calendar.days[0].endAt).getTime()).toBeGreaterThan(new Date(calendar.days[0].startAt).getTime());
   });
 });

@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   CalendarValidationError,
   calendarRange,
+  calendarVisibilityWhere,
   normalizeCalendarEvent
 } from "../src/modules/calendar/calendar.validation.js";
 import { newProjectData, projectUpdateData } from "../src/modules/projects/project.logic.js";
@@ -57,6 +58,23 @@ test("personal calendar entries cannot use production-only types", () => {
     startAt: "2026-10-28T08:00:00.000Z",
     endAt: "2026-10-28T09:00:00.000Z"
   }), /nur für die Produktionsplanung/);
+});
+
+test("calendar entries are shared unless explicitly marked private", () => {
+  const shared = normalizeCalendarEvent({
+    scope: "personal",
+    type: "appointment",
+    title: "Besprechung",
+    startAt: "2026-10-28T08:00:00.000Z",
+    endAt: "2026-10-28T09:00:00.000Z"
+  });
+  const privateEvent = normalizeCalendarEvent({ ...shared, isPrivate: true });
+
+  assert.equal(shared.isPrivate, false);
+  assert.equal(privateEvent.isPrivate, true);
+  assert.deepEqual(calendarVisibilityWhere("user-1"), {
+    OR: [{ isPrivate: false }, { ownerUserId: "user-1" }]
+  });
 });
 
 test("company-wide days off are production entries without a project", () => {

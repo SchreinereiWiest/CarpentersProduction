@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import prisma, { systemPrisma } from "../../infrastructure/database/prisma.js";
 import { getLicense } from "../licensing/services/index.js";
 import { normalizeHomePreferences } from "../../../../Engine/src/dashboard/home.mjs";
+import { normalizePersonalCache, sanitizePersonalUserInterface } from "../../../../Engine/src/preferences/client.mjs";
 
 /**
  * Benutzer besitzen eine globale Identität, aber Rolle und Aktivstatus je Firma.
@@ -275,10 +276,16 @@ export async function updateCurrentUserPreferences(req, res) {
     if (!membership) return res.status(404).json({ error: "Firmenkonto nicht gefunden" });
     const current = membership.preferences && typeof membership.preferences === "object" && !Array.isArray(membership.preferences)
         ? membership.preferences : {};
-    const preferences = {
-        ...current,
-        home: normalizeHomePreferences(req.body?.home, membership.role)
-    };
+    const preferences = { ...current };
+    if (Object.hasOwn(req.body || {}, "home")) {
+        preferences.home = normalizeHomePreferences(req.body.home, membership.role);
+    }
+    if (Object.hasOwn(req.body || {}, "userInterface") && membership.role !== "admin") {
+        preferences.userInterface = sanitizePersonalUserInterface(req.body.userInterface);
+    }
+    if (Object.hasOwn(req.body || {}, "cache") && membership.role !== "admin") {
+        preferences.cache = normalizePersonalCache(req.body.cache);
+    }
     await systemPrisma.tenantMembership.update({
         where: { tenantId_userId: { tenantId: req.tenant.id, userId: req.user.id } },
         data: { preferences }

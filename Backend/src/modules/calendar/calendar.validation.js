@@ -70,9 +70,17 @@ export function normalizeCalendarEvent(input, current = {}) {
     projectId: scope === "personal" ? null : projectId,
     startAt,
     endAt,
-    allDay: Boolean(input.allDay ?? current.allDay ?? false)
+    allDay: Boolean(input.allDay ?? current.allDay ?? false),
+    isPrivate: Boolean(input.isPrivate ?? current.isPrivate ?? false)
   };
 }
+
+export const calendarVisibilityWhere = userId => ({
+  OR: [
+    { isPrivate: false },
+    { ownerUserId: userId }
+  ]
+});
 
 export function calendarRange(query = {}, now = new Date()) {
   const defaultFrom = new Date(now.getFullYear(), now.getMonth() - 1, 1);

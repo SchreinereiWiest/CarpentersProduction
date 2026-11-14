@@ -39,6 +39,6 @@ Die Stundensatzdaten verwenden die vorhandene jahresbezogene `management_periods
 2. Die Ansichten schreiben nur ihre abgegrenzten Datensätze und laden den Arbeitsbereich anschließend neu.
 3. Das Board speichert keinen Wert in `Project.status`.
 4. Der Gantt-Plan wird als JSON-Zeilen-/Balkenstruktur gespeichert; Beginn und Ende werden aus allen Balken abgeleitet. Der Kalender übernimmt nach zwei Tagesklicks den bestätigten Gesamtzeitraum als Produktionstermin mit Projekt- und Mitarbeiterbezug.
-5. Tagesarbeitsblöcke entstehen aus der jeweiligen Wochentagskonfiguration, deren eigenen Pausen und wiederkehrenden Sonderregeln. Kalendereinträge vom Typ `company-closed` überschreiben einen Tag zusätzlich als betriebsfrei.
+5. Tagesarbeitsblöcke entstehen aus der jeweiligen Wochentagskonfiguration, deren eigenen Pausen und wiederkehrenden Sonderregeln. Kalendereinträge vom Typ `company-closed` überschreiben einen Tag zusätzlich als betriebsfrei und werden firmenweit angezeigt. Normale Kalendertermine sind ebenfalls firmenweit sichtbar, solange ihr Eigentümer nicht ausdrücklich `isPrivate` aktiviert.
 6. Zeitbuchungen werden für das gewählte Jahr nach Mitarbeiter und Tätigkeits-ID aggregiert. Urlaubstermine werden im Frontend mit den resultierenden Tagesarbeitsblöcken verschnitten.
 7. Gespeicherte Stundensätze werden beim Laden einer Projektkalkulation als Kostenstellen mit Tätigkeits-IDs ausgegeben.
