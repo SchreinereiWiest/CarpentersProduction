@@ -15,6 +15,13 @@ const dayBreaks = () => DEFAULT_BREAKS.map(entry => ({ ...entry }));
 
 export const DEFAULT_COMPANY_SETTINGS = {
     schemaVersion: 12,
+    branding: {
+        logoDataUrl: "",
+        logoFileName: "",
+        logoMimeType: "",
+        logoWidth: 0,
+        logoHeight: 0
+    },
     workingHours: {
         start: "07:00",
         end: "16:45"
@@ -104,6 +111,10 @@ export function timeToMinutes(time) {
 }
 
 export function normalizeCompanySettings(data) {
+    const branding = {
+        ...DEFAULT_COMPANY_SETTINGS.branding,
+        ...(data?.branding ?? {})
+    };
     const workingHours = {
         ...DEFAULT_COMPANY_SETTINGS.workingHours,
         ...(data?.workingHours ?? {})
@@ -188,6 +199,17 @@ export function normalizeCompanySettings(data) {
 
     return {
         schemaVersion: 12,
+        branding: {
+            logoDataUrl: /^data:image\/(png|jpe?g);base64,/i.test(String(branding.logoDataUrl || ""))
+                ? String(branding.logoDataUrl)
+                : "",
+            logoFileName: String(branding.logoFileName || "").trim(),
+            logoMimeType: ["image/png", "image/jpeg", "image/jpg"].includes(String(branding.logoMimeType).toLowerCase())
+                ? String(branding.logoMimeType).toLowerCase()
+                : "",
+            logoWidth: Math.max(0, Number(branding.logoWidth) || 0),
+            logoHeight: Math.max(0, Number(branding.logoHeight) || 0)
+        },
         workingHours,
         workWeek,
         specialWorkRules,

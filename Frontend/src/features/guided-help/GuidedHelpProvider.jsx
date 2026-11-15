@@ -416,7 +416,7 @@ export default function GuidedHelpProvider({ children }) {
   return <GuidedHelpContext.Provider value={value}>
     {children}
     {!hiddenRoute && !active && <>
-      <button type="button" onClick={() => setMenuOpen(open => !open)} aria-expanded={menuOpen} aria-haspopup="dialog" className="fixed bottom-4 right-4 z-[10001] grid size-12 place-items-center rounded-full border border-blue-400/50 bg-blue-600 text-xl font-bold text-white shadow-xl shadow-slate-950/50 hover:bg-blue-500" title="Hilfe für diese Ansicht (F1)">?</button>
+      <button type="button" onClick={() => setMenuOpen(open => !open)} aria-expanded={menuOpen} aria-haspopup="dialog" className="fixed bottom-4 right-4 z-[10001] grid size-8 place-items-center rounded-full border border-blue-400/40 bg-blue-600/80 text-lg font-bold text-white opacity-40 shadow-lg shadow-slate-950/40 backdrop-blur-sm transition hover:bg-blue-500/90 hover:opacity-100" title="Hilfe für diese Ansicht (F1)">?</button>
       {menuOpen && <HelpMenu tours={contextualTours} onClose={() => setMenuOpen(false)} onStart={tourId => startTour(tourId)} />}
     </>}
     {pausedTour && <button type="button" onClick={resumePausedTour} className="fixed bottom-20 right-4 z-[10003] rounded-full border border-amber-500/70 bg-amber-700 px-4 py-2.5 text-sm font-semibold text-white shadow-xl hover:bg-amber-600">↩ Rundgang fortsetzen</button>}

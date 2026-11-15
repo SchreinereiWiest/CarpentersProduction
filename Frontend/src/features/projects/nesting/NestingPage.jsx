@@ -39,6 +39,7 @@ import {
     replaceNestingMaterial
 } from "./recalculateMaterial.js";
 import { getProjectRecord } from "../../../shared/projects/project-records.js";
+import CutPlanPanel from "./CutPlanPanel.jsx";
 
 const RECALCULATE_LONG_PRESS_MS = 650;
 
@@ -539,6 +540,13 @@ function NestingView() {
         setActiveStrip(strip);
         setPlacementMessage("");
     };
+    const selectStripById = (stripId) => {
+        const strip = [
+            ...(activeSheet?.strips ?? []),
+            ...(activeSheet?.emptyStrips ?? [])
+        ].find(candidate => String(candidate.id) === String(stripId));
+        if (strip) selectStrip(strip);
+    };
 
     const removeStrip = (stripToRemove) => {
         setPlacementMessage("");
@@ -932,10 +940,16 @@ function NestingView() {
                             <span> {activeSheet.strips?.length ?? 0} {isDirect2DNesting ? "Bauteile" : "Strips"} </span>
                             <span> {activeSheet.emptyStrips?.length ?? 0} im Pool </span>
                         </div>
+                        <CutPlanPanel
+                            key={activeSheetIndex}
+                            sheet={activeSheet}
+                            activeStripId={activeStrip?.id}
+                            onSelectStrip={selectStripById}
+                        />
                     </div>
                 </div> )}
 
-                {activeStrip && ( <div data-tour="project-nesting-selection" className="absolute xl:top-61 xl:left-4 top-56 left-2 z-20">
+                {activeStrip && ( <div data-tour="project-nesting-selection" className="absolute bottom-4 right-4 z-20 max-w-sm">
                     <div className="bg-gray-800/90 backdrop-blur border border-gray-700 rounded-lg xl:px-4 px-2 py-3 shadow-lg">
                         <div className="text-gray-400 mb-1"><span className="xl:text-sm text-xs">{isDirect2DNesting ? "Aktives Bauteil" : "Aktiver Strip"}</span> <span className="ml-8 font-semibold text-white xl:text-l text-sm">{activeStrip.id}</span></div>
                         <div className="font-semibold text-white xl:text-lg text-sm"> {activeStrip.placedWidth} x {activeStrip.placedHeight} </div>

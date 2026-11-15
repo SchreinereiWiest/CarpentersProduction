@@ -14,6 +14,18 @@ import { uploadGlobalFile } from "../../../shared/cache/global-cache.js";
 
 const emptyWorkType = { id: "", label: "" };
 
+const readImageFile = file => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+        const image = new Image();
+        image.onload = () => resolve({ dataUrl: reader.result, width: image.naturalWidth, height: image.naturalHeight });
+        image.onerror = () => reject(new Error("Das Logo konnte nicht gelesen werden."));
+        image.src = reader.result;
+    };
+    reader.onerror = () => reject(new Error("Das Logo konnte nicht gelesen werden."));
+    reader.readAsDataURL(file);
+});
+
 function createWorkTypeId(label, existingIds) {
     const base = label
         .toLocaleLowerCase("de-DE")
@@ -81,6 +93,40 @@ export default function CompanySettingsPanel() {
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState(null);
     const [calendarYear, setCalendarYear] = useState(() => new Date().getFullYear());
+
+    const uploadLogo = async file => {
+        if (!file) return;
+        if (!["image/png", "image/jpeg", "image/jpg"].includes(file.type)) {
+            setMessage({ type: "error", text: "Bitte ein Logo im PNG- oder JPG-Format auswählen." });
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            setMessage({ type: "error", text: "Das Logo darf höchstens 5 MB groß sein." });
+            return;
+        }
+
+        try {
+            const image = await readImageFile(file);
+            setConfig(previous => ({
+                ...previous,
+                branding: {
+                    logoDataUrl: image.dataUrl,
+                    logoFileName: file.name,
+                    logoMimeType: file.type === "image/jpg" ? "image/jpeg" : file.type,
+                    logoWidth: image.width,
+                    logoHeight: image.height
+                }
+            }));
+            setMessage({ type: "success", text: "Logo übernommen. Bitte die Unternehmenseinstellungen noch speichern." });
+        } catch (error) {
+            setMessage({ type: "error", text: error.message });
+        }
+    };
+
+    const removeLogo = () => setConfig(previous => ({
+        ...previous,
+        branding: { ...DEFAULT_COMPANY_SETTINGS.branding }
+    }));
 
     useEffect(() => {
         const load = async () => {
@@ -258,6 +304,51 @@ export default function CompanySettingsPanel() {
                         {message.text}
                     </div>
                 )}
+
+                <section className="rounded-xl border border-gray-700 bg-gray-800 p-5">
+                    <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <div className="text-xs uppercase tracking-wide text-gray-500">Projektmappe & Exposé</div>
+                            <h2 className="mt-2 text-base font-semibold text-gray-100">Unternehmenslogo</h2>
+                            <p className="mt-1 max-w-2xl text-sm text-gray-400">
+                                Das Logo erscheint oben links auf der Titelseite des Projektausdrucks. Unterstützt werden PNG und JPG bis 5 MB.
+                            </p>
+                        </div>
+                        <div className="flex min-w-0 items-center gap-3">
+                            <div className="flex h-20 w-40 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-700 bg-white p-3">
+                                {config.branding?.logoDataUrl ? (
+                                    <img src={config.branding.logoDataUrl} alt="Unternehmenslogo" className="max-h-full max-w-full object-contain" />
+                                ) : (
+                                    <span className="text-center text-xs text-gray-400">Noch kein Logo</span>
+                                )}
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <label className="cursor-pointer rounded-lg bg-blue-600 px-4 py-2 text-center text-sm font-medium hover:bg-blue-500">
+                                    {config.branding?.logoDataUrl ? "Logo ersetzen" : "Logo hochladen"}
+                                    <input
+                                        type="file"
+                                        accept="image/png,image/jpeg"
+                                        className="sr-only"
+                                        onChange={event => {
+                                            void uploadLogo(event.target.files?.[0]);
+                                            event.target.value = "";
+                                        }}
+                                    />
+                                </label>
+                                {config.branding?.logoDataUrl && (
+                                    <button type="button" onClick={removeLogo} className="rounded-lg border border-red-900 px-4 py-2 text-sm text-red-300 hover:bg-red-950/60">
+                                        Logo entfernen
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                    {config.branding?.logoFileName && (
+                        <p className="mt-3 text-xs text-gray-500">
+                            {config.branding.logoFileName} · {config.branding.logoWidth} × {config.branding.logoHeight} px
+                        </p>
+                    )}
+                </section>
 
                 <section className="rounded-xl border border-gray-700 bg-gray-800 p-5">
                     <div className="text-xs uppercase tracking-wide text-gray-500">Arbeitswoche und Tagespausen</div>

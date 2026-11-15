@@ -46,4 +46,30 @@ describe("Aufmaß project images", () => {
 
     expect(screen.getByRole("button", { name: /raum\.png/i })).toBeDisabled();
   });
+
+  it("setzt im Auswahlmodus ein Bild direkt in das Exposé ein", () => {
+    const photo = { id: "photo-1", fileName: "raum.png", url: "blob:raum" };
+    const onSelectPhoto = vi.fn();
+    const onCancelSelection = vi.fn();
+
+    render(
+      <ImagesView
+        photos={[photo]}
+        onUpload={vi.fn()}
+        onCreateView={vi.fn()}
+        uploading={false}
+        selectionMode
+        onSelectPhoto={onSelectPhoto}
+        onCancelSelection={onCancelSelection}
+      />
+    );
+
+    expect(screen.getByText("Bild für das Exposé auswählen")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /raum\.png/i }));
+    expect(onSelectPhoto).toHaveBeenCalledWith(photo);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Abbrechen" }));
+    expect(onCancelSelection).toHaveBeenCalledTimes(1);
+  });
 });

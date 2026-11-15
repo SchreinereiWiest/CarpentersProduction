@@ -261,11 +261,25 @@ export function getCabinetFunctionLines(cabinet) {
 
 const materialLabel = (materials, id) => {
     if (!id) return "–";
-    const material = (materials ?? []).find(item => String(item.id) === String(id));
-    if (!material) return String(id);
-    return material.materialNumber
-        ? `${material.name} (${material.materialNumber})`
-        : material.name;
+    const reference = typeof id === "object"
+        ? id.id ?? id.materialId ?? id.materialNumber ?? id.MID
+        : id;
+    const normalizedReference = String(reference ?? "").trim().toLocaleLowerCase("de-DE");
+    const material = (materials ?? []).find(item => [
+        item.id,
+        item.materialId,
+        item._id,
+        item.materialNumber,
+        item.MID
+    ].some(candidate => String(candidate ?? "").trim().toLocaleLowerCase("de-DE") === normalizedReference));
+    if (!material) return String(reference ?? "–");
+    const realName = String(
+        material.name ?? material.materialName ?? material.description ?? material.Bezeichnung ?? "Material"
+    ).trim();
+    const materialNumber = String(material.materialNumber ?? material.MID ?? "").trim();
+    return materialNumber && materialNumber !== realName
+        ? `${realName} (${materialNumber})`
+        : realName;
 };
 
 const CONSTRUCTION_LABELS = {

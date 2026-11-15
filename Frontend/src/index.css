@@ -455,6 +455,19 @@ textarea {
     grid-row: 2;
 }
 
+.aufmas-shell--wide {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.aufmas-shell--wide > section {
+    grid-column: 1;
+    grid-row: 1;
+}
+
+.aufmas-shell--wide .aufmas-views {
+    grid-column: 1;
+}
+
 .aufmas-view-scroll {
     scrollbar-width: thin;
     scrollbar-color: #435460 transparent;
@@ -469,4 +482,8 @@ textarea {
     .aufmas-right-sidebar {
         grid-template-rows: minmax(0, 1fr) 164px;
     }
+}
+
+.aufmas-shell.aufmas-shell--views-collapsed {
+    grid-template-rows: minmax(0, 1fr) 38px;
 }

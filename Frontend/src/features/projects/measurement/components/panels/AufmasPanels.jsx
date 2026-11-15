@@ -55,7 +55,7 @@ export function ToolPanel({
   activeView,
   objectCount
 }) {
-  const drawingDisabled = ["three", "images"].includes(activeView.type);
+  const drawingDisabled = ["three", "images", "expose"].includes(activeView.type);
   return (
     <aside className="flex min-h-0 flex-col border-r border-[#2a3741] bg-[#172029]">
       <div className="border-b border-[#2a3741] px-4 pb-3 pt-4">
@@ -672,6 +672,8 @@ const ViewPreview = ({ view, imageUrl }) => {
     return <AufmasIcon name="cube" className="size-7" />;
   if (view.type === "images")
     return <AufmasIcon name="image" className="size-7" />;
+  if (view.type === "expose")
+    return <AufmasIcon name="plan" className="size-7" />;
   if (view.type === "floor")
     return <AufmasIcon name="floor" className="size-7" />;
   return <AufmasIcon name="side" className="size-7" />;
@@ -682,16 +684,30 @@ export function ViewStrip({
   activeViewId,
   onViewChange,
   objects,
-  photos = []
+  photos = [],
+  collapsed = false,
+  onToggleCollapsed
 }) {
+  const activeView = views.find((view) => view.id === activeViewId);
+  if (collapsed) {
+    return (
+      <button
+        type="button"
+        onClick={onToggleCollapsed}
+        className="flex h-full w-full items-center justify-between gap-4 bg-[#141d25] px-4 text-left text-[10px] text-[#8296a3] hover:bg-[#192630] hover:text-[#b9ccd8]"
+        aria-label="Ansichten ausklappen"
+      >
+        <span className="font-semibold uppercase tracking-[0.18em]">Ansichten</span>
+        <span className="min-w-0 flex-1 truncate text-center normal-case tracking-normal text-[#a9b9c3]">{activeView?.label || `${views.length} Ansichten`}</span>
+        <span className="font-semibold">Ausklappen ↑</span>
+      </button>
+    );
+  }
   return (
-    <div className="min-w-0 border-r border-[#2a3741] bg-[#141d25] px-4 py-3">
-      <div className="mb-2 flex items-center justify-between">
+    <div className="relative h-full min-w-0 border-r border-[#2a3741] bg-[#141d25] px-4 py-3">
+      <div className="mb-2 flex items-center justify-between pr-32">
         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#718391]">
           Ansichten
-        </p>
-        <p className="text-[10px] text-[#5f7280]">
-          Ansicht wählen, um zu bearbeiten
         </p>
       </div>
       <div className="flex gap-2.5 overflow-x-auto pb-1 aufmas-view-scroll">
@@ -742,6 +758,8 @@ export function ViewStrip({
                       ? "Modell"
                       : view.type === "images"
                         ? "Projektbilder"
+                        : view.type === "expose"
+                          ? "Projektausdruck"
                         : `Ansicht ${index + 1}`}
                   </p>
                 </div>
@@ -755,6 +773,14 @@ export function ViewStrip({
           );
         })}
       </div>
+      <button
+        type="button"
+        onClick={onToggleCollapsed}
+        className="absolute right-4 top-2 rounded-md border border-[#354956] bg-[#1a2832]/95 px-3 py-1.5 text-[10px] font-semibold text-[#91a6b3] shadow-lg hover:border-[#53748a] hover:bg-[#223743] hover:text-white"
+        aria-label="Ansichten einklappen"
+      >
+        Einklappen ↑
+      </button>
     </div>
   );
 }

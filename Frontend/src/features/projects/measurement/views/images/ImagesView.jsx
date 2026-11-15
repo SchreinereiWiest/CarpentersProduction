@@ -9,13 +9,20 @@ export default function ImagesView({
   onUpload,
   onCreateView,
   uploading,
-  readOnly = false
+  readOnly = false,
+  selectionMode = false,
+  onSelectPhoto,
+  onCancelSelection
 }) {
   const [selectedPhoto, setSelectedPhoto] = useState(null);
   const [viewName, setViewName] = useState("");
 
   const openCreateDialog = (photo) => {
     if (readOnly) return;
+    if (selectionMode) {
+      onSelectPhoto?.(photo);
+      return;
+    }
     setSelectedPhoto(photo);
     setViewName(nameFromFile(photo.fileName));
   };
@@ -47,29 +54,38 @@ export default function ImagesView({
       <div className="flex min-h-14 shrink-0 items-center justify-between border-b border-[#2b3844] bg-[#17212a] px-4 py-2">
         <div>
           <h2 className="text-sm font-semibold text-[#e5edf3]">
-            Projektbilder
+            {selectionMode ? "Bild für das Exposé auswählen" : "Projektbilder"}
           </h2>
           <p className="mt-0.5 text-[11px] text-[#728391]">
-            {photos.length} Projektbild{photos.length === 1 ? "" : "er"}
+            {selectionMode
+              ? "Ein Bild anklicken – anschließend geht es direkt zurück zum Exposé."
+              : `${photos.length} Projektbild${photos.length === 1 ? "" : "er"}`}
           </p>
         </div>
-        {!readOnly && (
-          <label
-            className={`inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[#315c78] px-3 py-2 text-xs font-semibold text-[#e5f3fb] hover:bg-[#3c6f90] ${uploading ? "pointer-events-none opacity-60" : ""}`}
-          >
-            <AufmasIcon name="photo" className="size-4" />{" "}
-            {uploading ? "Wird geladen …" : "Foto hinzufügen"}
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              capture="environment"
-              className="sr-only"
-              onChange={(event) =>
-                event.target.files?.[0] && onUpload(event.target.files[0])
-              }
-            />
-          </label>
-        )}
+        <div className="flex items-center gap-2">
+          {selectionMode && (
+            <button type="button" onClick={onCancelSelection} className="inline-flex items-center gap-2 rounded-lg border border-[#40515d] px-3 py-2 text-xs font-semibold text-[#b9c7d0] hover:bg-[#202d37]">
+              <AufmasIcon name="close" className="size-4" /> Abbrechen
+            </button>
+          )}
+          {!readOnly && (
+            <label
+              className={`inline-flex cursor-pointer items-center gap-2 rounded-lg bg-[#315c78] px-3 py-2 text-xs font-semibold text-[#e5f3fb] hover:bg-[#3c6f90] ${uploading ? "pointer-events-none opacity-60" : ""}`}
+            >
+              <AufmasIcon name="photo" className="size-4" />{" "}
+              {uploading ? "Wird geladen …" : "Foto hinzufügen"}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                capture="environment"
+                className="sr-only"
+                onChange={(event) =>
+                  event.target.files?.[0] && onUpload(event.target.files[0])
+                }
+              />
+            </label>
+          )}
+        </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
         {photos.length ? (
@@ -81,7 +97,7 @@ export default function ImagesView({
                 onClick={() => openCreateDialog(photo)}
                 disabled={readOnly}
                 className="group overflow-hidden rounded-lg border border-[#2f3e49] bg-[#17212a] text-left transition hover:border-[#5c8eb4] disabled:cursor-default disabled:hover:border-[#2f3e49]"
-                title={readOnly ? photo.fileName : "Als neue Ansicht verwenden"}
+                title={readOnly ? photo.fileName : selectionMode ? "In das Exposé einsetzen" : "Als neue Ansicht verwenden"}
               >
                 <div className="aspect-[4/3] overflow-hidden bg-[#0c1217]">
                   <img
