@@ -116,8 +116,8 @@ export default function VBH({
                                 y2={y}
                                 stroke={
                                     selected
-                                        ? "#f97316"
-                                        : "#6b7280"
+                                        ? "var(--cnc-operation-selected)"
+                                        : "var(--cnc-operation-path)"
                                 }
                                 strokeWidth={
                                     Math.max(

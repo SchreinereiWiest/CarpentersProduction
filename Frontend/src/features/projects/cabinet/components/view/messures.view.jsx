@@ -24,7 +24,7 @@ export function DimensionLayer({ cabinet }) {
                 y1={0}
                 x2={-60}
                 y2={height}
-                stroke="#a855f7"
+                stroke="var(--cabinet-dimension-line)"
                 strokeWidth="1.5"
                 vectorEffect="non-scaling-stroke"
             />
@@ -34,7 +34,7 @@ export function DimensionLayer({ cabinet }) {
                 y1={0}
                 x2={-45}
                 y2={0}
-                stroke="#a855f7"
+                stroke="var(--cabinet-dimension-line)"
                 strokeWidth="1.5"
                 vectorEffect="non-scaling-stroke"
             />
@@ -44,7 +44,7 @@ export function DimensionLayer({ cabinet }) {
                 y1={height}
                 x2={-45}
                 y2={height}
-                stroke="#a855f7"
+                stroke="var(--cabinet-dimension-line)"
                 strokeWidth="1.5"
                 vectorEffect="non-scaling-stroke"
             />
@@ -52,7 +52,7 @@ export function DimensionLayer({ cabinet }) {
             <text
                 x={-85}
                 y={height / 2}
-                fill="#c084fc"
+                fill="var(--cabinet-dimension-text)"
                 fontSize="48"
                 textAnchor="middle"
                 transform={`
@@ -76,7 +76,7 @@ export function DimensionLayer({ cabinet }) {
                 y1={height + 60}
                 x2={width}
                 y2={height + 60}
-                stroke="#a855f7"
+                stroke="var(--cabinet-dimension-line)"
                 strokeWidth="1.5"
                 vectorEffect="non-scaling-stroke"
             />
@@ -86,7 +86,7 @@ export function DimensionLayer({ cabinet }) {
                 y1={height + 45}
                 x2={0}
                 y2={height + 75}
-                stroke="#a855f7"
+                stroke="var(--cabinet-dimension-line)"
                 strokeWidth="1.5"
                 vectorEffect="non-scaling-stroke"
             />
@@ -96,7 +96,7 @@ export function DimensionLayer({ cabinet }) {
                 y1={height + 45}
                 x2={width}
                 y2={height + 75}
-                stroke="#a855f7"
+                stroke="var(--cabinet-dimension-line)"
                 strokeWidth="1.5"
                 vectorEffect="non-scaling-stroke"
             />
@@ -104,7 +104,7 @@ export function DimensionLayer({ cabinet }) {
             <text
                 x={width / 2}
                 y={height + 115}
-                fill="#c084fc"
+                fill="var(--cabinet-dimension-text)"
                 fontSize="48"
                 textAnchor="middle"
             >
@@ -125,7 +125,7 @@ export function DimensionLayer({ cabinet }) {
                         y1={0}
                         x2={width + 60}
                         y2={topOffset}
-                        stroke="#a855f7"
+                        stroke="var(--cabinet-dimension-line)"
                         strokeWidth="1.5"
                         vectorEffect="non-scaling-stroke"
                     />
@@ -135,7 +135,7 @@ export function DimensionLayer({ cabinet }) {
                         y1={0}
                         x2={width + 75}
                         y2={0}
-                        stroke="#a855f7"
+                        stroke="var(--cabinet-dimension-line)"
                         strokeWidth="1.5"
                         vectorEffect="non-scaling-stroke"
                     />
@@ -145,7 +145,7 @@ export function DimensionLayer({ cabinet }) {
                         y1={topOffset}
                         x2={width + 75}
                         y2={topOffset}
-                        stroke="#a855f7"
+                        stroke="var(--cabinet-dimension-line)"
                         strokeWidth="1.5"
                         vectorEffect="non-scaling-stroke"
                     />
@@ -153,7 +153,7 @@ export function DimensionLayer({ cabinet }) {
                     <text
                         x={width + 120}
                         y={topOffset / 2}
-                        fill="#c084fc"
+                        fill="var(--cabinet-dimension-text)"
                         fontSize="48"
                         textAnchor="middle"
                         transform={`
@@ -184,7 +184,7 @@ export function DimensionLayer({ cabinet }) {
                         y1={height - bottomOffset}
                         x2={width + 60}
                         y2={height}
-                        stroke="#a855f7"
+                        stroke="var(--cabinet-dimension-line)"
                         strokeWidth="1.5"
                         vectorEffect="non-scaling-stroke"
                     />
@@ -194,7 +194,7 @@ export function DimensionLayer({ cabinet }) {
                         y1={height - bottomOffset}
                         x2={width + 75}
                         y2={height - bottomOffset}
-                        stroke="#a855f7"
+                        stroke="var(--cabinet-dimension-line)"
                         strokeWidth="1.5"
                         vectorEffect="non-scaling-stroke"
                     />
@@ -204,7 +204,7 @@ export function DimensionLayer({ cabinet }) {
                         y1={height}
                         x2={width + 75}
                         y2={height}
-                        stroke="#a855f7"
+                        stroke="var(--cabinet-dimension-line)"
                         strokeWidth="1.5"
                         vectorEffect="non-scaling-stroke"
                     />
@@ -215,7 +215,7 @@ export function DimensionLayer({ cabinet }) {
                             height -
                             bottomOffset / 2
                         }
-                        fill="#c084fc"
+                        fill="var(--cabinet-dimension-text)"
                         fontSize="48"
                         textAnchor="middle"
                         transform={`

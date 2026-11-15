@@ -39,7 +39,7 @@ export default function Milling({
             <path
                 d={path}
                 fill="none"
-                stroke={selected ? "#f97316" : "#c084fc"}
+                stroke={selected ? "var(--cnc-operation-selected)" : "var(--cnc-operation-path)"}
                 strokeWidth={selected ? 4 : 3}
                 className="cursor-pointer"
                 onClick={event => {
@@ -96,10 +96,10 @@ export default function Milling({
                 }
                 fill={
                     selected
-                        ? "#f97316"
-                        : "#7c3aed"
+                        ? "var(--cnc-operation-selected)"
+                        : "var(--cnc-operation-fill)"
                 }
-                stroke="#ddd6fe"
+                stroke={selected ? "var(--cnc-operation-selected-stroke)" : "var(--cnc-operation-stroke)"}
                 strokeWidth="1"
                 className="cursor-pointer"
                 onClick={(event) => {
@@ -171,8 +171,8 @@ export default function Milling({
                 y2={y2}
                 stroke={
                     selected
-                        ? "#f97316"
-                        : "#a78bfa"
+                        ? "var(--cnc-operation-selected)"
+                        : "var(--cnc-operation-path)"
                 }
                 strokeWidth={
                     selected

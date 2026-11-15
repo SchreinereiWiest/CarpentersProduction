@@ -252,9 +252,9 @@ export default function FrontProperties({
                                     "vertical"
 
                                         ? `
-                                            border-blue-600
-                                            bg-blue-900
-                                            text-blue-200
+                                            border-blue-700
+                                            bg-blue-600
+                                            text-white
                                         `
 
                                         : `
@@ -288,9 +288,9 @@ export default function FrontProperties({
                                     "horizontal"
 
                                         ? `
-                                            border-blue-600
-                                            bg-blue-900
-                                            text-blue-200
+                                            border-blue-700
+                                            bg-blue-600
+                                            text-white
                                         `
 
                                         : `
@@ -631,7 +631,7 @@ export default function FrontProperties({
                                     text-sm
 
                                     ${frontGrainDirection === "vertical"
-                                        ? "border-blue-600 bg-blue-900 text-blue-200"
+                                        ? "border-blue-700 bg-blue-600 text-white"
                                         : "border-gray-700 bg-gray-800 text-gray-400"
                                     }
                                 `}
@@ -657,7 +657,7 @@ export default function FrontProperties({
                                     text-sm
 
                                     ${frontGrainDirection === "horizontal"
-                                        ? "border-blue-600 bg-blue-900 text-blue-200"
+                                        ? "border-blue-700 bg-blue-600 text-white"
                                         : "border-gray-700 bg-gray-800 text-gray-400"
                                     }
                                 `}

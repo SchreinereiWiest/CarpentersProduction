@@ -1105,13 +1105,13 @@ const EdgeEditor = () => (
                 <span
                   title={child.manual ? "Manuell hinzugefügt oder geändert" : undefined}
                   className={`min-w-0 truncate font-semibold ${
-                    child.manual ? "text-amber-300" : ""
+                    child.manual ? "legacy-manual-label" : ""
                   }`}
                 >
                   {child.name || "Platte"}
                 </span>
                 {child.manual && (
-                  <span className="shrink-0 rounded bg-amber-900/70 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-amber-200">
+                  <span className="legacy-manual-badge shrink-0 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
                     manuell
                   </span>
                 )}

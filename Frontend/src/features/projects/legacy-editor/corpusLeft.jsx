@@ -224,13 +224,13 @@ export default function CorpusLeft({ EditorState }) {
                     <span
                       title={corpus.manual ? "Manuell hinzugefügt oder geändert" : undefined}
                       className={`min-w-0 truncate font-medium xl:text-lm text-md ${
-                        corpus.manual ? "text-amber-300" : ""
+                        corpus.manual ? "legacy-manual-label" : ""
                       }`}
                     >
                       {corpus.name}
                     </span>
                     {corpus.manual && (
-                      <span className="shrink-0 rounded bg-amber-900/70 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-amber-200">
+                      <span className="legacy-manual-badge shrink-0 rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
                         manuell
                       </span>
                     )}

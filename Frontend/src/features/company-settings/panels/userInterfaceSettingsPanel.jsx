@@ -277,14 +277,14 @@ export default function UserInterfaceSettingsPanel() {
                         <ThemeOption
                             id={THEMES.DARK}
                             title="Dark Mode"
-                            description="Das bisherige Carpenters-Theme mit dunklen Arbeitsflächen."
+                            description="Ruhige Graphitflächen mit warmen Copper-Akzenten."
                             selected={theme === THEMES.DARK}
                             onSelect={setTheme}
                         />
                         <ThemeOption
                             id={THEMES.LIGHT}
                             title="Light Mode"
-                            description="Helle Flächen, Ink-Navigation und Copper-Akzente wie im Licensing-Portal."
+                            description="Warme Papierflächen, klare Ink-Navigation und Copper-Akzente."
                             selected={theme === THEMES.LIGHT}
                             onSelect={setTheme}
                         />
@@ -699,18 +699,18 @@ function ThemeOption({ id, title, description, selected, onSelect }) {
                     : "border-gray-700 hover:border-gray-600"
             }`}
         >
-            <span className={`block p-3 ${light ? "bg-[#f4f5f2]" : "bg-[#111827]"}`} aria-hidden="true">
+            <span className={`block p-3 ${light ? "bg-[#f2f0ea]" : "bg-[#111214]"}`} aria-hidden="true">
                 <span className="grid h-24 grid-cols-[3.25rem_1fr] overflow-hidden rounded-lg shadow-lg">
-                    <span className={`flex flex-col gap-2 p-2 ${light ? "bg-[#111516]" : "bg-[#1f2937]"}`}>
-                        <span className={`h-2.5 rounded-full ${light ? "bg-[#cf8b4f]" : "bg-[#2563eb]"}`} />
-                        <span className={`h-2 rounded-full ${light ? "bg-[#223033]" : "bg-[#374151]"}`} />
-                        <span className={`h-2 rounded-full ${light ? "bg-[#223033]" : "bg-[#374151]"}`} />
+                    <span className={`flex flex-col gap-2 p-2 ${light ? "bg-[#18231f]" : "bg-[#151618]"}`}>
+                        <span className={`h-2.5 rounded-full ${light ? "bg-[#a95f2f]" : "bg-[#d09552]"}`} />
+                        <span className={`h-2 rounded-full ${light ? "bg-[#314139]" : "bg-[#2b2d30]"}`} />
+                        <span className={`h-2 rounded-full ${light ? "bg-[#314139]" : "bg-[#2b2d30]"}`} />
                     </span>
-                    <span className={`p-3 ${light ? "bg-[#f4f5f2]" : "bg-[#111827]"}`}>
-                        <span className={`block h-full rounded-md border p-2 ${light ? "border-[#d7ded9] bg-white" : "border-[#374151] bg-[#1f2937]"}`}>
-                            <span className={`block h-2 w-2/3 rounded ${light ? "bg-[#34413e]" : "bg-[#d1d5db]"}`} />
-                            <span className={`mt-2 block h-1.5 w-full rounded ${light ? "bg-[#d7ded9]" : "bg-[#4b5563]"}`} />
-                            <span className={`mt-1.5 block h-1.5 w-4/5 rounded ${light ? "bg-[#d7ded9]" : "bg-[#4b5563]"}`} />
+                    <span className={`p-3 ${light ? "bg-[#f2f0ea]" : "bg-[#111214]"}`}>
+                        <span className={`block h-full rounded-md border p-2 ${light ? "border-[#d7d1c5] bg-white" : "border-[#35373b] bg-[#1b1c1f]"}`}>
+                            <span className={`block h-2 w-2/3 rounded ${light ? "bg-[#44514b]" : "bg-[#d4d3d0]"}`} />
+                            <span className={`mt-2 block h-1.5 w-full rounded ${light ? "bg-[#d7d1c5]" : "bg-[#505359]"}`} />
+                            <span className={`mt-1.5 block h-1.5 w-4/5 rounded ${light ? "bg-[#d7d1c5]" : "bg-[#505359]"}`} />
                         </span>
                     </span>
                 </span>

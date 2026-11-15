@@ -75,9 +75,9 @@ function Login() {
     };
 
     return (
-        <div className="min-h-screen overflow-y-auto bg-gray-900 px-4 py-8 text-white sm:py-12">
+        <div className="auth-page min-h-screen overflow-y-auto bg-gray-900 px-4 py-8 text-white sm:py-12">
             <main className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-lg items-center justify-center">
-                <section className="w-full rounded-2xl bg-white px-6 py-8 shadow-xl ring-1 ring-black/10 sm:px-10">
+                <section className="auth-card w-full rounded-2xl bg-white px-6 py-8 shadow-xl ring-1 ring-black/10 sm:px-10">
                     <div className="text-center">
                         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">Carpenters Production</p>
                         <h1 className="mt-2 text-3xl font-semibold text-gray-900">
@@ -150,7 +150,7 @@ function Login() {
                         <button
                             type="submit"
                             disabled={submitting}
-                            className="w-full rounded-lg bg-gray-950 px-4 py-3 font-medium text-white transition hover:bg-gray-800 disabled:cursor-wait disabled:opacity-60"
+                            className="auth-submit w-full rounded-lg bg-gray-950 px-4 py-3 font-medium text-white transition hover:bg-gray-800 disabled:cursor-wait disabled:opacity-60"
                         >
                             {submitting ? "Bitte warten …" : setupMode ? "Administrator einrichten" : "Anmelden"}
                         </button>

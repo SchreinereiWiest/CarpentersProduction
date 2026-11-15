@@ -140,9 +140,9 @@ export default function SectionProperties({
                                     "vertical"
 
                                         ? `
-                                            border-blue-600
-                                            bg-blue-900
-                                            text-blue-200
+                                            border-blue-700
+                                            bg-blue-600
+                                            text-white
                                         `
 
                                         : `
@@ -176,9 +176,9 @@ export default function SectionProperties({
                                     "horizontal"
 
                                         ? `
-                                            border-blue-600
-                                            bg-blue-900
-                                            text-blue-200
+                                            border-blue-700
+                                            bg-blue-600
+                                            text-white
                                         `
 
                                         : `

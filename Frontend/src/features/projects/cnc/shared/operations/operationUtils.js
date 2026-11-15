@@ -38,8 +38,8 @@ export const getSelectedStroke = (
     selected
 ) => {
     return selected
-        ? "#fed7aa"
-        : "#d1d5db";
+        ? "var(--cnc-operation-selected-stroke)"
+        : "var(--cnc-operation-stroke)";
 };
 
 
@@ -47,6 +47,6 @@ export const getSelectedFill = (
     selected
 ) => {
     return selected
-        ? "#f97316"
-        : "#111827";
+        ? "var(--cnc-operation-selected)"
+        : "var(--cnc-operation-fill)";
 };

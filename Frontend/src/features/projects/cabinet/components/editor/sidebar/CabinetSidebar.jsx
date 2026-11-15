@@ -281,9 +281,9 @@ return (
                         "vertical"
 
                         ? `
-                        border-blue-600
-                        bg-blue-900
-                        text-blue-200
+                        border-blue-700
+                        bg-blue-600
+                        text-white
                         `
 
                         : `
@@ -314,9 +314,9 @@ return (
                         "horizontal"
 
                         ? `
-                        border-blue-600
-                        bg-blue-900
-                        text-blue-200
+                        border-blue-700
+                        bg-blue-600
+                        text-white
                         `
 
                         : `
