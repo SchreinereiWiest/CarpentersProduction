@@ -96,6 +96,7 @@ nav:
       - Kunden: backend/customers.md
       - FreePBX-/Asterisk-Telefonintegration: backend/freepbx.md
       - Projekte & Archive: backend/projects.md
+      - PID-Etickets: backend/etickets.md
       - Zeiterfassung: backend/time-tracking.md
       - Benutzer: backend/users.md
       - Dateien, Material & Einstellungen: backend/files-storage-settings.md

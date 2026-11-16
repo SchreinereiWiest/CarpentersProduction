@@ -49,6 +49,7 @@ import {
 } from "./state/workspaceCache.js";
 import { mimeFromFile, viewNameForPage } from "./utils/fileMetadata.js";
 import ImagesView from "./views/images/ImagesView.jsx";
+import { isProjectImageFile } from "./views/images/projectImages.js";
 import ExposeView from "./views/expose/ExposeView.jsx";
 import AufmasThreeView from "./views/three/AufmasThreeView.jsx";
 import MeasurementReviewDialog from "./components/review/MeasurementReviewDialog.jsx";
@@ -307,6 +308,28 @@ export default function AufmasWorkspace() {
 
   useEffect(() => {
     let cancelled = false;
+    const refreshProject = async () => {
+      try {
+        const latestProject = await getProjectRecord(projectId);
+        if (!cancelled && latestProject) setProject(latestProject);
+      } catch (error) {
+        console.warn("Projektbilder konnten nicht aktualisiert werden", error);
+      }
+    };
+
+    // A cached workspace may still contain the project state from before an
+    // upload in Project Settings. Refresh it immediately and whenever the app
+    // regains focus so the image library follows the actual project files.
+    if (cachedWorkspace) void refreshProject();
+    window.addEventListener("focus", refreshProject);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", refreshProject);
+    };
+  }, [cachedWorkspace, projectId]);
+
+  useEffect(() => {
+    let cancelled = false;
     const loadGenerated = async (file) => getProjectFile({
         projectId,
         file: `${file}.json`,
@@ -431,9 +454,7 @@ export default function AufmasWorkspace() {
     if (!project?.files) return;
     let cancelled = false;
     const loadPhotos = async () => {
-      const imageFiles = project.files.filter(
-        (file) => file.mimeType?.startsWith("image/")
-      );
+      const imageFiles = project.files.filter(isProjectImageFile);
       const loaded = await Promise.all(
         imageFiles.map(async (file) => {
           try {

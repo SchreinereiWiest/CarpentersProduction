@@ -267,6 +267,9 @@ autoTable(doc, {
 
 
     margin: {
+        // startY steuert nur die erste Seite. Auf automatisch erzeugten
+        // Folgeseiten sorgt dieser Wert für einen ruhigen oberen Rand.
+        top: 20,
         left: 12,
         right: 12,
         bottom: 14

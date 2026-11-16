@@ -205,19 +205,19 @@ describe("Exposé-Live-Editor", () => {
   });
 
   it("verwendet für Korpusblätter standardmäßig das farbige Vollformat", () => {
-    render(
-      <ExposeView
-        value={{}}
-        onChange={() => {}}
-        project={{ title: "Projekt" }}
-        photos={[]}
-        views={[]}
-        cabinets={[{ id: "cabinet-1", name: "Unterschrank", width: 600, height: 720, depth: 560 }]}
-      />
-    );
+    function Harness() {
+      const [value, setValue] = useState({});
+      return <><ExposeView value={value} onChange={setValue} project={{ title: "Projekt" }} photos={[]} views={[]} cabinets={[{ id: "cabinet-1", name: "Unterschrank", width: 600, height: 720, depth: 560 }]} /><output data-testid="cabinet-layout">{JSON.stringify(value.pageLayouts ?? {})}</output></>;
+    }
+
+    render(<Harness />);
 
     fireEvent.click(screen.getByRole("button", { name: "Korpusblätter 1–1 bearbeiten" }));
     expect(screen.getByLabelText("Seitenvorlage")).toHaveValue("cabinet-standard");
+    fireEvent.click(screen.getByRole("button", { name: "Korpusansicht 1 auswählen" }));
+    expect(screen.getByRole("heading", { name: "Korpusansicht 1" })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Breite · mm"), { target: { value: "72" } });
+    expect(screen.getByTestId("cabinet-layout")).toHaveTextContent('"cabinetImage:0":{"x":16,"y":56,"width":72');
   });
 
   it("speichert eine per Drag-and-drop geänderte Seitenreihenfolge", () => {

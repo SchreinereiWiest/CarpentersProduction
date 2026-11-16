@@ -23,6 +23,8 @@ import {
 } from "@Engine/postprocessor/index.js";
 import { createId } from "@Engine/shared/id.js";
 import { getMachiningParameterSections } from "./cncSettingsSections.js";
+import EticketSettingsPanel from "./EticketSettingsPanel.jsx";
+import { DEFAULT_ETICKET_SETTINGS, normalizeEticketSettings } from "@Engine/eticket/index.js";
 
 const cloneConfig = (value) => {
 
@@ -106,6 +108,7 @@ export default function CncSettingsPanel() {
     });
     const [activePostprocessorId, setActivePostprocessorId] = useState("builtin-legacy-viewer");
     const [selectedPluginId, setSelectedPluginId] = useState(AVAILABLE_POSTPROCESSORS[0]?.id ?? "");
+    const [eticket, setEticket] = useState(() => normalizeEticketSettings(DEFAULT_ETICKET_SETTINGS));
 
     const activePostprocessor = postprocessors.find(item => item.id === activePostprocessorId) ?? postprocessors[0] ?? null;
     const activePostprocessorDescriptor = AVAILABLE_POSTPROCESSORS.find(item => item.id === activePostprocessor?.pluginId) ?? null;
@@ -233,13 +236,14 @@ export default function CncSettingsPanel() {
                 const data = {
 
                     schemaVersion:
-                        3,
+                        4,
 
                     cncDefault:
                         config,
 
                     postprocessors,
-                    activePostprocessorId
+                    activePostprocessorId,
+                    eticket
 
                 };
 
@@ -259,6 +263,9 @@ export default function CncSettingsPanel() {
                     uploadFunction: {upload: uploadJSONFile, path:"/api/settings/cnc"}
                 });
 
+                setSaving(false);
+                return true;
+
             } catch (error) {
 
                 console.error(
@@ -270,8 +277,9 @@ export default function CncSettingsPanel() {
                     "Response:",
                     error.response?.data
                 );
+                setSaving(false);
+                return false;
             }
-            setSaving(false);
         };
 
 
@@ -353,6 +361,7 @@ export default function CncSettingsPanel() {
                                     ? data.activePostprocessorId
                                     : savedPostprocessors[0]?.id ?? null
                             );
+                            setEticket(normalizeEticketSettings(data.eticket));
         
                             return;
                
@@ -469,7 +478,7 @@ export default function CncSettingsPanel() {
                         text-xs
                         text-gray-500
                     ">
-                        {activeTab === "machining" ? "Bearbeitungsparameter" : "Maschinenadapter und Schnittstellen"}
+                        {activeTab === "machining" ? "Bearbeitungsparameter" : activeTab === "postprocessors" ? "Maschinenadapter und Schnittstellen" : "PID-basierte Bauteiletiketten"}
                     </div>
 
                 </div>
@@ -532,7 +541,7 @@ export default function CncSettingsPanel() {
 
             <nav aria-label="CNC-Einstellungsbereiche" className="shrink-0 border-b border-gray-700 bg-gray-900">
                 <div className="flex h-12 items-end gap-1 overflow-x-auto px-4">
-                    {[["machining", "Bearbeitungsparameter"], ["postprocessors", "Postprozessor"]].map(([id, label]) => (
+                    {[["machining", "Bearbeitungsparameter"], ["postprocessors", "Postprozessor"], ["eticket", "Etiketten"]].map(([id, label]) => (
                         <button
                             key={id}
                             type="button"
@@ -755,7 +764,7 @@ export default function CncSettingsPanel() {
 
                 </main>
 
-            </div> : (
+            </div> : activeTab === "postprocessors" ? (
                 <PostprocessorSettings
                     postprocessors={postprocessors}
                     activePostprocessor={activePostprocessor}
@@ -769,6 +778,8 @@ export default function CncSettingsPanel() {
                     updateConfiguration={updatePostprocessorConfiguration}
                     removePostprocessor={removePostprocessor}
                 />
+            ) : (
+                <EticketSettingsPanel settings={eticket} onChange={setEticket} onSave={saveSettings} />
             )}
 
         </div>

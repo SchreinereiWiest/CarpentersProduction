@@ -136,6 +136,7 @@ describe("Projekt-PDF CNC-Kompaktansicht", () => {
         const programs = getCncPrograms([{ PID: "K-1", Objektname: "Korpus", Plattentyp: "KO", Children: [part] }]);
         const graphic = createCncProgramSvg(programs[0]);
         const smallerGraphic = createCncProgramSvg({ L: 300, B: 200, CNC: { operations: [{ type: "BO", x: 20, y: 20 }] } });
+        const printGraphic = createCncProgramSvg(programs[0], { showDimensions: false });
 
         expect(programs).toHaveLength(1);
         expect(graphic.svg).toContain('fill="#fff"');
@@ -146,6 +147,28 @@ describe("Projekt-PDF CNC-Kompaktansicht", () => {
         expect(graphic.svg).toContain('font-size="42"');
         expect(smallerGraphic.svg).toContain('font-size="42"');
         expect(graphic.svg).toContain('dominant-baseline="middle"');
+        expect(printGraphic.svg).not.toContain("720 mm");
+        expect(printGraphic.svg).not.toContain("560 mm");
+        expect(printGraphic.svg).toContain('viewBox="0 0 720 560"');
+    });
+
+    it("rendert alle neutralen Bohrungs- und Lochreihenoperationen", () => {
+        const graphic = createCncProgramSvg({
+            L: 500,
+            B: 300,
+            CNC: {
+                operations: [
+                    { kind: "drill.point", intentId: "manual.drilling", x: 20, y: 20, diameter: 5 },
+                    { kind: "drill.pattern", intentId: "manual.drilling", x: 50, y: 40, columns: 2, rows: 2, stepX: 32, stepY: 32, count: 4, diameter: 5 },
+                    { kind: "drill.linearPattern", intentId: "manual.drilling", x: 120, y: 30, count: 3, spacing: 32, diameter: 5 },
+                    { kind: "drill.row", intentId: "manual.drilling", axis: "x", start: 10, end: 74, spacing: 32, crossPositions: [150, 250], diameter: 5 },
+                    { kind: "drill.edgePattern", intentId: "manual.drilling", edge: "right", positions: [60, 180], depth: 12, diameter: 8 }
+                ]
+            }
+        }, { showDimensions: false });
+
+        expect(graphic.svg.match(/<circle/g)).toHaveLength(16);
+        expect(graphic.svg).toContain('x1="500" y1="60" x2="488" y2="60"');
     });
 });
 

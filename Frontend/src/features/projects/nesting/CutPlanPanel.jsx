@@ -49,16 +49,19 @@ export default function CutPlanPanel({ sheet, activeStripId, onSelectStrip }) {
       )}
 
       <div className="mt-2 max-h-[34vh] space-y-1 overflow-y-auto pr-1 [scrollbar-width:thin]">
-        {plan.cuts.map((cut) => (
+        {plan.cuts.map((cut) => {
+          const isActive = cut.stripId != null && String(cut.stripId) === String(activeStripId);
+          return <div key={`${cut.number}-${cut.direction}-${cut.position}`} className="group relative overflow-hidden rounded-md">
           <button
             type="button"
-            key={`${cut.number}-${cut.direction}-${cut.position}`}
             disabled={cut.stripId == null}
-            aria-pressed={cut.stripId != null && String(cut.stripId) === String(activeStripId)}
+            aria-label={`${cut.directionLabel}: ${cut.direction === "vertical" ? "X" : "Y"} ${number(cut.position)} mm, Schnitt ${number(cut.length)} mm${cut.stripId != null ? `, Strip ${cut.stripId} auswählen` : ", kein Strip zugeordnet"}`}
+            aria-pressed={isActive}
             onClick={() => cut.stripId != null && onSelectStrip?.(cut.stripId)}
-            className={`grid w-full grid-cols-[24px_1fr] gap-2 rounded-md border px-2 py-2 text-left transition ${cut.stripId != null && String(cut.stripId) === String(activeStripId) ? "border-blue-400 bg-blue-950/80 ring-1 ring-blue-500/40" : "border-gray-700/80 bg-gray-950/70 hover:border-gray-500 hover:bg-gray-900"} disabled:cursor-default disabled:opacity-70`}
+            className={`absolute inset-0 h-full w-full rounded-md border text-left transition ${isActive ? "border-blue-500/40 bg-blue-950/80 ring-1 ring-inset ring-blue-500/40" : "border-gray-700/80 bg-gray-950/70 hover:bg-gray-900"} disabled:cursor-default disabled:opacity-70`}
             title={cut.stripId == null ? "Kein Strip zugeordnet" : `Strip ${cut.stripId} auswählen`}
-          >
+          />
+          <div className="pointer-events-none relative grid w-full grid-cols-[24px_1fr] gap-2 px-2 py-2 text-left">
             <span className="flex size-6 items-center justify-center rounded-full bg-white text-[10px] font-bold text-gray-950">
               {cut.number}
             </span>
@@ -75,8 +78,9 @@ export default function CutPlanPanel({ sheet, activeStripId, onSelectStrip }) {
                 {cut.direction === "vertical" ? "X" : "Y"} {number(cut.position)} mm · Schnitt {number(cut.length)} mm
               </p>
             </div>
-          </button>
-        ))}
+          </div>
+          </div>;
+        })}
         {!plan.cuts.length && (
           <div className="rounded-md border border-dashed border-gray-700 px-3 py-4 text-center text-[10px] leading-relaxed text-gray-500">
             Für diese Platte sind noch keine Schnitte vorhanden.

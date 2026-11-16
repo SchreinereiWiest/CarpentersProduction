@@ -5,6 +5,7 @@ import {
   EXPOSE_LANDSCAPE_WIDTH,
   getExposeCoverText,
   getExposeBlockLayout,
+  getCabinetImageLayouts,
   getVisualTemplateLayouts,
   normalizeExposeTemplateId
 } from "@EngineBrowser/project-pdf/exposeLayout.js";
@@ -985,7 +986,6 @@ function CabinetPage({ page, expose, project, materials, pageNumber }) {
       {page.templateId === "info-horizontal" && <div className="absolute left-[4%] right-[4%] top-[70.5%] h-[0.7%] rounded-full bg-[#e4ddd1]" />}
       <div className="absolute grid grid-cols-2 gap-[1%]" style={contentStyle}>
         {page.cabinets.map((cabinet, index) => {
-          const graphic = createCabinetSvg(cabinet);
           const information = getCabinetInformation(cabinet, materials);
           const functions = getCabinetFunctionLines(cabinet);
           return (
@@ -995,7 +995,7 @@ function CabinetPage({ page, expose, project, materials, pageNumber }) {
                 <p className="truncate text-[1.25cqw] font-semibold">{cabinet.name || `Korpus ${index + 1}`}</p>
               </div>
               <div className="grid h-[87%] grid-cols-[42%_1fr] gap-[3%] p-[3%]">
-                <img src={svgDataUrl(graphic.svg)} alt="" className="h-full w-full object-contain" />
+                <div aria-hidden="true" />
                 <div className="flex min-h-0 min-w-0 flex-col">
                   <div className="grid grid-cols-2 gap-x-[4%] gap-y-[2%]">
                     {information.map(([label, value]) => (
@@ -1022,6 +1022,67 @@ function CabinetPage({ page, expose, project, materials, pageNumber }) {
   );
 }
 
+function CncProgramGraphic({ program }) {
+  const plotRef = useRef(null);
+  const [plotSize, setPlotSize] = useState({ width: 0, height: 0 });
+  const graphic = useMemo(
+    () => createCncProgramSvg(program, { showDimensions: false }),
+    [program]
+  );
+
+  useEffect(() => {
+    const element = plotRef.current;
+    if (!element) return undefined;
+    const updateSize = () => setPlotSize({ width: element.clientWidth, height: element.clientHeight });
+    updateSize();
+    if (typeof globalThis.ResizeObserver !== "function") {
+      globalThis.addEventListener?.("resize", updateSize);
+      return () => globalThis.removeEventListener?.("resize", updateSize);
+    }
+    const observer = new globalThis.ResizeObserver(updateSize);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  const sourceWidth = Math.max(1, Number(program.part.L) || graphic.width || 1);
+  const sourceHeight = Math.max(1, Number(program.part.B) || graphic.height || 1);
+  const scale = plotSize.width > 0 && plotSize.height > 0
+    ? Math.min(plotSize.width / sourceWidth, plotSize.height / sourceHeight)
+    : 0;
+  const fitted = scale > 0
+    ? {
+        x: (plotSize.width - sourceWidth * scale) / 2,
+        y: (plotSize.height - sourceHeight * scale) / 2,
+        width: sourceWidth * scale,
+        height: sourceHeight * scale
+      }
+    : null;
+
+  return (
+    <div className="relative mt-[0.5%] min-h-0 flex-1">
+      <div ref={plotRef} className="absolute bottom-[2.8cqw] left-[3cqw] right-[0.5cqw] top-[0.3cqw]">
+        {fitted ? (
+          <>
+            <img src={svgDataUrl(graphic.svg)} alt="" className="absolute select-none" style={{ left: fitted.x, top: fitted.y, width: fitted.width, height: fitted.height }} />
+            <div className="absolute border-t border-[#17242b]" style={{ left: fitted.x, top: `calc(${fitted.y + fitted.height}px + 0.4cqw)`, width: fitted.width }}>
+              <span className="absolute -top-[0.35cqw] left-0 h-[0.7cqw] border-l border-[#17242b]" />
+              <span className="absolute -top-[0.35cqw] right-0 h-[0.7cqw] border-r border-[#17242b]" />
+            </div>
+            <span className="absolute whitespace-nowrap text-[0.62cqw] font-semibold text-[#17242b]" style={{ left: fitted.x + fitted.width / 2, top: `calc(${fitted.y + fitted.height}px + 0.75cqw)`, transform: "translateX(-50%)" }}>{program.part.L} mm</span>
+            <div className="absolute border-l border-[#17242b]" style={{ left: `calc(${fitted.x}px - 0.45cqw)`, top: fitted.y, height: fitted.height }}>
+              <span className="absolute -left-[0.35cqw] top-0 w-[0.7cqw] border-t border-[#17242b]" />
+              <span className="absolute -left-[0.35cqw] bottom-0 w-[0.7cqw] border-b border-[#17242b]" />
+            </div>
+            <span className="absolute whitespace-nowrap text-[0.62cqw] font-semibold text-[#17242b]" style={{ left: `calc(${fitted.x}px - 1.15cqw)`, top: fitted.y + fitted.height / 2, transform: "translate(-50%, -50%) rotate(-90deg)" }}>{program.part.B} mm</span>
+          </>
+        ) : (
+          <img src={svgDataUrl(graphic.svg)} alt="" className="h-full w-full object-contain" />
+        )}
+      </div>
+    </div>
+  );
+}
+
 function CncPage({ page, expose, project, pageNumber }) {
   const minimalTemplate = page.templateId === "minimal";
   const columns = page.programs.length <= 2 ? page.programs.length || 1 : 2;
@@ -1039,14 +1100,13 @@ function CncPage({ page, expose, project, pageNumber }) {
       {page.templateId === "info-horizontal" && <div className="absolute left-[4%] right-[4%] top-[70.5%] h-[0.7%] rounded-full bg-[#e4ddd1]" />}
       <div className="absolute grid gap-[0.7%]" style={{ ...contentStyle, gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
         {page.programs.map((program) => {
-          const graphic = createCncProgramSvg(program);
           return (
             <div key={program.id} className={`flex min-h-0 flex-col overflow-hidden rounded-sm border-[0.5px] border-[#ddd9d2] bg-white p-[1.2%] ${page.templateId === "minimal" ? "" : "shadow-[inset_0_2px_0_#d3a17c]"}`}>
               <div className="flex items-start justify-between gap-[3%]">
                 <div className="min-w-0"><p className="truncate text-[0.85cqw] font-semibold">{program.label}</p><p className="mt-[1%] truncate text-[0.55cqw] text-[#758188]">{program.cabinetNames.join(", ") || "CNC-Programm"}</p></div>
                 <span className="shrink-0 rounded bg-[#f1ede6] px-[2%] py-[1%] text-[0.5cqw] font-semibold text-[#78563f]">{program.quantity}×</span>
               </div>
-              <img src={svgDataUrl(graphic.svg)} alt="" className="mt-[0.5%] min-h-0 flex-1 object-contain" />
+              <CncProgramGraphic program={program} />
               <p className="mt-[1%] text-center text-[0.8cqw] font-semibold text-[#4f5f67]">{program.part.L} × {program.part.B} × {program.part.D ?? program.part.Staerke ?? "–"} mm · {(program.part.CNC?.operations ?? []).length} Bearbeitungen</p>
             </div>
           );
@@ -1147,6 +1207,23 @@ function GeneratedPageEditor(props) {
     snapTolerance,
     onCreate: onCreateCustomBlock
   });
+  const cabinetBlocks = page.kind === "cabinet"
+    ? page.cabinets.map((cabinet, index) => ({
+        id: `cabinetImage:${index}`,
+        label: `Korpusansicht ${index + 1}`,
+        type: "cabinet-view",
+        cabinet
+      }))
+    : [];
+  const cabinetFallbacks = getCabinetImageLayouts(page.templateId, cabinetBlocks.length);
+  const cabinetLayouts = cabinetBlocks.map((block, index) => ({
+    id: block.id,
+    ...getExposeBlockLayout(expose, page.id, block.id, cabinetFallbacks[index])
+  }));
+  const allLayouts = [
+    ...cabinetLayouts,
+    ...customBlocksForPage(expose, page.id).map((block) => ({ id: block.id, ...block.layout }))
+  ];
 
   return (
     <div
@@ -1156,6 +1233,30 @@ function GeneratedPageEditor(props) {
       {...drawingProps}
     >
       <div className="absolute inset-0">{children}</div>
+      {cabinetBlocks.map((block, index) => {
+        const layout = cabinetLayouts[index];
+        const graphic = createCabinetSvg(block.cabinet);
+        return (
+          <EditableBlock
+            key={block.id}
+            page={page}
+            block={block}
+            layout={layout}
+            allLayouts={allLayouts}
+            selected={editable && selectedBlockId === block.id}
+            readOnly={!editable || readOnly}
+            snapTolerance={snapTolerance}
+            pageRef={pageRef}
+            onSelect={setSelectedBlockId}
+            onLayoutChange={(next) => onLayoutChange(block.id, next)}
+            onGuidesChange={setGuides}
+          >
+            <div className="h-full w-full bg-white">
+              <img src={svgDataUrl(graphic.svg)} alt={block.label} draggable="false" className="h-full w-full select-none object-contain" />
+            </div>
+          </EditableBlock>
+        );
+      })}
       <CustomBlocks
         page={page}
         expose={expose}
@@ -1167,7 +1268,7 @@ function GeneratedPageEditor(props) {
         readOnly={readOnly}
         snapTolerance={snapTolerance}
         pageRef={pageRef}
-        baseLayouts={[]}
+        baseLayouts={cabinetLayouts}
         onLayoutChange={onLayoutChange}
         onTextChange={onTextChange}
         onGuidesChange={setGuides}
@@ -1697,7 +1798,15 @@ export default function ExposeView({
           title: { id: "title", label: "Seitentitel", type: "text", defaultFontSize: VISUAL_TEXT_FONT_SIZES.title, fallback: getVisualTemplateLayouts(activePage.templateId).title },
           body: { id: "body", label: "Begleittext", type: "text", defaultFontSize: VISUAL_TEXT_FONT_SIZES.body, fallback: getVisualTemplateLayouts(activePage.templateId).body }
         }[selectedBlockId]
-      : null;
+      : activePage?.kind === "cabinet"
+        ? activePage.cabinets.map((cabinet, index) => ({
+            id: `cabinetImage:${index}`,
+            label: `Korpusansicht ${index + 1}`,
+            type: "cabinet-view",
+            fallback: getCabinetImageLayouts(activePage.templateId, activePage.cabinets.length)[index],
+            cabinet
+          })).find((block) => block.id === selectedBlockId) ?? null
+        : null;
   const blockDefinition = selectedCustomBlock
     ? {
         id: selectedCustomBlock.id,

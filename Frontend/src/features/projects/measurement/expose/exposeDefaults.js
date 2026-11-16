@@ -19,7 +19,7 @@ export const DEFAULT_EXPOSE = {
     cabinetIntro:
       "Korpusblätter mit Außenmaßen, Material, Konstruktion und Funktionen.",
     nestingIntro:
-      "Nesting in Schwarz-Weiß mit nummerierter Schnittfolge, Schnittmaß und Schnittrichtung.",
+      "Nesting Verschnittoptimierung",
     footerNote: "Projektunterlagen · nur gültig mit aktuellem Datenstand"
   },
   sections: {

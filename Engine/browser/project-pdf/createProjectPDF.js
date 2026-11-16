@@ -11,6 +11,7 @@ import { paginateNestingCuts } from "../../src/nesting/cutPlan.js";
 import { createCncProgramSvg, getCncPrograms } from "./cncProgramSvgRenderer.js";
 import {
     COVER_BLOCK_LAYOUTS,
+    getCabinetImageLayouts,
     getExposeCoverText,
     getExposeBlockLayout,
     getVisualTemplateLayouts,
@@ -43,7 +44,7 @@ const DEFAULT_EXPOSE = {
         measurementHeading: "Aufmaß & Planung",
         measurementBody: "Technische Ansichten aus dem Aufmaß. Verbindlich sind die eingetragenen Maße und die freigegebenen Fertigungsunterlagen.",
         cabinetIntro: "Korpusblätter mit Außenmaßen, Material, Konstruktion und Funktionen.",
-        nestingIntro: "Nesting in Schwarz-Weiß mit nummerierter Schnittfolge, Schnittmaß und Schnittrichtung.",
+        nestingIntro: "Nesting / Verschnittoptimierung",
         footerNote: "Projektunterlagen · nur gültig mit aktuellem Datenstand"
     },
     sections: {
@@ -490,7 +491,7 @@ const drawWrappedLines = (doc, lines, x, startY, width, maxY) => {
     });
 };
 
-const drawCabinetCard = async (doc, cabinet, index, x, y, width, height, context) => {
+const drawCabinetCard = async (doc, cabinet, index, x, y, width, height, context, drawingBox) => {
     doc.setFillColor(250, 249, 246);
     doc.setDrawColor(202, 202, 197);
     doc.roundedRect(x, y, width, height, 1.5, 1.5, "FD");
@@ -508,18 +509,7 @@ const drawCabinetCard = async (doc, cabinet, index, x, y, width, height, context
     const svg = createCabinetSvg(cabinet, { cncConfig: context.cncConfig });
     const targetPixels = fitWithin(svg.width, svg.height, 800, 1050);
     const raster = await rasterizeSvg(svg.svg, { width: targetPixels.width, height: targetPixels.height });
-    const drawingBox = { x: x + 4, y: y + 20, width: 58, height: height - 26 };
     const fitted = fitWithin(svg.width, svg.height, drawingBox.width, drawingBox.height);
-    doc.addImage(
-        raster.dataUrl,
-        "PNG",
-        drawingBox.x + (drawingBox.width - fitted.width) / 2,
-        drawingBox.y + (drawingBox.height - fitted.height) / 2,
-        fitted.width,
-        fitted.height,
-        undefined,
-        "FAST"
-    );
 
     const information = getCabinetInformation(cabinet, context.materials)
         .map(([label, value]) => `${label.toUpperCase()}\n${value}`);
@@ -541,6 +531,16 @@ const drawCabinetCard = async (doc, cabinet, index, x, y, width, height, context
         width - 77,
         y + height - 8
     );
+    doc.addImage(
+        raster.dataUrl,
+        "PNG",
+        drawingBox.x + (drawingBox.width - fitted.width) / 2,
+        drawingBox.y + (drawingBox.height - fitted.height) / 2,
+        fitted.width,
+        fitted.height,
+        undefined,
+        "FAST"
+    );
 };
 
 const addCabinetPages = async (doc, cabinets, context) => {
@@ -555,6 +555,7 @@ const addCabinetPages = async (doc, cabinets, context) => {
         const cardGap = 3;
         const cardWidth = (area.width - cardGap) / 2;
         const cardHeight = area.height;
+        const cabinetImageFallbacks = getCabinetImageLayouts(templateId, Math.min(2, cabinets.length - index));
         doc.addPage("a4", "landscape");
         context.renderedPageIds?.push(pageId);
         drawSectionHeader(
@@ -573,9 +574,29 @@ const addCabinetPages = async (doc, cabinets, context) => {
             doc.setFillColor(228, 221, 209);
             doc.roundedRect(12, 143, 273, 2.2, 1, 1, "F");
         }
-        await drawCabinetCard(doc, cabinets[index], index, area.x, area.y, cardWidth, cardHeight, context);
+        await drawCabinetCard(
+            doc,
+            cabinets[index],
+            index,
+            area.x,
+            area.y,
+            cardWidth,
+            cardHeight,
+            context,
+            getExposeBlockLayout(context.expose, pageId, "cabinetImage:0", cabinetImageFallbacks[0])
+        );
         if (cabinets[index + 1]) {
-            await drawCabinetCard(doc, cabinets[index + 1], index + 1, area.x + cardWidth + cardGap, area.y, cardWidth, cardHeight, context);
+            await drawCabinetCard(
+                doc,
+                cabinets[index + 1],
+                index + 1,
+                area.x + cardWidth + cardGap,
+                area.y,
+                cardWidth,
+                cardHeight,
+                context,
+                getExposeBlockLayout(context.expose, pageId, "cabinetImage:1", cabinetImageFallbacks[1])
+            );
         }
         await drawCustomBlocks(doc, context.expose, pageId, context);
         await context.afterPage?.(pageId);
@@ -715,12 +736,48 @@ const addCncPages = async (doc, partList, context) => {
             doc.setFontSize(4.8);
             doc.setTextColor(102, 112, 117);
             doc.text(`${program.cabinetNames.join(", ") || "CNC-Programm"} · ${program.quantity}×`, x + 4, y + 12);
-            const graphic = createCncProgramSvg(program);
+            const graphic = createCncProgramSvg(program, { showDimensions: false });
             const targetPixels = fitWithin(graphic.width, graphic.height, 1000, 700);
             const raster = await rasterizeSvg(graphic.svg, { width: targetPixels.width, height: targetPixels.height });
             const imageBox = { x: x + 1.5, y: y + 13, width: cardWidth - 3, height: cardHeight - 20 };
-            const fitted = fitWithin(graphic.width, graphic.height, imageBox.width, imageBox.height);
-            doc.addImage(raster.dataUrl, "PNG", imageBox.x + (imageBox.width - fitted.width) / 2, imageBox.y + (imageBox.height - fitted.height) / 2, fitted.width, fitted.height, undefined, "FAST");
+            const dimensionSpace = { left: 10, bottom: 9, top: 1, right: 1 };
+            const drawingArea = {
+                x: imageBox.x + dimensionSpace.left,
+                y: imageBox.y + dimensionSpace.top,
+                width: Math.max(1, imageBox.width - dimensionSpace.left - dimensionSpace.right),
+                height: Math.max(1, imageBox.height - dimensionSpace.top - dimensionSpace.bottom)
+            };
+            const fitted = fitWithin(graphic.width, graphic.height, drawingArea.width, drawingArea.height);
+            const drawingX = drawingArea.x + (drawingArea.width - fitted.width) / 2;
+            const drawingY = drawingArea.y + (drawingArea.height - fitted.height) / 2;
+            doc.addImage(raster.dataUrl, "PNG", drawingX, drawingY, fitted.width, fitted.height, undefined, "FAST");
+
+            // Draw dimensions in PDF units after scaling the program graphic.
+            // Their line width, offsets and font size therefore stay identical
+            // across programs with very different aspect ratios.
+            const bottomDimensionY = drawingY + fitted.height + 2.4;
+            // Match the compact lateral spacing used by the live editor.
+            // Keeping this close to the part also prevents the vertical
+            // dimension from appearing detached on narrow CNC programs.
+            const leftDimensionX = drawingX - 1.4;
+            doc.setDrawColor(23, 36, 43);
+            doc.setLineWidth(0.28);
+            doc.line(drawingX, bottomDimensionY, drawingX + fitted.width, bottomDimensionY);
+            doc.line(drawingX, bottomDimensionY - 1.5, drawingX, bottomDimensionY + 1.5);
+            doc.line(drawingX + fitted.width, bottomDimensionY - 1.5, drawingX + fitted.width, bottomDimensionY + 1.5);
+            doc.line(leftDimensionX, drawingY, leftDimensionX, drawingY + fitted.height);
+            doc.line(leftDimensionX - 1.5, drawingY, leftDimensionX + 1.5, drawingY);
+            doc.line(leftDimensionX - 1.5, drawingY + fitted.height, leftDimensionX + 1.5, drawingY + fitted.height);
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(6.2);
+            doc.setTextColor(23, 36, 43);
+            doc.text(`${formatNumber(program.part.L)} mm`, drawingX + fitted.width / 2, bottomDimensionY + 3.2, { align: "center" });
+            const verticalDimensionText = `${formatNumber(program.part.B)} mm`;
+            const verticalDimensionTextWidth = doc.getTextWidth(verticalDimensionText);
+            doc.text(verticalDimensionText, leftDimensionX - 1.4, drawingY + fitted.height / 2 + verticalDimensionTextWidth / 2, {
+                angle: 90,
+                baseline: "middle"
+            });
             doc.setFont("helvetica", "bold");
             doc.setFontSize(6.2);
             doc.setTextColor(72, 87, 95);

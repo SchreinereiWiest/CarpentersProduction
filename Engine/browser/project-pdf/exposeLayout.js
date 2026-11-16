@@ -59,6 +59,23 @@ export function getVisualTemplateLayouts(templateId) {
   return VISUAL_BLOCK_LAYOUTS;
 }
 
+export function getCabinetImageLayouts(templateId, count = 2) {
+  const template = normalizeExposeTemplateId(templateId, EXPOSE_TEMPLATE_IDS.CABINET_STANDARD);
+  const area = template === EXPOSE_TEMPLATE_IDS.INFO
+    ? { x: 12, y: 36, width: 205, height: 159 }
+    : template === EXPOSE_TEMPLATE_IDS.INFO_HORIZONTAL
+      ? { x: 12, y: 36, width: 273, height: 103 }
+      : { x: 12, y: 36, width: 273, height: 159 };
+  const gap = 3;
+  const cardWidth = (area.width - gap) / 2;
+  return Array.from({ length: Math.min(2, Math.max(0, count)) }, (_, index) => ({
+    x: area.x + index * (cardWidth + gap) + 4,
+    y: area.y + 20,
+    width: 58,
+    height: Math.max(12, area.height - 26)
+  }));
+}
+
 const finite = (value, fallback) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;

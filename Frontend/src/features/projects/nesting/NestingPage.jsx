@@ -1,14 +1,10 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import SideBar from '../../../shared/components/sideBar.jsx';
 import axios from 'axios';
-import { useNavigate } from 'react-router';
 import { useParams } from 'react-router';
 import { useEffect } from "react";
-import { Link } from "react-router";
 import ProjectBar from '../../../shared/components/projectBar.jsx';
 import MobileWorkspaceGuard from '../../../shared/components/MobileWorkspaceGuard.jsx';
-import { loadCadFile } from '../measurement/import/cadLoader.js';
-import { processContent } from '../part-list/listProcess.js';
 import { calculateNesting } from '@Engine/nesting/nestingAlgorythm.js';
 import { findStorageMaterial } from '@Engine/nesting/helper/parseStorageMaterial.js';
 import NestingScene from './nestingscene.jsx';
@@ -26,11 +22,8 @@ import {
     saveStripPositions
 } from '@Engine/nesting/placement/rebuildStripPositions.js';
 import NestingSettingsModal from "./nestingSettingsModal.jsx"
-import { TOUCH } from "three";
-
-import { Canvas, useThree } from '@react-three/fiber'
-import { OrbitControls } from '@react-three/drei'
 import {getProjectFile, uploadProjectFile} from "../../../shared/cache/project-cache.js";
+import { getGlobalFile } from "../../../shared/cache/global-cache.js";
 import {downloadFile, uploadJSONFile} from "../../../shared/api/file-api.js";
 import { calculateEdgeRequirements } from "@Engine/nesting/edge-requirements.js";
 import { CALCULATION_SOURCES } from "@Engine/contracts/project/calculation-source.js";
@@ -40,6 +33,10 @@ import {
 } from "./recalculateMaterial.js";
 import { getProjectRecord } from "../../../shared/projects/project-records.js";
 import CutPlanPanel from "./CutPlanPanel.jsx";
+import EticketPrintDialog from "./EticketPrintDialog.jsx";
+import { createNestingEticketData } from "./eticketData.js";
+import { DEFAULT_ETICKET_SETTINGS, normalizeEticketSettings } from "@Engine/eticket/index.js";
+import { migrateNestingPartIdentities } from "@Engine/nesting/partIdentity.js";
 
 const RECALCULATE_LONG_PRESS_MS = 650;
 
@@ -48,118 +45,16 @@ const edgeLengthFormatter = new Intl.NumberFormat("de-DE", {
     maximumFractionDigits: 2
 });
 
-function HorizontalPanControls({ controlsRef }) {
-    const { camera, gl } = useThree();
-    const touchPan = useRef(null);
-
-    // Verschiebt Kamera und Ziel ausschließlich entlang der X-Achse.
-    const panByPixels = useCallback((deltaX) => {
-        const controls = controlsRef.current;
-        if (!controls || !gl.domElement.clientWidth) return;
-
-        const visibleWorldWidth = (camera.right - camera.left) / camera.zoom;
-        const cameraDeltaX = -deltaX * visibleWorldWidth / gl.domElement.clientWidth;
-        controls.target.x += cameraDeltaX;
-        camera.position.x += cameraDeltaX;
-        controls.update();
-    }, [camera, controlsRef, gl]);
-
-    // Ctrl + Mausziehen wird vor den R3F-Drag-Handlern als horizontales Pan verarbeitet.
-    useEffect(() => {
-        const element = gl.domElement;
-        let mousePan = null;
-
-        const handlePointerDown = (event) => {
-            if (event.pointerType !== "mouse" || event.button !== 0 || !event.ctrlKey) return;
-
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            mousePan = { pointerId: event.pointerId, lastX: event.clientX };
-            element.setPointerCapture?.(event.pointerId);
-        };
-
-        const handlePointerMove = (event) => {
-            if (!mousePan || mousePan.pointerId !== event.pointerId) return;
-
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            panByPixels(event.clientX - mousePan.lastX);
-            mousePan.lastX = event.clientX;
-        };
-
-        const finishMousePan = (event) => {
-            if (!mousePan || mousePan.pointerId !== event.pointerId) return;
-
-            event.preventDefault();
-            element.releasePointerCapture?.(event.pointerId);
-            mousePan = null;
-        };
-
-        element.addEventListener("pointerdown", handlePointerDown, true);
-        element.addEventListener("pointermove", handlePointerMove, true);
-        element.addEventListener("pointerup", finishMousePan, true);
-        element.addEventListener("pointercancel", finishMousePan, true);
-
-        return () => {
-            element.removeEventListener("pointerdown", handlePointerDown, true);
-            element.removeEventListener("pointermove", handlePointerMove, true);
-            element.removeEventListener("pointerup", finishMousePan, true);
-            element.removeEventListener("pointercancel", finishMousePan, true);
-        };
-    }, [gl, panByPixels]);
-
-    // Touch-Pan beginnt auf der leeren Hintergrundfläche, damit Strip-Touches Drag bleiben.
-    const startTouchPan = (event) => {
-        const nativeEvent = event.nativeEvent;
-        if (nativeEvent.pointerType !== "touch") return;
-        event.stopPropagation();
-        if (!nativeEvent.isPrimary) return;
-
-        touchPan.current = { pointerId: nativeEvent.pointerId, lastX: nativeEvent.clientX };
-        event.target.setPointerCapture?.(nativeEvent.pointerId);
-    };
-
-    const moveTouchPan = (event) => {
-        const nativeEvent = event.nativeEvent;
-        if (!touchPan.current || touchPan.current.pointerId !== nativeEvent.pointerId) return;
-
-        event.stopPropagation();
-        panByPixels(nativeEvent.clientX - touchPan.current.lastX);
-        touchPan.current.lastX = nativeEvent.clientX;
-    };
-
-    const finishTouchPan = (event) => {
-        const nativeEvent = event.nativeEvent;
-        if (!touchPan.current || touchPan.current.pointerId !== nativeEvent.pointerId) return;
-
-        event.stopPropagation();
-        event.target.releasePointerCapture?.(nativeEvent.pointerId);
-        touchPan.current = null;
-    };
-
-    return (
-        <mesh
-            position={[0, 0, -50]}
-            onPointerDown={startTouchPan}
-            onPointerMove={moveTouchPan}
-            onPointerUp={finishTouchPan}
-            onPointerCancel={finishTouchPan}
-        >
-            <planeGeometry args={[100000, 100000]} />
-            <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-        </mesh>
-    );
-}
-
 function NestingView() {
-    const navigate = useNavigate();
     const { projectId } = useParams();
 
     const [customer, setCustomer] = useState(null);
+    const [project, setProject] = useState(null);
+    const [cncSettings, setCncSettings] = useState(() => ({
+        eticket: { ...normalizeEticketSettings(DEFAULT_ETICKET_SETTINGS), printerConfigured: false }
+    }));
 
-    const [cadfiles, setcadfiles] = useState([]);
     const [content, setContent] = useState([]);
-    const [processedContent, setProcessedContent] = useState();
     const [storageMaterials, setStorageMaterials] = useState([]);
 
     const [nestingResult, setNestingResult] = useState();
@@ -170,7 +65,6 @@ function NestingView() {
     const [settings, setSettings] = useState([defaultSettings]);
     const [showSettings, setShowSettings] = useState(false);
     const [rebuildOnRemove, setRebuildOnRemove] = useState(true);
-    const orbitControlsRef = useRef(null);
     const recalculatePressTimerRef = useRef(null);
     const longRecalculationTriggeredRef = useRef(false);
 
@@ -209,8 +103,6 @@ function NestingView() {
 
                 // Datei existiert bereits
                 if (data) {
-                    setProcessedContent(data);                       
-
                     return data;
                 }
 
@@ -401,6 +293,7 @@ function NestingView() {
     useEffect(() => {
         const fetchProject = async () => {
             const project = await getProjectRecord(projectId);
+            setProject(project);
             if (project.customer) {
                 setCustomer(project.customer);
             } else if (project.customerId) {
@@ -413,6 +306,28 @@ function NestingView() {
         };
 
         fetchProject();
+    }, [projectId]);
+
+    useEffect(() => {
+        if (!projectId) return;
+        Promise.allSettled([
+            getGlobalFile({
+                file: "settings-cnc.json",
+                loadFromServer: { download: downloadFile, path: "/api/settings/cnc" }
+            }),
+            axios.get("/api/etickets/settings")
+        ]).then(([cncResult, eticketResult]) => {
+            const data = cncResult.status === "fulfilled" ? cncResult.value : null;
+            const publicEticket = eticketResult.status === "fulfilled" ? eticketResult.value.data : null;
+            const source = publicEticket ?? data?.eticket ?? DEFAULT_ETICKET_SETTINGS;
+            setCncSettings({
+                ...(data ?? {}),
+                eticket: {
+                    ...normalizeEticketSettings(source),
+                    printerConfigured: publicEticket?.printerConfigured ?? Boolean(data?.eticket?.printer?.host)
+                }
+            });
+        });
     }, [projectId]);
 
     //fetch nesting json file
@@ -446,8 +361,9 @@ function NestingView() {
 
                 // Datei existiert bereits
                 if (data) {
+                    const migratedData = migrateNestingPartIdentities(data);
 
-                    data.forEach((sheet) => {
+                    migratedData.forEach((sheet) => {
                         const storageMaterial = findStorageMaterial(
                             sheet.MID,
                             sheet.T,
@@ -466,12 +382,12 @@ function NestingView() {
                         };
                     });
 
-                    setNestingResult(data);
+                    setNestingResult(migratedData);
 
                     setSettings(prev => {
                         const newSettings = [...prev];
 
-                        data.forEach((sheet, index) => {
+                        migratedData.forEach((sheet, index) => {
                             newSettings[index] = {
                                 ...defaultSettings,
                                 ...sheet.settings
@@ -532,12 +448,25 @@ function NestingView() {
     const isDirect2DNesting = activeSettingsForSheet.nestingMode === "2d";
 
     const [activeStrip, setActiveStrip] = useState(null);
+    const [activePartSelection, setActivePartSelection] = useState(null);
+    const [showEticket, setShowEticket] = useState(false);
     const [placementMessage, setPlacementMessage] = useState("");
     const activePoolStrip = activeSheet?.emptyStrips?.find(
         (strip) => strip.id === activeStrip?.id
     );
     const selectStrip = (strip) => {
         setActiveStrip(strip);
+        if (isDirect2DNesting && strip?.plates?.length === 1) {
+            setActivePartSelection({ strip, plate: strip.plates[0] });
+        } else if (!strip?.plates?.some(plate => String(plate.id) === String(activePartSelection?.plate?.id))) {
+            setActivePartSelection(null);
+        }
+        setPlacementMessage("");
+    };
+    const selectPart = ({ strip, plate }) => {
+        if (!strip || !plate) return;
+        setActiveStrip(strip);
+        setActivePartSelection({ strip, plate });
         setPlacementMessage("");
     };
     const selectStripById = (stripId) => {
@@ -547,6 +476,15 @@ function NestingView() {
         ].find(candidate => String(candidate.id) === String(stripId));
         if (strip) selectStrip(strip);
     };
+    const activeEticketData = activePartSelection?.plate?.original?.PID
+        ? createNestingEticketData({
+            projectId,
+            project,
+            customer,
+            plate: activePartSelection.plate,
+            productionPath: isDirect2DNesting ? "2d" : "1d"
+        })
+        : null;
 
     const removeStrip = (stripToRemove) => {
         setPlacementMessage("");
@@ -899,6 +837,8 @@ function NestingView() {
                                 isActive = index === activeSheetIndex; return ( <button key={index} onClick={()=> {
                                     setActiveSheetIndex(index);
                                     setActiveStrip(null);
+                                    setActivePartSelection(null);
+                                    setShowEticket(false);
                                     setPlacementMessage("");
                                 }} className={` flex items-center xl:gap-3 gap-2 xl:px-4 px-2 py-2
                                     rounded-lg border transition-all duration-200 whitespace-nowrap ${ isActive ?
@@ -954,8 +894,14 @@ function NestingView() {
                         <div className="text-gray-400 mb-1"><span className="xl:text-sm text-xs">{isDirect2DNesting ? "Aktives Bauteil" : "Aktiver Strip"}</span> <span className="ml-8 font-semibold text-white xl:text-l text-sm">{activeStrip.id}</span></div>
                         <div className="font-semibold text-white xl:text-lg text-sm"> {activeStrip.placedWidth} x {activeStrip.placedHeight} </div>
                         {activeStrip?.plates?.map((plate, index) => (
-                        <div className="flex gap-4 mt-2 xl:text-lm text-sm text-gray-500" key={plate.id}> <span> {plate.originalWidth} x {plate.originalHeight} | {plate.original.Objektname} </span> </div>
+                        <button type="button" onClick={() => selectPart({ strip: activeStrip, plate })} className={`block w-full rounded border px-2 py-1 text-left xl:text-lm text-sm ${String(activePartSelection?.plate?.id ?? "") === String(plate.id) ? "border-amber-300 bg-amber-400/10 text-amber-200" : "border-transparent text-gray-500 hover:border-gray-700 hover:text-gray-200"}`} key={plate.id}> {plate.originalWidth} × {plate.originalHeight} · PID {plate.original?.PID ?? "–"} · {plate.original?.Objektname} </button>
                         ))}
+                        {activeEticketData && (
+                            <button type="button" onClick={() => setShowEticket(true)} className="mt-3 w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-500">
+                                Eticket drucken
+                            </button>
+                        )}
+                        {!activeEticketData && !isDirect2DNesting && <p className="mt-3 text-[11px] leading-relaxed text-gray-500">Für den Etikettendruck zuerst ein Einzelbauteil im Strip oder im Schnittplan auswählen.</p>}
                         {!isDirect2DNesting && (
                             <div className="text-gray-500 xl:text-lm text-sm pt-1"> Rest: {activeStrip.remainingHeight} </div>
                         )}
@@ -1123,32 +1069,29 @@ function NestingView() {
                 )}
 
                 <div data-tour="project-nesting-canvas" className="absolute inset-0">
-                    <Canvas orthographic camera={{ zoom: 6, position: [0, 0, 2] }}>
-                        <group scale={[0.01,-0.01,0.01]} position={[-75, 9,0]}>
-                            <NestingScene result={activeSheet} setActiveStrip={selectStrip}
-                                activeStrip={activeStrip}
-                                settings={settings[activeSheetIndex] ?? defaultSettings}
-                                onRemoveStrip={removeStrip}
-                                onPlaceStrip={placePoolStrip}
-                                onInvalidPlacement={() => setPlacementMessage("Dort ist nicht genug freie Fläche für diesen Strip.")}/>
-                        </group>
-
-                        <OrbitControls
-    ref={orbitControlsRef}
-    enableRotate={false}
-    enablePan={false}
-    enableZoom={true}
-    touches={{
-        ONE: TOUCH.ROTATE,
-        TWO: TOUCH.DOLLY_PAN,
-    }}
-/>
-                        <HorizontalPanControls controlsRef={orbitControlsRef} />
-
-                    </Canvas>
+                    <NestingScene
+                        key={activeSheetIndex}
+                        result={activeSheet}
+                        setActiveStrip={selectStrip}
+                        activeStrip={activeStrip}
+                        onSelectPart={selectPart}
+                        settings={settings[activeSheetIndex] ?? defaultSettings}
+                        cncSettings={cncSettings}
+                        onRemoveStrip={removeStrip}
+                        onPlaceStrip={placePoolStrip}
+                        onInvalidPlacement={() => setPlacementMessage("Dort ist nicht genug freie Fläche für diesen Strip.")}
+                    />
 
                 </div>
             </div>
+
+            {showEticket && activeEticketData && (
+                <EticketPrintDialog
+                    ticket={activeEticketData}
+                    configuredSettings={cncSettings.eticket}
+                    onClose={() => setShowEticket(false)}
+                />
+            )}
 
     </main>
 

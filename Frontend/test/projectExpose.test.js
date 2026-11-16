@@ -4,6 +4,7 @@ import { normalizeExpose } from "../src/features/projects/measurement/expose/exp
 import { normalizeCompanySettings } from "../src/shared/settings/company-settings.js";
 import {
   COVER_BLOCK_LAYOUTS,
+  getCabinetImageLayouts,
   getExposeBlockLayout,
   getVisualTemplateLayouts,
   isExposePageEnabled,
@@ -122,6 +123,16 @@ describe("Projekt-Exposé", () => {
     expect(info.image.width).toBeLessThan(horizontal.image.width);
     expect(horizontal.image.height).toBeLessThan(minimal.image.height);
     expect(horizontal.body.y).toBeGreaterThan(horizontal.image.y + horizontal.image.height);
+  });
+
+  it("liefert editierbare Korpusgrafik-Bereiche passend zur Seitenvorlage", () => {
+    const standard = getCabinetImageLayouts("cabinet-standard", 2);
+    const horizontal = getCabinetImageLayouts("info-horizontal", 2);
+
+    expect(standard).toHaveLength(2);
+    expect(standard[0]).toEqual({ x: 16, y: 56, width: 58, height: 133 });
+    expect(standard[1].x).toBeGreaterThan(standard[0].x + standard[0].width);
+    expect(horizontal[0].height).toBeLessThan(standard[0].height);
   });
 
   it("übernimmt nur PNG- und JPG-Daten als Unternehmenslogo", () => {

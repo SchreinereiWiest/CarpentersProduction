@@ -29,5 +29,30 @@ describe("Nesting-Schnittplan", () => {
 
     expect(onSelectStrip).toHaveBeenCalledWith("strip-A");
     expect(screen.getByText(/strip-A/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Vertikal/ })).toHaveClass("absolute", "inset-0", "h-full", "w-full");
+  });
+
+  it("blendet die PID-Einzelteilanzeige im kompakten Schnittplan aus", () => {
+    const plate = { id: "part-1", original: { PID: "000042", Objektname: "Seite" } };
+    const strip = { id: "strip-A", plates: [plate] };
+    render(
+      <CutPlanPanel
+        sheet={{
+          MID: "U960",
+          settings: { cutGap: 4 },
+          strips: [strip],
+          nestingPlates: [{
+            placedWidth: 2800,
+            placedHeight: 2070,
+            cuts: [{ x: 600, y: 0, width: 4, height: 2070, stripId: "strip-A" }]
+          }]
+        }}
+        activeStripId={null}
+        onSelectStrip={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByText("PID 000042")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Einzelteile in Strip/)).not.toBeInTheDocument();
   });
 });

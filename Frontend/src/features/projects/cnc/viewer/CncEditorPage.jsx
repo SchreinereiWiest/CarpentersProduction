@@ -6,7 +6,8 @@ import {
 
 import {
     useNavigate,
-    useParams
+    useParams,
+    useSearchParams
 } from "react-router";
 
 import CncPartSidebar
@@ -73,6 +74,8 @@ export default function CncEditor() {
     } = useParams();
 
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const scannedPid = searchParams.get("pid");
 
 
     const [groups, setGroups] =
@@ -359,8 +362,9 @@ export default function CncEditor() {
                         grouped.length > 0
                     ) {
 
-                        const firstGroup =
-                            grouped[0];
+                        const firstGroup = scannedPid
+                            ? grouped.find(group => group.parts?.some(part => String(part.PID) === String(scannedPid))) ?? grouped[0]
+                            : grouped[0];
 
 
                         setSelectedGroupId(
@@ -376,7 +380,7 @@ export default function CncEditor() {
                         ) {
 
                             setSelectedPart(
-                                firstGroup.parts[0]
+                                firstGroup.parts.find(part => String(part.PID) === String(scannedPid)) ?? firstGroup.parts[0]
                             );
 
                         } else {
@@ -424,7 +428,8 @@ export default function CncEditor() {
         loadPartList();
 
     }, [
-        projectId
+        projectId,
+        scannedPid
     ]);
 
 
