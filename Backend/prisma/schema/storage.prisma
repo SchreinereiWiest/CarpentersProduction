@@ -114,10 +114,37 @@ model File {
   managementTransactions ManagementTransaction[]
   syncMutations          SyncMutation[]
   measurementScans       MeasurementScan[]
+  documentTemplate       DocumentTemplate?
 
   @@unique([tenantId, id])
   @@index([documentFolderId])
   @@map("files")
+}
+
+model DocumentTemplate {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  fileId String @unique @map("file_id") @db.Uuid
+  file   File   @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  name         String
+  documentType String @default("universal") @map("document_type")
+  status       String @default("active")
+  analysis     Json
+
+  uploadedById String? @map("uploaded_by") @db.Uuid
+  uploadedBy   User?   @relation("DocumentTemplateUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  commercialDocuments CommercialDocument[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, id])
+  @@index([tenantId, status, createdAt])
+  @@map("document_templates")
 }
 
 model MeasurementPrintRun {

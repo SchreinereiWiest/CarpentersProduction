@@ -46,3 +46,44 @@ model CalculationSnapshot {
 }
 
 // Interne Betriebsrechnung. Keine steuerlichen Buchungen oder Kontenrahmen.
+
+model CommercialDocument {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  tenant       Tenant            @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  customerId   String            @map("customer_id") @db.Uuid
+  customer     Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  projectId    String?           @map("project_id") @db.Uuid
+  project      Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  commissionId String?           @map("commission_id") @db.Uuid
+  commission   Commission?       @relation(fields: [commissionId], references: [id], onDelete: SetNull)
+  templateId   String?           @map("template_id") @db.Uuid
+  template     DocumentTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  documentType   String  @map("document_type")
+  documentNumber String? @map("document_number")
+  title          String
+  status         String  @default("draft")
+  currency       String  @default("EUR")
+  introText      String? @map("intro_text")
+  notes          String?
+  items          Json    @default("[]")
+  totals         Json    @default("{}")
+
+  issuedAt DateTime? @map("issued_at")
+  dueAt    DateTime? @map("due_at")
+
+  createdById String? @map("created_by") @db.Uuid
+  createdBy   User?   @relation("CommercialDocumentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, documentNumber])
+  @@index([customerId, createdAt])
+  @@index([projectId])
+  @@index([commissionId])
+  @@map("commercial_documents")
+}

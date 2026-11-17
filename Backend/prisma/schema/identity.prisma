@@ -24,6 +24,9 @@ model Tenant {
   freePbxConfiguration        FreePbxConfiguration?
   phoneCalls                  PhoneCall[]
   onboarding                 TenantOnboarding?
+  commissions               Commission[]
+  documentTemplates         DocumentTemplate[]
+  commercialDocuments       CommercialDocument[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -148,6 +151,8 @@ model User {
   managementEmployeeProfiles   ManagementEmployeeProfile[]
   paperlessDocumentsLinked     PaperlessDocument[]
   paperlessDocumentsAssigned   PaperlessDocument[] @relation("PaperlessDocumentAssignee")
+  documentTemplatesUploaded    DocumentTemplate[]   @relation("DocumentTemplateUploadedBy")
+  commercialDocumentsCreated   CommercialDocument[] @relation("CommercialDocumentCreatedBy")
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")

@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { Link, useNavigate, useParams } from "react-router";
 import SideBar from "../../../shared/components/sideBar.jsx";
-import { formatGermanDate } from "../../../shared/utils/date.js";
 import ProjectImportDialog from "../../projects/import/ProjectImportDialog.jsx";
 import PaperlessDocumentViewer from "../../../shared/components/PaperlessDocumentViewer.jsx";
+import CommercialDocumentModal from "../../commercial/CommercialDocumentModal.jsx";
+import { deleteCommission, loadCustomerCommercial } from "../../commercial/commercialApi.js";
+import { CommercialDocumentsSection, CommissionSection, CustomerProjectsList } from "../components/CustomerCommercialSections.jsx";
 
 const Detail = ({ label, children }) => (
   <div>
@@ -20,22 +22,35 @@ export default function CustomerDetailsPage() {
   const [projects, setProjects] = useState([]);
   const [showImport, setShowImport] = useState(false);
   const [viewingPaperless, setViewingPaperless] = useState(null);
+  const [commissions, setCommissions] = useState([]);
+  const [documents, setDocuments] = useState([]);
+  const [commissionSelectionMode, setCommissionSelectionMode] = useState(false);
+  const [selectedProjectIds, setSelectedProjectIds] = useState([]);
+  const [documentModalTarget, setDocumentModalTarget] = useState(null);
   const [error, setError] = useState("");
 
-  const loadProjects = async () => {
-    const response = await axios.get(`/api/projects/getAll/${userid}`);
-    setProjects(response.data.projects ?? []);
+  const loadRelatedData = async () => {
+    const [projectsResponse, commercial] = await Promise.all([
+      axios.get(`/api/projects/getAll/${userid}`),
+      loadCustomerCommercial(userid)
+    ]);
+    setProjects(projectsResponse.data.projects ?? []);
+    setCommissions(commercial.commissions);
+    setDocuments(commercial.documents);
   };
 
   useEffect(() => {
     let active = true;
     Promise.all([
       axios.get(`/api/customers/get/${userid}`),
-      axios.get(`/api/projects/getAll/${userid}`)
-    ]).then(([customerResponse, projectsResponse]) => {
+      axios.get(`/api/projects/getAll/${userid}`),
+      loadCustomerCommercial(userid)
+    ]).then(([customerResponse, projectsResponse, commercial]) => {
       if (!active) return;
       setCustomer(customerResponse.data.customer);
       setProjects(projectsResponse.data.projects ?? []);
+      setCommissions(commercial.commissions);
+      setDocuments(commercial.documents);
     }).catch(loadError => {
       console.error("Kontakt konnte nicht geladen werden:", loadError);
       if (active) setError("Die Kundendaten konnten nicht geladen werden.");
@@ -44,6 +59,21 @@ export default function CustomerDetailsPage() {
   }, [userid]);
 
   const customerName = [customer?.firstName, customer?.lastName].filter(Boolean).join(" ") || "Kundendetails";
+  const startCommissionSelection = () => {
+    setSelectedProjectIds([]);
+    setCommissionSelectionMode(true);
+    requestAnimationFrame(() => document.querySelector('[data-tour="contact-detail-projects"]')?.scrollIntoView?.({ behavior: "smooth", block: "center" }));
+  };
+  const stopCommissionSelection = () => {
+    setCommissionSelectionMode(false);
+    setSelectedProjectIds([]);
+  };
+  const toggleProjectSelection = projectId => setSelectedProjectIds(current => current.includes(projectId) ? current.filter(id => id !== projectId) : [...current, projectId]);
+  const removeCommission = async commission => {
+    if (!window.confirm(`Kommission „${commission.title}“ auflösen? Die Projekte bleiben bestehen.`)) return;
+    await deleteCommission(commission.id);
+    await loadRelatedData();
+  };
 
   return (
     <div className="flex h-dvh overflow-hidden bg-gray-900 text-white">
@@ -96,32 +126,15 @@ export default function CustomerDetailsPage() {
                 </div>
               </section>
 
-              {(customer?.paperlessDocuments ?? []).length > 0 && <section className="rounded-xl border border-violet-900/60 bg-gray-800 p-4"><h2 className="font-semibold text-violet-200">Paperless-Dokumente</h2><div className="mt-3 space-y-2">{customer.paperlessDocuments.map(document => <button key={document.id} type="button" onClick={() => setViewingPaperless(document)} className="flex w-full items-center gap-3 rounded-lg bg-gray-900 p-2 text-left hover:bg-slate-700"><img src={`/api/paperless/documents/${document.id}/thumbnail?v=2`} alt="" loading="lazy" className="h-14 w-11 shrink-0 rounded bg-slate-950 object-contain"/><span className="min-w-0"><span className="block truncate text-sm text-sky-300">{document.title}</span><span className="block truncate text-xs text-slate-500">{document.documentType || document.originalFileName || "Paperless-Dokument"}</span></span></button>)}</div></section>}
+              {(customer?.paperlessDocuments ?? []).length > 0 && <section className="rounded-xl border border-violet-900/60 bg-gray-800 p-4"><div className="flex items-center justify-between"><h2 className="font-semibold text-violet-200">Paperless-Dokumente</h2><span className="text-xs text-slate-500">{customer.paperlessDocuments.length}</span></div><div className="mt-3 max-h-80 space-y-2 overflow-y-auto pr-1">{customer.paperlessDocuments.map(document => <button key={document.id} type="button" onClick={() => setViewingPaperless(document)} className="flex w-full items-center gap-3 rounded-lg bg-gray-900 p-2 text-left hover:bg-slate-700"><img src={`/api/paperless/documents/${document.id}/thumbnail?v=2`} alt="" loading="lazy" className="h-14 w-11 shrink-0 rounded bg-slate-950 object-contain"/><span className="min-w-0"><span className="block truncate text-sm text-sky-300">{document.title}</span><span className="block truncate text-xs text-slate-500">{document.documentType || document.originalFileName || "Paperless-Dokument"}</span></span></button>)}</div></section>}
             </aside>
 
-            <section data-tour="contact-detail-projects" className="min-w-0 w-full flex-1 overflow-hidden rounded-xl border border-slate-800 bg-gray-800">
-              <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3 sm:px-5">
-                <div><h2 className="font-semibold">Projekte</h2><p className="text-xs text-slate-500">{projects.length} dem Kunden zugeordnet</p></div>
-              </div>
-              {projects.length === 0 ? (
-                <div className="p-8 text-center text-sm text-slate-500">Noch keine Projekte vorhanden.</div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="responsive-card-table w-full table-fixed">
-                    <thead><tr className="bg-gray-800"><th className="w-1/2 px-5 py-3 text-left text-xs font-semibold uppercase text-slate-400">Projekt</th><th className="w-1/4 px-5 py-3 text-left text-xs font-semibold uppercase text-slate-400">Start</th><th className="w-1/4 px-5 py-3 text-left text-xs font-semibold uppercase text-slate-400">Status</th></tr></thead>
-                    <tbody>
-                      {projects.map(project => (
-                        <tr key={project.id} onClick={() => navigate(`/Projects/${project.id}`)} className="cursor-pointer border-t border-slate-800 bg-gray-800 transition hover:bg-slate-700">
-                          <td data-label="Projekt" className="px-5 py-4"><p className="font-medium">{project.title}</p><p className="mt-1 truncate text-xs text-slate-500">{project.description || "Keine Beschreibung"}</p></td>
-                          <td data-label="Start" className="px-5 py-4 text-sm text-slate-300">{formatGermanDate(project.startDate)}</td>
-                          <td data-label="Status" className="px-5 py-4"><span className={`rounded-full px-2 py-1 text-xs font-medium ${project.status === "active" ? "bg-emerald-500/15 text-emerald-300" : "bg-amber-500/15 text-amber-300"}`}>{project.status}</span></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </section>
+            <CustomerProjectsList projects={projects} commissions={commissions} selectionMode={commissionSelectionMode} selectedProjectIds={selectedProjectIds} onToggleProject={toggleProjectSelection} onOpenDocument={setDocumentModalTarget} onRemoveCommission={removeCommission} />
+          </div>
+
+          <div className="mt-5 grid gap-5 xl:grid-cols-2">
+            <CommissionSection customerId={userid} projects={projects} commissions={commissions} selectionMode={commissionSelectionMode} selectedProjectIds={selectedProjectIds} onStart={startCommissionSelection} onCancel={stopCommissionSelection} onFinished={async () => { await loadRelatedData(); stopCommissionSelection(); }} />
+            <CommercialDocumentsSection documents={documents} onAddDocument={() => setDocumentModalTarget({ type: "free", label: "Freier Kundenbeleg" })} />
           </div>
         </div>
       </main>
@@ -131,12 +144,13 @@ export default function CustomerDetailsPage() {
         fixedCustomer={customer}
         onClose={() => setShowImport(false)}
         onImported={async projectId => {
-          await loadProjects();
+          await loadRelatedData();
           setShowImport(false);
           navigate(`/Projects/${projectId}`);
         }}
       />
       {viewingPaperless && <PaperlessDocumentViewer document={viewingPaperless} onClose={() => setViewingPaperless(null)} />}
+      {documentModalTarget && <CommercialDocumentModal customerId={userid} target={documentModalTarget} projects={projects} commissions={commissions} documents={documents} onClose={() => setDocumentModalTarget(null)} />}
     </div>
   );
 }

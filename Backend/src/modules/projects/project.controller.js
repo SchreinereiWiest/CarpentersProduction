@@ -240,7 +240,8 @@ export const getAllProjectsID = async (req, res) => {
 
     const projects = await prisma.project.findMany({
         where: {
-          customerId: id
+          customerId: id,
+          deletedAt: null
         },
         orderBy: [
           {
@@ -248,6 +249,9 @@ export const getAllProjectsID = async (req, res) => {
           },
         ],
 
+        include: {
+          commission: { select: { id: true, title: true, commissionNumber: true } }
+        }
       });
 
     res.status(200).json({
@@ -270,6 +274,7 @@ export const getAllProjects = async (req, res) => {
     const isPrivileged = ["admin", "manager"].includes(req.user?.role);
     const projects = await prisma.project.findMany({
         where: {
+          deletedAt: null,
           ...(isPrivileged
             ? { status: { in: ["active", "inactive"] } }
             : {
@@ -285,7 +290,8 @@ export const getAllProjects = async (req, res) => {
           },
         ],
         include : {
-            customer: true
+            customer: { select: { id: true, firstName: true, lastName: true, companyName: true } },
+            commission: { select: { id: true, title: true, commissionNumber: true } }
         }
 
       });

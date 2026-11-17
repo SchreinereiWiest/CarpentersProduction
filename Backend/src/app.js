@@ -27,6 +27,7 @@ import freePbxWebhookRoutes from "./modules/contact-history/freepbx-webhook.rout
 import dashboardRoutes from "./modules/dashboard/dashboard.routes.js";
 import onboardingRoutes from "./modules/onboarding/onboarding.routes.js";
 import eticketRoutes from "./modules/etickets/eticket.routes.js";
+import commercialRoutes from "./modules/commercial/commercial.routes.js";
 
 export function createApp() {
   const app = express();
@@ -76,6 +77,7 @@ export function createApp() {
   app.use("/api/dashboard", dashboardRoutes);
   app.use("/api/onboarding", onboardingRoutes);
   app.use("/api/etickets", eticketRoutes);
+  app.use("/api/commercial", commercialRoutes);
 
   app.use((error, _req, res, _next) => {
     if (res.headersSent) {

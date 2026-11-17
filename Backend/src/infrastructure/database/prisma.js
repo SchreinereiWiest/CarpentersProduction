@@ -70,7 +70,10 @@ const TENANT_DELEGATES = new Set([
     "contactHistoryConfiguration",
     "freePbxConfiguration",
     "phoneCall",
-    "tenantOnboarding"
+    "tenantOnboarding",
+    "commission",
+    "documentTemplate",
+    "commercialDocument"
 ]);
 
 const READ_WITH_WHERE = new Set([

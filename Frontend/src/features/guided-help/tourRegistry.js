@@ -6,6 +6,7 @@ const firstProjectRoute = () => {
 const firstContactRoute = () => {
   const path = window.location.pathname;
   if (/^\/Kontakte\/info\/[^/]+/.test(path)) return path.replace(/\/crm$/, "");
+  if (/^\/Kontakte\/[^/]+$/.test(path) && !["new"].includes(path.split("/").pop())) return path;
   return document.querySelector("[data-tour-contact-route]")?.dataset.tourContactRoute || null;
 };
 
@@ -13,6 +14,7 @@ const contactCrmRoute = () => {
   const path = window.location.pathname;
   if (/^\/Kontakte\/info\/[^/]+\/crm$/.test(path)) return path;
   if (/^\/Kontakte\/info\/[^/]+$/.test(path)) return `${path}/crm`;
+  if (/^\/Kontakte\/[^/]+$/.test(path)) return `/Kontakte/info/${path.split("/").pop()}/crm`;
   return document.querySelector("[data-tour-contact-crm-route]")?.dataset.tourContactCrmRoute || null;
 };
 
@@ -324,7 +326,7 @@ export const GUIDED_TOURS = [
     description: "Stammdaten, Projekte und CRM-Aktionen",
     requiredFeature: "crm",
     requiredRole: "admin",
-    match: pathname => /^\/Kontakte\/info\/[^/]+$/.test(pathname),
+    match: pathname => /^\/Kontakte\/(?:info\/)?[^/]+$/.test(pathname) && pathname !== "/Kontakte/new",
     steps: [
       { id: "actions", target: '[data-tour="contact-detail-actions"]', title: "Kundenaktionen", text: "Öffne CRM, bearbeite Stammdaten oder starte beziehungsweise importiere ein Projekt." },
       { id: "data", target: '[data-tour="contact-detail-data"]', title: "Stammdaten", text: "Kontaktdaten, Adressen und verknüpfte Dokumente werden zusammen angezeigt." },
@@ -431,6 +433,9 @@ const routeDescriptions = [
   [/^\/Kontakte\/edit\//, "Kontakte · Stammdaten bearbeiten", "Vorhandene Kunden- und Adressdaten aktualisieren."],
   [/^\/Kontakte\/info\/[^/]+\/crm$/, "Kontakte · CRM", "Kommunikation, Termine, Projekte und Kundenhistorie zusammenführen."],
   [/^\/Kontakte\/info\//, "Kontakte · Kundendetails", "Stammdaten, Dokumente und Kundenprojekte im Überblick."],
+  [/^\/Kontakte\/[^/]+$/, "Kontakte · Kundendetails", "Stammdaten, Projekte, Kommissionen und Belege im Überblick."],
+  [/^\/Kommissionen\//, "Kommission · Großauftrag", "Teilprojekte, Einkauf und Gesamtpreis zusammenführen."],
+  [/^\/Belege\//, "Belegerstellung", "Angebote und Rechnungen aus Projekten oder Kommissionen erstellen."],
   [/^\/Purchasing$/, "Einkauf & interner Shop", "Freigaben, Katalog, Bestelllisten und Lieferantenvarianten verwalten."],
   [/^\/Mitarbeiter$/, "Mitarbeiter · Arbeitszeit", "Wochenkalender bearbeiten und offene Zeiten zuordnen."]
 ];

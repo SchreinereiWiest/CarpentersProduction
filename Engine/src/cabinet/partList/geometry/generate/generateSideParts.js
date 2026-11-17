@@ -30,8 +30,8 @@ export const generateSideParts = ({
             
             {
                 front: true,
-                top: true,
-                bottom: true
+                top: !bottomIsContinuous,
+                bottom: !bottomIsContinuous
             }
         );
 

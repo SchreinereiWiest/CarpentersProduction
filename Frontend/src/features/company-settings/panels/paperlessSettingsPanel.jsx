@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import DocumentTemplateSettingsSection from "./DocumentTemplateSettingsSection.jsx";
 
 const emptySettings = {
     configured: false,
@@ -133,8 +134,8 @@ export default function PaperlessSettingsPanel() {
                 <header className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                         <div className="text-xs font-semibold uppercase tracking-wider text-blue-400">Advanced · Dokumente</div>
-                        <h1 className="mt-1 text-xl font-semibold">Paperless-ngx</h1>
-                        <p className="mt-1 max-w-2xl text-sm text-gray-500">Externe Dokumentablage verknüpfen. Carpenters speichert ausschließlich Referenzen und Zuordnungen; die Dateien bleiben in Paperless.</p>
+                        <h1 className="mt-1 text-xl font-semibold">Dokumente & Belege</h1>
+                        <p className="mt-1 max-w-2xl text-sm text-gray-500">Firmenvorlagen für Angebote und Rechnungen erkennen sowie die externe Paperless-Dokumentablage verwalten.</p>
                     </div>
                     <div className="flex gap-2">
                         {settings.configured && settings.tokenConfigured && <button type="button" disabled={busy} onClick={testConnection} className="rounded-lg border border-gray-600 px-4 py-2.5 text-sm hover:bg-gray-700 disabled:opacity-50">Verbindung testen</button>}
@@ -143,6 +144,8 @@ export default function PaperlessSettingsPanel() {
                 </header>
 
                 <Message value={message} />
+
+                <DocumentTemplateSettingsSection />
 
                 <section className="rounded-xl border border-gray-700 bg-gray-800 p-5">
                     <div className="flex flex-wrap items-center justify-between gap-3">

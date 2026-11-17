@@ -31,13 +31,15 @@ model Customer {
   createdById String? @map("created_by") @db.Uuid
   createdBy   User?   @relation("CustomerCreatedBy", fields: [createdById], references: [id])
 
-  projects       Project[]
-  addresses      CustomerAddress[]
-  communications Communication[]
-  phoneCalls     PhoneCall[]
-  appointments   Appointment[]
-  files              File[]
-  paperlessDocuments PaperlessDocument[]
+  projects            Project[]
+  addresses           CustomerAddress[]
+  communications      Communication[]
+  phoneCalls          PhoneCall[]
+  appointments        Appointment[]
+  files               File[]
+  paperlessDocuments  PaperlessDocument[]
+  commissions         Commission[]
+  commercialDocuments CommercialDocument[]
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -102,6 +104,9 @@ model Project {
   customerNotes       String? @map("customer_notes")
   internalNotes       String? @map("internal_notes")
 
+  commissionId String?     @map("commission_id") @db.Uuid
+  commission   Commission? @relation(fields: [commissionId], references: [id], onDelete: SetNull)
+
   createdById String? @map("created_by") @db.Uuid
   createdBy   User?   @relation("ProjectCreatedBy", fields: [createdById], references: [id])
 
@@ -119,6 +124,7 @@ model Project {
   managementStage        ManagementProjectStage?
   managementSchedule     ManagementProjectSchedule?
   paperlessDocuments     PaperlessDocument[]
+  commercialDocuments    CommercialDocument[]
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
@@ -126,7 +132,34 @@ model Project {
 
   @@unique([tenantId, id])
   @@unique([tenantId, projectNumber])
+  @@index([commissionId])
   @@map("projects")
+}
+
+model Commission {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  customerId String   @map("customer_id") @db.Uuid
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  commissionNumber String? @map("commission_number")
+  title            String
+  description      String?
+  status           String  @default("draft")
+  calculation      Json    @default("{}")
+
+  projects            Project[]
+  commercialDocuments CommercialDocument[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, commissionNumber])
+  @@index([customerId, createdAt])
+  @@map("commissions")
 }
 
 model Communication {

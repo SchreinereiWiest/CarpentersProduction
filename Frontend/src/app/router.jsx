@@ -45,6 +45,8 @@ import GlobalPhoneCallLayer from "../features/contact-history/GlobalPhoneCallLay
 import OnboardingGate from "../features/onboarding/OnboardingGate.jsx";
 import OnboardingPage from "../features/onboarding/OnboardingPage.jsx";
 import GuidedHelpProvider from "../features/guided-help/GuidedHelpProvider.jsx";
+import CommissionPage from "../features/commercial/CommissionPage.jsx";
+import CommercialDocumentEditorPage from "../features/commercial/CommercialDocumentEditorPage.jsx";
 
 function LegacyCadRedirect() {
   const { projectId } = useParams();
@@ -114,9 +116,13 @@ export default function AppRouter() {
           <Route path="/Kontakte" element={protectedPage(<ContactsPage />, "admin", ["crm"])} />
           <Route path="/Kontakte/new" element={protectedPage(<NewContactPage />, "admin", ["crm"])} />
           <Route path="/Kontakte/info/:userid" element={protectedPage(<ContactDetailsPage />, "admin", ["crm"])} />
+          <Route path="/Kontakte/:userid" element={protectedPage(<ContactDetailsPage />, "admin", ["crm"])} />
           <Route path="/Kontakte/info/:userid/crm" element={protectedPage(<CustomerCrmPage />, "admin", ["crm"])} />
           <Route path="/Kontakte/edit/:userid" element={protectedPage(<EditContactPage />, "admin", ["crm"])} />
           <Route path="/Kontakte/NewProject/:userId" element={protectedPage(<CabinetEditorPage />, "admin", ["crm", "work-preparation"])} />
+          <Route path="/Kommissionen/:commissionId" element={protectedPage(<CommissionPage />, "admin", ["crm", "work-preparation", "calculation"])} />
+          <Route path="/Belege/neu" element={protectedPage(<CommercialDocumentEditorPage />, "admin", ["crm"])} />
+          <Route path="/Belege/:documentId" element={protectedPage(<CommercialDocumentEditorPage />, "admin", ["crm"])} />
 
           <Route path="/CompanySettings" element={protectedPage(<CompanySettingsPage />, "user")} />
           <Route path="/User" element={protectedPage(<UserProfilePage />)} />
