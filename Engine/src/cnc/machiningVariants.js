@@ -86,3 +86,37 @@ export const updateCncMachiningVariantHeader = (part, variantId, effectiveHeader
         }
     };
 };
+
+export const updateCncMachiningVariantProgram = (part, variantId, cnc) => {
+    const variants = Array.isArray(part?.CNC?.machiningVariants)
+        ? part.CNC.machiningVariants
+        : [];
+    const storedCnc = { ...(cnc ?? {}) };
+    delete storedCnc.machiningVariants;
+
+    if (!variantId || !variants.length) {
+        return {
+            ...part,
+            CNC: storedCnc
+        };
+    }
+
+    const selectedIndex = variants.findIndex(variant => String(variant.id) === String(variantId));
+    if (selectedIndex < 0) return part;
+
+    const nextVariants = variants.map((variant, index) => index === selectedIndex
+        ? {
+            ...variant,
+            cnc: storedCnc
+        }
+        : variant);
+
+    return {
+        ...part,
+        CNC: {
+            ...(part.CNC ?? {}),
+            ...(selectedIndex === 0 ? storedCnc : {}),
+            machiningVariants: nextVariants
+        }
+    };
+};

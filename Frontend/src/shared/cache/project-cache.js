@@ -497,9 +497,12 @@ export const uploadLocalProjectFiles = async projectId => {
     }
 };
 
-const runPendingProjectSync = async () => {
+const runPendingProjectSync = async projectId => {
     if (isOffline()) return { synced: 0, conflicts: 0, errors: 0 };
-    const entries = await listProjectFiles({ statuses: ["pending", "error"] });
+    const entries = await listProjectFiles({
+        statuses: ["pending", "error"],
+        ...(projectId ? { projectId } : {})
+    });
     if (!entries.length) return { synced: 0, conflicts: 0, errors: 0 };
 
     setSyncing(true);
@@ -533,9 +536,15 @@ const runPendingProjectSync = async () => {
     }
 };
 
-export const syncPendingProjectFiles = () => {
-    if (activeSync) return activeSync;
-    activeSync = runPendingProjectSync().finally(() => {
+export const syncPendingProjectFiles = projectId => {
+    // A project export must not borrow the result of an unrelated scoped sync.
+    // Once the current run finishes, re-check that project's queue explicitly.
+    if (activeSync) {
+        return projectId
+            ? activeSync.then(() => syncPendingProjectFiles(projectId))
+            : activeSync;
+    }
+    activeSync = runPendingProjectSync(projectId).finally(() => {
         activeSync = null;
     });
     return activeSync;

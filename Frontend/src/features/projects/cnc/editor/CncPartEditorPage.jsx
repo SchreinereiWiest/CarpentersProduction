@@ -10,6 +10,11 @@ import {
 import { createStringId } from "@Engine/shared/id.js";
 import { DEFAULT_CNC } from "@Engine/cabinet/cnc/cncDefaults.js";
 import { getCncPartKey, storePartCncInCabinet } from "@Engine/cabinet/cnc/manualPrograms.js";
+import {
+    expandCncMachiningVariants,
+    getStoredCncVariantHeader,
+    updateCncMachiningVariantProgram
+} from "@Engine/cnc/machiningVariants.js";
 
 import SideBar from "../../../../shared/components/sideBar.jsx";
 import ProjectBar from "../../../../shared/components/projectBar.jsx";
@@ -75,6 +80,7 @@ export default function CncPartEditorPage() {
     const [searchParams] = useSearchParams();
     const requestedPartKey = searchParams.get("partKey");
     const requestedCabinetId = searchParams.get("cabinetId");
+    const requestedVariantId = searchParams.get("variantId");
     const navigate = useNavigate();
     const [partList, setPartList] = useState(null);
     const [cabinets, setCabinets] = useState([]);
@@ -187,13 +193,18 @@ export default function CncPartEditorPage() {
                     getGlobalFile({ file: "settings-cnc.json", loadFromServer: { download: downloadFile, path: "/api/settings/cnc" } }).catch(() => null)
                 ]);
                 if (cancelled) return;
-                const selected = requestedPartKey
+                const selectedBasePart = requestedPartKey
                     ? findPartByKey(list, requestedPartKey, requestedCabinetId)
                     : findPartById(list, partId);
-                if (!selected) {
+                if (!selectedBasePart) {
                     setNotice({ type: "error", message: "Das ausgewählte Bauteil wurde in der Projektliste nicht gefunden." });
                     return;
                 }
+                const selected = requestedVariantId
+                    ? expandCncMachiningVariants(selectedBasePart).find(candidate =>
+                        String(candidate._cncMachiningVariant?.id) === String(requestedVariantId)
+                    ) ?? selectedBasePart
+                    : selectedBasePart;
                 const instances = Array.isArray(settings?.postprocessors) ? settings.postprocessors : [];
                 const configured = instances.find(item => item.id === settings?.activePostprocessorId && item.enabled !== false)
                     ?? instances.find(item => item.enabled !== false)
@@ -232,7 +243,7 @@ export default function CncPartEditorPage() {
         };
         load();
         return () => { cancelled = true; };
-    }, [partId, projectId, requestedCabinetId, requestedPartKey]);
+    }, [partId, projectId, requestedCabinetId, requestedPartKey, requestedVariantId]);
 
     const viewerResult = useMemo(() => {
         if (!part) return { operations: [], diagnostics: [] };
@@ -332,13 +343,30 @@ export default function CncPartEditorPage() {
                 throw new Error("Der Elternkorpus des Bauteils konnte nicht ermittelt werden.");
             }
             const cnc = { ...(part.CNC ?? {}), ...createEmptyCnc(), header: programHeader, operations };
+            const variant = part._cncMachiningVariant ?? null;
+            const storedHeader = variant
+                ? getStoredCncVariantHeader(programHeader, variant)
+                : programHeader;
+            const storedCnc = {
+                ...cnc,
+                header: storedHeader
+            };
             const updatedList = updatePartByKey(partList, requestedPartKey ?? getCncPartKey(part), parentCabinetId, current => {
                 const generatedPart = { ...current };
                 delete generatedPart.manual;
                 delete generatedPart._manualOrigin;
-                return { ...generatedPart, CNC: cnc };
+                return updateCncMachiningVariantProgram(generatedPart, variant?.id, storedCnc);
             });
-            const updatedCabinet = storePartCncInCabinet(parentCabinet, part, operations, { tools, header: programHeader });
+            const storagePart = variant
+                ? {
+                    ...part,
+                    PID: variant.partId ?? part.PID,
+                    _generatedId: variant.generatedId ?? part._generatedId,
+                    _cabinetId: variant.cabinetId ?? parentCabinetId,
+                    CNC: storedCnc
+                }
+                : part;
+            const updatedCabinet = storePartCncInCabinet(parentCabinet, storagePart, operations, { tools, header: storedHeader });
             const updatedCabinets = cabinets.map(cabinet => String(cabinet.id) === String(parentCabinetId) ? updatedCabinet : cabinet);
             const [result] = await Promise.all([
                 uploadProjectFile({

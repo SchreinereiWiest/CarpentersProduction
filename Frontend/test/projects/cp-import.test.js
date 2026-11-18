@@ -3,6 +3,7 @@ import {
   applyMaterialMappings,
   collectMaterialReferences,
   createCabinetsFromPartList,
+  mergeIdenticalCabinets,
   parseCadJson,
   parseCadText
 } from "../../src/features/projects/import/cpImport.js";
@@ -10,6 +11,105 @@ import { importCadData } from "../../src/features/projects/legacy-editor/importC
 import { buildPartList } from "@Engine/cabinet/partList/buildPartList.js";
 
 describe("Palette CAD cpimport conversion", () => {
+  it("merges physically identical cabinets and adds their quantities", () => {
+    const common = {
+      width: 600,
+      height: 720,
+      depth: 560,
+      outerDimensions: { width: 600, height: 750, depth: 580 },
+      materialId: "body-white",
+      fronts: [
+        {
+          id: "front-a",
+          name: "Front 1",
+          sourcePid: "001001",
+          x: 2,
+          y: 2,
+          width: 596,
+          height: 746,
+          materialId: "front-oak"
+        }
+      ],
+      backPanel: { construction: "groove", thickness: 8 }
+    };
+
+    expect(mergeIdenticalCabinets([
+      { ...common, id: "cad-001000", name: "Schrank links", sourcePid: "001000", quantity: 1 },
+      {
+        ...common,
+        id: "cad-002000",
+        name: "Schrank rechts",
+        sourcePid: "002000",
+        quantity: 2,
+        fronts: [{ ...common.fronts[0], id: "front-b", sourcePid: "002001" }]
+      }
+    ])).toEqual([
+      expect.objectContaining({ id: "cad-001000", quantity: 3 })
+    ]);
+  });
+
+  it("loads repeated equal KO records as one cabinet", () => {
+    const cabinets = createCabinetsFromPartList(parseCadJson([
+      {
+        PID: "031000",
+        Plattentyp: "KO",
+        Objektname: "Unterschrank A",
+        Anzahl: "1",
+        L: "600",
+        B: "580",
+        T: "750"
+      },
+      {
+        PID: "032000",
+        Plattentyp: "KO",
+        Objektname: "Unterschrank B",
+        Anzahl: "1",
+        L: "600",
+        B: "580",
+        T: "750"
+      }
+    ]));
+
+    expect(cabinets).toHaveLength(1);
+    expect(cabinets[0]).toMatchObject({
+      id: "cad-031000",
+      quantity: 2,
+      outerDimensions: { width: 600, height: 750, depth: 580 }
+    });
+  });
+
+  it("keeps cabinets separate when outer dimensions, fronts or properties differ", () => {
+    const cabinet = {
+      id: "cad-001000",
+      name: "Schrank",
+      sourcePid: "001000",
+      quantity: 1,
+      outerDimensions: { width: 600, height: 750, depth: 580 },
+      continuous: "side",
+      fronts: [{ id: "front-a", sourcePid: "001001", width: 596, height: 746 }]
+    };
+
+    const cabinets = mergeIdenticalCabinets([
+      cabinet,
+      { ...cabinet, id: "cad-002000", outerDimensions: { ...cabinet.outerDimensions, width: 601 } },
+      { ...cabinet, id: "cad-003000", fronts: [{ ...cabinet.fronts[0], height: 700 }] },
+      { ...cabinet, id: "cad-004000", continuous: "bottom" }
+    ]);
+
+    expect(cabinets).toHaveLength(4);
+  });
+
+  it("does not merge cabinets with different unmapped CAD materials", () => {
+    const cabinets = createCabinetsFromPartList(parseCadJson([
+      { PID: "041000", Plattentyp: "KO", L: "600", B: "580", T: "750" },
+      { PID: "041001", BPID: "Nein", Plattentyp: "Seite", L: "750", B: "560", T: "19", MID: "WHITE" },
+      { PID: "042000", Plattentyp: "KO", L: "600", B: "580", T: "750" },
+      { PID: "042001", BPID: "Nein", Plattentyp: "Seite", L: "750", B: "560", T: "19", MID: "OAK" }
+    ]));
+
+    expect(cabinets).toHaveLength(2);
+  });
+
   it("repairs trailing commas and normalizes decimal commas", () => {
     const raw =
       '[{"PID":"001000","Plattentyp":"KO","L":"600,5","B":"535,0","T":"870,0",},]';

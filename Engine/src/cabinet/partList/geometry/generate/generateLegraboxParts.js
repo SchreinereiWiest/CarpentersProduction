@@ -1,7 +1,7 @@
 import { createPart } from "../createPart.js";
 import { flattenSections } from "../flattenSections.js";
 import { getDefaultDrawerDepth, getLegraboxBackHeight } from "../../../cnc/legraboxDimensions.js";
-import { getMaterialNumber } from "../../materials.js";
+import { getMaterial, getMaterialNumber } from "../../materials.js";
 
 const getLegraboxFunctions = (section) => {
     return (section.functionConfig ?? [])
@@ -17,7 +17,6 @@ export const generateLegraboxParts = ({
 }) => {
     const parts = [];
     const sections = flattenSections(cabinet.sections ?? []);
-    const materialThickness = Number(cabinet.thickness) || 19;
     let legraboxIndex = 0;
 
     sections.forEach(section => {
@@ -32,6 +31,12 @@ export const generateLegraboxParts = ({
             const materialId =
                 cncConfig?.legrabox?.materials?.[materialKey] ||
                 cabinet.materialId;
+            const assignedMaterialThickness = Number(
+                getMaterial(materials, materialId)?.thickness
+            );
+            const materialThickness = Number.isFinite(assignedMaterialThickness) && assignedMaterialThickness > 0
+                ? assignedMaterialThickness
+                : Number(cabinet.thickness) || 19;
             const drawerDepth =
                 Number(func.drawerDepth) ||
                 getDefaultDrawerDepth(cabinet.depth);

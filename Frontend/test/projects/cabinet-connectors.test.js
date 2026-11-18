@@ -5,7 +5,8 @@ import { groupCncParts } from "@Engine/cnc/groupCncParts.js";
 import {
     expandCncMachiningVariants,
     getStoredCncVariantHeader,
-    updateCncMachiningVariantHeader
+    updateCncMachiningVariantHeader,
+    updateCncMachiningVariantProgram
 } from "@Engine/cnc/machiningVariants.js";
 import { MACHINING_INTENT_IDS, MACHINING_KINDS } from "@Engine/postprocessor/index.js";
 
@@ -107,6 +108,42 @@ describe("Korpusverbinder", () => {
         );
         expect(expandCncMachiningVariants(manuallyUnmirrored)[1].CNC.header.sx).toBe(false);
         expect(manuallyUnmirrored.CNC.machiningVariants[1].cnc.header.sx).toBe(true);
+
+        const editedRightOperation = {
+            ...rightVariant.cnc.operations[0],
+            id: "edited-right-operation",
+            position: 321
+        };
+        const editedRight = updateCncMachiningVariantProgram(
+            groupedSides,
+            rightVariant.id,
+            {
+                ...rightVariant.cnc,
+                operations: [editedRightOperation]
+            }
+        );
+        const editedVariants = expandCncMachiningVariants(editedRight);
+        expect(editedVariants[0].CNC.operations).toEqual(groupedSides.CNC.machiningVariants[0].cnc.operations);
+        expect(editedVariants[1].CNC.operations).toEqual([editedRightOperation]);
+        expect(editedRight.CNC.operations).toEqual(groupedSides.CNC.operations);
+
+        const leftVariant = groupedSides.CNC.machiningVariants[0];
+        const editedLeftOperation = {
+            ...leftVariant.cnc.operations[0],
+            id: "edited-left-operation",
+            position: 123
+        };
+        const editedLeft = updateCncMachiningVariantProgram(
+            groupedSides,
+            leftVariant.id,
+            {
+                ...leftVariant.cnc,
+                operations: [editedLeftOperation]
+            }
+        );
+        expect(editedLeft.CNC.operations).toEqual([editedLeftOperation]);
+        expect(editedLeft.CNC.machiningVariants[0].cnc.operations).toEqual([editedLeftOperation]);
+        expect(editedLeft.CNC.machiningVariants[1].cnc.operations).toEqual(rightVariant.cnc.operations);
 
         const sideGroup = groupCncParts([root]).find(group => group.name === "Seite");
         expect(sideGroup.count).toBe(2);

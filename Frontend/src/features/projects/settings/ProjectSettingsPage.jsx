@@ -14,6 +14,12 @@ import { promoteLocalProject } from "../../../shared/projects/local-project-prom
 import { deleteLocalProject } from "../../../shared/offline/local-projects.js";
 import { storeLocalProjectAsset } from "../../../shared/cache/project-asset-cache.js";
 import { invalidateProjectAsset } from "../../../shared/cache/project-indexed-db.js";
+import {
+  syncPendingProjectFiles,
+  uploadProjectFile
+} from "../../../shared/cache/project-cache.js";
+import { uploadJSONFile } from "../../../shared/api/file-api.js";
+import { getAufmasWorkspaceCache } from "../measurement/state/workspaceCache.js";
 
 export default function ProjectSettings() {
   const { projectId } = useParams();
@@ -282,6 +288,41 @@ export default function ProjectSettings() {
         return;
       }
 
+      // The measurement editor keeps the latest workspace in memory and saves
+      // with a short debounce. Persist and await it explicitly so an export
+      // started directly after editing cannot race an outstanding save.
+      const workspace = getAufmasWorkspaceCache(projectId);
+      if (workspace) {
+        const result = await uploadProjectFile({
+          projectId,
+          file: "aufmas.json",
+          data: {
+            version: 1,
+            views: workspace.views ?? [],
+            objects: workspace.objects ?? [],
+            variables: workspace.variables ?? [],
+            todos: workspace.todos ?? [],
+            expose: workspace.expose,
+            completed: Boolean(workspace.isCompleted)
+          },
+          uploadFunction: {
+            upload: uploadJSONFile,
+            path: `/api/projects/generated/${projectId}/aufmas`
+          }
+        });
+        const syncResult = result?.syncPromise
+          ? await result.syncPromise
+          : result;
+        if (["conflict", "error", "pending"].includes(syncResult?.status)) {
+          throw new Error("Die aktuellen Aufmaßdaten konnten vor dem Export nicht synchronisiert werden.");
+        }
+      }
+
+      const pending = await syncPendingProjectFiles(projectId);
+      if (pending.conflicts || pending.errors) {
+        throw new Error("Nicht alle Projektdaten konnten vor dem Export synchronisiert werden.");
+      }
+
       const response = await axios.get(`/api/projects/export/${projectId}`, {
         responseType: "blob"
       });
@@ -299,7 +340,9 @@ export default function ProjectSettings() {
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Projekt konnte nicht exportiert werden:", error);
-      setExportError("Der Projekt-Download konnte nicht erstellt werden.");
+      setExportError(
+        error.message || "Der Projekt-Download konnte nicht erstellt werden."
+      );
     } finally {
       setExporting(false);
     }

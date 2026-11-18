@@ -963,7 +963,16 @@ export default function CncEditor() {
                                             type="button"
                                             onClick={() => {
                                                 const editablePid = selectedPart?._cncBasePid ?? selectedPart?.PID;
-                                                if (editablePid) navigate(`/Projects/Cnc/${projectId}/Edit/${encodeURIComponent(editablePid)}`);
+                                                if (!editablePid) return;
+                                                const params = new URLSearchParams();
+                                                const basePartKey = getCncPartKey(selectedPart);
+                                                const cabinetId = selectedPart?._cncCabinetId ?? selectedPart?._cabinetId;
+                                                const variantId = selectedPart?._cncMachiningVariant?.id;
+                                                if (basePartKey) params.set("partKey", basePartKey);
+                                                if (cabinetId != null) params.set("cabinetId", cabinetId);
+                                                if (variantId != null) params.set("variantId", variantId);
+                                                const query = params.toString();
+                                                navigate(`/Projects/Cnc/${projectId}/Edit/${encodeURIComponent(editablePid)}${query ? `?${query}` : ""}`);
                                             }}
                                             disabled={!selectedPart?.PID}
                                             className="rounded border border-violet-700 bg-violet-950/40 px-3 py-1.5 text-xs font-medium text-violet-200 transition hover:bg-violet-900/60 disabled:cursor-not-allowed disabled:border-gray-700 disabled:bg-gray-800 disabled:text-gray-500"

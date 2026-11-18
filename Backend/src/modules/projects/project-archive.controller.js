@@ -10,6 +10,11 @@ import tar from "tar-stream";
 import prisma from "../../infrastructure/database/prisma.js";
 import { s3Download, s3Upload } from "../../infrastructure/storage/s3.js";
 import { getTenantId } from "../../infrastructure/database/tenant-context.js";
+import {
+    createImportedFileIds,
+    originalFileId,
+    remapProjectJsonBuffer
+} from "./project-archive.logic.js";
 
 const ARCHIVE_FORMAT = "carpenters-production-project";
 const ARCHIVE_VERSION = 1;
@@ -91,6 +96,7 @@ export async function exportProject(req, res) {
 
         const fileEntries = project.files.map(file => ({
             kind: "file",
+            originalId: file.id,
             archivePath: `files/${file.id}`,
             data: pick(file, [
                 "fileName", "originalName", "mimeType", "fileSize", "category",
@@ -198,6 +204,10 @@ function validateManifest(manifest) {
             || !/^(files|storage)\/[a-zA-Z0-9-]+$/.test(entry.archivePath)
             || paths.has(entry.archivePath)) {
             throw new Error("The project archive contains invalid file entries");
+        }
+        if (entry.kind === "file" && entry.originalId
+            && String(entry.originalId) !== entry.archivePath.slice("files/".length)) {
+            throw new Error("The project archive contains inconsistent file ids");
         }
         paths.add(entry.archivePath);
     }
@@ -350,30 +360,44 @@ async function importBinaryEntry(entryStream, metadata, state) {
     state.created.storageObjectIds.push(storageObject.id);
     state.created.objectKeys.push(storageObject.objectKey);
 
-    // tar-stream v3 uses a streamx Source. The AWS Node HTTP handler does not
-    // recognize that object as a valid request body, so bridge it to a native
-    // Node stream while preserving backpressure for large project files.
-    const uploadBody = new PassThrough();
-    const bridge = pipeline(entryStream, uploadBody);
+    const remapJsonReferences = metadata.kind === "file"
+        && metadata.data?.fileName === "aufmas.json";
+    let uploadBody;
+    let bridge = null;
+    let contentLength = Number(metadata.archiveSize || 0) || undefined;
+
+    if (remapJsonReferences) {
+        const chunks = [];
+        for await (const chunk of entryStream) chunks.push(Buffer.from(chunk));
+        uploadBody = remapProjectJsonBuffer(Buffer.concat(chunks), state.fileIds);
+        contentLength = uploadBody.length;
+    } else {
+        // tar-stream v3 uses a streamx Source. The AWS Node HTTP handler does
+        // not recognize that object as a valid request body, so bridge it to a
+        // native Node stream while preserving backpressure for large files.
+        uploadBody = new PassThrough();
+        bridge = pipeline(entryStream, uploadBody);
+    }
 
     try {
         await s3Upload.send(new PutObjectCommand({
             Bucket: process.env.S3_BUCKET,
             Key: storageObject.objectKey,
             Body: uploadBody,
-            ContentLength: Number(metadata.archiveSize || 0) || undefined,
+            ContentLength: contentLength,
             ContentType: metadata.kind === "file" ? metadata.data.mimeType || "application/octet-stream" : "application/octet-stream"
         }));
-        await bridge;
+        if (bridge) await bridge;
     } catch (error) {
-        uploadBody.destroy();
-        await bridge.catch(() => {});
+        if (typeof uploadBody.destroy === "function") uploadBody.destroy();
+        if (bridge) await bridge.catch(() => {});
         throw error;
     }
 
     if (metadata.kind === "file") {
         await prisma.file.create({
             data: {
+                id: state.fileIds.get(originalFileId(metadata)),
                 ...restoreDates(pick(metadata.data, [
                     "fileName", "originalName", "mimeType", "fileSize", "category", "uploadedAt", "deletedAt", "status"
                 ])),
@@ -424,6 +448,7 @@ export async function importProject(req, res) {
         importedPaths: new Set(),
         addressMap: new Map(),
         users: new Set(),
+        fileIds: new Map(),
         created: { customerId: null, addressIds: [], storageObjectIds: [], objectKeys: [] }
     };
 
@@ -454,6 +479,7 @@ export async function importProject(req, res) {
                     for await (const chunk of stream) chunks.push(chunk);
                     state.manifest = JSON.parse(Buffer.concat(chunks).toString("utf8"));
                     validateManifest(state.manifest);
+                    state.fileIds = createImportedFileIds(state.manifest.binaryEntries);
                     await createImportedProject(state.manifest, req, state);
                     next();
                     return;

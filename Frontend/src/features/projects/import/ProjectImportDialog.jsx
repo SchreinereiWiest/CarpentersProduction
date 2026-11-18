@@ -554,7 +554,7 @@ export default function ProjectImportDialog({
                     Keine Materialreferenzen in den verarbeiteten Bauteilen gefunden.
                   </p>
                 ) : (
-                  <div className="mt-3 overflow-hidden rounded-lg border border-gray-700">
+                  <div className="mt-3 rounded-lg border border-gray-700">
                     {inspection.materialReferences.map((reference) => {
                       const mapping = materialMappings.find(
                         (entry) => entry.source === reference.source
@@ -562,7 +562,7 @@ export default function ProjectImportDialog({
                       return (
                         <div
                           key={reference.source}
-                          className="grid gap-3 border-b border-gray-700 bg-gray-900 p-3 last:border-b-0 md:grid-cols-[minmax(0,1fr)_minmax(18rem,2fr)] md:items-center"
+                          className="relative grid gap-3 border-b border-gray-700 bg-gray-900 p-3 last:border-b-0 focus-within:z-10 md:grid-cols-[minmax(0,1fr)_minmax(18rem,2fr)] md:items-center"
                         >
                           <div className="min-w-0">
                             <div className="truncate font-medium" title={reference.source}>
