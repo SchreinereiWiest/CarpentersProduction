@@ -8,6 +8,7 @@ describe("CNC viewport program header", () => {
         const { container } = render(<CncViewport
             part={{ L: 300, B: 200, CNC: { operations: [] } }}
             operations={[{ id: "drill", type: "BO", face: "A", x: 40, y: 50, diameter: 5 }]}
+            selectedOperationId="drill"
             selectedFace="A"
             onSelectOperation={() => {}}
             onSelectPart={() => {}}
@@ -21,5 +22,7 @@ describe("CNC viewport program header", () => {
 
         expect(container.querySelector('g[transform="translate(300 0) scale(-1 1)"]')).not.toBeNull();
         expect(container.querySelectorAll('g[aria-label="Anschlag D"] circle')).toHaveLength(2);
+        expect(container.querySelector('line[x1="260"][x2="260"]')).not.toBeNull();
+        expect(container.querySelector('line[x1="40"][x2="40"]')).toBeNull();
     });
 });

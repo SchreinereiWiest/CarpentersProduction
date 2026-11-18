@@ -216,7 +216,7 @@ export default function CncPartEditorPage() {
                 });
                 setProgramHeader(selected.CNC?.header ?? {
                     stopId: configured.configuration?.workingFields ?? "A",
-                    edgeAtStop: "front",
+                    edgeAtStop: configured.configuration?.defaultEdgeAtStop === "back" ? "back" : "front",
                     sx: false,
                     sy: false,
                     comment: ""

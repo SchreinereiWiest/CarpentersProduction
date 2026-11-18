@@ -491,7 +491,7 @@ export default function CncEditor() {
 
     const currentProgramHeader = useMemo(() => selectedPart?.CNC?.header ?? ({
         stopId: activePostprocessor?.configuration?.workingFields ?? "A",
-        edgeAtStop: "front",
+        edgeAtStop: activePostprocessor?.configuration?.defaultEdgeAtStop === "back" ? "back" : "front",
         sx: false,
         sy: false,
         comment: ""

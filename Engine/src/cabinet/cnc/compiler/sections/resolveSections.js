@@ -138,6 +138,16 @@ export const getMemberInstances = ({
                         instance.width
                     );
 
+                const instanceY =
+                    Number(
+                        instance.y
+                    );
+
+                const instanceHeight =
+                    Number(
+                        instance.height
+                    );
+
                 return {
 
                     id:
@@ -161,9 +171,19 @@ export const getMemberInstances = ({
                             ? instanceWidth
                             : thickness,
 
-                    y: 0,
+                    y:
+                        Number.isFinite(
+                            instanceY
+                        )
+                            ? instanceY
+                            : 0,
 
-                    height
+                    height:
+                        Number.isFinite(
+                            instanceHeight
+                        )
+                            ? instanceHeight
+                            : Number(part.L) || height
 
                 };
 
@@ -415,9 +435,17 @@ export const getBoundary = ({
             return null;
         }
 
+        const memberGeometry =
+            getMemberInstances({
+                part,
+                cabinet,
+                sections
+            }).find(instance => instance.side === "left") ?? null;
+
         return {
             part,
-            face: "A"
+            face: "A",
+            memberGeometry
         };
 
     }
@@ -443,9 +471,17 @@ export const getBoundary = ({
             return null;
         }
 
+        const memberGeometry =
+            getMemberInstances({
+                part,
+                cabinet,
+                sections
+            }).find(instance => instance.side === "right") ?? null;
+
         return {
             part,
-            face: "A"
+            face: "A",
+            memberGeometry
         };
 
     }
@@ -508,7 +544,8 @@ export const getBoundary = ({
 
                 return {
                     part,
-                    face: "B"
+                    face: "B",
+                    memberGeometry: instance
                 };
 
             }
@@ -524,7 +561,8 @@ export const getBoundary = ({
 
                 return {
                     part,
-                    face: "A"
+                    face: "A",
+                    memberGeometry: instance
                 };
 
             }
@@ -550,7 +588,8 @@ export const getBoundary = ({
 
                 return {
                     part,
-                    face: "A"
+                    face: "A",
+                    memberGeometry: instance
                 };
 
             }
@@ -566,7 +605,8 @@ export const getBoundary = ({
 
                 return {
                     part,
-                    face: "B"
+                    face: "B",
+                    memberGeometry: instance
                 };
 
             }

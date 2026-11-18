@@ -283,6 +283,11 @@ export async function createDownloadUrl(req, res) {
             }
         );
 
+        // Signed URLs duerfen weder vom Browser noch von einem Proxy ueber
+        // ihre kurze Gueltigkeitsdauer hinaus wiederverwendet werden.
+        res.set("Cache-Control", "private, no-store, max-age=0");
+        res.set("Pragma", "no-cache");
+        res.set("Expires", "0");
         res.json({
             url,
             fileId: file.id,

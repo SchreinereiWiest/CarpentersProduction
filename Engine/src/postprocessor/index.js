@@ -4,11 +4,13 @@ export { DEFAULT_MACHINING_ASSIGNMENTS, MACHINING_INTENTS, getUsedMachiningStrat
 export { generateCncMachineCode, resolveCncMachining, resolveCncProgramHeader, translatePartForCncViewer } from "./runtime.js";
 export { DEFAULT_MACHINING_LOCATIONS, resolveProgramHeader } from "./programHeader.js";
 export {
+    CENTERED_DRILL_ROW_MODES,
     MACHINING_INTENT_IDS,
     MACHINING_KINDS,
     MACHINING_SCHEMA_VERSION,
     assertNeutralMachiningOperation,
     assertNeutralPartCnc,
     neutralOperationToViewer,
+    resolveCenteredDrillRow,
     translateNeutralPartForViewer
 } from "./machiningModel.js";

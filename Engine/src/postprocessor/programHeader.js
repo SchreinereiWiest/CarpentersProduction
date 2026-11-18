@@ -9,14 +9,19 @@ export const DEFAULT_MACHINING_LOCATIONS = Object.freeze([
 
 const xor = (left, right) => Boolean(left) !== Boolean(right);
 
-export const resolveProgramHeader = ({ manifest, part, defaultStopId = "A" }) => {
+export const resolveProgramHeader = ({
+    manifest,
+    part,
+    defaultStopId = "A",
+    defaultEdgeAtStop = "front"
+}) => {
     const locations = Array.isArray(manifest?.machiningLocations) && manifest.machiningLocations.length
         ? manifest.machiningLocations
         : DEFAULT_MACHINING_LOCATIONS;
     const raw = part?.CNC?.header ?? {};
     const stopId = String(raw.stopId ?? defaultStopId);
     const location = locations.find(entry => entry.id === stopId) ?? locations[0];
-    const edgeAtStop = raw.edgeAtStop === "back" ? "back" : "front";
+    const edgeAtStop = (raw.edgeAtStop ?? defaultEdgeAtStop) === "back" ? "back" : "front";
     const sx = raw.sx === true;
     const sy = raw.sy === true;
     const machineMirrorX = location.mirrorAxes?.x === true;

@@ -89,12 +89,14 @@ const getOperationX = ({
     if (
         Number.isFinite(
             Number(
+                operation?.dimensionStart ??
                 operation?.start
             )
         )
     ) {
 
         return Number(
+            operation.dimensionStart ??
             operation.start
         );
 
@@ -198,7 +200,9 @@ const getOperationY = (
 
 export default function CncDimensionLayer({
     part,
-    operation
+    operation,
+    mirrorX = false,
+    mirrorY = false
 }) {
 
     if (
@@ -216,8 +220,13 @@ export default function CncDimensionLayer({
             part.L
         ) || 0;
 
+    const height =
+        Number(
+            part.B
+        ) || 0;
 
-    const x =
+
+    const rawX =
         getOperationX({
 
             operation,
@@ -227,12 +236,32 @@ export default function CncDimensionLayer({
 
         });
 
-    const x2 = operation.type === "LR" ? operation.end : null;
+    const rawX2 = operation.type === "LR"
+        ? Number(operation.dimensionEnd ?? operation.end)
+        : null;
 
-    const y =
+    const x = Number.isFinite(rawX)
+        ? mirrorX
+            ? width - (Number.isFinite(rawX2) ? rawX2 : rawX)
+            : rawX
+        : null;
+
+    const x2 = Number.isFinite(rawX2)
+        ? mirrorX
+            ? width - rawX
+            : rawX2
+        : null;
+
+    const rawY =
         getOperationY(
             operation
         );
+
+    const y = Number.isFinite(rawY)
+        ? mirrorY
+            ? height - rawY
+            : rawY
+        : null;
 
 
     /*

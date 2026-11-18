@@ -1008,6 +1008,8 @@ const resolvePanelBoundary = ({
         memberInstanceId:
             memberGeometry.id,
 
+        panelGeometry,
+
         horizontalSide,
 
         face
@@ -1646,13 +1648,26 @@ const compileHorizontalJoint = ({
         "middle"
     ) {
 
-        continuousPosition =
+        const memberCenter =
             Number(
                 boundary.memberGeometry.x
             ) +
             Number(
                 boundary.memberGeometry.width
             ) / 2;
+
+        /*
+         * memberGeometry ist im globalen Korpuskoordinatensystem abgelegt,
+         * die CNC-Position auf der horizontalen Platte dagegen lokal. Bei
+         * eingesetzten Platten beginnt dieses lokale System typischerweise
+         * erst bei der Materialstärke (z. B. 19 mm).
+         */
+        continuousPosition =
+            memberCenter -
+            Number(
+                boundary.panelGeometry?.left ??
+                0
+            );
 
     }
 

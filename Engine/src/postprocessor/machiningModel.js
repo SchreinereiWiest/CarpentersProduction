@@ -1,5 +1,10 @@
 export const MACHINING_SCHEMA_VERSION = 2;
 
+export const CENTERED_DRILL_ROW_MODES = Object.freeze({
+    MATHEMATICAL: "mathematical",
+    NATIVE: "native"
+});
+
 export const MACHINING_KINDS = Object.freeze({
     DRILL_POINT: "drill.point",
     DRILL_PATTERN: "drill.pattern",
@@ -171,8 +176,58 @@ export const neutralOperationToViewer = operation => {
     return { ...operation, type };
 };
 
-export const translateNeutralPartForViewer = part => ({
+const finiteNumber = value => {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+};
+
+export const resolveCenteredDrillRow = (operation, mode = CENTERED_DRILL_ROW_MODES.MATHEMATICAL) => {
+    if (operation?.kind !== MACHINING_KINDS.DRILL_ROW || operation.centered !== true) {
+        return operation;
+    }
+
+    // rangeStart/rangeEnd halten ältere, bereits erzeugte Projekte kompatibel.
+    // Neue neutrale Befehle speichern die Benutzergrenzen direkt in start/end.
+    const requestedStart = finiteNumber(operation.rangeStart ?? operation.start);
+    const requestedEnd = finiteNumber(operation.rangeEnd ?? operation.end);
+    const spacing = finiteNumber(operation.spacing);
+    if (requestedStart === null || requestedEnd === null || spacing === null || spacing <= 0 || requestedEnd < requestedStart) {
+        return operation;
+    }
+
+    const availableLength = requestedEnd - requestedStart;
+    const intervalCount = Math.floor((availableLength + 1e-9) / spacing);
+    const usedLength = intervalCount * spacing;
+    const edgeOffset = (availableLength - usedLength) / 2;
+    const actualStart = requestedStart + edgeOffset;
+    const actualEnd = requestedEnd - edgeOffset;
+    const native = mode === CENTERED_DRILL_ROW_MODES.NATIVE;
+
+    return {
+        ...operation,
+        start: actualStart,
+        end: actualEnd,
+        rangeStart: requestedStart,
+        rangeEnd: requestedEnd,
+        dimensionStart: native ? requestedStart : actualStart,
+        dimensionEnd: native ? requestedEnd : actualEnd,
+        centeredResolution: native
+            ? CENTERED_DRILL_ROW_MODES.NATIVE
+            : CENTERED_DRILL_ROW_MODES.MATHEMATICAL
+    };
+};
+
+export const translateNeutralPartForViewer = (part, options = {}) => ({
     operations: assertNeutralPartCnc(part).operations
+        .map(operation => {
+            const configuredMode = typeof options.centeredDrillRowMode === "function"
+                ? options.centeredDrillRowMode(operation)
+                : options.centeredDrillRowMode;
+            return resolveCenteredDrillRow(
+                operation,
+                configuredMode ?? CENTERED_DRILL_ROW_MODES.MATHEMATICAL
+            );
+        })
         .map(neutralOperationToViewer)
         .filter(Boolean),
     diagnostics: []

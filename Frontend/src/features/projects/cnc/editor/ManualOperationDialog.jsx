@@ -193,6 +193,15 @@ export default function ManualOperationDialog({ draft, onChange, onCancel, onSav
                     <NumberField label="Durchmesser" path="diameter" draft={draft} onChange={onChange} min="0" />
                     <NumberField label="Tiefe" path="depth" draft={draft} onChange={onChange} />
                     <NumberListField label="Querpositionen" path="crossPositions" draft={draft} onChange={onChange} />
+                    <label className="flex items-center gap-2 rounded border border-gray-700 bg-gray-950 px-3 py-2 text-xs text-gray-300 md:col-span-2">
+                        <input
+                            type="checkbox"
+                            checked={draft.centered === true}
+                            onChange={event => onChange({ ...draft, centered: event.target.checked })}
+                            className="h-4 w-4 rounded border-gray-600 bg-gray-900 text-blue-600"
+                        />
+                        Lochreihe innerhalb von Start und Ende mittig anordnen
+                    </label>
                 </div>}
 
                 {draft.kind === MACHINING_KINDS.DRILL_EDGE_PATTERN && <div className="grid grid-cols-2 gap-3">

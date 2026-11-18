@@ -141,6 +141,74 @@ test("removed recognized operations stay suppressed after cabinet regeneration",
     assert.equal(getCncProgramConfig(storedAgain).recognizedProfiles[0].suppressed, true);
 });
 
+test("stored shelf-row snapshots cannot replace current cabinet boundaries", () => {
+    const generatedRow = {
+        ...editedRow,
+        id: "row-generated",
+        start: 73,
+        end: 476,
+        centered: true,
+        depth: 16,
+        source: {
+            ...editedRow.source,
+            centered: true
+        }
+    };
+    const staleRow = {
+        ...editedRow,
+        id: "row-stale-centered",
+        start: 82.5,
+        end: 466.5,
+        rangeStart: 73,
+        rangeEnd: 476,
+        centered: true,
+        depth: 14,
+        source: {
+            ...editedRow.source,
+            centered: true
+        }
+    };
+    const stored = {
+        ...cabinet,
+        functionConfig: [{
+            id: "stored-cnc-programs",
+            type: "cncPrograms",
+            schemaVersion: 1,
+            recognizedProfiles: [{
+                id: "stored-shelf-row",
+                partKey: "part:1",
+                profileType: "shelf.row",
+                sectionId: "section-1",
+                functionId: "shelf-function",
+                intentIds: [MACHINING_INTENT_IDS.SHELF_PIN_ROW],
+                operations: [staleRow]
+            }],
+            customPrograms: [],
+            partOrders: [],
+            partHeaders: []
+        }]
+    };
+    const regenerated = {
+        PID: "000002",
+        _generatedId: "cabinet-1:part:1",
+        _cabinetId: "cabinet-1",
+        L: 720,
+        B: 560,
+        T: 19,
+        CNC: { version: 2, coordinateSystem, operations: [generatedRow] }
+    };
+
+    applyStoredCncPrograms(stored, [regenerated]);
+
+    assert.equal(regenerated.CNC.operations.length, 1);
+    assert.equal(regenerated.CNC.operations[0].start, 73);
+    assert.equal(regenerated.CNC.operations[0].end, 476);
+    assert.equal(regenerated.CNC.operations[0].centered, true);
+    assert.equal(regenerated.CNC.operations[0].depth, 14);
+    assert.equal("rangeStart" in regenerated.CNC.operations[0], false);
+    assert.equal("rangeEnd" in regenerated.CNC.operations[0], false);
+});
+
 test("part program headers are stored with the cabinet and restored during compilation", () => {
     const part = {
         PID: "000002",

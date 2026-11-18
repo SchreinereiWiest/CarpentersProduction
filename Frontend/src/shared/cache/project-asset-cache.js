@@ -16,6 +16,7 @@ const retiredObjectUrls = new Set();
 const activeRevalidations = new Map();
 const offline = () => typeof navigator !== "undefined" && !navigator.onLine;
 const isNetworkError = error => !error.response || error.code === "ERR_NETWORK";
+const EXPIRED_SIGNED_URL_STATUSES = new Set([400, 401, 403]);
 
 const readBlobBytes = blob => {
     if (typeof blob.arrayBuffer === "function") return blob.arrayBuffer();
@@ -30,6 +31,13 @@ const readBlobBytes = blob => {
 const descriptorFor = async (file, backgroundCacheValidation = false) => {
     const response = await axios.get(`/api/files/download/${file.id}`, {
         withCredentials: true,
+        headers: {
+            "Cache-Control": "no-cache, no-store",
+            Pragma: "no-cache"
+        },
+        params: {
+            signedUrlRequest: createUuid()
+        },
         ...(backgroundCacheValidation ? { backgroundCacheValidation: true } : {})
     });
     return response.data;
@@ -50,8 +58,14 @@ const retireObjectUrl = fileId => {
 };
 
 const downloadAsset = async (projectId, file, descriptor = null, retentionProtected = false) => {
-    const currentDescriptor = descriptor ?? await descriptorFor(file);
-    const response = await fetch(currentDescriptor.url);
+    let currentDescriptor = descriptor ?? await descriptorFor(file);
+    let response = await fetch(currentDescriptor.url, { cache: "no-store" });
+    if (response.ok === false
+        && EXPIRED_SIGNED_URL_STATUSES.has(response.status)
+        && !offline()) {
+        currentDescriptor = await descriptorFor(file);
+        response = await fetch(currentDescriptor.url, { cache: "no-store" });
+    }
     if (response.ok === false) throw new Error(`Datei konnte nicht geladen werden (${response.status})`);
     const blob = typeof response.blob === "function"
         ? await response.blob()

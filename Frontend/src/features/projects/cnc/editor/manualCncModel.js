@@ -541,7 +541,7 @@ export const createManualOperation = ({ tool, part, cncDefault = {}, tools = [],
         case "drill.linearPattern":
             return { ...common, x: 37, y: 37, count: 4, spacing: 32, diameter: drillDiameter, depth: drillDepth, toolId: defaultToolId(tools, "drilling") };
         case "drill.row":
-            return { ...common, axis: "x", start: 37, end: Math.max(37, width - 37), spacing: 32, crossPositions: [37, Math.max(37, height - 37)], diameter: drillDiameter, depth: drillDepth, toolId: defaultToolId(tools, "drilling") };
+            return { ...common, axis: "x", start: 37, end: Math.max(37, width - 37), spacing: 32, centered: false, crossPositions: [37, Math.max(37, height - 37)], diameter: drillDiameter, depth: drillDepth, toolId: defaultToolId(tools, "drilling") };
         case "drill.edgePattern":
             return { ...common, edge: "left", positions: [37, Math.max(37, height - 37)], spacing: 32, height: number(part?.T, 19) / 2, diameter: drillDiameter, depth: drillDepth, toolId: defaultToolId(tools, "drilling") };
         case "mill.groove":

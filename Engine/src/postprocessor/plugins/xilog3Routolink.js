@@ -1,8 +1,10 @@
 import { POSTPROCESSOR_API_VERSION } from "../contract.js";
 import {
+  CENTERED_DRILL_ROW_MODES,
   MACHINING_INTENT_IDS,
   MACHINING_KINDS,
   assertNeutralPartCnc,
+  resolveCenteredDrillRow,
   translateNeutralPartForViewer
 } from "../machiningModel.js";
 import { DEFAULT_MACHINING_LOCATIONS, resolveProgramHeader } from "../programHeader.js";
@@ -92,10 +94,19 @@ const departureStep = (configuration, fields) => {
   };
 };
 
+const outputMirrorsY = configuration =>
+  (configuration.flipYAxis !== false) !== (configuration.softwareMirrorY === true);
+
 const transformY = (value, dimensions, configuration) => {
   const y = finiteNumber(value);
   if (y === null) return null;
-  return configuration.flipYAxis === false ? y : dimensions.y - y;
+  return outputMirrorsY(configuration) ? dimensions.y - y : y;
+};
+
+const mirrorNeutralY = (value, dimensions, configuration) => {
+  const y = finiteNumber(value);
+  if (y === null) return null;
+  return configuration.softwareMirrorY === true ? dimensions.y - y : y;
 };
 
 const configuredTool = (operation, configuration, fallbackNumber) => {
@@ -147,8 +158,7 @@ const translateDrill = (operation, dimensions, configuration) => {
   const count = operation.count ?? 1;
   const xOffset = finiteNumber(operation.stepX ?? 0);
   const sourceYOffset = finiteNumber(operation.stepY ?? operation.spacing ?? 0);
-  const yOffset =
-    configuration.flipYAxis === false ? sourceYOffset : -sourceYOffset;
+  const yOffset = outputMirrorsY(configuration) ? -sourceYOffset : sourceYOffset;
 
   if ([x, y, z, diameter, xOffset, yOffset].some((value) => value === null))
     return null;
@@ -179,7 +189,7 @@ const isVerticalConnectorCycle = operation =>
   operation.kind === MACHINING_KINDS.DRILL_LINEAR_PATTERN &&
   connectorIntents.has(operation.intentId);
 
-const translateVerticalConnector = (operation, dimensions) => {
+const translateVerticalConnector = (operation, dimensions, configuration) => {
   const x = finiteNumber(operation.x);
   const depth = finiteNumber(operation.depth ?? operation.z);
   const diameter = finiteNumber(operation.diameter);
@@ -187,21 +197,23 @@ const translateVerticalConnector = (operation, dimensions) => {
   const positions = Array.isArray(operation.positions)
     ? operation.positions.map(finiteNumber).filter(value => value !== null).sort((left, right) => left - right)
     : [];
-  const start = positions[0] ?? finiteNumber(operation.y ?? operation.rowStart);
+  const neutralStart = positions[0] ?? finiteNumber(operation.y ?? operation.rowStart);
   const count = Math.max(1, Math.floor(finiteNumber(operation.count) ?? positions.length ?? 1));
   const spacing = configuredSpacing ?? (
     positions.length > 1
       ? positions[1] - positions[0]
       : 32
   );
-  const last = positions.at(-1) ?? (
-    start === null || spacing === null
+  const neutralLast = positions.at(-1) ?? (
+    neutralStart === null || spacing === null
       ? null
-      : start + Math.max(0, count - 1) * spacing
+      : neutralStart + Math.max(0, count - 1) * spacing
   );
-  const endOffset = finiteNumber(operation.rowEnd) ?? (
-    last === null ? null : Math.max(0, dimensions.y - last)
+  const neutralEndOffset = finiteNumber(operation.rowEnd) ?? (
+    neutralLast === null ? null : Math.max(0, dimensions.y - neutralLast)
   );
+  const start = configuration.softwareMirrorY === true ? neutralEndOffset : neutralStart;
+  const endOffset = configuration.softwareMirrorY === true ? neutralStart : neutralEndOffset;
 
   if ([x, start, endOffset, depth, diameter, spacing].some(value => value === null)) {
     return null;
@@ -219,8 +231,12 @@ const translateVerticalConnector = (operation, dimensions) => {
 };
 
 const translateGenericDrillRow = (operation, dimensions, configuration) => {
-  const start = finiteNumber(operation.start);
-  const end = finiteNumber(operation.end);
+  const resolvedOperation = resolveCenteredDrillRow(
+    operation,
+    CENTERED_DRILL_ROW_MODES.MATHEMATICAL
+  );
+  const start = finiteNumber(resolvedOperation.start);
+  const end = finiteNumber(resolvedOperation.end);
   const spacing = finiteNumber(operation.spacing);
   const z = finiteNumber(operation.depth ?? operation.z);
   const diameter = finiteNumber(operation.diameter);
@@ -253,9 +269,8 @@ const translateGenericDrillRow = (operation, dimensions, configuration) => {
 
 const translateShelfRow = (operation, dimensions, configuration) => {
   const spacing = finiteNumber(operation.spacing);
-  const isNativeShelfRow = operation.intentId === MACHINING_INTENT_IDS.SHELF_PIN_ROW &&
-    spacing !== null && Math.abs(spacing - 32) <= 0.0001;
-  if (!isNativeShelfRow) {
+  const isNativeDrillRow = spacing !== null && Math.abs(spacing - 32) <= 0.0001;
+  if (!isNativeDrillRow) {
     return translateGenericDrillRow(operation, dimensions, configuration);
   }
 
@@ -264,7 +279,7 @@ const translateShelfRow = (operation, dimensions, configuration) => {
   const end = finiteNumber(centered ? operation.rangeEnd ?? operation.end : operation.end);
   const depth = finiteNumber(operation.depth ?? operation.z);
   const positions = (Array.isArray(operation.crossPositions) ? operation.crossPositions : [])
-    .map(finiteNumber)
+    .map(value => mirrorNeutralY(value, dimensions, configuration))
     .filter(value => value !== null)
     .sort((left, right) => left - right);
   const frontOffset = positions[0];
@@ -288,7 +303,7 @@ const translateShelfRow = (operation, dimensions, configuration) => {
   ].join(" ")];
 };
 
-const translateHorizontalBore = (operation, dimensions) => {
+const translateHorizontalBore = (operation, dimensions, configuration) => {
   if (!["left", "right"].includes(operation.edge)) return null;
 
   const positions = Array.isArray(operation.positions)
@@ -298,7 +313,10 @@ const translateHorizontalBore = (operation, dimensions) => {
   const diameter = finiteNumber(operation.diameter);
   if (positions.length === 0 || z === null || diameter === null) return null;
 
-  const sorted = [...positions].sort((left, right) => left - right);
+  const sorted = positions
+    .map(value => mirrorNeutralY(value, dimensions, configuration))
+    .filter(value => value !== null)
+    .sort((left, right) => left - right);
   const spacing =
     sorted.length > 1
       ? (finiteNumber(operation.spacing) ?? sorted[1] - sorted[0])
@@ -431,7 +449,7 @@ const normalizeNativeFillets = operations => {
 
 const compensationCode = (compensation, configuration) => {
   if (compensation !== "left" && compensation !== "right") return 0;
-  const mirrored = configuration.flipYAxis !== false;
+  const mirrored = outputMirrorsY(configuration);
   if (compensation === "left") return mirrored ? 1 : 2;
   return mirrored ? 2 : 1;
 };
@@ -570,14 +588,14 @@ const translateOperation = (operation, dimensions, configuration, programFace) =
     case MACHINING_KINDS.DRILL_LINEAR_PATTERN:
       return {
         lines: isVerticalConnectorCycle(operation)
-          ? translateVerticalConnector(operation, dimensions)
+          ? translateVerticalConnector(operation, dimensions, configuration)
           : translateDrill(operation, dimensions, configuration)
       };
     case MACHINING_KINDS.DRILL_ROW:
       return { lines: translateShelfRow(operation, dimensions, configuration) };
     case MACHINING_KINDS.DRILL_EDGE_PATTERN:
       return {
-        lines: translateHorizontalBore(operation, dimensions)
+        lines: translateHorizontalBore(operation, dimensions, configuration)
       };
     case MACHINING_KINDS.MILL_GROOVE:
       return { lines: translateGroove(operation, dimensions, configuration) };
@@ -592,7 +610,7 @@ export const xilog3Routolink = {
   manifest: {
     id: "scm-xilog3-routolink",
     name: "SCM Xilog 3 · RoutoLink",
-    version: "0.5.0",
+    version: "0.6.0",
     apiVersion: POSTPROCESSOR_API_VERSION,
     description:
       "Erzeugt importierbare Xilog-3-XXL-Programme auf Basis der Wiest-Runtime und ihrer installierten Festzyklen.",
@@ -604,6 +622,12 @@ export const xilog3Routolink = {
     },
     machineCodeFaces: ["A", "B"],
     machiningLocations: DEFAULT_MACHINING_LOCATIONS,
+    centeredDrillRows: {
+      mode: "native",
+      command: "LR2M",
+      spacing: 32,
+      fallbackMode: "mathematical"
+    },
     sourceFormat: "Xilog 3 XXL (ASCII, CRLF)",
     supportedMachiningStrategies: [
       strategy(
@@ -687,18 +711,29 @@ export const xilog3Routolink = {
     ],
     configuration: [
       {
-        key: "machineName",
-        label: "Maschinenname",
-        type: "text",
-        defaultValue: "SCM RoutoLink",
-        required: true
-      },
-      {
         key: "workingFields",
         label: "Standard-Anschlag für neue Bauteile",
         type: "select",
         options: DEFAULT_MACHINING_LOCATIONS.map(location => ({ value: location.id, label: `${location.label} · ${location.anchorCorner === "top-right" ? "oben rechts" : "oben links"}` })),
         defaultValue: "AD",
+        required: true
+      },
+      {
+        key: "defaultEdgeAtStop",
+        label: "Standardorientierung am Anschlag",
+        type: "select",
+        options: [
+          { value: "front", label: "Frontkante am Anschlag" },
+          { value: "back", label: "Bauteilrücken am Anschlag" }
+        ],
+        defaultValue: "front",
+        required: true
+      },
+      {
+        key: "machineName",
+        label: "Maschinenname",
+        type: "text",
+        defaultValue: "SCM RoutoLink",
         required: true
       },
       {
@@ -765,19 +800,29 @@ export const xilog3Routolink = {
   },
 
   translateForViewer({ part }) {
-    return translateNeutralPartForViewer(part);
+    return translateNeutralPartForViewer(part, {
+      centeredDrillRowMode: operation => {
+        const spacing = finiteNumber(operation?.spacing);
+        return operation?.kind === MACHINING_KINDS.DRILL_ROW &&
+          spacing !== null &&
+          Math.abs(spacing - this.manifest.centeredDrillRows.spacing) <= 0.0001
+          ? this.manifest.centeredDrillRows.mode
+          : this.manifest.centeredDrillRows.fallbackMode;
+      }
+    });
   },
 
   resolveProgramHeader({ part, postprocessor }) {
     return resolveProgramHeader({
       manifest: this.manifest,
       part,
-      defaultStopId: workingFields(postprocessor?.configuration?.workingFields)
+      defaultStopId: workingFields(postprocessor?.configuration?.workingFields),
+      defaultEdgeAtStop: postprocessor?.configuration?.defaultEdgeAtStop
     });
   },
 
   generateMachineCode({ part, fileName, face = "A", postprocessor, resolvedMachining = {} }) {
-    const configuration = postprocessor?.configuration ?? {};
+    const baseConfiguration = postprocessor?.configuration ?? {};
     const dimensions = partDimensions(part);
     const diagnostics = [];
     const programFace = String(face || "A").toUpperCase();
@@ -819,6 +864,10 @@ export const xilog3Routolink = {
       ? part.CNC.operations
       : []).filter(operation => operationFaceSupported(operation, programFace));
     const header = this.resolveProgramHeader({ part, postprocessor });
+    const configuration = {
+      ...baseConfiguration,
+      softwareMirrorY: header.edgeAtStop === "back"
+    };
     const fields = workingFields(header.outputCode);
     const departure = departureStep(configuration, fields);
     const lines = [
