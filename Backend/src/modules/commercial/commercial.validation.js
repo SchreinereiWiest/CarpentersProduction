@@ -19,6 +19,19 @@ const amount = value => {
   return Number.isFinite(normalized) ? Math.max(0, Math.round(normalized * 100) / 100) : 0;
 };
 
+const jsonObject = (value, fieldName, maxBytes = 3_000_000) => {
+  if (value === undefined) return undefined;
+  if (value === null) return {};
+  if (typeof value !== "object" || Array.isArray(value)) {
+    throw new CommercialValidationError(`${fieldName} ist ungültig.`);
+  }
+  const serialized = JSON.stringify(value);
+  if (Buffer.byteLength(serialized, "utf8") > maxBytes) {
+    throw new CommercialValidationError(`${fieldName} ist zu groß.`);
+  }
+  return JSON.parse(serialized);
+};
+
 export function normalizeCommercialItems(items) {
   if (!Array.isArray(items) || items.length > 500) {
     throw new CommercialValidationError("Bitte höchstens 500 Positionen übergeben.");
@@ -72,6 +85,8 @@ export function commercialDocumentData(input, { partial = false } = {}) {
     ...(input?.introText === undefined && partial ? {} : { introText: text(input?.introText, 10_000) }),
     ...(input?.notes === undefined && partial ? {} : { notes: text(input?.notes, 10_000) }),
     ...(input?.templateId === undefined && partial ? {} : { templateId: text(input?.templateId, 80) }),
+    ...(input?.fieldValues === undefined && partial ? {} : { fieldValues: jsonObject(input?.fieldValues || {}, "Die Feldwerte", 500_000) }),
+    ...(input?.layout === undefined && partial ? {} : { layout: jsonObject(input?.layout || {}, "Das Beleglayout") }),
     ...(items === undefined ? {} : { items, totals }),
     ...(input?.issuedAt === undefined && partial ? {} : { issuedAt: input?.issuedAt ? new Date(input.issuedAt) : null }),
     ...(input?.dueAt === undefined && partial ? {} : { dueAt: input?.dueAt ? new Date(input.dueAt) : null })
@@ -110,6 +125,7 @@ export const normalizeTemplateAnalysis = value => {
   if (!input || typeof input !== "object" || !Number.isInteger(Number(input.pageCount))) {
     throw new CommercialValidationError("Die PDF-Analyse ist unvollständig.", "DOCUMENT_TEMPLATE_ANALYSIS_INVALID");
   }
+  const layout = jsonObject(input.layout || {}, "Das Vorlagenlayout");
   return {
     version: 1,
     pageCount: Math.min(500, Math.max(1, Number(input.pageCount))),
@@ -129,6 +145,7 @@ export const normalizeTemplateAnalysis = value => {
       anchorText: text(field?.anchorText, 300)
     })) : [],
     imageCount: Math.min(1000, amount(input.imageCount)),
-    colors: Array.isArray(input.colors) ? input.colors.slice(0, 20).map(value => text(value, 30)).filter(Boolean) : []
+    colors: Array.isArray(input.colors) ? input.colors.slice(0, 20).map(value => text(value, 30)).filter(Boolean) : [],
+    layout
   };
 };

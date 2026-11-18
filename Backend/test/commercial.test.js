@@ -38,8 +38,21 @@ test("PDF-Analysen werden begrenzt und validiert", () => {
     pageCount: 2,
     imageCount: 3,
     textBlocks: [{ text: "Rechnungsnummer", page: 1, x: 10, y: 20 }],
-    fields: [{ key: "documentNumber", label: "Belegnummer", page: 1, anchorText: "Rechnungsnummer" }]
+    fields: [{ key: "documentNumber", label: "Belegnummer", page: 1, anchorText: "Rechnungsnummer" }],
+    layout: { version: 1, objects: [{ id: "date", type: "field", key: "issuedAt", x: 150, y: 30 }] }
   });
   assert.equal(analysis.pageCount, 2);
   assert.equal(analysis.fields[0].key, "documentNumber");
+  assert.equal(analysis.layout.objects[0].key, "issuedAt");
+});
+
+test("Belege speichern Layout-Snapshot und ausgefüllte automatische Felder", () => {
+  const document = commercialDocumentData({
+    documentType: "quote",
+    items: [],
+    fieldValues: { customerAddress: "Musterweg 1" },
+    layout: { version: 1, objects: [{ id: "address", type: "field", key: "customerAddress" }] }
+  });
+  assert.equal(document.fieldValues.customerAddress, "Musterweg 1");
+  assert.equal(document.layout.objects[0].id, "address");
 });

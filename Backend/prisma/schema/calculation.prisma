@@ -70,6 +70,8 @@ model CommercialDocument {
   notes          String?
   items          Json    @default("[]")
   totals         Json    @default("{}")
+  fieldValues    Json    @default("{}") @map("field_values")
+  layout         Json    @default("{}")
 
   issuedAt DateTime? @map("issued_at")
   dueAt    DateTime? @map("due_at")

@@ -125,9 +125,9 @@ model DocumentTemplate {
   id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   tenantId String @map("tenant_id") @db.Uuid
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  fileId String @unique @map("file_id") @db.Uuid
-  file   File   @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  fileId String? @unique @map("file_id") @db.Uuid
+  file   File?   @relation(fields: [fileId], references: [id], onDelete: Cascade)
 
   name         String
   documentType String @default("universal") @map("document_type")

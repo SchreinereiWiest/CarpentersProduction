@@ -4,6 +4,7 @@ import multer from "multer";
 import { authenticate, authorizeRoles, requireFeature } from "../../middleware/auth.middleware.js";
 import {
   createCommercialDocument,
+  createManualDocumentTemplate,
   createCommission,
   deleteCommission,
   downloadDocumentTemplate,
@@ -15,6 +16,7 @@ import {
   saveCommissionCalculation,
   updateCommercialDocument,
   updateCommission,
+  updateDocumentTemplateLayout,
   uploadDocumentTemplate
 } from "./commercial.controller.js";
 
@@ -35,6 +37,8 @@ router.use(authenticate, authorizeRoles("admin", "manager"));
 
 router.get("/templates", listDocumentTemplates);
 router.post("/templates", authorizeRoles("admin"), receiveTemplate, uploadDocumentTemplate);
+router.post("/templates/manual", authorizeRoles("admin"), createManualDocumentTemplate);
+router.put("/templates/:id/layout", authorizeRoles("admin"), updateDocumentTemplateLayout);
 router.get("/templates/:id/download", downloadDocumentTemplate);
 
 router.use(requireFeature("crm"));

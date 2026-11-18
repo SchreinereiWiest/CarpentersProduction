@@ -142,14 +142,15 @@ async function nextDocumentNumber(documentType) {
 }
 
 async function assertDocumentTemplate(templateId, documentType) {
-  if (!templateId) return;
-  const template = await prisma.documentTemplate.findFirst({ where: { id: templateId, status: "active" }, select: { id: true, documentType: true } });
+  if (!templateId) return null;
+  const template = await prisma.documentTemplate.findFirst({ where: { id: templateId, status: "active" }, select: { id: true, documentType: true, analysis: true } });
   if (!template || !["universal", documentType].includes(template.documentType)) {
     const error = new Error("Die gewählte PDF-Vorlage ist für diesen Beleg nicht verfügbar.");
     error.statusCode = 400;
     error.code = "DOCUMENT_TEMPLATE_INVALID";
     throw error;
   }
+  return template;
 }
 
 export async function createCommercialDocument(req, res) {
@@ -161,10 +162,18 @@ export async function createCommercialDocument(req, res) {
     const commissionId = req.body?.commissionId || null;
     const seededItems = req.body?.items || await sourceItems({ customerId, projectId, commissionId });
     const normalized = commercialDocumentData({ ...req.body, items: seededItems });
-    await assertDocumentTemplate(normalized.templateId, normalized.documentType);
+    const template = await assertDocumentTemplate(normalized.templateId, normalized.documentType);
     const documentNumber = normalized.documentNumber || await nextDocumentNumber(normalized.documentType);
     const document = await prisma.commercialDocument.create({
-      data: { ...normalized, documentNumber, customerId, projectId, commissionId, createdById: req.user.id },
+      data: {
+        ...normalized,
+        layout: Object.keys(normalized.layout || {}).length ? normalized.layout : (template?.analysis?.layout || {}),
+        documentNumber,
+        customerId,
+        projectId,
+        commissionId,
+        createdById: req.user.id
+      },
       include: documentInclude
     });
     return res.status(201).json({ document });
@@ -218,9 +227,42 @@ export async function uploadDocumentTemplate(req, res) {
   }
 }
 
+export async function createManualDocumentTemplate(req, res) {
+  try {
+    const analysis = normalizeTemplateAnalysis(req.body?.analysis);
+    const name = String(req.body?.name || "Manuelles Beleglayout").trim().slice(0, 300);
+    const documentType = ["quote", "invoice", "universal"].includes(req.body?.documentType) ? req.body.documentType : "universal";
+    const template = await prisma.documentTemplate.create({
+      data: { uploadedById: req.user.id, name, documentType, analysis },
+      include: { file: { select: { originalName: true, fileSize: true, mimeType: true } } }
+    });
+    return res.status(201).json({ template });
+  } catch (error) {
+    return sendExpectedError(res, error);
+  }
+}
+
+export async function updateDocumentTemplateLayout(req, res) {
+  try {
+    const current = await prisma.documentTemplate.findFirst({ where: { id: req.params.id, status: "active" }, select: { id: true, analysis: true } });
+    if (!current) return res.status(404).json({ message: "Belegvorlage nicht gefunden." });
+    const analysis = normalizeTemplateAnalysis({ ...(current.analysis || {}), ...(req.body?.analysis || {}), layout: req.body?.layout || req.body?.analysis?.layout || current.analysis?.layout || {} });
+    const documentType = ["quote", "invoice", "universal"].includes(req.body?.documentType) ? req.body.documentType : undefined;
+    const name = req.body?.name === undefined ? undefined : String(req.body.name || "Belegvorlage").trim().slice(0, 300);
+    const template = await prisma.documentTemplate.update({
+      where: { id: current.id },
+      data: { analysis, ...(documentType ? { documentType } : {}), ...(name ? { name } : {}) },
+      include: { file: { select: { originalName: true, fileSize: true, mimeType: true } } }
+    });
+    return res.json({ template });
+  } catch (error) {
+    return sendExpectedError(res, error);
+  }
+}
+
 export async function downloadDocumentTemplate(req, res) {
   const template = await prisma.documentTemplate.findFirst({ where: { id: req.params.id, status: "active" }, include: { file: { include: { storageObject: true } } } });
-  if (!template) return res.status(404).json({ message: "Belegvorlage nicht gefunden." });
+  if (!template?.file) return res.status(404).json({ message: "Für diese manuelle Vorlage ist keine PDF-Datei hinterlegt." });
   const downloadUrl = await getSignedUrl(s3Download, new GetObjectCommand({ Bucket: template.file.storageObject.bucketName, Key: template.file.storageObject.objectKey }), { expiresIn: 300 });
   return res.json({ downloadUrl });
 }
