@@ -14,10 +14,6 @@ vi.mock("axios", () => ({
   }
 }));
 
-vi.mock("../../src/features/management/hooks/useManagement.js", () => ({
-  useManagement: () => ({ references: { files: [] }, refresh: vi.fn(), busy: false })
-}));
-
 vi.mock("../../src/shared/components/PaperlessDocumentViewer.jsx", () => ({
   default: ({ document, onClose }) => (
     <div role="dialog" aria-label={`Vorschau ${document.title}`}>

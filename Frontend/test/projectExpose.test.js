@@ -51,6 +51,22 @@ describe("Projekt-Exposé", () => {
     expect(expose.assetText["photo-1"]).toEqual({ title: "", text: "" });
   });
 
+  it("normalisiert neue Seiten auf ein explizites A4-Seitenformat", () => {
+    const expose = normalizeExpose({
+      manualPages: [
+        { id: "manual:landscape" },
+        { id: "manual:portrait", orientation: "portrait" },
+        { id: "manual:invalid", orientation: "square" }
+      ]
+    });
+
+    expect(expose.manualPages.map((page) => page.orientation)).toEqual([
+      "landscape",
+      "portrait",
+      "landscape"
+    ]);
+  });
+
   it("bewahrt frei platzierte Objekte und Bildersetzungen", () => {
     const block = {
       id: "custom:text-1",

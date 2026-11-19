@@ -753,6 +753,7 @@ export async function createAssignmentQr(req, res) {
     projectId: assignment.projectId,
     documentType,
     title,
+    wholePdf: req.body?.wholePdf === true,
     issuedAt: new Date().toISOString()
   };
   return res.json({ value: createPaperlessQrValue(payload, secret), payload });

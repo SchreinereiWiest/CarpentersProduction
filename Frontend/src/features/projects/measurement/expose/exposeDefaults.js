@@ -81,7 +81,12 @@ export function normalizeExpose(value) {
     pageTemplates: Object.fromEntries(Object.entries(
       source.pageTemplates && typeof source.pageTemplates === "object" ? source.pageTemplates : {}
     ).map(([pageId, templateId]) => [pageId, templateId === "standard" ? "info" : templateId === "subtitle" ? "title" : templateId])),
-    manualPages: Array.isArray(source.manualPages) ? source.manualPages : [],
+    manualPages: Array.isArray(source.manualPages)
+      ? source.manualPages.map((page) => ({
+          ...page,
+          orientation: page?.orientation === "portrait" ? "portrait" : "landscape"
+        }))
+      : [],
     pageOrder: Array.isArray(source.pageOrder) ? source.pageOrder.map(String) : [],
     cncProgramsPerPage: Math.max(1, Math.min(8, Number(source.cncProgramsPerPage) || 4)),
     pageLayouts:

@@ -75,6 +75,48 @@ class MultiPageWorkerTests(unittest.TestCase):
         self.assertEqual(payload["details"]["processedPages"], 2)
         self.assertEqual(payload["details"]["fieldCount"], 2)
 
+    @patch.object(worker, "decode_qr_values")
+    @patch.object(worker, "iter_document_pages")
+    @patch.object(worker.requests, "get")
+    @patch.object(worker, "_post")
+    def test_paperless_qr_reader_reports_codes_from_all_inspected_pages(
+        self,
+        post,
+        get,
+        iter_pages,
+        decode_qr_values,
+    ):
+        first = np.full((10, 10, 3), 255, dtype=np.uint8)
+        second = np.full((10, 10, 3), 240, dtype=np.uint8)
+        response = Mock(content=b"pdf", raise_for_status=Mock())
+        response.headers = {"content-type": "application/pdf"}
+        get.return_value = response
+        iter_pages.return_value = [(1, first), (2, second)]
+        decode_qr_values.side_effect = [
+            ["CPD1.first.signature"],
+            ["CPD1.second.signature"],
+        ]
+
+        worker.process_paperless_qr_job(
+            {
+                "documentId": "document-1",
+                "tenantId": "tenant-1",
+                "downloadUrl": "download",
+                "callbackUrl": "callback",
+                "mimeType": "application/pdf",
+            }
+        )
+
+        payload = post.call_args.args[1]
+        self.assertEqual(
+            payload["values"],
+            [
+                {"value": "CPD1.first.signature", "sourcePage": 1},
+                {"value": "CPD1.second.signature", "sourcePage": 2},
+            ],
+        )
+        self.assertEqual(payload["details"]["inspectedPages"], 2)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -6,7 +6,8 @@ import { pushValkeyJob } from "../../infrastructure/queue/valkey.js";
 import { getTenantSecret } from "../attachment-search/tenant-secrets.service.js";
 import {
   PAPERLESS_QR_SIGNING_SECRET,
-  getPaperlessConfiguration
+  getPaperlessConfiguration,
+  paperlessJson
 } from "./paperless.service.js";
 
 export const PAPERLESS_QR_PREFIX = "CPD1";
@@ -34,9 +35,94 @@ export function verifyPaperlessQrValue(value, secret, tenantId) {
     if (payload?.v !== 1 || payload?.tenantId !== tenantId) return null;
     if (payload.projectId && !UUID.test(payload.projectId)) return null;
     if (payload.customerId && !UUID.test(payload.customerId)) return null;
+    if (payload.wholePdf != null && typeof payload.wholePdf !== "boolean") return null;
     return payload;
   } catch {
     return null;
+  }
+}
+
+export function selectPaperlessQrAssignment(assignments = []) {
+  return assignments.find(candidate => candidate?.payload?.wholePdf === true)
+    ?? assignments[0]
+    ?? null;
+}
+
+export function buildPaperlessSplitPlan(assignments = [], pageCount = 0) {
+  const totalPages = Math.max(0, Math.floor(Number(pageCount) || 0));
+  const targetKey = candidate => candidate?.projectId
+    ? `project:${candidate.projectId}`
+    : candidate?.customerId
+      ? `customer:${candidate.customerId}`
+      : null;
+  const assignmentsByPage = new Map();
+  assignments.forEach(candidate => {
+    const sourcePage = Math.floor(Number(candidate?.sourcePage));
+    if (sourcePage < 1 || sourcePage > totalPages || !targetKey(candidate)) return;
+    const pageAssignments = assignmentsByPage.get(sourcePage) ?? [];
+    pageAssignments.push(candidate);
+    assignmentsByPage.set(sourcePage, pageAssignments);
+  });
+  const pageAssignments = [...assignmentsByPage.entries()]
+    .sort(([left], [right]) => left - right)
+    .map(([sourcePage, candidates]) => ({
+      sourcePage,
+      assignment: candidates.find(candidate => candidate?.payload?.wholePdf === true)
+        ?? candidates.find(candidate => candidate?.sourceKind === "document")
+        ?? candidates[0]
+    }));
+  if (pageAssignments.length < 2 || totalPages < 2) return null;
+
+  const starts = [pageAssignments[0].sourcePage];
+  let anchor = pageAssignments[0].assignment;
+  for (const entry of pageAssignments.slice(1)) {
+    const differentTarget = targetKey(entry.assignment) !== targetKey(anchor);
+    const anchorCoversProject = anchor?.payload?.wholePdf === true;
+    const startsNewDocument = entry.assignment?.sourceKind === "document";
+    if ((anchorCoversProject && differentTarget) || (!anchorCoversProject && (differentTarget || startsNewDocument))) {
+      starts.push(entry.sourcePage);
+      anchor = entry.assignment;
+    }
+  }
+  if (starts.length < 2 || totalPages < 2) return null;
+  const pages = starts.map((start, index) => {
+    const from = index === 0 ? 1 : start;
+    const to = (starts[index + 1] ?? totalPages + 1) - 1;
+    return Array.from({ length: to - from + 1 }, (_value, offset) => from + offset);
+  });
+  return {
+    pages,
+    operations: pages.flatMap((segment, doc) => segment.map(page => ({ page, doc })))
+  };
+}
+
+async function requestPaperlessSplit(remoteDocumentId, plan) {
+  const headers = { "content-type": "application/json" };
+  try {
+    return await paperlessJson("documents/edit_pdf/", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        documents: [remoteDocumentId],
+        operations: plan.operations,
+        delete_original: true,
+        update_document: false,
+        include_metadata: true
+      }),
+      timeoutMs: 90_000
+    });
+  } catch (error) {
+    if (error?.statusCode !== 404) throw error;
+    return paperlessJson("documents/bulk_edit/", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        documents: [remoteDocumentId],
+        method: "split",
+        parameters: { pages: plan.pages, delete_originals: true }
+      }),
+      timeoutMs: 90_000
+    });
   }
 }
 
@@ -151,12 +237,50 @@ export async function applyPaperlessQrResult(documentId, body) {
     return { accepted: true, assigned: false };
   }
 
-  const values = Array.isArray(body.values) ? body.values.slice(0, 50) : [];
-  let assignment = null;
+  const values = Array.isArray(body.values) ? body.values.slice(0, 100) : [];
+  const assignments = [];
   for (const entry of values) {
     const value = typeof entry === "string" ? entry : entry?.value;
-    assignment = await resolveCpdAssignment(value) || await resolveMeasurementAssignment(value);
-    if (assignment) break;
+    const resolved = await resolveCpdAssignment(value) || await resolveMeasurementAssignment(value);
+    if (resolved) assignments.push({
+      ...resolved,
+      sourceKind: String(value).startsWith(`${PAPERLESS_QR_PREFIX}.`) ? "document" : "measurement",
+      sourcePage: typeof entry === "string" ? null : entry?.sourcePage ?? null
+    });
+  }
+  const assignment = selectPaperlessQrAssignment(assignments);
+  const pageCount = Number(document.remoteMetadata?.pageCount) || Number(body.details?.inspectedPages) || 0;
+  const splitPlan = buildPaperlessSplitPlan(assignments, pageCount);
+
+  if (splitPlan) {
+    await requestPaperlessSplit(document.remoteDocumentId, splitPlan);
+    await prisma.$transaction(async transaction => {
+      await transaction.paperlessDocument.update({
+        where: { id: document.id },
+        data: {
+          status: "processing",
+          qrStatus: "splitting",
+          qrPayload: {
+            detectedAssignments: assignments.length,
+            splitPageRanges: splitPlan.pages.map(pages => [pages[0], pages.at(-1)])
+          },
+          qrError: null
+        }
+      });
+      await transaction.auditLog.create({
+        data: {
+          action: "paperless.document.auto_split",
+          entityType: "PaperlessDocument",
+          entityId: document.id,
+          metadata: {
+            remoteDocumentId: document.remoteDocumentId,
+            segmentCount: splitPlan.pages.length,
+            pageRanges: splitPlan.pages.map(pages => [pages[0], pages.at(-1)])
+          }
+        }
+      });
+    });
+    return { accepted: true, assigned: false, splitting: true, segments: splitPlan.pages.length };
   }
 
   if (!assignment) {
@@ -184,7 +308,11 @@ export async function applyPaperlessQrResult(documentId, body) {
         folderId: null,
         status: "linked",
         qrStatus: "matched",
-        qrPayload: assignment.payload,
+        qrPayload: {
+          ...assignment.payload,
+          sourcePage: assignment.sourcePage,
+          detectedAssignments: assignments.length
+        },
         qrError: null,
         documentType: assignment.payload.documentType
           ? String(assignment.payload.documentType).slice(0, 120)
@@ -205,7 +333,9 @@ export async function applyPaperlessQrResult(documentId, body) {
           remoteDocumentId: document.remoteDocumentId,
           projectId: assignment.projectId,
           customerId: assignment.customerId,
-          documentType: assignment.payload.documentType || null
+          documentType: assignment.payload.documentType || null,
+          wholePdf: assignment.payload.wholePdf === true,
+          sourcePage: assignment.sourcePage
         }
       }
     });
@@ -227,13 +357,18 @@ export async function applyLocalDocumentQrResult(fileId, body) {
     return { accepted: true, assigned: false };
   }
 
-  const values = Array.isArray(body.values) ? body.values.slice(0, 50) : [];
-  let assignment = null;
+  const values = Array.isArray(body.values) ? body.values.slice(0, 100) : [];
+  const assignments = [];
   for (const entry of values) {
     const value = typeof entry === "string" ? entry : entry?.value;
-    assignment = await resolveCpdAssignment(value) || await resolveMeasurementAssignment(value);
-    if (assignment) break;
+    const resolved = await resolveCpdAssignment(value) || await resolveMeasurementAssignment(value);
+    if (resolved) assignments.push({
+      ...resolved,
+      sourceKind: String(value).startsWith(`${PAPERLESS_QR_PREFIX}.`) ? "document" : "measurement",
+      sourcePage: typeof entry === "string" ? null : entry?.sourcePage ?? null
+    });
   }
+  const assignment = selectPaperlessQrAssignment(assignments);
 
   if (!assignment) {
     await prisma.file.update({
@@ -261,7 +396,9 @@ export async function applyLocalDocumentQrResult(fileId, body) {
         metadata: {
           projectId: assignment.projectId,
           customerId: assignment.customerId,
-          documentType: assignment.payload.documentType || null
+          documentType: assignment.payload.documentType || null,
+          wholePdf: assignment.payload.wholePdf === true,
+          sourcePage: assignment.sourcePage
         }
       }
     });

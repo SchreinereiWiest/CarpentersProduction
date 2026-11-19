@@ -4,7 +4,6 @@ import QRCode from "qrcode";
 import PaperlessDocumentViewer from "../../../shared/components/PaperlessDocumentViewer.jsx";
 import { createPaperlessQrPdf, PAPERLESS_QR_PAPER_FORMATS } from "./paperlessQrPdf.js";
 import { DOCUMENT_DEFAULTS } from "../defaults/ui.defaults.js";
-import { useManagement } from "../hooks/useManagement.js";
 import { getS3FileUrl } from "../../../shared/cache/project-asset-cache.js";
 import { loadPdfJs } from "../../../shared/pdf/loadPdfJs.js";
 
@@ -210,7 +209,6 @@ function DocumentAssigneeDialog({ document, onClose, onAssigned }) {
 }
 
 function ManualDocumentUploadDialog({ connected = true, onClose, onPaperlessUploaded, onLocalUploaded }) {
-    const { refresh } = useManagement();
     const [storage, setStorage] = useState(connected ? "dms" : "carpenters");
     const [file, setFile] = useState(null);
     const [busy, setBusy] = useState(false);
@@ -249,7 +247,6 @@ function ManualDocumentUploadDialog({ connected = true, onClose, onPaperlessUplo
                 body.append("file", file, file.name);
                 body.append("fileName", file.name);
                 await axios.post("/api/files/management-document", body);
-                await refresh();
                 await onLocalUploaded();
             }
             onClose();

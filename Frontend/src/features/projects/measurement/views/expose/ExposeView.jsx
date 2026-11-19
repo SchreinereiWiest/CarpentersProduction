@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import axios from "axios";
+import QRCode from "qrcode";
 import {
   COVER_BLOCK_LAYOUTS,
   EXPOSE_LANDSCAPE_HEIGHT,
@@ -70,7 +72,8 @@ const customBlocksForPage = (expose, pageId) =>
 const customBlockLabel = (type) => ({
   text: "Textfeld",
   image: "Projektbild",
-  logo: "Unternehmenslogo"
+  logo: "Unternehmenslogo",
+  qr: "Projekt-QR-Code"
 }[type] ?? "Objekt");
 
 function CustomBlocks({
@@ -105,7 +108,9 @@ function CustomBlocks({
     };
     const source = block.type === "logo"
       ? companySettings?.branding?.logoDataUrl
-      : photos.find((photo) => String(photo.id) === String(block.imageId))?.url;
+      : block.type === "qr"
+        ? block.qrDataUrl
+        : photos.find((photo) => String(photo.id) === String(block.imageId))?.url;
     let content;
     if (block.type === "text") {
       content = editable && !readOnly ? (
@@ -128,7 +133,7 @@ function CustomBlocks({
             alt=""
             draggable="false"
             className="h-full w-full select-none object-contain"
-            style={{
+            style={block.type === "qr" ? undefined : {
               objectPosition: `${block.layout.cropX ?? 50}% ${block.layout.cropY ?? 50}%`,
               transform: `scale(${block.layout.zoom ?? 1})`,
               transformOrigin: `${block.layout.cropX ?? 50}% ${block.layout.cropY ?? 50}%`
@@ -139,7 +144,7 @@ function CustomBlocks({
     } else {
       content = (
         <div className="flex h-full items-center justify-center rounded border border-dashed border-[#91a0a8] bg-white text-center text-[0.75cqw] font-semibold text-[#71848f]">
-          {block.type === "logo" ? "Logo in den Unternehmenseinstellungen hinterlegen" : "Bild wählen"}
+          {block.type === "logo" ? "Logo in den Unternehmenseinstellungen hinterlegen" : block.type === "qr" ? "QR-Code wird erzeugt" : "Bild wählen"}
         </div>
       );
     }
@@ -218,6 +223,8 @@ function useBlockDrawing({ page, pageRef, insertTool, snapTolerance, onCreate })
     event.stopPropagation();
     const defaults = insertTool === "text"
       ? { width: 70, height: 24 }
+      : insertTool === "qr"
+        ? { width: 36, height: 36 }
       : insertTool === "logo"
         ? { width: 55, height: 28 }
         : { width: 90, height: 62 };
@@ -441,8 +448,8 @@ function createExposePages({
     id: String(manual.id ?? `manual:${index}`),
     kind: "manual",
     label: manual.label || `Eigene Seite ${index + 1}`,
-    width: PAGE_WIDTH,
-    height: PAGE_HEIGHT,
+    width: manual.orientation === "portrait" ? PAGE_HEIGHT : PAGE_WIDTH,
+    height: manual.orientation === "portrait" ? PAGE_WIDTH : PAGE_HEIGHT,
     manual,
     templateId: normalizeExposeTemplateId(expose.pageTemplates?.[manual.id] ?? manual.templateId, "title")
   }));
@@ -1314,12 +1321,16 @@ function PropertiesPanel({
   onInsertToolChange,
   onTemplateChange,
   onManualPageChange,
+  onPageOrientationChange,
   onRemoveManualPage,
   onCncProgramsPerPageChange,
   onLayoutChange,
   onReset,
   onRemove,
   onChooseImage,
+  onQrWholePdfChange,
+  qrBusy,
+  qrError,
   textValue,
   onTextChange
 }) {
@@ -1335,12 +1346,12 @@ function PropertiesPanel({
 
   if (!selectedBlock || !layout) {
     return (
-      <aside className="flex h-full flex-col border-l border-[#2a3741] bg-[#172029]">
-        <div className="border-b border-[#2a3741] px-4 py-4">
+      <aside className="flex h-full min-h-0 flex-col overflow-hidden border-l border-[#2a3741] bg-[#172029]">
+        <div className="shrink-0 border-b border-[#2a3741] px-4 py-4">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#718391]">Seiteneigenschaften</p>
           <h3 className="mt-1 text-sm font-semibold text-[#e1eaf0]">{page.label}</h3>
         </div>
-        <div className="space-y-4 p-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4">
             {!['parts', 'nesting'].includes(page.kind) && <div className="rounded-lg border border-[#31434e] bg-[#111a21] p-3">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8395a1]">Vorlagenmanager</p>
               <label className="mt-3 block text-[10px] font-semibold uppercase tracking-[0.1em] text-[#6f828e]">
@@ -1363,6 +1374,13 @@ function PropertiesPanel({
               )}
               {page.kind === "manual" && (
                 <div className="mt-3 space-y-2">
+                  <label className="block text-[10px] font-semibold uppercase tracking-[0.1em] text-[#6f828e]">
+                    Seitenformat
+                    <select value={page.manual.orientation ?? "landscape"} disabled={readOnly} onChange={(event) => onPageOrientationChange(event.target.value)} className={`${POSITION_INPUT} normal-case tracking-normal`}>
+                      <option value="landscape">Querformat · A4</option>
+                      <option value="portrait">Hochformat · A4</option>
+                    </select>
+                  </label>
                   {[
                     ["label", "Seitenname"],
                     ["eyebrow", "Seitendefinition"],
@@ -1386,11 +1404,12 @@ function PropertiesPanel({
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#748591]">Werkzeuge</p>
               <p className="mt-1.5 text-[11px] leading-relaxed text-[#718491]">Werkzeug wählen und den neuen Bereich direkt auf der A4-Seite aufziehen.</p>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className={`grid gap-2 ${['cover', 'manual'].includes(page.kind) ? "grid-cols-2" : "grid-cols-3"}`}>
               {[
                 ["text", "edit", "Textfeld"],
                 ["image", "image", "Bild"],
-                ["logo", "photo", "Logo"]
+                ["logo", "photo", "Logo"],
+                ...(['cover', 'manual'].includes(page.kind) ? [["qr", "qr", "Projekt-QR"]] : [])
               ].map(([id, icon, label]) => (
                 <button
                   key={id}
@@ -1405,6 +1424,8 @@ function PropertiesPanel({
                 </button>
               ))}
             </div>
+            {qrError && <p role="alert" className="rounded-md border border-[#704744] bg-[#321f20] px-3 py-2 text-[10px] leading-relaxed text-[#e2aaa5]">{qrError}</p>}
+            {qrBusy && <p className="rounded-md border border-[#42667b] bg-[#1c3340] px-3 py-2 text-[10px] text-[#b9d8e8]">Projekt-QR-Code wird signiert …</p>}
             {insertTool && <p className="rounded-md border border-[#42667b] bg-[#1c3340] px-3 py-2 text-[10px] leading-relaxed text-[#b9d8e8]">Auf der Seite ziehen oder klicken, um {customBlockLabel(insertTool)} einzufügen. Erneutes Anklicken bricht ab.</p>}
         </div>
       </aside>
@@ -1418,7 +1439,7 @@ function PropertiesPanel({
   const selectedFontSize = clamp(Number(layout.fontSize ?? selectedBlock.defaultFontSize) || 9, 5, 36);
   return (
     <aside className="flex h-full min-h-0 flex-col border-l border-[#2a3741] bg-[#172029]">
-      <div className="border-b border-[#2a3741] px-4 py-4">
+      <div className="shrink-0 border-b border-[#2a3741] px-4 py-4">
         <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#718391]">Ausgewähltes Objekt</p>
         <h3 className="mt-1 text-sm font-semibold text-[#e1eaf0]">{selectedBlock.label}</h3>
       </div>
@@ -1457,6 +1478,17 @@ function PropertiesPanel({
               Text
               <textarea rows="7" value={textValue} disabled={readOnly} onChange={(event) => onTextChange(event.target.value)} className={`${POSITION_INPUT} resize-y normal-case leading-relaxed tracking-normal`} />
             </label>
+          </div>
+        )}
+        {selectedBlock.type === "qr" && (
+          <div className="space-y-3 border-t border-[#2a3741] pt-4">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#748591]">QR-Zuordnung</p>
+            <label className="flex cursor-pointer items-start gap-2 rounded-md border border-[#344651] bg-[#10181f] p-3 text-[11px] leading-relaxed text-[#a9bac5]">
+              <input type="checkbox" className="mt-0.5 size-3.5 accent-[#5f9cc4]" checked={selectedBlock.wholePdf === true} disabled={readOnly || qrBusy} onChange={(event) => onQrWholePdfChange(event.target.checked)} />
+              <span><span className="block font-semibold text-[#dfe9ef]">Gesamte PDF zuordnen</span>Beim Scannen wird die vollständige Exposé-PDF diesem Projekt zugeordnet. Ohne Flag gilt der QR nur für das zugehörige Dokument.</span>
+            </label>
+            {qrBusy && <p className="text-[10px] text-[#b9d8e8]">QR-Code wird mit dem neuen Flag aktualisiert …</p>}
+            {qrError && <p role="alert" className="text-[10px] text-[#e2aaa5]">{qrError}</p>}
           </div>
         )}
         <button type="button" disabled={readOnly} onClick={onReset} className="w-full rounded-md border border-[#3a4c57] px-3 py-2 text-xs font-semibold text-[#aab9c3] hover:bg-[#202e37] disabled:opacity-40">Position und Größe zurücksetzen</button>
@@ -1500,6 +1532,8 @@ export default function ExposeView({
   const [activePageId, setActivePageId] = useState(focusPageId);
   const [selectedBlockId, setSelectedBlockId] = useState(focusBlockId);
   const [insertTool, setInsertTool] = useState(null);
+  const [qrBusy, setQrBusy] = useState(false);
+  const [qrError, setQrError] = useState("");
   const [draggedPageId, setDraggedPageId] = useState(null);
   const draggedPageIdRef = useRef(null);
   const [pageZoom, setPageZoom] = useState(1);
@@ -1681,16 +1715,48 @@ export default function ExposeView({
     }
   };
 
-  const createCustomBlock = (page, type, layout) => {
+  const createProjectQr = async (wholePdf) => {
+    const projectId = project?.id ?? project?._id;
+    if (!projectId) throw new Error("Das Projekt besitzt noch keine ID und kann keinen QR-Code erhalten.");
+    const { data } = await axios.post("/api/paperless/qr", {
+      targetType: "project",
+      targetId: projectId,
+      documentType: "Exposé",
+      title: expose.cover.title || project?.title || project?.name || "Projekt-Exposé",
+      wholePdf
+    });
+    const qrDataUrl = await QRCode.toDataURL(data.value, {
+      errorCorrectionLevel: "M",
+      margin: 2,
+      width: 720
+    });
+    return { qrValue: data.value, qrPayload: data.payload, qrDataUrl, wholePdf };
+  };
+
+  const createCustomBlock = async (page, type, layout) => {
     const id = `custom:${Date.now()}:${Math.random().toString(36).slice(2, 7)}`;
     const blockLayout = type === "text" ? { ...layout, fontSize: 9 } : layout;
+    let qr = {};
+    if (type === "qr") {
+      setQrBusy(true);
+      setQrError("");
+      try {
+        qr = await createProjectQr(true);
+      } catch (error) {
+        setQrError(error.response?.data?.message || error.message || "Der Projekt-QR-Code konnte nicht erzeugt werden.");
+        return;
+      } finally {
+        setQrBusy(false);
+      }
+    }
     const block = {
       id,
       type,
       text: type === "text" ? "" : undefined,
       imageId: null,
       layout: blockLayout,
-      defaultLayout: blockLayout
+      defaultLayout: blockLayout,
+      ...qr
     };
     updateExpose({
       customBlocks: {
@@ -1726,6 +1792,50 @@ export default function ExposeView({
     manualPages: expose.manualPages.map((page) => page.id === pageId ? { ...page, ...patch } : page)
   });
 
+  const updateManualPageOrientation = (pageId, orientation) => {
+    const nextOrientation = orientation === "portrait" ? "portrait" : "landscape";
+    const manualPage = expose.manualPages.find((page) => page.id === pageId);
+    const previousOrientation = manualPage?.orientation === "portrait" ? "portrait" : "landscape";
+    if (!manualPage || previousOrientation === nextOrientation) return;
+    const previousWidth = previousOrientation === "portrait" ? PAGE_HEIGHT : PAGE_WIDTH;
+    const previousHeight = previousOrientation === "portrait" ? PAGE_WIDTH : PAGE_HEIGHT;
+    const nextWidth = nextOrientation === "portrait" ? PAGE_HEIGHT : PAGE_WIDTH;
+    const nextHeight = nextOrientation === "portrait" ? PAGE_WIDTH : PAGE_HEIGHT;
+    const scaleLayout = (blockLayout) => blockLayout ? {
+      ...blockLayout,
+      x: blockLayout.x * nextWidth / previousWidth,
+      y: blockLayout.y * nextHeight / previousHeight,
+      width: blockLayout.width * nextWidth / previousWidth,
+      height: blockLayout.height * nextHeight / previousHeight
+    } : blockLayout;
+    const pageLayout = expose.pageLayouts[pageId];
+    updateExpose({
+      manualPages: expose.manualPages.map((page) => page.id === pageId ? { ...page, orientation: nextOrientation } : page),
+      customBlocks: {
+        ...expose.customBlocks,
+        [pageId]: customBlocksForPage(expose, pageId).map((block) => {
+          const scaledLayout = scaleLayout(block.layout);
+          const scaledDefaultLayout = scaleLayout(block.defaultLayout);
+          if (block.type !== "qr") return { ...block, layout: scaledLayout, defaultLayout: scaledDefaultLayout };
+          const qrSize = Math.min(block.layout?.width ?? 36, block.layout?.height ?? 36);
+          const defaultQrSize = Math.min(block.defaultLayout?.width ?? qrSize, block.defaultLayout?.height ?? qrSize);
+          return {
+            ...block,
+            layout: { ...scaledLayout, width: qrSize, height: qrSize },
+            defaultLayout: { ...scaledDefaultLayout, width: defaultQrSize, height: defaultQrSize }
+          };
+        })
+      },
+      pageLayouts: pageLayout ? {
+        ...expose.pageLayouts,
+        [pageId]: {
+          ...pageLayout,
+          blocks: Object.fromEntries(Object.entries(pageLayout.blocks ?? {}).map(([blockId, blockLayout]) => [blockId, scaleLayout(blockLayout)]))
+        }
+      } : expose.pageLayouts
+    });
+  };
+
   const addManualPage = () => {
     const id = `manual:${globalThis.crypto.randomUUID()}`;
     const afterPageId = activePage?.id ?? pages.at(-1)?.id ?? "cover";
@@ -1739,6 +1849,7 @@ export default function ExposeView({
         eyebrow: "PROJEKTUNTERLAGEN",
         title: "Zwischentitel",
         subtitle: "Inhalt und Beschreibung ergänzen",
+        orientation: "landscape",
         templateId: "title"
       }],
       pageTemplates: { ...expose.pageTemplates, [id]: "title" },
@@ -1780,6 +1891,25 @@ export default function ExposeView({
     ? customBlocksForPage(expose, activePage.id).find((block) => block.id === selectedBlockId)
     : null;
 
+  const updateQrWholePdf = async (wholePdf) => {
+    if (!activePage || selectedCustomBlock?.type !== "qr") return;
+    setQrBusy(true);
+    setQrError("");
+    try {
+      const qr = await createProjectQr(wholePdf);
+      updateExpose({
+        customBlocks: {
+          ...expose.customBlocks,
+          [activePage.id]: customBlocksForPage(expose, activePage.id).map((block) => block.id === selectedCustomBlock.id ? { ...block, ...qr } : block)
+        }
+      });
+    } catch (error) {
+      setQrError(error.response?.data?.message || error.message || "Der Projekt-QR-Code konnte nicht aktualisiert werden.");
+    } finally {
+      setQrBusy(false);
+    }
+  };
+
   const builtInBlockDefinition = activePage?.kind === "cover"
     ? {
         logo: { id: "logo", label: "Unternehmenslogo", type: "logo", fallback: COVER_BLOCK_LAYOUTS.logo },
@@ -1813,6 +1943,7 @@ export default function ExposeView({
         label: customBlockLabel(selectedCustomBlock.type),
         type: selectedCustomBlock.type === "logo" ? "logo" : selectedCustomBlock.type,
         defaultFontSize: selectedCustomBlock.type === "text" ? 9 : undefined,
+        wholePdf: selectedCustomBlock.wholePdf === true,
         custom: true
       }
     : builtInBlockDefinition;
@@ -2024,6 +2155,7 @@ export default function ExposeView({
           onInsertToolChange={(tool) => { setInsertTool(tool); setSelectedBlockId(null); }}
           onTemplateChange={(templateId) => activePage && updatePageTemplate(activePage.id, templateId)}
           onManualPageChange={(patch) => activePage?.kind === "manual" && updateManualPage(activePage.id, patch)}
+          onPageOrientationChange={(orientation) => activePage?.kind === "manual" && updateManualPageOrientation(activePage.id, orientation)}
           onRemoveManualPage={() => activePage?.kind === "manual" && removeManualPage(activePage.id)}
           onCncProgramsPerPageChange={(count) => updateExpose({ cncProgramsPerPage: count })}
           onLayoutChange={(layout) => activePage && blockDefinition && updateBlockLayout(activePage.id, blockDefinition.id, layout)}
@@ -2034,6 +2166,9 @@ export default function ExposeView({
             pageId: activePage.id,
             blockId: blockDefinition.id
           })}
+          onQrWholePdfChange={updateQrWholePdf}
+          qrBusy={qrBusy}
+          qrError={qrError}
           textValue={selectedText}
           onTextChange={(text) => activePage && blockDefinition && updateBlockText(activePage, blockDefinition.id, text)}
         />

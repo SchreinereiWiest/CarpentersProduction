@@ -83,7 +83,12 @@ const normalizeExpose = value => ({
     customBlocks: value?.customBlocks && typeof value.customBlocks === "object" ? value.customBlocks : {},
     imageOverrides: value?.imageOverrides && typeof value.imageOverrides === "object" ? value.imageOverrides : {},
     pageTemplates: Object.fromEntries(Object.entries(value?.pageTemplates && typeof value.pageTemplates === "object" ? value.pageTemplates : {}).map(([pageId, templateId]) => [pageId, templateId === "standard" ? "info" : templateId === "subtitle" ? "title" : templateId])),
-    manualPages: Array.isArray(value?.manualPages) ? value.manualPages : [],
+    manualPages: Array.isArray(value?.manualPages)
+        ? value.manualPages.map(page => ({
+            ...page,
+            orientation: page?.orientation === "portrait" ? "portrait" : "landscape"
+        }))
+        : [],
     pageOrder: Array.isArray(value?.pageOrder) ? value.pageOrder.map(String) : [],
     cncProgramsPerPage: Math.max(1, Math.min(8, Number(value?.cncProgramsPerPage) || 4)),
     disabledPageIds: Array.isArray(value?.disabledPageIds) ? value.disabledPageIds.map(String) : [],
@@ -386,6 +391,19 @@ const drawCustomBlocks = async (doc, expose, pageId, { imageAssets = [], brandin
                     color: [36, 51, 59],
                     lineHeightFactor: 1.35
                 });
+            } else if (block.type === "qr") {
+                if (!block.qrDataUrl) continue;
+                const size = Math.min(layout.width, layout.height);
+                doc.addImage(
+                    block.qrDataUrl,
+                    "PNG",
+                    layout.x + (layout.width - size) / 2,
+                    layout.y + (layout.height - size) / 2,
+                    size,
+                    size,
+                    undefined,
+                    "FAST"
+                );
             } else if (block.type === "logo") {
                 drawLogo(doc, branding, layout.x, layout.y, layout.width, layout.height, warnings);
             } else if (block.type === "image") {
@@ -794,22 +812,25 @@ const addManualPage = async (doc, manualPage, context) => {
         context.expose.pageTemplates?.[manualPage.id] ?? manualPage.templateId,
         "title"
     );
-    doc.addPage("a4", "landscape");
+    const orientation = manualPage.orientation === "portrait" ? "portrait" : "landscape";
+    const pageWidth = orientation === "portrait" ? PORTRAIT_WIDTH : LANDSCAPE_WIDTH;
+    const pageHeight = orientation === "portrait" ? PORTRAIT_HEIGHT : LANDSCAPE_HEIGHT;
+    doc.addPage("a4", orientation);
     context.renderedPageIds?.push(manualPage.id);
     doc.setFillColor(255, 255, 255);
-    doc.rect(0, 0, LANDSCAPE_WIDTH, LANDSCAPE_HEIGHT, "F");
+    doc.rect(0, 0, pageWidth, pageHeight, "F");
     if (template === "info") {
         doc.setFillColor(228, 221, 209);
-        doc.roundedRect(224, 36, 2.2, 159, 1, 1, "F");
+        doc.roundedRect(pageWidth * 0.754, pageHeight * 0.17, Math.max(1.5, pageWidth * 0.007), pageHeight * 0.76, 1, 1, "F");
     } else if (template === "info-horizontal") {
         doc.setFillColor(228, 221, 209);
-        doc.roundedRect(12, 143, 273, 2.2, 1, 1, "F");
+        doc.roundedRect(pageWidth * 0.04, pageHeight * 0.705, pageWidth * 0.92, Math.max(1.5, pageHeight * 0.007), 1, 1, "F");
     }
     const pageNumber = doc.getNumberOfPages() - 1;
-    drawLayoutText(doc, `${String(pageNumber).padStart(2, "0")} / ${manualPage.eyebrow || "PROJEKTUNTERLAGEN"}`, { x: 12, y: 10, width: 260, height: 8 }, { style: "bold", fontSize: 6.5, color: [174, 96, 51], transform: value => value.toUpperCase() });
-    drawLayoutText(doc, manualPage.subtitle || "Projektunterlagen", { x: 12, y: 19, width: 260, height: 11 }, { fontSize: 7.2, color: [105, 114, 119] });
+    drawLayoutText(doc, `${String(pageNumber).padStart(2, "0")} / ${manualPage.eyebrow || "PROJEKTUNTERLAGEN"}`, { x: pageWidth * 0.04, y: pageHeight * 0.05, width: pageWidth * 0.88, height: pageHeight * 0.04 }, { style: "bold", fontSize: 6.5, color: [174, 96, 51], transform: value => value.toUpperCase() });
+    drawLayoutText(doc, manualPage.subtitle || "Projektunterlagen", { x: pageWidth * 0.04, y: pageHeight * 0.095, width: pageWidth * 0.88, height: pageHeight * 0.055 }, { fontSize: 7.2, color: [105, 114, 119] });
     if (template === "title") {
-        drawLayoutText(doc, manualPage.title || manualPage.label || "Zwischentitel", { x: 27, y: 82, width: 230, height: 48 }, { style: "bold", fontSize: 27, color: [27, 42, 50], lineHeightFactor: 1.05 });
+        drawLayoutText(doc, manualPage.title || manualPage.label || "Zwischentitel", { x: pageWidth * 0.09, y: pageHeight * 0.37, width: pageWidth * 0.78, height: pageHeight * 0.23 }, { style: "bold", fontSize: 27, color: [27, 42, 50], lineHeightFactor: 1.05 });
     }
     await drawCustomBlocks(doc, context.expose, manualPage.id, context);
     drawFooter(doc, context.expose, context.projectTitle, doc.getNumberOfPages() - 1);
@@ -1022,8 +1043,8 @@ export async function createProjectPDF({
             if (pageId.startsWith("manual:")) {
                 const manualPage = expose.manualPages.find(page => page.id === pageId);
                 doc.setFillColor(255, 255, 255);
-                doc.rect(11, 7, 262, 11, "F");
-                drawLayoutText(doc, `${String(index + 1).padStart(2, "0")} / ${manualPage?.eyebrow || "PROJEKTUNTERLAGEN"}`, { x: 12, y: 10, width: 260, height: 8 }, { style: "bold", fontSize: 6.5, color: [174, 96, 51], transform: value => value.toUpperCase() });
+                doc.rect(width * 0.035, height * 0.035, width * 0.9, height * 0.06, "F");
+                drawLayoutText(doc, `${String(index + 1).padStart(2, "0")} / ${manualPage?.eyebrow || "PROJEKTUNTERLAGEN"}`, { x: width * 0.04, y: height * 0.05, width: width * 0.88, height: height * 0.04 }, { style: "bold", fontSize: 6.5, color: [174, 96, 51], transform: value => value.toUpperCase() });
             }
         });
     }

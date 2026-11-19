@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import axios from "axios";
+import QRCode from "qrcode";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import ExposeView from "../../src/features/projects/measurement/views/expose/ExposeView.jsx";
 
@@ -180,7 +182,61 @@ describe("Exposé-Live-Editor", () => {
 
     expect(screen.getByText("Neue Zwischenseite · Einzelansicht")).toBeInTheDocument();
     expect(screen.getByLabelText("Seitenvorlage")).toHaveValue("title");
+    expect(screen.getByLabelText("Seitenformat")).toHaveValue("landscape");
     expect(screen.getByLabelText("Titel")).toHaveValue("Zwischentitel");
+    fireEvent.change(screen.getByLabelText("Seitenformat"), { target: { value: "portrait" } });
+    expect(screen.getByLabelText("Seitenformat")).toHaveValue("portrait");
+    const portraitPage = screen.getByLabelText("Neue Zwischenseite · A4-Seite");
+    expect(Number.parseFloat(portraitPage.style.width) / Number.parseFloat(portraitPage.style.height))
+      .toBeCloseTo(210 / 297, 5);
+  });
+
+  it("setzt einen signierten Projekt-QR mit Gesamt-PDF-Flag auf Titel- und manuelle Seiten", async () => {
+    const post = vi.spyOn(axios, "post").mockResolvedValue({
+      data: {
+        value: "CPD1.payload.signature",
+        payload: { projectId: "project-1", wholePdf: true }
+      }
+    });
+    vi.spyOn(QRCode, "toDataURL").mockResolvedValue("data:image/png;base64,QR");
+
+    function Harness() {
+      const [value, setValue] = useState({});
+      return <ExposeView value={value} onChange={setValue} project={{ id: "project-1", title: "Projekt" }} photos={[]} views={[]} focusPageId="cover" />;
+    }
+
+    const { container } = render(<Harness />);
+    fireEvent.click(screen.getByRole("button", { name: "Projekt-QR" }));
+    const pageContent = container.querySelector(".cursor-crosshair");
+    pageContent.getBoundingClientRect = () => ({
+      left: 0,
+      top: 0,
+      width: 891,
+      height: 630,
+      right: 891,
+      bottom: 630,
+      x: 0,
+      y: 0,
+      toJSON: () => ({})
+    });
+    fireEvent.pointerDown(pageContent, { button: 0, pointerId: 1, clientX: 30, clientY: 30 });
+    fireEvent.pointerUp(pageContent, { pointerId: 1, clientX: 140, clientY: 140 });
+
+    await waitFor(() => expect(post).toHaveBeenCalledWith("/api/paperless/qr", expect.objectContaining({
+      targetType: "project",
+      targetId: "project-1",
+      documentType: "Exposé",
+      wholePdf: true
+    })));
+    expect(await screen.findByRole("button", { name: "Projekt-QR-Code auswählen" })).toBeInTheDocument();
+    const wholePdf = screen.getByRole("checkbox", { name: /Gesamte PDF zuordnen/ });
+    expect(wholePdf).toBeChecked();
+    fireEvent.click(wholePdf);
+    await waitFor(() => expect(post).toHaveBeenLastCalledWith("/api/paperless/qr", expect.objectContaining({ wholePdf: false })));
+    expect(wholePdf).not.toBeChecked();
+
+    post.mockRestore();
+    QRCode.toDataURL.mockRestore();
   });
 
   it("erzeugt CNC-Seiten und ändert die automatische Programmanzahl", () => {
