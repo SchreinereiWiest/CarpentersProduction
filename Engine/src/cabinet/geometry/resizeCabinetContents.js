@@ -8,6 +8,21 @@ const childrenOf = node =>
         ? node.children
         : [];
 
+const inferNodeLayout = (nodes, layout) => {
+    const containsLockedWall = nodes.some(node => node?.lockedMiddleWall === true);
+    if (layout?.spec && layout?.direction && !containsLockedWall) return layout;
+    const direction = nodes.length <= 1 || nodes.some((node, index) =>
+        index > 0 && Math.abs(Number(node.y) - Number(nodes[0].y)) > 0.001)
+        ? "vertical"
+        : "horizontal";
+    const sizeKey = direction === "vertical" ? "height" : "width";
+    const spec = nodes.map(node => {
+        const size = Math.max(0.001, Number(node[sizeKey]) || 0.001);
+        return node.lockedMiddleWall ? `${size}mm` : String(size);
+    }).join(":");
+    return { ...(layout ?? {}), source: layout?.source ?? "inferred", direction, spec, gap: layout?.gap ?? 0 };
+};
+
 
 const reflowNodes = ({
     nodes,
@@ -20,12 +35,10 @@ const reflowNodes = ({
         return [];
     }
 
-    if (!layout?.spec || !layout?.direction) {
-        return nodes;
-    }
+    const effectiveLayout = inferNodeLayout(nodes, layout);
 
     const direction =
-        layout.direction === "horizontal"
+        effectiveLayout.direction === "horizontal"
             ? "horizontal"
             : "vertical";
 
@@ -34,14 +47,14 @@ const reflowNodes = ({
             ? Math.max(
                 0,
                 Number(
-                    layout.gap ??
+                    effectiveLayout.gap ??
                     defaultGap ??
                     0
                 ) || 0
             )
             : Math.max(
                 0,
-                Number(layout.gap ?? 0) || 0
+                Number(effectiveLayout.gap ?? 0) || 0
             );
 
     const totalSize =
@@ -52,7 +65,7 @@ const reflowNodes = ({
     const sizes =
         calculateSplitSizes(
             totalSize,
-            layout.spec,
+            effectiveLayout.spec,
             gap,
             kind === "front"
         );

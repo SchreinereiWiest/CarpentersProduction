@@ -8,6 +8,9 @@ export {
     getLegraboxHeight
 } from "./cnc/legraboxDimensions.js";
 export { getMiddleWallCenter } from "./geometry/middleWall.js";
+export { lockMiddleWallSection } from "./sektions/interior/lockMiddleWallSection.js";
+export { reconcileLockedMiddleWalls } from "./sektions/interior/reconcileLockedMiddleWalls.js";
+export { applyFrontGaps, flattenLeafFronts, getFrontGapContext } from "./sektions/front/frontGaps.js";
 export { buildPartList } from "./partList/buildPartList.js";
 export { mergeManualPartList, prepareProjectPartList } from "./projectSave.js";
 export { calculateSplitSizes } from "./sektions/calcSplitSizes.js";

@@ -178,6 +178,18 @@ describe('shared Engine helpers', () => {
         });
     });
 
+    it('resizes the mandatory single section even without a stored layout', () => {
+        const resized = resizeCabinetContents({
+            width: 600,
+            height: 720,
+            thickness: 19,
+            sections: [{ id: 'only', x: 19, y: 19, width: 562, height: 682, functionConfig: [], children: [] }],
+            fronts: []
+        }, { width: 800, height: 1000 });
+
+        expect(resized.sections[0]).toMatchObject({ x: 19, y: 19, width: 762, height: 962 });
+    });
+
     it('uses negative outer front gaps as overhangs when generating and resizing fronts', () => {
         let generatedCabinet;
 

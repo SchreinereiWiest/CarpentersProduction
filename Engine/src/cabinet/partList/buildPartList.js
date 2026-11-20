@@ -62,10 +62,17 @@ const scalePartQuantity = (part, factor) => {
 
 const groupEquivalentParts = (
   parts,
-  getAssemblyType = () => "assembly"
+  getAssemblyType = () => "assembly",
+  { strictCnc = false } = {}
 ) => {
   const groupedParts = [];
   const groupedPartsByKey = new Map();
+  const operationGeometry = operations => (operations ?? []).map(operation => {
+    const geometry = { ...operation };
+    delete geometry.id;
+    delete geometry.source;
+    return geometry;
+  });
 
   parts.forEach(part => {
     const assemblyType = getAssemblyType(part);
@@ -87,14 +94,15 @@ const groupEquivalentParts = (
       ETID: part.ETID ?? "",
       EBID: part.EBID ?? "",
       Kante: part.Kante ?? "",
-      cnc: assemblyType === "side"
+      cnc: assemblyType === "side" && !strictCnc
         ? null
-        : (part.CNC?.operations ?? []).map(operation => {
-            const geometry = { ...operation };
-            delete geometry.id;
-            delete geometry.source;
-            return geometry;
-          })
+        : strictCnc && Array.isArray(part.CNC?.machiningVariants)
+          ? part.CNC.machiningVariants.map(variant => ({
+              side: variant.side,
+              mirrorX: variant.mirrorX,
+              operations: operationGeometry(variant.cnc?.operations)
+            }))
+          : operationGeometry(part.CNC?.operations)
     });
 
     const existingPart = groupedPartsByKey.get(key);
@@ -104,6 +112,9 @@ const groupEquivalentParts = (
       existingPart.Anzahl += quantity;
 
       if (assemblyType === "side") {
+        const incomingVariants = Array.isArray(part.CNC?.machiningVariants)
+          ? part.CNC.machiningVariants
+          : [getSideMachiningVariant(part, quantity)];
         existingPart.Source = {
           ...existingPart.Source,
           instances: [
@@ -115,7 +126,7 @@ const groupEquivalentParts = (
           ...existingPart.CNC,
           machiningVariants: [
             ...(Array.isArray(existingPart.CNC?.machiningVariants) ? existingPart.CNC.machiningVariants : []),
-            getSideMachiningVariant(part, quantity)
+            ...incomingVariants
           ]
         };
       }
@@ -130,7 +141,9 @@ const groupEquivalentParts = (
         ? {
             CNC: {
               ...part.CNC,
-              machiningVariants: [getSideMachiningVariant(part, quantity)]
+              machiningVariants: Array.isArray(part.CNC?.machiningVariants)
+                ? part.CNC.machiningVariants
+                : [getSideMachiningVariant(part, quantity)]
             }
           }
         : {})
@@ -274,6 +287,8 @@ const createGroupRoot = (name, children = [], hardware = []) => {
       PID: nextPID(),
       _generatedId: `${cabinet.id}:root`,
       _cabinetId: cabinet.id,
+      _linkedCabinetGroupId: cabinet.linkedCabinetGroupId ?? null,
+      _linkedCabinetBaseName: cabinet.linkedCabinetBaseName ?? cabinet.name,
       BPID: "",
       Objektname: cabinet.name,
       Plattentyp: "KO",
@@ -492,6 +507,7 @@ const createGroupRoot = (name, children = [], hardware = []) => {
 
     for (const part of compiledChildren) {
       if (!part) continue;
+      part._assemblyType = assemblyTypeByPartId.get(part.PID) ?? null;
 
       if (settings.grouping === "separate") {
         if (settings.separate.shelves && shelfIds.has(part.PID)) {
@@ -570,6 +586,52 @@ const createGroupRoot = (name, children = [], hardware = []) => {
 
     return root;
   });
+
+  const groupedCabinetRoots = [];
+  const rootsByVariantGroup = new Map();
+  cabinetList.forEach(root => {
+    if (!root._linkedCabinetGroupId) {
+      groupedCabinetRoots.push(root);
+      return;
+    }
+    const members = rootsByVariantGroup.get(root._linkedCabinetGroupId) ?? [];
+    members.push(root);
+    rootsByVariantGroup.set(root._linkedCabinetGroupId, members);
+  });
+  rootsByVariantGroup.forEach(members => {
+    if (members.length === 1) {
+      groupedCabinetRoots.push(members[0]);
+      return;
+    }
+    const first = members[0];
+    const hardware = members.flatMap(root => root.Hardware ?? []);
+    const groupedHardware = [];
+    const hardwareByKey = new Map();
+    hardware.forEach(item => {
+      const key = JSON.stringify(Object.fromEntries(Object.entries(item).filter(([field]) => field !== "Anzahl")));
+      const existing = hardwareByKey.get(key);
+      if (existing) existing.Anzahl = Number(existing.Anzahl ?? 0) + Number(item.Anzahl ?? 0);
+      else {
+        const next = { ...item };
+        hardwareByKey.set(key, next);
+        groupedHardware.push(next);
+      }
+    });
+    groupedCabinetRoots.push({
+      ...first,
+      _generatedId: `group:${first._linkedCabinetGroupId}`,
+      _cabinetIds: members.map(root => root._cabinetId),
+      Objektname: first._linkedCabinetBaseName,
+      Anzahl: members.reduce((sum, root) => sum + Number(root.Anzahl ?? 1), 0),
+      Children: groupEquivalentParts(
+        members.flatMap(root => root.Children ?? []),
+        part => part._assemblyType ?? part.Source?.role ?? "assembly",
+        { strictCnc: true }
+      ),
+      Hardware: groupedHardware
+    });
+  });
+  cabinetList.splice(0, cabinetList.length, ...groupedCabinetRoots);
 
   // ------------------------------------------------------------
   // Getrennte Obergruppen erzeugen

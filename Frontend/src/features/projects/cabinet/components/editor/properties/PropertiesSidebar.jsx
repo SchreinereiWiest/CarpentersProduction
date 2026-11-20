@@ -65,7 +65,6 @@ export default function PropertiesSidebar({
 
     splitSection,
     mergeSectionChildren,
-    findParent,
 
 
     // =========================================================
@@ -80,7 +79,9 @@ export default function PropertiesSidebar({
     measurementVariables = [],
     projectId,
 
-    updateCabinetLayout
+    updateCabinetLayout,
+    selectedCabinetCount = 0,
+    onApplyCabinetProperties
 
 }) {
 
@@ -142,7 +143,31 @@ export default function PropertiesSidebar({
 
                     <>
 
-                        {selectedElement ? (
+                        {viewMode === "front" ? (
+
+                            activeCabinet ? (
+                                <div className="mt-6">
+                                    <FrontProperties
+                                        selectedElement={selectedElement?.type === "front" ? selectedElement : undefined}
+                                        activeCabinet={activeCabinet}
+                                        updateActiveCabinet={updateActiveCabinet}
+                                        frontSplitSpec={frontSplitSpec}
+                                        setFrontSplitSpec={setFrontSplitSpec}
+                                        frontSplitDirection={frontSplitDirection}
+                                        setFrontSplitDirection={setFrontSplitDirection}
+                                        splitFront={splitFront}
+                                        toggleFrontRemoved={toggleFrontRemoved}
+                                        mergeFrontChildren={mergeFrontChildren}
+                                        findFrontParent={findFrontParent}
+                                        generateFronts={generateFronts}
+                                        setSelectedElement={setSelectedElement}
+                                    />
+                                </div>
+                            ) : (
+                                <div className="mt-6 text-sm text-gray-500">Kein Korpus ausgewählt.</div>
+                            )
+
+                        ) : selectedElement ? (
 
                             <div className="
                                 mt-6
@@ -245,10 +270,6 @@ export default function PropertiesSidebar({
                                             mergeSectionChildren
                                         }
 
-                                        findParent={
-                                            findParent
-                                        }
-
                                         updateActiveCabinet={
                                             updateActiveCabinet
                                         }
@@ -265,45 +286,7 @@ export default function PropertiesSidebar({
                         ) : activeCabinet ? (
 
                             <>
-                                {viewMode === "front" ? (
-
-                                    <FrontProperties
-                                        activeCabinet={
-                                            activeCabinet
-                                        }
-
-                                        updateActiveCabinet={
-                                            updateActiveCabinet
-                                        }
-
-                                        frontSplitSpec={
-                                            frontSplitSpec
-                                        }
-
-                                        setFrontSplitSpec={
-                                            setFrontSplitSpec
-                                        }
-
-                                        frontSplitDirection={
-                                            frontSplitDirection
-                                        }
-
-                                        setFrontSplitDirection={
-                                            setFrontSplitDirection
-                                        }
-
-                                        generateFronts={
-                                            generateFronts
-                                        }
-
-                                        setSelectedElement={
-                                            setSelectedElement
-                                        }
-                                    />
-
-                                ) : (
-
-                                    <CabinetProperties
+                                <CabinetProperties
                                         activeCabinet={activeCabinet}
                                         updateActiveCabinet={
                                             updateActiveCabinet
@@ -318,9 +301,10 @@ export default function PropertiesSidebar({
                                         materialError={
                                             materialError
                                         }
+                                        measurementVariables={measurementVariables}
+                                        selectedCabinetCount={selectedCabinetCount}
+                                        onApplyMultiple={onApplyCabinetProperties}
                                     />
-
-                                )}
                             </>
 
                         ) : (

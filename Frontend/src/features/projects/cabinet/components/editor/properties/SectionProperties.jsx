@@ -1,6 +1,3 @@
-import React from "react";
-
-
 export default function SectionProperties({
 
     selectedElement,
@@ -15,7 +12,6 @@ export default function SectionProperties({
 
     splitSection,
     mergeSectionChildren,
-    findParent,
 
     updateActiveCabinet,
     setSelectedElement
@@ -28,14 +24,6 @@ export default function SectionProperties({
     ) {
         return null;
     }
-
-
-    const canMerge =
-        selectedElement.children?.length > 0 ||
-        findParent(
-            activeCabinet.sections ?? [],
-            selectedElement.id
-        ) !== null;
 
 
     return (
@@ -236,7 +224,6 @@ export default function SectionProperties({
 
                 <button
                     type="button"
-                    disabled={!canMerge}
                     onClick={() =>
                         mergeSectionChildren(
                             selectedElement.id,

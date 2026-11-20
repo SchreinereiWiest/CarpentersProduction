@@ -8,6 +8,7 @@ import {
 
 test("resolves the storage file for every supported project document", () => {
   assert.equal(projectDocumentDefinition("cabinet")?.fileName, "cabinet.json");
+  assert.equal(projectDocumentDefinition("cabinetWorkspace")?.fileName, "cabinetWorkspace.json");
   assert.equal(projectDocumentDefinition("unknown"), null);
 });
 

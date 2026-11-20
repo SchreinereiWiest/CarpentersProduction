@@ -155,7 +155,7 @@ describe("FrontProperties", () => {
             }]
         });
         expect(screen.getByRole("button", { name: "Front wieder einfügen" })).toBeInTheDocument();
-        expect(screen.getByRole("button", { name: "Front unterteilen" })).toBeDisabled();
+        expect(screen.getByRole("button", { name: "Front aufteilen" })).toBeDisabled();
 
         fireEvent.click(screen.getByRole("button", { name: "Front wieder einfügen" }));
 

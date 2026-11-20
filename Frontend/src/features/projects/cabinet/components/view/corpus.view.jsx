@@ -1,5 +1,8 @@
 export function CarcassLayer({
-    cabinet
+    cabinet,
+    materialColor = "#4B5563",
+    interiorColor = "#1F2937",
+    strokeColor = "#374151"
 }) {
 
     const t =
@@ -30,8 +33,8 @@ export function CarcassLayer({
                 y={0}
                 width={width}
                 height={height}
-                fill="#4B5563"
-                stroke="#374151"
+                fill={materialColor}
+                stroke={strokeColor}
                 strokeWidth="2"
                 data-element-id="carcass"
                 data-element-type="carcass"
@@ -57,7 +60,7 @@ export function CarcassLayer({
                         height - 2 * t
                     )
                 }
-                fill="#1F2937"
+                fill={interiorColor}
                 stroke="#737373"
                 strokeWidth="1"
                 pointerEvents="none"

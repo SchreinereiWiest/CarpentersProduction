@@ -1,4 +1,4 @@
-import {useState, useEffect, useRef} from "react";
+import {useState, useEffect, useMemo, useRef} from "react";
 import { useLocation, useParams } from "react-router";
 import CabinetViewport from "./components/view/cabinetViewport.jsx";
 import ProjectBar from '../../../shared/components/projectBar.jsx';
@@ -9,13 +9,13 @@ import { DEFAULT_CABINET } from "@Engine/cabinet/cabinetDefaults.js";
 import { DEFAULT_CNC } from "@Engine/cabinet/cnc/cncDefaults.js";
 import { buildPartList } from "@Engine/cabinet/partList/buildPartList.js";
 import { resizeCabinetContents } from "@Engine/cabinet/geometry/resizeCabinetContents.js";
-import { createInitialSections } from "@Engine/cabinet/sektions/interior/createInitialSections.js";
+import { reconcileLockedMiddleWalls } from "@Engine/cabinet/sektions/interior/reconcileLockedMiddleWalls.js";
 import { applyFunctionPreset, createFunctionPreset } from "@Engine/cabinet/sektions/functionPresets.js";
 import { generateFronts } from "@Engine/cabinet/sektions/front/generateFronts.js";
 import { splitFront } from "@Engine/cabinet/sektions/front/splitFront.js";
 import { toggleFrontRemoved } from "@Engine/cabinet/sektions/front/toggleFrontRemoved.js";
 import { splitSection } from "@Engine/cabinet/sektions/splitSections.js";
-import { mergeSectionChildren, findParent } from "@Engine/cabinet/sektions/interior/mergeSectionChildren.js";
+import { mergeSectionChildren } from "@Engine/cabinet/sektions/interior/mergeSectionChildren.js";
 import { frontsToSections } from "@Engine/cabinet/sektions/functions/parseFrontSections.js";
 import { findFrontParent, mergeFrontChildren } from "@Engine/cabinet/sektions/front/mergeFrontChildren.js";
 import { createId } from "@Engine/shared/id.js";
@@ -29,6 +29,24 @@ import { getGlobalFile, uploadGlobalFile } from "../../../shared/cache/global-ca
 import axios from "axios";
 import CabinetPresetModal from "./components/editor/CabinetPresetModal.jsx";
 import MeasurementVariablesModal from "./components/editor/MeasurementVariablesModal.jsx";
+import CabinetWorkspaceToolbar from "./components/editor/CabinetWorkspaceToolbar.jsx";
+import CabinetBottomPanel from "./components/editor/CabinetBottomPanel.jsx";
+import {
+    applyGuideToCabinet,
+    createEmptyWorkspace,
+    ensureCabinetSections,
+    getCabinetsOnPage,
+    getGuideVariables,
+    movePlacementSelection,
+    normalizeWorkspace,
+    resolveWorkspacePlacementExpressions,
+    resolveWorkspaceGuideExpressions,
+    syncCabinetToGuides
+} from "./workspace/cabinetWorkspace.js";
+import {
+    expandCabinetVariants,
+    resizeCabinetVariantGroup
+} from "./workspace/cabinetVariants.js";
 import { useAuth } from "../../../app/providers/AuthContext.js";
 import {
     extractMeasurementVariables,
@@ -69,6 +87,20 @@ export default function CabinetEditor() {
     const [, setSectionCount] = useState(1);
 
     const [cabinets, setCabinets] = useState([]);
+    const cabinetsRef = useRef(cabinets);
+    useEffect(() => {
+        cabinetsRef.current = cabinets;
+    }, [cabinets]);
+
+    const [workspace, setWorkspace] = useState(createEmptyWorkspace);
+
+    const [selectedCabinetIds, setSelectedCabinetIds] = useState([]);
+
+    const [guideLayer, setGuideLayer] = useState("interior");
+
+    const [activeGuideTool, setActiveGuideTool] = useState(null);
+
+    const [selectedGuideId, setSelectedGuideId] = useState(null);
 
     const [measurementVariables, setMeasurementVariables] = useState([]);
 
@@ -100,6 +132,34 @@ export default function CabinetEditor() {
         cabinet =>
             cabinet.id === activeCabinetId
     );
+
+    const activePageCabinets = getCabinetsOnPage(cabinets, workspace);
+    const activePageGuides = workspace.guides?.[workspace.activePageId] ?? { front: [], interior: [], dual: [] };
+    const visibleGuides = [...(activePageGuides.front ?? []), ...(activePageGuides.interior ?? []), ...(activePageGuides.dual ?? [])];
+    const selectedGuide = visibleGuides.find(guide => guide.id === selectedGuideId) ?? null;
+    const guideVariables = useMemo(
+        () => getGuideVariables(workspace),
+        [workspace]
+    );
+    const formulaVariables = useMemo(() => {
+        const byName = new Map();
+        [...measurementVariables, ...guideVariables].forEach(variable => {
+            if (variable?.name) byName.set(String(variable.name).toLocaleUpperCase("de-DE"), variable);
+        });
+        return [...byName.values()];
+    }, [guideVariables, measurementVariables]);
+    const activePlacement = workspace.placements?.[activeCabinetId];
+    const activeSelectionIds = new Set([
+        ...(activeCabinetId ? [activeCabinetId] : []),
+        ...selectedCabinetIds.filter(id => workspace.placements?.[id]?.pageId === workspace.activePageId)
+    ]);
+    const activePosition = {
+        x: Number(activePlacement?.x ?? 0),
+        y: Number(activePlacement?.y ?? 0),
+        xExpression: activePlacement?.positionExpressions?.x ?? String(Number(activePlacement?.x ?? 0)),
+        yExpression: activePlacement?.positionExpressions?.y ?? String(Number(activePlacement?.y ?? 0)),
+        selectionCount: activeSelectionIds.size
+    };
 
     const [frontSplitSpec, setFrontSplitSpec] = useState("1:1");
     const [frontSplitDirection, setFrontSplitDirection] = useState("vertical");
@@ -138,16 +198,79 @@ export default function CabinetEditor() {
 
     const [defaultCabinet, setDefaultCabinet] = useState(DEFAULT_CABINET);
 
+    useEffect(() => {
+        // Workspace placements are a persisted companion model and must follow cabinet lifecycle changes.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setWorkspace(previous => normalizeWorkspace(previous, cabinets));
+        setSelectedCabinetIds(previous => previous.filter(id => cabinets.some(cabinet => cabinet.id === id)));
+    }, [cabinets]);
+
+    useEffect(() => {
+        // Line expressions can reference measurements and every other named line.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setWorkspace(previous => resolveWorkspaceGuideExpressions(previous, measurementVariables));
+    }, [measurementVariables, workspace.guides]);
+
+    useEffect(() => {
+        // Absolute cabinet/group positions follow measurement and guide variables.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setWorkspace(previous => resolveWorkspacePlacementExpressions(previous, formulaVariables));
+    }, [formulaVariables]);
+
+    useEffect(() => {
+        // Bound geometry follows its guide when either the line or its cabinet is moved.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setCabinets(previous => {
+            let changed = false;
+            const next = previous.map(cabinet => {
+                const pageId = workspace.placements?.[cabinet.id]?.pageId;
+                const pageGuides = workspace.guides?.[pageId];
+                const synced = syncCabinetToGuides({
+                    cabinet,
+                    placement: workspace.placements?.[cabinet.id],
+                    guides: [...(pageGuides?.front ?? []), ...(pageGuides?.interior ?? []), ...(pageGuides?.dual ?? [])]
+                });
+                if (synced !== cabinet) changed = true;
+                return synced;
+            });
+            return changed ? next : previous;
+        });
+    }, [workspace.guides, workspace.placements]);
+
+    const placeCabinetOnActivePage = cabinet => {
+        setWorkspace(previous => {
+            const normalized = normalizeWorkspace(previous, cabinets);
+            const pageCabinets = cabinets.filter(item => normalized.placements[item.id]?.pageId === normalized.activePageId);
+            const nextX = pageCabinets.reduce((right, item) => Math.max(
+                right,
+                Number(normalized.placements[item.id]?.x ?? 0) + Number(item.width ?? 0)
+            ), 0);
+            return {
+                ...normalized,
+                placements: {
+                    ...normalized.placements,
+                    [cabinet.id]: {
+                        pageId: normalized.activePageId,
+                        x: nextX,
+                        y: 0,
+                        groupId: null
+                    }
+                }
+            };
+        });
+    };
+
     const addCabinet = () => {
 
-    const newCabinet = {
+    const newCabinet = ensureCabinetSections({
     id: createId(),
 
     name:
         `Korpus ${cabinets.length + 1}`,
 
-    ...defaultCabinet
-};
+    ...defaultCabinet,
+    quantity: 1
+});
 
 
     setCabinets(
@@ -158,7 +281,9 @@ export default function CabinetEditor() {
 
     );
 
-    selectCabinet(newCabinet.id);
+    placeCabinetOnActivePage(newCabinet);
+    setActiveCabinetId(newCabinet.id);
+    setSelectedCabinetIds([]);
     loadFrontLayoutControls(newCabinet);
     };
 
@@ -171,12 +296,18 @@ export default function CabinetEditor() {
             return;
         }
 
-        const duplicate = cloneCabinetWithFreshIds(sourceCabinet);
+        const duplicate = ensureCabinetSections(cloneCabinetWithFreshIds(sourceCabinet));
         duplicate.name = `${sourceCabinet.name || "Korpus"} (Kopie)`;
         duplicate.quantity = 1;
+        delete duplicate.linkedCabinetGroupId;
+        delete duplicate.linkedCabinetBaseName;
+        delete duplicate.linkedCabinetIds;
+        delete duplicate.variantIndex;
 
         setCabinets(prev => [...prev, duplicate]);
+        placeCabinetOnActivePage(duplicate);
         setActiveCabinetId(duplicate.id);
+        setSelectedCabinetIds([]);
         loadFrontLayoutControls(duplicate);
         setSectionCount(duplicate.sections?.length ?? 1);
         setSelectedElement(null);
@@ -201,10 +332,10 @@ export default function CabinetEditor() {
                     }
 
 
-                    return resizeCabinetContents(
+                    return reconcileLockedMiddleWalls(resizeCabinetContents(
                         cabinet,
                         changes
-                    );
+                    ));
 
                 }
             )
@@ -248,16 +379,22 @@ export default function CabinetEditor() {
         setPresetEditorCabinet(null);
     };
 
-    const insertSelectedCabinetPreset = () => {
-        const preset = cabinetPresets.find(item => String(item.id) === String(selectedPresetId));
+    const insertSelectedCabinetPreset = (presetId = selectedPresetId) => {
+        const preset = cabinetPresets.find(item => String(item.id) === String(presetId));
         if (!preset?.cabinet) return;
 
-        const cabinet = cloneCabinetWithFreshIds(preset.cabinet);
+        const cabinet = ensureCabinetSections(cloneCabinetWithFreshIds(preset.cabinet));
         cabinet.name = preset.name || "Korpus aus Preset";
         cabinet.quantity = 1;
+        delete cabinet.linkedCabinetGroupId;
+        delete cabinet.linkedCabinetBaseName;
+        delete cabinet.linkedCabinetIds;
+        delete cabinet.variantIndex;
 
         setCabinets(previous => [...previous, cabinet]);
+        placeCabinetOnActivePage(cabinet);
         setActiveCabinetId(cabinet.id);
+        setSelectedCabinetIds([]);
         loadFrontLayoutControls(cabinet);
         setSectionCount(cabinet.sections?.length ?? 1);
         setSelectedElement(null);
@@ -291,8 +428,8 @@ export default function CabinetEditor() {
         setPresetEditorCabinet(null);
     };
 
-    const insertSelectedFunctionPreset = () => {
-        const preset = functionPresets.find(item => String(item.id) === String(selectedFunctionPresetId));
+    const insertSelectedFunctionPreset = (presetId = selectedFunctionPresetId) => {
+        const preset = functionPresets.find(item => String(item.id) === String(presetId));
         if (!activeCabinet || !preset?.data) return;
 
         const functionLayout = applyFunctionPreset(activeCabinet, preset.data);
@@ -338,27 +475,62 @@ export default function CabinetEditor() {
                     Object.hasOwn(changes, "width") ||
                     Object.hasOwn(changes, "height")
                 ) {
-                    return resizeCabinetContents(
+                    return reconcileLockedMiddleWalls(resizeCabinetContents(
                         cabinet,
                         changes
-                    );
+                    ));
                 }
 
 
-                return {
+                return reconcileLockedMiddleWalls({
                     ...cabinet,
                     ...changes
-                };
+                });
             })
         );
     };
 
     const updateCabinetQuantity = (cabinetId, quantity) => {
-        setCabinets(prev => prev.map(cabinet =>
-            cabinet.id === cabinetId
-                ? { ...cabinet, quantity }
-                : cabinet
-        ));
+        const sourceCabinet = cabinets.find(cabinet => cabinet.id === cabinetId);
+        const result = resizeCabinetVariantGroup(cabinets, cabinetId, quantity);
+        if (result.cabinets === cabinets) return;
+        const sourcePlacement = workspace.placements[cabinetId] ?? {
+            pageId: workspace.activePageId,
+            x: 0,
+            y: 0,
+            groupId: null
+        };
+        const removed = new Set(result.removedIds);
+        setCabinets(result.cabinets);
+        setWorkspace(previous => {
+            const placements = Object.fromEntries(Object.entries(previous.placements)
+                .filter(([id]) => !removed.has(id)));
+            let nextX = result.cabinets
+                .filter(cabinet => placements[cabinet.id]?.pageId === sourcePlacement.pageId)
+                .reduce((right, cabinet) => Math.max(
+                    right,
+                    Number(placements[cabinet.id]?.x ?? 0) + Number(cabinet.width ?? 0)
+                ), 0);
+            result.added.forEach(cabinet => {
+                placements[cabinet.id] = {
+                    ...sourcePlacement,
+                    x: nextX,
+                    groupId: null,
+                    positionExpressions: {
+                        x: String(nextX),
+                        y: String(Number(sourcePlacement.y ?? 0))
+                    }
+                };
+                nextX += Number(cabinet.width ?? 0);
+            });
+            return { ...previous, placements };
+        });
+        if (removed.has(activeCabinetId)) {
+            const nextActive = result.cabinets.find(cabinet => cabinet.linkedCabinetGroupId === sourceCabinet?.linkedCabinetGroupId)
+                ?? result.cabinets[0];
+            if (nextActive) setActiveCabinetId(nextActive.id);
+        }
+        setSelectedCabinetIds(previous => previous.filter(id => !removed.has(id)));
     };
 
     const selectCabinet = (id) => {
@@ -366,6 +538,10 @@ export default function CabinetEditor() {
         setActiveCabinetId(id);
 
         const cabinet = cabinets.find(cabinet => cabinet.id === id);
+        const cabinetPageId = workspace.placements?.[id]?.pageId;
+        if (cabinetPageId && cabinetPageId !== workspace.activePageId) {
+            setWorkspace(previous => ({ ...previous, activePageId: cabinetPageId }));
+        }
 
         loadFrontLayoutControls(cabinet);
         setSectionCount(cabinet?.sections?.length ?? 1);
@@ -388,6 +564,7 @@ export default function CabinetEditor() {
         );
 
         setCabinets(remainingCabinets);
+        setSelectedCabinetIds(previous => previous.filter(id => id !== activeCabinetId));
 
         // nächsten Korpus auswählen
         const newIndex = Math.min(index, remainingCabinets.length - 1);
@@ -399,15 +576,245 @@ export default function CabinetEditor() {
         setSectionCount(newActiveCabinet.sections?.length ?? 1);
     };
 
+    const getActionCabinetIds = () => {
+        const base = selectedCabinetIds.length > 0
+            ? selectedCabinetIds
+            : activeCabinetId ? [activeCabinetId] : [];
+        const onPage = base.filter(id => workspace.placements?.[id]?.pageId === workspace.activePageId);
+        if (onPage.length > 0) return onPage;
+        return activeCabinetId && workspace.placements?.[activeCabinetId]?.pageId === workspace.activePageId
+            ? [activeCabinetId]
+            : [];
+    };
+
+    const toggleCabinetSelection = cabinetId => {
+        setSelectedCabinetIds(previous => previous.includes(cabinetId)
+            ? previous.filter(id => id !== cabinetId)
+            : [...previous, cabinetId]);
+    };
+
+    const updateCabinetPosition = (axis, expression, evaluation) => {
+        if (!activeCabinetId) return;
+        setWorkspace(previous => movePlacementSelection({
+            workspace: previous,
+            activeCabinetId,
+            selectedCabinetIds,
+            axis,
+            expression,
+            value: evaluation.valid ? Number(evaluation.value) : undefined
+        }));
+    };
+
+    const swapCabinetPosition = direction => {
+        if (!activeCabinetId) return;
+        setWorkspace(previous => {
+            const units = activePageCabinets.map(cabinet => {
+                const placement = previous.placements[cabinet.id];
+                const x = Number(placement?.x ?? 0);
+                const width = Number(cabinet.width ?? 0);
+                return { id: cabinet.id, origin: { x, y: Number(placement?.y ?? 0) }, right: x + width, width };
+            });
+            const selected = units.find(unit => unit.id === activeCabinetId);
+            if (!selected) return previous;
+            const rowUnits = units
+                .filter(unit => Math.abs(unit.origin.y - selected.origin.y) < 0.5)
+                .sort((left, right) => left.origin.x - right.origin.x);
+            const selectedIndex = rowUnits.findIndex(unit => unit.id === activeCabinetId);
+            const neighbor = rowUnits[selectedIndex + (direction === "left" ? -1 : 1)];
+            if (!selected || !neighbor) return previous;
+
+            const leftUnit = direction === "left" ? neighbor : selected;
+            const rightUnit = direction === "left" ? selected : neighbor;
+            const gap = rightUnit.origin.x - leftUnit.right;
+            const selectedTarget = direction === "left"
+                ? neighbor.origin.x
+                : selected.origin.x + neighbor.width + gap;
+            const neighborTarget = direction === "left"
+                ? neighbor.origin.x + selected.width + gap
+                : selected.origin.x;
+            const placements = { ...previous.placements };
+            const moveUnit = (unit, targetX) => {
+                const delta = targetX - unit.origin.x;
+                const placement = placements[unit.id];
+                placements[unit.id] = {
+                    ...placement,
+                    groupId: null,
+                    x: Number(placement.x ?? 0) + delta,
+                    positionExpressions: {
+                        ...(placement.positionExpressions ?? {}),
+                        x: String(targetX)
+                    }
+                };
+            };
+            moveUnit(selected, selectedTarget);
+            moveUnit(neighbor, neighborTarget);
+            return { ...previous, placements };
+        });
+    };
+
+    const assignSelectionToPage = pageId => {
+        const ids = getActionCabinetIds();
+        if (!workspace.pages.some(page => page.id === pageId)) return;
+        let x = 0;
+        setWorkspace(previous => ({
+            ...previous,
+            activePageId: pageId,
+            placements: Object.fromEntries(Object.entries(previous.placements).map(([id, placement]) => {
+                if (!ids.includes(id)) return [id, placement];
+                const cabinet = cabinets.find(item => item.id === id);
+                const next = { ...placement, pageId, x, y: 0 };
+                x += Number(cabinet?.width ?? 600);
+                return [id, next];
+            }))
+        }));
+    };
+
+    const selectPage = pageId => {
+        setWorkspace(previous => ({ ...previous, activePageId: pageId }));
+        setSelectedGuideId(null);
+        setActiveGuideTool(null);
+        const pageCabinet = cabinets.find(cabinet => workspace.placements?.[cabinet.id]?.pageId === pageId);
+        if (pageCabinet && workspace.placements?.[activeCabinetId]?.pageId !== pageId) {
+            setActiveCabinetId(pageCabinet.id);
+            loadFrontLayoutControls(pageCabinet);
+            setSelectedElement(null);
+        }
+    };
+
+    const addPage = () => {
+        const id = createId();
+        setWorkspace(previous => ({
+            ...previous,
+            activePageId: id,
+            pages: [...previous.pages, { id, name: `Seite ${previous.pages.length + 1}` }],
+            guides: { ...previous.guides, [id]: { front: [], interior: [], dual: [] } }
+        }));
+        setSelectedGuideId(null);
+    };
+
+    const renamePage = (pageId, name) => {
+        setWorkspace(previous => ({
+            ...previous,
+            pages: previous.pages.map(page => page.id === pageId ? { ...page, name } : page)
+        }));
+    };
+
+    const deletePage = pageId => {
+        if (workspace.pages.length <= 1) return;
+        const fallback = workspace.pages.find(page => page.id !== pageId);
+        setWorkspace(previous => {
+            const guides = { ...previous.guides };
+            delete guides[pageId];
+            return {
+                ...previous,
+                activePageId: previous.activePageId === pageId ? fallback.id : previous.activePageId,
+                pages: previous.pages.filter(page => page.id !== pageId),
+                guides,
+                placements: Object.fromEntries(Object.entries(previous.placements).map(([id, placement]) => [
+                    id,
+                    placement.pageId === pageId ? { ...placement, pageId: fallback.id, groupId: null } : placement
+                ]))
+            };
+        });
+    };
+
+    const addGuide = draft => {
+        const pageId = workspace.activePageId;
+        const existing = workspace.guides?.[pageId]?.[draft.layer] ?? [];
+        const prefix = draft.layer === "front" ? "F" : draft.layer === "interior" ? "I" : "D";
+        const direction = draft.orientation === "horizontal" ? "H" : "V";
+        const guide = {
+            id: createId(),
+            layer: draft.layer,
+            orientation: draft.orientation,
+            position: Math.round(Number(draft.position) * 10) / 10,
+            expression: String(Math.round(Number(draft.position) * 10) / 10),
+            name: `${prefix}_${direction}_${existing.length + 1}`
+        };
+        setWorkspace(previous => ({
+            ...previous,
+            guides: {
+                ...previous.guides,
+                [pageId]: {
+                    ...(previous.guides?.[pageId] ?? { front: [], interior: [], dual: [] }),
+                    [draft.layer]: [...(previous.guides?.[pageId]?.[draft.layer] ?? []), guide]
+                }
+            }
+        }));
+        setSelectedGuideId(guide.id);
+        setActiveGuideTool(null);
+    };
+
+    const updateGuide = (guideId, changes) => {
+        const pageId = workspace.activePageId;
+        const normalizedChanges = Object.hasOwn(changes, "name")
+            ? {
+                ...changes,
+                name: /^[\p{L}_]/u.test(changes.name || "")
+                    ? changes.name
+                    : `_${changes.name || "LINIE"}`
+            }
+            : changes;
+        setWorkspace(previous => ({
+            ...previous,
+            guides: {
+                ...previous.guides,
+                [pageId]: {
+                    ...previous.guides[pageId],
+                    front: (previous.guides[pageId]?.front ?? []).map(guide => guide.id === guideId ? { ...guide, ...normalizedChanges } : guide),
+                    interior: (previous.guides[pageId]?.interior ?? []).map(guide => guide.id === guideId ? { ...guide, ...normalizedChanges } : guide),
+                    dual: (previous.guides[pageId]?.dual ?? []).map(guide => guide.id === guideId ? { ...guide, ...normalizedChanges } : guide)
+                }
+            }
+        }));
+    };
+
+    const deleteGuide = guideId => {
+        const pageId = workspace.activePageId;
+        setWorkspace(previous => ({
+            ...previous,
+            guides: {
+                ...previous.guides,
+                [pageId]: {
+                    ...previous.guides[pageId],
+                    front: (previous.guides[pageId]?.front ?? []).filter(guide => guide.id !== guideId),
+                    interior: (previous.guides[pageId]?.interior ?? []).filter(guide => guide.id !== guideId),
+                    dual: (previous.guides[pageId]?.dual ?? []).filter(guide => guide.id !== guideId)
+                }
+            }
+        }));
+        setSelectedGuideId(null);
+    };
+
+    const applyGuide = guide => {
+        const ids = new Set(getActionCabinetIds());
+        setCabinets(previous => previous.map(cabinet => ids.has(cabinet.id)
+            ? applyGuideToCabinet({ cabinet, guide, placement: workspace.placements[cabinet.id] })
+            : cabinet));
+        setSelectedElement(null);
+    };
+
+    const applyCabinetPropertiesToSelection = () => {
+        if (!activeCabinet) return;
+        const ids = new Set(getActionCabinetIds());
+        const fields = [
+            "materialId", "frontMaterialId", "edgeTopMaterialId", "edgeBottomMaterialId",
+            "frontEdgeMaterialId", "backPanel", "continuous", "spax"
+        ];
+        const changes = Object.fromEntries(fields.map(field => [field, activeCabinet[field]]));
+        setCabinets(previous => previous.map(cabinet => ids.has(cabinet.id)
+            ? { ...cabinet, ...changes }
+            : cabinet));
+    };
+
     const toggleViewMode = (nextMode) => {
+        setViewMode(nextMode);
+        setSelectedElement(null);
+    };
 
-    setViewMode(prev =>
-        prev === nextMode
-            ? "interior"
-            : nextMode
-    );
-
-    setSelectedElement(null);
+    const changeGuideLayer = layer => {
+        setGuideLayer(layer);
+        toggleViewMode(layer === "dual" ? "combined" : layer === "front" ? "front" : "interior");
     };
 
     const createSectionsFromFronts = () => {
@@ -434,13 +841,16 @@ export default function CabinetEditor() {
 
     const loadDefualt = () => {
         const newID = createId();
-        setCabinets([{
+        const cabinet = ensureCabinetSections({
             id: newID,
             name: "Korpus 1",
-            ...defaultCabinet
-        }]);
+            ...defaultCabinet,
+            quantity: 1
+        });
+        setCabinets([cabinet]);
             setActiveCabinetId(newID);
-            loadFrontLayoutControls(defaultCabinet);
+            setSelectedCabinetIds([]);
+            loadFrontLayoutControls(cabinet);
     }
 
     const handleSave = async (overwriteManual = false) => {
@@ -453,6 +863,7 @@ export default function CabinetEditor() {
 
             await saveCabinetProject({
                 cabinets,
+                workspace,
                 materials,
                 projectId,
                 defaultConfig,
@@ -532,6 +943,8 @@ export default function CabinetEditor() {
                     mode: "create",
 
                     cabinets,
+
+                    cabinetWorkspace: workspace,
 
                     partList,
 
@@ -710,6 +1123,7 @@ export default function CabinetEditor() {
     useEffect(() => {
 
         if (!projectId) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             loadDefualt();
             return;
         }
@@ -741,7 +1155,7 @@ export default function CabinetEditor() {
                             ...(defaultCabinet.partListSettings?.separate ?? {})
                         }
                     };
-                    const loadedCabinets = data.map(cabinet =>
+                    const loadedCabinets = expandCabinetVariants(data.map(cabinet => ensureCabinetSections(
                         cabinet.source === "palette-cad" &&
                         !cabinet.partListSettingsSource
                             ? {
@@ -750,7 +1164,7 @@ export default function CabinetEditor() {
                                 partListSettingsSource: "company"
                             }
                             : cabinet
-                    );
+                    )));
 
                     setCabinets(loadedCabinets);
                     const requestedCabinetId = new URLSearchParams(location.search).get("cabinet");
@@ -759,6 +1173,7 @@ export default function CabinetEditor() {
                     );
                     const selectedCabinet = requestedCabinet ?? loadedCabinets[0];
                     setActiveCabinetId(selectedCabinet.id);
+                    setSelectedCabinetIds([]);
                     setFrontSplitSpec(selectedCabinet.frontLayout?.spec ?? "1:1");
                     setFrontSplitDirection(
                         selectedCabinet.frontLayout?.direction === "horizontal"
@@ -790,7 +1205,33 @@ export default function CabinetEditor() {
 
         loadGeneratedData();
 
+    // loadDefualt intentionally uses the company default captured by this load cycle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [projectId, project, defaultCabinet, location.search]);
+
+    useEffect(() => {
+        if (!projectId) return;
+        let cancelled = false;
+        getProjectFile({
+            projectId,
+            file: "cabinetWorkspace.json",
+            loadFromServer: {
+                download: downloadFile,
+                path: `/api/projects/generated/${projectId}/cabinetWorkspace`
+            }
+        }).then(data => {
+            if (!cancelled && data) {
+                setWorkspace(cabinetsRef.current.length > 0
+                    ? normalizeWorkspace(data, cabinetsRef.current)
+                    : data);
+            }
+        }).catch(error => {
+            if (error.response?.status !== 404 && error.code !== "OFFLINE_RESOURCE_UNAVAILABLE") {
+                console.warn("Cabinet-Workspace konnte nicht geladen werden", error);
+            }
+        });
+        return () => { cancelled = true; };
+    }, [projectId]);
 
     useEffect(() => {
         if (mode !== "edit" || !projectId) {
@@ -871,11 +1312,13 @@ export default function CabinetEditor() {
     };
 
     useEffect(() => {
-        if (!measurementVariables.length || !cabinets.length) return;
+        if (!formulaVariables.length || !cabinets.length) return;
+        // Formula values are materialized into cabinet geometry after their source variables change.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setCabinets(previous => {
             let changed = false;
             const next = previous.map(cabinet => {
-                const resolved = resolveCabinetMeasurementExpressions(cabinet, measurementVariables);
+                const resolved = resolveCabinetMeasurementExpressions(cabinet, formulaVariables);
                 const fields = Object.keys(resolved);
                 const dimensionsChanged = fields.some(field => cabinet[field] !== resolved[field]);
                 const resized = !dimensionsChanged
@@ -883,13 +1326,15 @@ export default function CabinetEditor() {
                     : Object.hasOwn(resolved, "width") || Object.hasOwn(resolved, "height")
                         ? resizeCabinetContents(cabinet, resolved)
                         : { ...cabinet, ...resolved };
-                const withFunctions = resolveCabinetFunctionExpressions(resized, measurementVariables);
-                if (withFunctions !== cabinet) changed = true;
-                return withFunctions;
+                const withFunctions = resolveCabinetFunctionExpressions(resized, formulaVariables);
+                const reconciled = reconcileLockedMiddleWalls(withFunctions);
+                const stable = JSON.stringify(reconciled) === JSON.stringify(cabinet) ? cabinet : reconciled;
+                if (stable !== cabinet) changed = true;
+                return stable;
             });
             return changed ? next : previous;
         });
-    }, [cabinets, measurementVariables]);
+    }, [cabinets, formulaVariables]);
 
     //fetch cabinet default config file
     useEffect(() => {
@@ -987,372 +1432,175 @@ export default function CabinetEditor() {
 
 
     return (
-        <div className="bg-gray-900 text-white h-screen flex overflow-hidden">
+        <div className="flex h-screen overflow-hidden bg-[#111315] text-white">
+            <SideBar selected={2} />
+            <MobileWorkspaceGuard title="Schrankkonfigurator" />
 
-    <SideBar selected={2} />
+            <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+                {mode !== "create" && (
+                    <div className="shrink-0 border-b border-white/10 bg-[#17191b]">
+                        <ProjectBar selected={2} />
+                    </div>
+                )}
 
-    <MobileWorkspaceGuard title="Schrankkonfigurator" />
-
-    <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {mode != "create" && ( <div className="shrink-0 bg-gray-900 border-b border-gray-700">
-            <ProjectBar selected={2} />
-        </div>)}
-        
-
-        <div className="flex-1 min-h-0">
-
-            <div className="cabinet-editor-layout
-                grid
-                h-full
-                min-h-0
-                grid-cols-[260px_1fr_520px]
-            ">
-
-                {/* LINKS */}
-                <CabinetSidebar
-                    cabinets={cabinets}
-                    activeCabinetId={activeCabinetId}
-                    activeCabinet={activeCabinet}
-
-                    addCabinet={addCabinet}
-                    duplicateCabinet={duplicateCabinet}
-                    selectCabinet={selectCabinet}
-                    deleteCabinet={deleteCabinet}
-                    updateCabinetQuantity={updateCabinetQuantity}
-                    saveCabinetAsPreset={isAdmin ? saveCabinetAsPreset : undefined}
-
-                    updateActiveCabinet={updateActiveCabinet}
-                    measurementVariables={measurementVariables}
-
-                    sectionSplitSpec={sectionSplitSpec}
-                    setSectionSplitSpec={setSectionSplitSpec}
-
-                    sectionSplitDirection={sectionSplitDirection}
-                    setSectionSplitDirection={setSectionSplitDirection}
-
-                    createInitialSections={createInitialSections}
-                    setSectionCount={setSectionCount}
-
-                    setSelectedElement={setSelectedElement}
-                />
-
-                {/* MITTE */}
-                <main className="
-        min-w-0
-        min-h-0
-        flex
-        flex-col
-        bg-gray-900
-    ">
-
-                    {/* ====================================
-                    TOOLBAR
-                    ==================================== */}
-
-                    <div className="
-            h-14
-            shrink-0
-            border-b
-            border-gray-700
-            bg-gray-900
-            flex
-            items-center
-            gap-2
-            px-3
-        ">
-                        <div data-tour="project-cabinet-toolbar" className="cabinet-editor-toolbar-actions flex min-w-0 flex-1 items-center gap-2 overflow-x-auto">
-                        <button
-                            type="button"
-                            onClick={() => toggleViewMode("front")}
-                            className={`
-                                rounded
-                                border
-                                px-3
-                                py-2
-                                text-sm
-                                transition
-                                shrink-0
-                                whitespace-nowrap
-
-                                ${
-                                    viewMode === "front"
-                                        ? "border-green-700 bg-green-900 text-green-300 hover:bg-green-800"
-                                        : "border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700"
-                                }
-                            `}
-                        >
-                            Fronten
-                        </button>
-
-                        <button
-                            type="button"
-                            onClick={() => toggleViewMode("combined")}
-                            className={`
-                                rounded
-                                border
-                                px-3
-                                py-2
-                                text-sm
-                                transition
-                                shrink-0
-                                whitespace-nowrap
-
-                                ${
-                                    viewMode === "combined"
-                                        ? "border-green-700 bg-green-900 text-green-300 hover:bg-green-800"
-                                        : "border-gray-700 bg-gray-800 text-gray-300 hover:bg-gray-700"
-                                }
-                            `}
-                        >
-                            Fronten + Innenraum
-                        </button>
-                        
-
-                        <button
-                                        type="button"
-                                        onClick={createSectionsFromFronts}
-                                        className="
-                                            rounded
-                                            border
-                                            border-gray-700
-                                            bg-gray-800/90
-                                            px-3
-                                            py-2
-                                            text-sm
-                                            text-gray-200
-                                            shadow-lg
-                                            backdrop-blur
-                                            hover:bg-gray-700
-                                            shrink-0
-                                            whitespace-nowrap
-                                        "
-                                    >
-                                        ParseFront
-                                    </button>
-
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setSelectedPresetId(String(cabinetPresets[0]?.id ?? ""));
-                                setSelectedFunctionPresetId(String(functionPresets[0]?.id ?? ""));
-                                setPresetInsertType(cabinetPresets.length > 0 ? "cabinet" : "function");
-                                setShowPresetInsertModal(true);
-                            }}
-                            className="shrink-0 whitespace-nowrap rounded border border-gray-700 bg-gray-800/90 px-3 py-2 text-sm text-gray-200 shadow-lg hover:bg-gray-700"
-                        >
-                            Preset einfügen
-                        </button>
-
-                        {isAdmin && (
+                <header className="flex h-12 shrink-0 items-center gap-3 border-b border-white/10 bg-[#151719] px-4">
+                    <h1 className="text-sm font-semibold text-gray-100">Cabinet Editor</h1>
+                    <span className="h-5 w-px bg-white/10" />
+                    <span className="truncate text-xs text-gray-500">{project?.title ?? "Korpusplanung"}</span>
+                    <div className="ml-auto flex items-center gap-2">
+                        {mode === "create" && (
                             <button
                                 type="button"
-                                disabled={!activeCabinet}
-                                onClick={() => setPresetEditorCabinet({ cabinet: activeCabinet, presetId: null, allowTypeSelection: true })}
-                                className="shrink-0 whitespace-nowrap rounded border border-gray-700 bg-gray-800/90 px-3 py-2 text-sm text-gray-200 shadow-lg hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
+                                onClick={handleSkip}
+                                onPointerDown={startSkipLongPress}
+                                onPointerUp={cancelSkipLongPress}
+                                onPointerLeave={cancelSkipLongPress}
+                                onPointerCancel={cancelSkipLongPress}
+                                onContextMenu={event => event.preventDefault()}
+                                disabled={creatingEmptyProject || showEmptyProjectModal}
+                                className="rounded-md border border-white/10 px-3 py-1.5 text-xs text-gray-300 hover:bg-white/5 disabled:opacity-40"
                             >
-                                Preset speichern
+                                Überspringen
                             </button>
                         )}
-
                         <button
                             type="button"
-                            disabled={mode !== "edit" || !projectId}
-                            onClick={() => setShowMeasurementVariablesModal(true)}
-                            title={mode === "edit"
-                                ? "Aufmaßvariablen anzeigen und verwalten"
-                                : "Variablen stehen nach dem Anlegen des Projekts zur Verfügung"}
-                            className="shrink-0 whitespace-nowrap rounded border border-gray-700 bg-gray-800/90 px-3 py-2 text-sm text-gray-200 shadow-lg hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
+                            onClick={mode === "create" ? handleNext : handleSaveButtonClick}
+                            onPointerDown={startSaveLongPress}
+                            onPointerUp={cancelSaveLongPress}
+                            onPointerLeave={cancelSaveLongPress}
+                            onPointerCancel={cancelSaveLongPress}
+                            onContextMenu={event => event.preventDefault()}
+                            disabled={saving || creatingEmptyProject}
+                            className="rounded-md border border-amber-600 bg-amber-600/90 px-4 py-1.5 text-xs font-medium text-black hover:bg-amber-500 disabled:opacity-40"
                         >
-                            Variablen
+                            {mode === "create" ? "Weiter" : saving ? "Speichern …" : "Speichern"}
                         </button>
-
-                        <div className="mx-2 h-6 w-px shrink-0 bg-gray-700" />
-                        </div>
-
-                        {/* <button type="button" className="
-                rounded
-                bg-gray-800
-                border
-                border-gray-700
-                px-3
-                py-2
-                text-sm
-                hover:bg-gray-700
-            ">
-                            Maße
-                        </button> */}
-
-                        <div className="flex shrink-0 items-center gap-2">
-                            {mode === "create" && (
-                                <button
-                                    type="button"
-                                    onClick={handleSkip}
-                                    onPointerDown={startSkipLongPress}
-                                    onPointerUp={cancelSkipLongPress}
-                                    onPointerLeave={cancelSkipLongPress}
-                                    onPointerCancel={cancelSkipLongPress}
-                                    onContextMenu={event => event.preventDefault()}
-                                    title="Ohne Vorbelegung zur Liste. Gedrückt halten, um ein leeres Projekt anzulegen."
-                                    disabled={creatingEmptyProject || showEmptyProjectModal}
-                                    className="shrink-0 touch-none whitespace-nowrap rounded border border-gray-600 bg-gray-800 px-4 py-2 text-sm text-gray-200 shadow hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                    Überspringen
-                                </button>
-                            )}
-
-                            <button
-                                type="button"
-                                onClick={
-                                    mode === "create"
-                                        ? handleNext
-                                        : handleSaveButtonClick
-                                }
-                                onPointerDown={startSaveLongPress}
-                                onPointerUp={cancelSaveLongPress}
-                                onPointerLeave={cancelSaveLongPress}
-                                onPointerCancel={cancelSaveLongPress}
-                                onContextMenu={event => event.preventDefault()}
-                                title={mode === "edit" ? "Gedrückt halten, um manuelle Listeneinträge vollständig zu überschreiben" : undefined}
-                                disabled={saving || creatingEmptyProject}
-                                className="shrink-0 whitespace-nowrap rounded border border-blue-700 bg-blue-600 px-4 py-2 text-sm text-white shadow hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                                {mode === "create"
-                                    ? "Weiter"
-                                    : saving
-                                        ? "Speichern..."
-                                        : "Speichern"
-                                }
-                            </button>
-                        </div>
-
                     </div>
+                </header>
 
-                    {/* ====================================
-                    VIEWPORT
-                    ==================================== */}
+                <div className="min-h-0 flex-1">
+                    <div className="cabinet-editor-layout grid h-full min-h-0 grid-cols-[248px_minmax(520px,1fr)_340px]">
+                        <CabinetSidebar
+                            cabinets={cabinets}
+                            activeCabinetId={activeCabinetId}
+                            addCabinet={addCabinet}
+                            duplicateCabinet={duplicateCabinet}
+                            selectCabinet={selectCabinet}
+                            deleteCabinet={deleteCabinet}
+                            updateCabinetQuantity={updateCabinetQuantity}
+                            saveCabinetAsPreset={isAdmin ? saveCabinetAsPreset : undefined}
+                            selectedCabinetIds={selectedCabinetIds}
+                            onToggleCabinetSelection={toggleCabinetSelection}
+                            workspace={workspace}
+                            position={activePosition}
+                            positionVariables={formulaVariables}
+                            onPositionChange={updateCabinetPosition}
+                            onSwapPosition={swapCabinetPosition}
+                            onAssignSelectionToPage={assignSelectionToPage}
+                            onSelectPage={selectPage}
+                            onAddPage={addPage}
+                            onRenamePage={renamePage}
+                            onDeletePage={deletePage}
+                        />
 
-                    <div className="
-            flex-1
-            min-h-0
-        ">
-
-                        <div data-tour="project-cabinet-viewport" className="relative h-full w-full overflow-hidden">
-
-                            <CabinetViewport
-                                cabinet={activeCabinet}
-                                cncConfig={defaultConfig}
-                                mode={viewMode}
-                                selectedElement={selectedElement}
-                                onSelect={setSelectedElement}
-                                showGrid={false}
+                        <section className="flex min-h-0 min-w-0 flex-col bg-[#111315]">
+                            <CabinetWorkspaceToolbar
+                                pages={workspace.pages}
+                                activePageId={workspace.activePageId}
+                                onSelectPage={selectPage}
+                                guideLayer={guideLayer}
+                                onGuideLayerChange={changeGuideLayer}
+                                activeGuideTool={activeGuideTool}
+                                setActiveGuideTool={setActiveGuideTool}
+                                selectedGuide={selectedGuide}
+                                onUpdateGuide={updateGuide}
+                                onDeleteGuide={deleteGuide}
+                                onApplyGuide={applyGuide}
+                                measurementVariables={formulaVariables}
                             />
 
-
-                            {/* Floating Controls */}
-                            <div
-                                className="
-                                    absolute
-                                    right-3
-                                    top-3
-                                    z-20
-                                "
-                            >
-
-                                <div className="flex flex-col gap-2">
-
-                                    {/* <button
-                                        type="button"
-                                        onClick={createSectionsFromFronts}
-                                        className="
-                                            rounded
-                                            border
-                                            border-gray-700
-                                            bg-gray-800/90
-                                            px-3
-                                            py-2
-                                            text-sm
-                                            text-gray-200
-                                            shadow-lg
-                                            backdrop-blur
-                                            hover:bg-gray-700
-                                        "
-                                    >
-                                        ParseFront
-                                    </button> */}
-
-                                </div>
-
+                            <div data-tour="project-cabinet-viewport" className="relative min-h-0 flex-1">
+                                <CabinetViewport
+                                    cabinets={activePageCabinets}
+                                    placements={workspace.placements}
+                                    activeCabinetId={activeCabinetId}
+                                    selectedCabinetIds={selectedCabinetIds}
+                                    cncConfig={defaultConfig}
+                                    mode={viewMode}
+                                    selectedElement={selectedElement}
+                                    onSelect={setSelectedElement}
+                                    onActivateCabinet={selectCabinet}
+                                    guides={visibleGuides}
+                                    selectedGuideId={selectedGuideId}
+                                    activeGuideTool={activeGuideTool}
+                                    onAddGuide={addGuide}
+                                    onSelectGuide={setSelectedGuideId}
+                                    onUpdateGuide={updateGuide}
+                                    showGrid
+                                />
                             </div>
 
-                        </div>
+                            <div className="flex h-11 shrink-0 items-center gap-2 border-t border-white/10 bg-[#191b1e] px-3">
+                                <button type="button" onClick={createSectionsFromFronts} className="rounded-md border border-white/10 px-3 py-1.5 text-xs text-gray-300 hover:bg-white/5">Parse Front</button>
+                                <button
+                                    type="button"
+                                    disabled={mode !== "edit" || !projectId}
+                                    onClick={() => setShowMeasurementVariablesModal(true)}
+                                    className="rounded-md border border-white/10 px-3 py-1.5 text-xs text-gray-300 hover:bg-white/5 disabled:opacity-35"
+                                >
+                                    Variablen ({formulaVariables.length})
+                                </button>
+                                <span className="ml-auto text-[11px] text-gray-600">Leertaste + Ziehen: Ansicht verschieben · Mausrad: Zoom</span>
+                            </div>
 
+                            <CabinetBottomPanel
+                                cabinets={cabinets}
+                                materials={materials}
+                                cncConfig={defaultConfig}
+                                cabinetPresets={cabinetPresets}
+                                functionPresets={functionPresets}
+                                activeCabinet={activeCabinet}
+                                onInsertCabinetPreset={insertSelectedCabinetPreset}
+                                onInsertFunctionPreset={insertSelectedFunctionPreset}
+                                onSavePreset={() => setPresetEditorCabinet({ cabinet: activeCabinet, presetId: null, allowTypeSelection: true })}
+                                canSavePreset={isAdmin}
+                            />
+                        </section>
+
+                        <PropertiesSidebar
+                            selectedElement={selectedElement}
+                            setSelectedElement={setSelectedElement}
+                            activeCabinet={activeCabinet}
+                            updateActiveCabinet={updateActiveCabinet}
+                            viewMode={viewMode}
+                            frontSplitSpec={frontSplitSpec}
+                            setFrontSplitSpec={setFrontSplitSpec}
+                            frontSplitDirection={frontSplitDirection}
+                            setFrontSplitDirection={setFrontSplitDirection}
+                            splitFront={splitFront}
+                            toggleFrontRemoved={toggleFrontRemoved}
+                            mergeFrontChildren={mergeFrontChildren}
+                            findFrontParent={findFrontParent}
+                            generateFronts={generateFronts}
+                            sectionSplitSpec={sectionSplitSpec}
+                            setSectionSplitSpec={setSectionSplitSpec}
+                            sectionSplitDirection={sectionSplitDirection}
+                            setSectionSplitDirection={setSectionSplitDirection}
+                            splitSection={splitSection}
+                            mergeSectionChildren={mergeSectionChildren}
+                            materials={materials}
+                            loadingMaterials={loadingMaterials}
+                            materialError={materialError}
+                            cncConfig={defaultConfig}
+                            measurementVariables={formulaVariables}
+                            projectId={projectId}
+                            updateCabinetLayout={updateCabinetLayout}
+                            selectedCabinetCount={getActionCabinetIds().length}
+                            onApplyCabinetProperties={applyCabinetPropertiesToSelection}
+                        />
                     </div>
-
-                </main>
-
-                {/* RECHTS */}
-                <PropertiesSidebar
-    selectedElement={selectedElement}
-    setSelectedElement={setSelectedElement}
-
-    activeCabinet={activeCabinet}
-    updateActiveCabinet={updateActiveCabinet}
-
-    viewMode={viewMode}
-
-    frontSplitSpec={frontSplitSpec}
-    setFrontSplitSpec={setFrontSplitSpec}
-
-    frontSplitDirection={frontSplitDirection}
-    setFrontSplitDirection={
-        setFrontSplitDirection
-    }
-
-    splitFront={splitFront}
-    toggleFrontRemoved={toggleFrontRemoved}
-    mergeFrontChildren={
-        mergeFrontChildren
-    }
-    findFrontParent={
-        findFrontParent
-    }
-
-    generateFronts={generateFronts}
-
-    sectionSplitSpec={sectionSplitSpec}
-    setSectionSplitSpec={
-        setSectionSplitSpec
-    }
-
-    sectionSplitDirection={
-        sectionSplitDirection
-    }
-    setSectionSplitDirection={
-        setSectionSplitDirection
-    }
-
-    splitSection={splitSection}
-    mergeSectionChildren={
-        mergeSectionChildren
-    }
-    findParent={findParent}
-
-    materials={materials}
-    loadingMaterials={
-        loadingMaterials
-    }
-    materialError={materialError}
-
-    cncConfig={defaultConfig}
-    measurementVariables={measurementVariables}
-    projectId={projectId}
-
-    updateCabinetLayout={updateCabinetLayout}
-/>
-
-            </div>
-
-        </div>
+                </div>
 
         {showAbsoluteSaveWarning && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
@@ -1490,6 +1738,7 @@ export default function CabinetEditor() {
         {showMeasurementVariablesModal && (
             <MeasurementVariablesModal
                 linkedVariables={linkedMeasurementVariables}
+                guideVariables={guideVariables}
                 variables={manualMeasurementVariables}
                 onCancel={() => setShowMeasurementVariablesModal(false)}
                 onSave={saveMeasurementVariables}
@@ -1548,7 +1797,9 @@ export default function CabinetEditor() {
                         <button type="button" onClick={() => setShowPresetInsertModal(false)} className="rounded border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:bg-gray-800">Abbrechen</button>
                         <button
                             type="button"
-                            onClick={presetInsertType === "cabinet" ? insertSelectedCabinetPreset : insertSelectedFunctionPreset}
+                            onClick={() => presetInsertType === "cabinet"
+                                ? insertSelectedCabinetPreset()
+                                : insertSelectedFunctionPreset()}
                             disabled={presetInsertType === "cabinet" ? !selectedPresetId || cabinetPresets.length === 0 : !activeCabinet || !selectedFunctionPresetId || functionPresets.length === 0}
                             className="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >

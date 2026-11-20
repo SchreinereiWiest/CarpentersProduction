@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 
 import MaterialSelect from "./MaterialSelect.jsx";
+import FormulaNumberInput from "../FormulaNumberInput.jsx";
 import { getEdgeMaterials } from "../../../../../../shared/materials/material-utils.js";
 
 
@@ -10,7 +11,10 @@ export default function CabinetProperties({
     onLayoutChange,
     materials,
     loadingMaterials,
-    materialError
+    materialError,
+    measurementVariables = [],
+    onApplyMultiple,
+    selectedCabinetCount = 0
 }) {
 
     const edgeMaterials = useMemo(
@@ -21,6 +25,16 @@ export default function CabinetProperties({
     if (!activeCabinet) {
         return null;
     }
+
+    const updateDimension = (field, expression, evaluation) => {
+        updateActiveCabinet({
+            measurementExpressions: {
+                ...(activeCabinet.measurementExpressions ?? {}),
+                [field]: expression
+            },
+            ...(evaluation.valid ? { [field]: evaluation.value } : {})
+        });
+    };
 
     return (
 
@@ -38,12 +52,15 @@ export default function CabinetProperties({
                 
 
 
-                <div className="
-                    mt-2 mb-2
-                    text-base
-                ">
-                    {activeCabinet.name}
-                </div>
+                <label className="block">
+                    <span className="text-xs text-gray-400">Bezeichnung</span>
+                    <input
+                        type="text"
+                        value={activeCabinet.name ?? ""}
+                        onChange={event => updateActiveCabinet({ name: event.target.value })}
+                        className="mt-1 w-full rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-100 outline-none focus:border-amber-500"
+                    />
+                </label>
 
                 <section className="
                 border-t
@@ -51,61 +68,31 @@ export default function CabinetProperties({
             ">
 
 
-                <div className="
-                    
-                    grid
-                    grid-cols-3
-                    gap-2
-                    text-sm
-                ">
-
-                    <div>
-
-                        <div className="
-                            text-xs
-                            text-gray-500
-                        ">
-                            Breite
-                        </div>
-
-                        <div className="mt-1">
-                            {activeCabinet.width} mm
-                        </div>
-
-                    </div>
-
-
-                    <div>
-
-                        <div className="
-                            text-xs
-                            text-gray-500
-                        ">
-                            Höhe
-                        </div>
-
-                        <div className="mt-1">
-                            {activeCabinet.height} mm
-                        </div>
-
-                    </div>
-
-
-                    <div>
-
-                        <div className="
-                            text-xs
-                            text-gray-500
-                        ">
-                            Tiefe
-                        </div>
-
-                        <div className="mt-1">
-                            {activeCabinet.depth} mm
-                        </div>
-
-                    </div>
-
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                    <FormulaNumberInput
+                        label="Breite"
+                        value={activeCabinet.width}
+                        expression={activeCabinet.measurementExpressions?.width}
+                        variables={measurementVariables}
+                        compactResult
+                        onChange={(expression, evaluation) => updateDimension("width", expression, evaluation)}
+                    />
+                    <FormulaNumberInput
+                        label="Höhe"
+                        value={activeCabinet.height}
+                        expression={activeCabinet.measurementExpressions?.height}
+                        variables={measurementVariables}
+                        compactResult
+                        onChange={(expression, evaluation) => updateDimension("height", expression, evaluation)}
+                    />
+                    <FormulaNumberInput
+                        label="Tiefe"
+                        value={activeCabinet.depth}
+                        expression={activeCabinet.measurementExpressions?.depth}
+                        variables={measurementVariables}
+                        compactResult
+                        onChange={(expression, evaluation) => updateDimension("depth", expression, evaluation)}
+                    />
                 </div>
 
             </section>
@@ -140,7 +127,12 @@ export default function CabinetProperties({
                         }
                         onChange={(value) =>
                             updateActiveCabinet({
-                                materialId: value
+                                materialId: value,
+                                backPanel: activeCabinet.backPanel?.materialSource === "legacy" ||
+                                    activeCabinet.backPanel?.materialManuallyChanged === true ||
+                                    activeCabinet.backPanel?.manualMaterial === true
+                                    ? activeCabinet.backPanel
+                                    : { ...(activeCabinet.backPanel ?? {}), materialId: value }
                             })
                         }
                     />
@@ -654,6 +646,15 @@ export default function CabinetProperties({
     </div>
 
 </section>
+
+            <button
+                type="button"
+                disabled={selectedCabinetCount < 2}
+                onClick={onApplyMultiple}
+                className="w-full rounded-md border border-amber-700/70 bg-amber-950/20 px-3 py-2 text-sm text-amber-200 hover:bg-amber-950/40 disabled:cursor-not-allowed disabled:opacity-35"
+            >
+                Material &amp; Ausführung auf {selectedCabinetCount || 0} Korpusse anwenden
+            </button>
 
         </div>
     );

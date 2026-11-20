@@ -5,7 +5,8 @@ export function InteriorLayer({
     cabinet,
     cncConfig,
     selectedElement,
-    onSelect
+    onSelect,
+    materialColor = "#4B5563"
 }) {
 
     const sections = cabinet.sections ?? [];
@@ -151,7 +152,7 @@ export function InteriorLayer({
                     y={y}
                     width={section.width}
                     height={thickness}
-                    fill="#4b5563"
+                    fill={materialColor}
                     stroke="#9ca3af"
                     strokeWidth="1"
                     pointerEvents="none"
@@ -230,7 +231,7 @@ export function InteriorLayer({
                                     y={y}
                                     width={section.width}
                                     height={thickness}
-                                    fill="#4b5563"
+                                    fill={materialColor}
                                     stroke="#9ca3af"
                                     strokeWidth="1"
                                     pointerEvents="none"
@@ -282,7 +283,7 @@ export function InteriorLayer({
                                     y={section.y}
                                     width={thickness}
                                     height={section.height}
-                                    fill="#4b5563"
+                                    fill={materialColor}
                                     stroke="#9ca3af"
                                     strokeWidth="1"
                                     pointerEvents="none"
@@ -635,7 +636,7 @@ export function InteriorLayer({
                     y={deckelY}
                     width={innerWidth}
                     height={thickness}
-                    fill="#4B5563"
+                    fill={materialColor}
                     stroke="#374151"
                     strokeWidth="1"
                     pointerEvents="none"
@@ -653,7 +654,7 @@ export function InteriorLayer({
                     y={bodenY}
                     width={innerWidth}
                     height={thickness}
-                    fill="#4B5563"
+                    fill={materialColor}
                     stroke="#374151"
                     strokeWidth="1"
                     pointerEvents="none"

@@ -29,6 +29,7 @@ const procurementDocument = value => {
 export const PROJECT_DOCUMENTS = Object.freeze({
   aufmas: { fileName: "aufmas.json", schemaVersion: 1, validate: measurementDocument },
   cabinet: { fileName: "cabinet.json", schemaVersion: 1, validate: arrayDocument("cabinet document") },
+  cabinetWorkspace: { fileName: "cabinetWorkspace.json", schemaVersion: 1, validate: objectDocument("cabinet workspace document") },
   list: { fileName: "list.json", schemaVersion: 1, validate: arrayDocument("part-list document") },
   nesting: { fileName: "nesting.json", schemaVersion: 1, validate: arrayDocument("nesting document") },
   procurement: { fileName: "procurement.json", schemaVersion: 1, validate: procurementDocument },

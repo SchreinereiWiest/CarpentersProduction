@@ -382,7 +382,7 @@ textarea {
 
 @media (min-width: 768px) and (max-width: 1299px) {
     .cabinet-editor-layout {
-        grid-template-columns: 210px minmax(0, 1fr) clamp(390px, 40vw, 470px) !important;
+        grid-template-columns: 210px minmax(0, 1fr) clamp(320px, 32vw, 360px) !important;
     }
 
     .project-editor-layout {
@@ -407,7 +407,7 @@ textarea {
 
 @media (hover: none) and (pointer: coarse) and (min-width: 1300px) and (max-width: 1366px) {
     .cabinet-editor-layout {
-        grid-template-columns: 210px minmax(0, 1fr) 470px !important;
+        grid-template-columns: 210px minmax(0, 1fr) 340px !important;
     }
 }
 

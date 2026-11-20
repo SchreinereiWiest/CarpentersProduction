@@ -1,11 +1,15 @@
 
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
+import { getCabinetVariantCount } from "../../workspace/cabinetVariants.js";
 
 
 export function CabinetList({
     cabinets,
     activeCabinetId,
+    selectedCabinetIds = [],
+    pageNames = {},
     onSelect,
+    onToggleSelection,
     onDuplicate,
     onQuantityChange,
     onSaveAsPreset,
@@ -29,8 +33,12 @@ export function CabinetList({
                             <CabinetListItem
                                 key={cabinet.id}
                                 cabinet={cabinet}
+                                cabinets={cabinets}
                                 active={active}
+                                selected={selectedCabinetIds.includes(cabinet.id)}
+                                pageName={pageNames[cabinet.id]}
                                 onSelect={onSelect}
+                                onToggleSelection={onToggleSelection}
                                 onDuplicate={onDuplicate}
                                 onQuantityChange={onQuantityChange}
                                 onSaveAsPreset={onSaveAsPreset}
@@ -48,8 +56,12 @@ export function CabinetList({
 
 function CabinetListItem({
     cabinet,
+    cabinets,
     active,
+    selected,
+    pageName,
     onSelect,
+    onToggleSelection,
     onDuplicate,
     onQuantityChange,
     onSaveAsPreset
@@ -57,6 +69,7 @@ function CabinetListItem({
     const longPressTimer = useRef(null);
     const suppressResetTimer = useRef(null);
     const suppressClick = useRef(false);
+    const variantCount = getCabinetVariantCount(cabinet, cabinets);
 
     useEffect(() => () => {
         clearTimeout(longPressTimer.current);
@@ -84,7 +97,16 @@ function CabinetListItem({
     };
 
     return (
-        <div className={`flex items-center gap-1 rounded transition ${active ? "bg-gray-800" : "hover:bg-gray-800/60"}`}>
+        <div className={`flex items-center gap-1 rounded-md border transition ${active ? "border-amber-700/70 bg-amber-950/30" : "border-transparent hover:bg-gray-800/60"}`}>
+            <label className="ml-2 flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center" title="Mit dem aktiven Korpus transformieren">
+                <input
+                    type="checkbox"
+                    checked={selected}
+                    onChange={() => onToggleSelection?.(cabinet.id)}
+                    aria-label={`${cabinet.name} gemeinsam mit dem aktiven Korpus transformieren`}
+                    className="h-4 w-4 rounded border-gray-600 bg-gray-900 accent-amber-500"
+                />
+            </label>
             <button
                 type="button"
                 onClick={() => {
@@ -103,12 +125,15 @@ function CabinetListItem({
                 className="min-w-0 flex-1 touch-manipulation px-2 py-2 text-left"
             >
                 <div className="flex items-center gap-2">
-                    <div className={`h-2 w-2 shrink-0 rounded-full ${active ? "bg-blue-400" : "bg-gray-600"}`} />
+                    <div className={`h-2 w-2 shrink-0 rounded-full ${active ? "bg-amber-400" : "bg-gray-600"}`} />
                     <span className="truncate text-sm text-gray-200">{cabinet.name}</span>
                 </div>
                 <div className="ml-4 mt-0.5 text-xs text-gray-500">
-                    {cabinet.width} × {cabinet.height} × {cabinet.depth}
+                    {cabinet.width} × {cabinet.height} × {cabinet.depth}{pageName ? ` · ${pageName}` : ""}
                 </div>
+                {cabinet.linkedCabinetGroupId && (
+                    <div className="ml-4 text-[10px] text-amber-700">Variante {cabinet.variantIndex ?? 1}/{variantCount}</div>
+                )}
             </button>
 
             <label className="flex shrink-0 flex-col items-center gap-0.5 text-[10px] text-gray-500">
@@ -116,7 +141,7 @@ function CabinetListItem({
                     type="number"
                     min="1"
                     step="1"
-                    value={cabinet.quantity ?? 1}
+                    value={variantCount}
                     aria-label={`Stückzahl für ${cabinet.name}`}
                     onChange={event => {
                         const quantity = Number(event.target.value);

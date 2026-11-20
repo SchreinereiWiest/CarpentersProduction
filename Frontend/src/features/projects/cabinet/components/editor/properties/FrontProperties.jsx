@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { applyFrontGaps, getFrontGapContext } from "@Engine/cabinet/sektions/front/frontGaps.js";
 
 
 function SignedNumberInput({
@@ -93,6 +94,33 @@ function SignedNumberInput({
     );
 }
 
+function SelectedFrontGapEditor({ initialGaps, onApply }) {
+    const [gaps, setGaps] = useState(initialGaps);
+    return (
+        <div>
+            <div className="mb-2 text-xs text-gray-400">Fugen der ausgewählten Front</div>
+            <div className="grid grid-cols-2 gap-2">
+                {[['left', 'Links'], ['right', 'Rechts'], ['top', 'Oben'], ['bottom', 'Unten']].map(([field, label]) => (
+                    <label key={field} className="block">
+                        <span className="text-xs text-gray-500">{label}</span>
+                        <SignedNumberInput
+                            value={gaps[field]}
+                            onChange={value => setGaps(current => ({ ...current, [field]: value }))}
+                        />
+                    </label>
+                ))}
+            </div>
+            <button
+                type="button"
+                onClick={() => onApply(gaps)}
+                className="mt-3 w-full rounded border border-amber-700 bg-amber-950/30 px-3 py-2 text-sm text-amber-200 hover:bg-amber-900/40"
+            >
+                Front ändern
+            </button>
+        </div>
+    );
+}
+
 
 export default function FrontProperties({
 
@@ -145,6 +173,15 @@ export default function FrontProperties({
         activeCabinet.frontGrainDirection === "horizontal"
             ? "horizontal"
             : "vertical";
+    const selectedGapContext = isSelectedFront
+        ? getFrontGapContext(activeCabinet.fronts ?? [], selectedElement.id, activeCabinet)
+        : null;
+    const changeSelectedFront = gaps => {
+        const result = applyFrontGaps({ cabinet: activeCabinet, frontId: selectedElement.id, gaps });
+        if (!result.changed) return;
+        updateActiveCabinet({ fronts: result.cabinet.fronts });
+        setSelectedElement({ ...result.front, type: "front", cabinetId: selectedElement.cabinetId });
+    };
 
 
     return (
@@ -157,10 +194,7 @@ export default function FrontProperties({
                 tracking-wide
                 text-gray-500
             ">
-                {isSelectedFront
-                    ? "Front unterteilen"
-                    : "Frontaufteilung"
-                }
+                Frontaufteilung
             </div>
 
 
@@ -357,7 +391,7 @@ export default function FrontProperties({
 {/* ÄUSSERE FUGEN */}
 {/* ================================================= */}
 
-<div>
+{!isSelectedFront && <div>
 
     <div className="
         text-xs
@@ -466,7 +500,15 @@ export default function FrontProperties({
 
     </div>
 
-</div>
+</div>}
+
+                {isSelectedFront && selectedGapContext && (
+                    <SelectedFrontGapEditor
+                        key={`${selectedElement.id}:${selectedElement.x}:${selectedElement.y}:${selectedElement.width}:${selectedElement.height}`}
+                        initialGaps={selectedGapContext.gaps}
+                        onApply={changeSelectedFront}
+                    />
+                )}
 
 
                 {/* =================================================
@@ -504,7 +546,7 @@ export default function FrontProperties({
                                 disabled:opacity-30
                             "
                         >
-                            Front unterteilen
+                            Front aufteilen
                         </button>
 
 

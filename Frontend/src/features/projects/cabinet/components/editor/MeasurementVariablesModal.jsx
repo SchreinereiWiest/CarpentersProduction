@@ -13,6 +13,7 @@ const normalizeRows = variables => (Array.isArray(variables) ? variables : []).m
 
 export default function MeasurementVariablesModal({
     linkedVariables = [],
+    guideVariables = [],
     variables = [],
     onCancel,
     onSave
@@ -21,8 +22,8 @@ export default function MeasurementVariablesModal({
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
     const linkedNames = useMemo(
-        () => new Set(linkedVariables.map(variable => variable.name.toLocaleUpperCase("de-DE"))),
-        [linkedVariables]
+        () => new Set([...linkedVariables, ...guideVariables].map(variable => variable.name.toLocaleUpperCase("de-DE"))),
+        [guideVariables, linkedVariables]
     );
 
     useEffect(() => {
@@ -137,6 +138,30 @@ export default function MeasurementVariablesModal({
                         ) : (
                             <p className="mt-3 rounded-lg border border-dashed border-gray-700 p-4 text-sm text-gray-500">
                                 Im Aufmaß wurden noch keine Messobjekte mit einer Variablen verknüpft.
+                            </p>
+                        )}
+                    </section>
+
+                    <section aria-labelledby="guide-variables-title">
+                        <div className="flex items-baseline justify-between gap-3">
+                            <h3 id="guide-variables-title" className="text-sm font-semibold text-gray-200">
+                                Hilfslinien im Cabinet Editor
+                            </h3>
+                            <span className="text-xs text-gray-500">Relativ zum gesetzten horizontalen bzw. vertikalen Ursprung</span>
+                        </div>
+                        {guideVariables.length > 0 ? (
+                            <div className="mt-3 overflow-hidden rounded-lg border border-gray-700">
+                                {guideVariables.map(variable => (
+                                    <div key={variable.name.toLocaleUpperCase("de-DE")} className="grid grid-cols-[minmax(0,1fr)_minmax(8rem,0.55fr)_auto] items-center gap-3 border-t border-gray-800 px-3 py-2.5 text-sm first:border-t-0">
+                                        <span className="truncate font-mono text-amber-300">{variable.name}</span>
+                                        <span className="tabular-nums text-gray-100">{variable.value} {variable.unit}</span>
+                                        <span className="max-w-56 truncate text-xs text-gray-500" title={variable.label}>{variable.label}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="mt-3 rounded-lg border border-dashed border-gray-700 p-4 text-sm text-gray-500">
+                                Auf dieser Seite wurden noch keine benannten Hilfslinien angelegt.
                             </p>
                         )}
                     </section>
