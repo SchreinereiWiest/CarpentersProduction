@@ -132,6 +132,7 @@ model DocumentTemplate {
   name         String
   documentType String @default("universal") @map("document_type")
   status       String @default("active")
+  isDefault    Boolean @default(false) @map("is_default")
   analysis     Json
 
   uploadedById String? @map("uploaded_by") @db.Uuid
@@ -144,6 +145,7 @@ model DocumentTemplate {
 
   @@unique([tenantId, id])
   @@index([tenantId, status, createdAt])
+  @@index([tenantId, documentType, isDefault])
   @@map("document_templates")
 }
 

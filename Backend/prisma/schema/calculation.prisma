@@ -71,6 +71,7 @@ model CommercialDocument {
   items          Json    @default("[]")
   totals         Json    @default("{}")
   fieldValues    Json    @default("{}") @map("field_values")
+  /// Legacy-Snapshot für bestehende Belege; Standardvorlagen verwenden analysis.fields.
   layout         Json    @default("{}")
 
   issuedAt DateTime? @map("issued_at")

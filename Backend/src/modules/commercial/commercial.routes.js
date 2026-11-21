@@ -1,45 +1,35 @@
 import express from "express";
-import multer from "multer";
 
 import { authenticate, authorizeRoles, requireFeature } from "../../middleware/auth.middleware.js";
 import {
   createCommercialDocument,
-  createManualDocumentTemplate,
   createCommission,
+  createDocumentTemplate,
+  clearDocumentTemplateDefault,
   deleteCommission,
-  downloadDocumentTemplate,
+  deleteDocumentTemplate,
   getCommercialDocument,
   getCommissionWorkspace,
   listCustomerCommissions,
   listCustomerDocuments,
   listDocumentTemplates,
   saveCommissionCalculation,
+  setDocumentTemplateDefault,
   updateCommercialDocument,
   updateCommission,
-  updateDocumentTemplateLayout,
-  uploadDocumentTemplate
+  updateDocumentTemplate
 } from "./commercial.controller.js";
 
 const router = express.Router();
-const pdfUpload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 25 * 1024 * 1024, files: 1 },
-  fileFilter: (_req, file, callback) => callback(file.mimetype === "application/pdf" ? null : new Error("Nur PDF-Dateien werden unterstützt."), file.mimetype === "application/pdf")
-});
-const receiveTemplate = (req, res, next) => pdfUpload.single("template")(req, res, error => {
-  if (!error) return next();
-  error.statusCode = error.code === "LIMIT_FILE_SIZE" ? 413 : 415;
-  error.code = error.code === "LIMIT_FILE_SIZE" ? "DOCUMENT_TEMPLATE_TOO_LARGE" : "DOCUMENT_TEMPLATE_TYPE_INVALID";
-  return next(error);
-});
 
 router.use(authenticate, authorizeRoles("admin", "manager"));
 
 router.get("/templates", listDocumentTemplates);
-router.post("/templates", authorizeRoles("admin"), receiveTemplate, uploadDocumentTemplate);
-router.post("/templates/manual", authorizeRoles("admin"), createManualDocumentTemplate);
-router.put("/templates/:id/layout", authorizeRoles("admin"), updateDocumentTemplateLayout);
-router.get("/templates/:id/download", downloadDocumentTemplate);
+router.post("/templates", authorizeRoles("admin"), createDocumentTemplate);
+router.put("/templates/:id", authorizeRoles("admin"), updateDocumentTemplate);
+router.delete("/templates/:id", authorizeRoles("admin"), deleteDocumentTemplate);
+router.put("/templates/:id/default", authorizeRoles("admin"), setDocumentTemplateDefault);
+router.delete("/templates/default/:documentType", authorizeRoles("admin"), clearDocumentTemplateDefault);
 
 router.use(requireFeature("crm"));
 router.get("/customers/:customerId/commissions", listCustomerCommissions);

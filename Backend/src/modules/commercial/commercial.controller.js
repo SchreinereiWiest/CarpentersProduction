@@ -1,14 +1,7 @@
-import crypto from "node:crypto";
-
-import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-
 import prisma from "../../infrastructure/database/prisma.js";
-import { getTenantId } from "../../infrastructure/database/tenant-context.js";
-import { s3Download, s3Upload } from "../../infrastructure/storage/s3.js";
 import { loadCommissionWorkspace, sourceItems } from "./commercial.service.js";
 import {
-  calculateCommercialTotals,
+  COMMERCIAL_DOCUMENT_TYPES,
   commercialDocumentData,
   CommercialValidationError,
   commissionData,
@@ -120,7 +113,7 @@ const documentInclude = {
   customer: { select: { id: true, firstName: true, lastName: true, companyName: true, customerNumber: true, addresses: { where: { deletedAt: null } } } },
   project: { select: { id: true, title: true, projectNumber: true } },
   commission: { select: { id: true, title: true, commissionNumber: true } },
-  template: { select: { id: true, name: true, documentType: true, analysis: true } }
+  template: { select: { id: true, name: true, documentType: true, isDefault: true, analysis: true } }
 };
 
 export async function listCustomerDocuments(req, res) {
@@ -136,21 +129,9 @@ export async function getCommercialDocument(req, res) {
 
 async function nextDocumentNumber(documentType) {
   const year = new Date().getFullYear();
-  const prefix = documentType === "invoice" ? "RE" : "ANG";
+  const prefix = { invoice: "RE", order_confirmation: "AB", partial_invoice: "AZ" }[documentType] || "ANG";
   const count = await prisma.commercialDocument.count({ where: { documentType, createdAt: { gte: new Date(`${year}-01-01T00:00:00.000Z`) } } });
   return `${prefix}-${year}-${String(count + 1).padStart(4, "0")}`;
-}
-
-async function assertDocumentTemplate(templateId, documentType) {
-  if (!templateId) return null;
-  const template = await prisma.documentTemplate.findFirst({ where: { id: templateId, status: "active" }, select: { id: true, documentType: true, analysis: true } });
-  if (!template || !["universal", documentType].includes(template.documentType)) {
-    const error = new Error("Die gewählte PDF-Vorlage ist für diesen Beleg nicht verfügbar.");
-    error.statusCode = 400;
-    error.code = "DOCUMENT_TEMPLATE_INVALID";
-    throw error;
-  }
-  return template;
 }
 
 export async function createCommercialDocument(req, res) {
@@ -162,16 +143,19 @@ export async function createCommercialDocument(req, res) {
     const commissionId = req.body?.commissionId || null;
     const seededItems = req.body?.items || await sourceItems({ customerId, projectId, commissionId });
     const normalized = commercialDocumentData({ ...req.body, items: seededItems });
-    const template = await assertDocumentTemplate(normalized.templateId, normalized.documentType);
+    const defaultTemplate = await prisma.documentTemplate.findFirst({
+      where: { documentType: normalized.documentType, status: "active", isDefault: true },
+      select: { id: true, analysis: true }
+    });
     const documentNumber = normalized.documentNumber || await nextDocumentNumber(normalized.documentType);
     const document = await prisma.commercialDocument.create({
       data: {
         ...normalized,
-        layout: Object.keys(normalized.layout || {}).length ? normalized.layout : (template?.analysis?.layout || {}),
         documentNumber,
         customerId,
         projectId,
         commissionId,
+        templateId: defaultTemplate?.analysis?.version === 4 ? defaultTemplate.id : null,
         createdById: req.user.id
       },
       include: documentInclude
@@ -185,11 +169,12 @@ export async function createCommercialDocument(req, res) {
 
 export async function updateCommercialDocument(req, res) {
   try {
-    const current = await prisma.commercialDocument.findFirst({ where: { id: req.params.id }, select: { id: true, documentType: true } });
+    const current = await prisma.commercialDocument.findFirst({ where: { id: req.params.id }, select: { id: true } });
     if (!current) return res.status(404).json({ message: "Beleg nicht gefunden." });
     const data = commercialDocumentData(req.body, { partial: true });
-    if (data.templateId) {
-      await assertDocumentTemplate(data.templateId, data.documentType || current.documentType);
+    if (data.documentType) {
+      const defaultTemplate = await prisma.documentTemplate.findFirst({ where: { documentType: data.documentType, status: "active", isDefault: true }, select: { id: true, analysis: true } });
+      data.templateId = defaultTemplate?.analysis?.version === 4 ? defaultTemplate.id : null;
     }
     const document = await prisma.commercialDocument.update({ where: { id: current.id }, data, include: documentInclude });
     return res.json({ document });
@@ -200,26 +185,28 @@ export async function updateCommercialDocument(req, res) {
 }
 
 export async function listDocumentTemplates(_req, res) {
-  const templates = await prisma.documentTemplate.findMany({ where: { status: "active" }, include: { file: { select: { originalName: true, fileSize: true, mimeType: true } } }, orderBy: { createdAt: "desc" } });
+  const templates = await prisma.documentTemplate.findMany({
+    where: { status: "active" },
+    orderBy: [{ documentType: "asc" }, { createdAt: "desc" }]
+  });
   return res.json({ templates });
 }
 
-export async function uploadDocumentTemplate(req, res) {
+const documentTemplateInput = body => {
+  const analysis = normalizeTemplateAnalysis(body?.analysis);
+  const name = String(body?.name || "Belegvorlage").trim().slice(0, 300);
+  if (!name) throw new CommercialValidationError("Bitte einen Vorlagennamen eingeben.");
+  const documentType = String(body?.documentType || "");
+  if (!COMMERCIAL_DOCUMENT_TYPES.has(documentType)) throw new CommercialValidationError("Ungültige Belegart für die Vorlage.");
+  return { analysis, name, documentType, isDefault: body?.setAsDefault === true || String(body?.setAsDefault) === "true" };
+};
+
+export async function createDocumentTemplate(req, res) {
   try {
-    if (!req.file || req.file.mimetype !== "application/pdf" || req.file.buffer.subarray(0, 5).toString("ascii") !== "%PDF-") {
-      return res.status(415).json({ message: "Bitte eine gültige PDF-Datei auswählen." });
-    }
-    const analysis = normalizeTemplateAnalysis(req.body?.analysis);
-    const name = String(req.body?.name || req.file.originalname || "Belegvorlage").trim().slice(0, 300);
-    const documentType = ["quote", "invoice", "universal"].includes(req.body?.documentType) ? req.body.documentType : "universal";
-    const objectKey = `tenants/${getTenantId()}/settings/document-templates/${crypto.randomUUID()}.pdf`;
-    await s3Upload.send(new PutObjectCommand({ Bucket: process.env.S3_BUCKET, Key: objectKey, Body: req.file.buffer, ContentType: "application/pdf" }));
+    const input = documentTemplateInput(req.body);
     const template = await prisma.$transaction(async transaction => {
-      const storageObject = await transaction.s3Object.create({ data: { provider: "garage", bucketName: process.env.S3_BUCKET, objectKey, endpoint: process.env.S3_PUBLIC_ENDPOINT } });
-      const file = await transaction.file.create({
-        data: { storageObjectId: storageObject.id, uploadedById: req.user.id, fileName: `${crypto.randomUUID()}.pdf`, originalName: req.file.originalname, mimeType: "application/pdf", fileSize: req.file.size, category: "document-template", status: "completed" }
-      });
-      return transaction.documentTemplate.create({ data: { fileId: file.id, uploadedById: req.user.id, name, documentType, analysis }, include: { file: { select: { originalName: true, fileSize: true, mimeType: true } } } });
+      if (input.isDefault) await transaction.documentTemplate.updateMany({ where: { documentType: input.documentType, isDefault: true }, data: { isDefault: false } });
+      return transaction.documentTemplate.create({ data: { uploadedById: req.user.id, ...input } });
     });
     return res.status(201).json({ template });
   } catch (error) {
@@ -227,32 +214,14 @@ export async function uploadDocumentTemplate(req, res) {
   }
 }
 
-export async function createManualDocumentTemplate(req, res) {
+export async function updateDocumentTemplate(req, res) {
   try {
-    const analysis = normalizeTemplateAnalysis(req.body?.analysis);
-    const name = String(req.body?.name || "Manuelles Beleglayout").trim().slice(0, 300);
-    const documentType = ["quote", "invoice", "universal"].includes(req.body?.documentType) ? req.body.documentType : "universal";
-    const template = await prisma.documentTemplate.create({
-      data: { uploadedById: req.user.id, name, documentType, analysis },
-      include: { file: { select: { originalName: true, fileSize: true, mimeType: true } } }
-    });
-    return res.status(201).json({ template });
-  } catch (error) {
-    return sendExpectedError(res, error);
-  }
-}
-
-export async function updateDocumentTemplateLayout(req, res) {
-  try {
-    const current = await prisma.documentTemplate.findFirst({ where: { id: req.params.id, status: "active" }, select: { id: true, analysis: true } });
-    if (!current) return res.status(404).json({ message: "Belegvorlage nicht gefunden." });
-    const analysis = normalizeTemplateAnalysis({ ...(current.analysis || {}), ...(req.body?.analysis || {}), layout: req.body?.layout || req.body?.analysis?.layout || current.analysis?.layout || {} });
-    const documentType = ["quote", "invoice", "universal"].includes(req.body?.documentType) ? req.body.documentType : undefined;
-    const name = req.body?.name === undefined ? undefined : String(req.body.name || "Belegvorlage").trim().slice(0, 300);
-    const template = await prisma.documentTemplate.update({
-      where: { id: current.id },
-      data: { analysis, ...(documentType ? { documentType } : {}), ...(name ? { name } : {}) },
-      include: { file: { select: { originalName: true, fileSize: true, mimeType: true } } }
+    const existing = await prisma.documentTemplate.findFirst({ where: { id: req.params.id, status: "active" }, select: { id: true } });
+    if (!existing) return res.status(404).json({ message: "Belegvorlage nicht gefunden." });
+    const input = documentTemplateInput(req.body);
+    const template = await prisma.$transaction(async transaction => {
+      if (input.isDefault) await transaction.documentTemplate.updateMany({ where: { documentType: input.documentType, isDefault: true, id: { not: existing.id } }, data: { isDefault: false } });
+      return transaction.documentTemplate.update({ where: { id: existing.id }, data: input });
     });
     return res.json({ template });
   } catch (error) {
@@ -260,9 +229,27 @@ export async function updateDocumentTemplateLayout(req, res) {
   }
 }
 
-export async function downloadDocumentTemplate(req, res) {
-  const template = await prisma.documentTemplate.findFirst({ where: { id: req.params.id, status: "active" }, include: { file: { include: { storageObject: true } } } });
-  if (!template?.file) return res.status(404).json({ message: "Für diese manuelle Vorlage ist keine PDF-Datei hinterlegt." });
-  const downloadUrl = await getSignedUrl(s3Download, new GetObjectCommand({ Bucket: template.file.storageObject.bucketName, Key: template.file.storageObject.objectKey }), { expiresIn: 300 });
-  return res.json({ downloadUrl });
+export async function deleteDocumentTemplate(req, res) {
+  const template = await prisma.documentTemplate.findFirst({ where: { id: req.params.id, status: "active" }, select: { id: true } });
+  if (!template) return res.status(404).json({ message: "Belegvorlage nicht gefunden." });
+  await prisma.documentTemplate.update({ where: { id: template.id }, data: { status: "archived", isDefault: false } });
+  return res.status(204).send();
+}
+
+export async function setDocumentTemplateDefault(req, res) {
+  const template = await prisma.documentTemplate.findFirst({ where: { id: req.params.id, status: "active" }, select: { id: true, documentType: true, analysis: true } });
+  if (!template) return res.status(404).json({ message: "Belegvorlage nicht gefunden." });
+  if (template.analysis?.version !== 4 || !Array.isArray(template.analysis?.layout?.objects) || !template.analysis.layout.objects.length) return res.status(400).json({ message: "Nur Vorlagen aus dem Layouteditor können als Standard verwendet werden." });
+  const updated = await prisma.$transaction(async transaction => {
+    await transaction.documentTemplate.updateMany({ where: { documentType: template.documentType, isDefault: true }, data: { isDefault: false } });
+    return transaction.documentTemplate.update({ where: { id: template.id }, data: { isDefault: true } });
+  });
+  return res.json({ template: updated });
+}
+
+export async function clearDocumentTemplateDefault(req, res) {
+  const documentType = String(req.params.documentType || "");
+  if (!COMMERCIAL_DOCUMENT_TYPES.has(documentType)) return res.status(400).json({ message: "Ungültige Belegart." });
+  await prisma.documentTemplate.updateMany({ where: { documentType, isDefault: true }, data: { isDefault: false } });
+  return res.status(204).send();
 }

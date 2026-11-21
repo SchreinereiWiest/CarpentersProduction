@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
 
 import SideBar from "../../shared/components/sideBar.jsx";
-import { createCommercialDocument, loadCommercialDocument, loadDocumentTemplates, saveCommercialDocument } from "./commercialApi.js";
-import { A4_HEIGHT_MM, A4_WIDTH_MM, FIELD_KEY_MAP, normalizeDocumentLayout } from "./document-layout/documentLayout.js";
+import { loadCompanySettings } from "../../shared/settings/company-settings.js";
+import { createCommercialDocument, loadCommercialDocument, saveCommercialDocument } from "./commercialApi.js";
+import { documentFieldLabel, fontFamilyValue, layoutObjectPosition, normalizeDocumentLayout } from "./document-layout/documentLayout.js";
+import { COMMERCIAL_DOCUMENT_TYPES, commercialDocumentLabel } from "./documentTypes.js";
 
 const money = new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" });
 const germanDate = new Intl.DateTimeFormat("de-DE");
 const round = value => Math.round((Number(value) + Number.EPSILON) * 100) / 100;
-const emptyItem = index => ({ id: `manual-${Date.now()}-${index}`, description: "Neue Position", details: "", unit: "Stk.", quantity: 1, unitPrice: 0, discountPercent: 0, source: "manual" });
+const makeItemId = () => globalThis.crypto?.randomUUID?.() || `manual-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+const emptyItem = () => ({ id: makeItemId(), description: "Neue Position", details: "", unit: "Stk.", quantity: 1, unitPrice: 0, discountPercent: 0, source: "manual" });
 
 const calculate = (items, vatPercent) => {
   const net = round(items.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0) * (1 - (Number(item.discountPercent) || 0) / 100), 0));
@@ -23,11 +24,13 @@ const dateValue = value => {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? "" : date.toISOString().slice(0, 10);
 };
+
 const dateLabel = value => {
-  if (!value) return "";
+  if (!value) return "—";
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? String(value) : germanDate.format(date);
 };
+
 const customerName = customer => customer?.companyName || [customer?.firstName, customer?.lastName].filter(Boolean).join(" ") || "Kunde";
 const customerAddress = customer => {
   const address = customer?.addresses?.[0];
@@ -35,134 +38,228 @@ const customerAddress = customer => {
 };
 
 const has = (object, key) => Object.prototype.hasOwnProperty.call(object || {}, key);
-const automaticValue = (document, key, totals) => {
-  if (has(document.fieldValues, key)) return document.fieldValues[key];
+const documentFieldValue = (document, key) => {
+  if (has(document?.fieldValues, key)) return document.fieldValues[key];
   const values = {
-    documentType: document.documentType === "invoice" ? "Rechnung" : "Angebot",
-    documentNumber: document.documentNumber || "",
-    issuedAt: dateLabel(document.issuedAt),
-    dueAt: dateLabel(document.dueAt),
-    customerName: customerName(document.customer),
-    customerAddress: customerAddress(document.customer),
-    customerNumber: document.customer?.customerNumber || "",
-    projectTitle: document.project?.title || "",
-    commissionTitle: document.commission?.title || "",
-    title: document.title || "",
-    introText: document.introText || "",
-    net: money.format(totals.net),
-    vat: money.format(totals.vat),
-    gross: money.format(totals.gross),
-    notes: document.notes || "",
-    pageNumber: "Seite 1"
+    issuerName: "",
+    issuerAddress: "",
+    issuerContact: "",
+    senderLine: "",
+    customerName: customerName(document?.customer),
+    customerAddress: customerAddress(document?.customer),
+    customerNumber: document?.customer?.customerNumber || "",
+    projectTitle: document?.project?.title || document?.commission?.title || "",
+    projectNumber: document?.project?.projectNumber || document?.commission?.commissionNumber || "",
+    commissionTitle: document?.commission?.title || "",
+    closingText: "",
+    footerText: ""
   };
   return values[key] ?? "";
 };
 
-const objectStyle = item => ({
-  left: `${item.x / A4_WIDTH_MM * 100}%`,
-  top: `${item.y / A4_HEIGHT_MM * 100}%`,
-  width: `${item.width / A4_WIDTH_MM * 100}%`,
-  height: `${Math.max(item.height, 0.35) / A4_HEIGHT_MM * 100}%`
-});
+const MATERIALIZED_FIELDS = [
+  "issuerName",
+  "issuerAddress",
+  "issuerContact",
+  "senderLine",
+  "customerName",
+  "customerAddress",
+  "customerNumber",
+  "projectTitle",
+  "projectNumber",
+  "commissionTitle",
+  "closingText",
+  "footerText"
+];
 
-function A4Input({ item, document, totals, onChange }) {
-  const isDate = item.key === "issuedAt" || item.key === "dueAt";
-  const value = isDate ? dateValue(document[item.key]) : automaticValue(document, item.key, totals);
-  const meta = FIELD_KEY_MAP[item.key] || {};
-  const computed = ["net", "vat", "gross", "pageNumber"].includes(item.key);
-  const common = {
-    value,
-    type: isDate ? "date" : "text",
-    readOnly: computed,
-    onChange: event => onChange(item.key, event.target.value),
-    "aria-label": meta.label || item.key,
-    className: "h-full w-full resize-none overflow-hidden rounded-[2px] border border-dashed border-sky-300/70 bg-sky-50/20 px-[0.45cqw] py-[0.2cqw] leading-tight text-inherit outline-none transition hover:bg-sky-50/50 focus:border-solid focus:border-emerald-500 focus:bg-emerald-50/40 read-only:border-transparent read-only:bg-transparent",
-    style: { textAlign: item.align || "left" }
-  };
-  return meta.multiline || item.multiline ? <textarea {...common}/> : <input {...common}/>;
-}
-
-function PositionsField({ item, document, updateItem, addItem, removeItem }) {
-  return <div className="h-full overflow-auto rounded-[2px] border border-dashed border-sky-300/70 bg-white/80 text-zinc-900 focus-within:border-solid focus-within:border-emerald-500">
-    <table className="w-full table-fixed border-collapse" style={{ fontSize: `${Math.max(6, item.fontSize || 8) * 0.145}cqw` }}><thead style={{ background: item.accent || "#166534", color: "white" }}><tr><th className="w-[7%] px-[0.4cqw] py-[0.35cqw] text-left">Pos.</th><th className="px-[0.4cqw] text-left">Beschreibung</th><th className="w-[12%] px-[0.4cqw] text-right">Menge</th><th className="w-[17%] px-[0.4cqw] text-right">Preis</th><th className="w-[17%] px-[0.4cqw] text-right">Gesamt</th><th className="w-[5%]"/></tr></thead><tbody>{(document.items || []).map((row, index) => {
-      const lineTotal = (Number(row.quantity) || 0) * (Number(row.unitPrice) || 0) * (1 - (Number(row.discountPercent) || 0) / 100);
-      return <tr key={row.id || index} className="border-b border-zinc-300 align-top"><td className="px-[0.4cqw] py-[0.35cqw]">{index + 1}</td><td className="p-[0.25cqw]"><input aria-label={`Beschreibung Position ${index + 1}`} value={row.description || ""} onChange={event => updateItem(index, "description", event.target.value)} className="w-full bg-transparent px-[0.2cqw] outline-none"/><textarea aria-label={`Details Position ${index + 1}`} value={row.details || ""} onChange={event => updateItem(index, "details", event.target.value)} rows="2" className="mt-[0.2cqw] w-full resize-none bg-transparent px-[0.2cqw] text-zinc-500 outline-none"/></td><td className="p-[0.25cqw]"><input aria-label={`Menge Position ${index + 1}`} type="number" min="0.01" step="0.01" value={row.quantity} onChange={event => updateItem(index, "quantity", event.target.value)} className="w-full bg-transparent text-right outline-none"/><input aria-label={`Einheit Position ${index + 1}`} value={row.unit || ""} onChange={event => updateItem(index, "unit", event.target.value)} className="mt-[0.2cqw] w-full bg-transparent text-right text-zinc-500 outline-none"/></td><td className="p-[0.25cqw]"><input aria-label={`Einzelpreis Position ${index + 1}`} type="number" min="0" step="0.01" value={row.unitPrice} onChange={event => updateItem(index, "unitPrice", event.target.value)} className="w-full bg-transparent text-right outline-none"/><label className="mt-[0.2cqw] flex items-center justify-end gap-[0.2cqw] text-zinc-500"><input aria-label={`Rabatt Position ${index + 1}`} type="number" min="0" max="99.99" step="0.01" value={row.discountPercent || 0} onChange={event => updateItem(index, "discountPercent", event.target.value)} className="w-2/3 bg-transparent text-right outline-none"/> % Rabatt</label></td><td className="px-[0.4cqw] py-[0.35cqw] text-right">{money.format(lineTotal)}</td><td className="p-[0.2cqw]"><button type="button" aria-label={`Position ${index + 1} entfernen`} onClick={() => removeItem(index)} className="text-rose-600">×</button></td></tr>;
-    })}</tbody></table>
-    <button type="button" onClick={addItem} className="m-[0.5cqw] rounded border border-zinc-300 px-[0.8cqw] py-[0.25cqw] text-zinc-600 hover:bg-zinc-100">+ Position</button>
-  </div>;
-}
-
-function A4Document({ layout, document, totals, onFieldChange, updateItem, addItem, removeItem }) {
-  return <div className="relative mx-auto w-full max-w-[794px] overflow-hidden bg-white text-zinc-900 shadow-2xl" style={{ aspectRatio: `${A4_WIDTH_MM}/${A4_HEIGHT_MM}`, background: layout.page.background, containerType: "inline-size" }}>
-    {layout.objects.filter(item => item.visible !== false).map(item => {
-      if (item.type === "rect") return <div key={item.id} className="pointer-events-none absolute" style={{ ...objectStyle(item), background: item.fill || "transparent", border: `${item.strokeWidth || 0}px solid ${item.stroke || "transparent"}` }}/>;
-      if (item.type === "line") return <div key={item.id} className="pointer-events-none absolute" style={{ ...objectStyle(item), height: 0, borderTop: `${Math.max(0.5, item.strokeWidth || 0.5)}px solid ${item.stroke || "#18181b"}` }}/>;
-      if (item.type === "image") return <div key={item.id} className="pointer-events-none absolute" style={objectStyle(item)}>{item.src && <img src={item.src} alt="" className="h-full w-full" style={{ objectFit: item.fit || "contain" }}/>}</div>;
-      const style = { ...objectStyle(item), color: item.color || "#18181b", fontSize: `${(item.fontSize || 9) * 0.168}cqw`, fontWeight: item.fontWeight || 400, textAlign: item.align || "left" };
-      if (item.type === "text") return <div key={item.id} className="pointer-events-none absolute whitespace-pre-wrap leading-tight" style={style}>{item.text}</div>;
-      if (item.key === "positions") return <div key={item.id} className="absolute" style={style}><PositionsField item={item} document={document} updateItem={updateItem} addItem={addItem} removeItem={removeItem}/></div>;
-      return <label key={item.id} className="absolute leading-tight" style={style}><A4Input item={item} document={document} totals={totals} onChange={onFieldChange}/></label>;
-    })}
-  </div>;
-}
-
-function Control({ label, children }) {
-  return <label className="block"><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</span>{children}</label>;
+function Control({ label, children, className = "" }) {
+  return <label className={`block ${className}`}><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</span>{children}</label>;
 }
 
 const controlClass = "w-full rounded-lg border border-slate-600 bg-slate-950 px-3 py-2.5 text-white outline-none focus:border-emerald-500";
+const paperInputClass = "w-full rounded-lg border border-orange-300 bg-orange-50/70 px-2 py-1.5 text-zinc-900 outline-none transition placeholder:text-zinc-400 hover:border-orange-400 focus:border-amber-500 focus:bg-orange-50";
 
-function hexToRgb(value, fallback = [24, 24, 27]) {
-  const match = String(value || "").match(/^#([0-9a-f]{6})$/i);
-  return match ? [0, 2, 4].map(offset => Number.parseInt(match[1].slice(offset, offset + 2), 16)) : fallback;
+function DocumentField({ editing, label, value, onChange, multiline = false, rows = 2, type = "text", placeholder = "", className = "", inputClassName = "" }) {
+  if (!editing) return <div className={`whitespace-pre-wrap ${className}`}>{String(value || "").trim() || <span className="text-zinc-400">—</span>}</div>;
+  const common = {
+    "aria-label": label,
+    value: value ?? "",
+    onChange: event => onChange(event.target.value),
+    placeholder,
+    className: `${paperInputClass} ${inputClassName} ${className}`
+  };
+  return multiline ? <textarea {...common} rows={rows}/> : <input {...common} type={type}/>;
 }
 
-function createPdf(document, layout, totals) {
-  const pdf = new jsPDF({ unit: "mm", format: "a4" });
-  const setText = item => {
-    pdf.setTextColor(...hexToRgb(item.color));
-    pdf.setFontSize(item.fontSize || 9);
-    pdf.setFont("helvetica", Number(item.fontWeight) >= 700 ? "bold" : "normal");
-  };
-  for (const item of layout.objects.filter(entry => entry.visible !== false)) {
-    if (item.type === "rect") {
-      pdf.setFillColor(...hexToRgb(item.fill, [255, 255, 255]));
-      pdf.setDrawColor(...hexToRgb(item.stroke, hexToRgb(item.fill, [255, 255, 255])));
-      pdf.setLineWidth(item.strokeWidth || 0);
-      pdf.rect(item.x, item.y, item.width, item.height, item.strokeWidth ? "FD" : "F");
-      continue;
-    }
-    if (item.type === "line") {
-      pdf.setDrawColor(...hexToRgb(item.stroke));
-      pdf.setLineWidth(item.strokeWidth || 0.4);
-      pdf.line(item.x, item.y, item.x + item.width, item.y + item.height);
-      continue;
-    }
-    if (item.type === "image" && item.src) {
-      try { pdf.addImage(item.src, undefined, item.x, item.y, item.width, item.height); } catch { /* Ungültige Bilddaten überspringen. */ }
-      continue;
-    }
-    if (item.type === "field" && item.key === "positions") {
-      const accent = hexToRgb(item.accent || "#166534");
-      autoTable(pdf, {
-        startY: item.y,
-        margin: { left: item.x, right: A4_WIDTH_MM - item.x - item.width },
-        tableWidth: item.width,
-        head: [["Pos.", "Beschreibung", "Menge", "Einzelpreis", "Gesamt"]],
-        body: (document.items || []).map((row, index) => [index + 1, `${row.description || ""}${row.details ? `\n${row.details}` : ""}`, `${row.quantity} ${row.unit || ""}`, money.format(Number(row.unitPrice) || 0), money.format((Number(row.quantity) || 0) * (Number(row.unitPrice) || 0) * (1 - (Number(row.discountPercent) || 0) / 100))]),
-        theme: "grid",
-        headStyles: { fillColor: accent },
-        styles: { fontSize: item.fontSize || 8 },
-        columnStyles: { 0: { cellWidth: 12 }, 2: { cellWidth: 23, halign: "right" }, 3: { cellWidth: 29, halign: "right" }, 4: { cellWidth: 29, halign: "right" } }
-      });
-      continue;
-    }
-    setText(item);
-    const value = item.type === "text" ? item.text || "" : String(automaticValue(document, item.key, totals) || "");
-    const lines = pdf.splitTextToSize(value, item.width);
-    pdf.text(lines, item.align === "right" ? item.x + item.width : item.align === "center" ? item.x + item.width / 2 : item.x, item.y + (item.fontSize || 9) * 0.35, { align: item.align || "left", maxWidth: item.width });
-  }
-  pdf.save(`${document.documentNumber || "Beleg"}.pdf`);
+function InsertPositionButton({ index, onInsert }) {
+  return <div className="group relative h-5">
+    <div className="absolute inset-x-0 top-1/2 border-t border-dashed border-zinc-300 opacity-0 transition group-hover:opacity-100"/>
+    <button type="button" aria-label={`Position an Stelle ${index + 1} einfügen`} title="Position einfügen" onClick={() => onInsert(index)} className="absolute left-1/2 top-1/2 z-10 grid size-6 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border border-emerald-600 bg-white text-base font-semibold leading-none text-emerald-700 shadow-sm transition hover:bg-emerald-600 hover:text-white">+</button>
+  </div>;
+}
+
+function PositionEditor({ item, index, editing, onChange, onRemove }) {
+  const total = (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0) * (1 - (Number(item.discountPercent) || 0) / 100);
+  if (!editing) return <article className="grid grid-cols-[2.2rem_minmax(0,1fr)] gap-2 border-b border-zinc-200 py-4 sm:grid-cols-[2.5rem_minmax(0,1fr)_5rem_6.5rem_7rem] sm:gap-3">
+    <div className="text-sm tabular-nums text-zinc-500">{index + 1}</div>
+    <div><div className="font-medium">{item.description}</div>{item.details && <div className="mt-1 whitespace-pre-wrap text-sm leading-6 text-zinc-600">{item.details}</div>}</div>
+    <div className="col-start-2 text-sm tabular-nums text-zinc-600 sm:col-start-auto sm:text-right">{item.quantity} {item.unit}</div>
+    <div className="text-right text-sm tabular-nums text-zinc-600">{money.format(Number(item.unitPrice) || 0)}{Number(item.discountPercent) > 0 && <span className="block text-xs text-zinc-400">− {item.discountPercent} %</span>}</div>
+    <div className="text-right font-medium tabular-nums">{money.format(total)}</div>
+  </article>;
+
+  const input = (key, label, options = {}) => <input aria-label={`${label} Position ${index + 1}`} type={options.type || "text"} min={options.min} max={options.max} step={options.step} value={item[key] ?? ""} onChange={event => onChange(index, key, event.target.value)} className={`${paperInputClass} ${options.className || ""}`}/>;
+  return <article className="rounded-xl border border-orange-200 bg-orange-50/40 p-3">
+    <div className="flex items-center justify-between gap-3"><span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Position {index + 1}</span><button type="button" aria-label={`Position ${index + 1} entfernen`} onClick={() => onRemove(index)} className="rounded px-2 py-1 text-xs text-rose-600 hover:bg-rose-50">Entfernen</button></div>
+    <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_5rem_5rem_7rem_6rem]">
+      <div>{input("description", "Beschreibung")}<textarea aria-label={`Details Position ${index + 1}`} value={item.details || ""} onChange={event => onChange(index, "details", event.target.value)} rows="2" placeholder="Details, Ausführung, Material …" className={`${paperInputClass} mt-2 resize-y text-sm`}/></div>
+      <div>{input("quantity", "Menge", { type: "number", min: "0.01", step: "0.01", className: "text-right" })}</div>
+      <div>{input("unit", "Einheit", { className: "text-right" })}</div>
+      <div>{input("unitPrice", "Einzelpreis", { type: "number", min: "0", step: "0.01", className: "text-right" })}</div>
+      <div>{input("discountPercent", "Rabatt", { type: "number", min: "0", max: "99.99", step: "0.01", className: "text-right" })}<div className="mt-2 text-right text-xs font-medium tabular-nums text-zinc-600">{money.format(total)}</div></div>
+    </div>
+  </article>;
+}
+
+function DocumentPaper({ document, editing, totals, vatPercent, onFieldChange, onItemChange, onInsertItem, onRemoveItem }) {
+  const field = key => documentFieldValue(document, key);
+  const typeLabel = document.documentType === "invoice" ? "Rechnung" : "Angebot";
+  return <section aria-label="Beleginhalt" className="mx-auto w-full max-w-[960px] overflow-hidden rounded-sm bg-white text-zinc-900 shadow-2xl">
+    <div className="border-b-[5px] border-emerald-700 px-5 py-7 sm:px-10 lg:px-14">
+      <div className="grid gap-6 sm:grid-cols-[minmax(0,1fr)_minmax(15rem,0.7fr)] sm:items-start">
+        <div>
+          <DocumentField editing={editing} label="Firmenname" value={field("issuerName")} onChange={value => onFieldChange("issuerName", value)} placeholder="Firmenname" className="text-xl font-bold tracking-tight sm:text-2xl" inputClassName="font-bold"/>
+          <div className="mt-2 grid gap-2 text-sm text-zinc-600 sm:grid-cols-2">
+            <DocumentField editing={editing} label="Firmenanschrift" value={field("issuerAddress")} onChange={value => onFieldChange("issuerAddress", value)} multiline rows={3} placeholder="Straße und Ort"/>
+            <DocumentField editing={editing} label="Firmenkontakt" value={field("issuerContact")} onChange={value => onFieldChange("issuerContact", value)} multiline rows={3} placeholder="Telefon, E-Mail, Internet"/>
+          </div>
+        </div>
+        <div className="sm:text-right"><div className="text-3xl font-light tracking-tight text-emerald-800 sm:text-4xl">{typeLabel}</div><div className="mt-2 text-sm text-zinc-500">{document.documentNumber || "ohne Belegnummer"}</div></div>
+      </div>
+    </div>
+
+    <div className="px-5 py-7 sm:px-10 lg:px-14">
+      <DocumentField editing={editing} label="Absenderzeile" value={field("senderLine")} onChange={value => onFieldChange("senderLine", value)} placeholder="Firmenname · Straße · Ort" className="text-xs text-zinc-500"/>
+      <div className="mt-4 grid gap-8 sm:grid-cols-[minmax(0,1fr)_18rem]">
+        <DocumentField editing={editing} label="Kundenanschrift" value={field("customerAddress")} onChange={value => onFieldChange("customerAddress", value)} multiline rows={5} placeholder="Name und vollständige Anschrift" className="min-h-28 leading-6"/>
+        <dl className="grid grid-cols-[7.5rem_minmax(0,1fr)] content-start gap-x-3 gap-y-2 text-sm">
+          <dt className="text-zinc-500">Belegnummer</dt><dd className="text-right font-medium">{document.documentNumber || "—"}</dd>
+          <dt className="text-zinc-500">Datum</dt><dd className="text-right">{dateLabel(document.issuedAt)}</dd>
+          <dt className="text-zinc-500">Fällig am</dt><dd className="text-right">{dateLabel(document.dueAt)}</dd>
+          <dt className="text-zinc-500">Kundennr.</dt><dd><DocumentField editing={editing} label="Kundennummer im Beleg" value={field("customerNumber")} onChange={value => onFieldChange("customerNumber", value)} className="text-right" inputClassName="text-right"/></dd>
+          <dt className="text-zinc-500">Projekt</dt><dd><DocumentField editing={editing} label="Projektbezeichnung im Beleg" value={field("projectTitle")} onChange={value => onFieldChange("projectTitle", value)} className="text-right" inputClassName="text-right"/></dd>
+          <dt className="text-zinc-500">Projektnr.</dt><dd><DocumentField editing={editing} label="Projektnummer im Beleg" value={field("projectNumber")} onChange={value => onFieldChange("projectNumber", value)} className="text-right" inputClassName="text-right"/></dd>
+        </dl>
+      </div>
+
+      <div className="mt-10 border-b border-zinc-300 pb-5">
+        <DocumentField editing={editing} label="Belegtitel" value={document.title || ""} onChange={value => onFieldChange("title", value)} placeholder={`${typeLabel} – Betreff`} className="text-xl font-bold sm:text-2xl" inputClassName="font-bold"/>
+        <div className="mt-4"><DocumentField editing={editing} label="Einleitung" value={document.introText || ""} onChange={value => onFieldChange("introText", value)} multiline rows={4} placeholder="Anrede und einleitender Text" className="leading-7"/></div>
+      </div>
+
+      <div className="mt-6">
+        <div className="hidden grid-cols-[2.5rem_minmax(0,1fr)_5rem_6.5rem_7rem] gap-3 border-b-2 border-emerald-800 pb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 sm:grid"><span>Pos.</span><span>Beschreibung</span><span className="text-right">Menge</span><span className="text-right">Preis</span><span className="text-right">Summe</span></div>
+        {editing && <InsertPositionButton index={0} onInsert={onInsertItem}/>}
+        {(document.items || []).map((item, index) => <div key={item.id || index}><PositionEditor item={item} index={index} editing={editing} onChange={onItemChange} onRemove={onRemoveItem}/>{editing && <InsertPositionButton index={index + 1} onInsert={onInsertItem}/>}</div>)}
+        {(document.items || []).length === 0 && !editing && <div className="border-b border-zinc-200 py-8 text-center text-sm text-zinc-400">Keine Positionen</div>}
+      </div>
+
+      <div className="mt-6 ml-auto w-full max-w-sm text-sm">
+        <div className="flex justify-between gap-4 border-b border-zinc-200 py-2"><span className="text-zinc-500">Nettosumme</span><span className="tabular-nums">{money.format(totals.net)}</span></div>
+        <div className="flex justify-between gap-4 border-b border-zinc-200 py-2"><span className="text-zinc-500">MwSt. {Number(vatPercent) || 0} %</span><span className="tabular-nums">{money.format(totals.vat)}</span></div>
+        <div className="flex justify-between gap-4 border-b-2 border-emerald-800 py-3 text-lg font-bold"><span>Gesamtsumme</span><span className="tabular-nums">{money.format(totals.gross)}</span></div>
+      </div>
+
+      <div className="mt-10 grid gap-6 border-t border-zinc-200 pt-6 sm:grid-cols-2">
+        <div><div className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">Bedingungen & Hinweise</div><DocumentField editing={editing} label="Bedingungen und Hinweise" value={document.notes || ""} onChange={value => onFieldChange("notes", value)} multiline rows={5} placeholder="Zahlungsziel, Lieferbedingungen, Gültigkeit …" className="text-sm leading-6"/></div>
+        <div><div className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">Abschluss</div><DocumentField editing={editing} label="Abschlusstext" value={field("closingText")} onChange={value => onFieldChange("closingText", value)} multiline rows={5} placeholder="Abschlusstext und Grußformel" className="text-sm leading-6"/></div>
+      </div>
+    </div>
+
+    <footer className="border-t border-zinc-200 bg-zinc-50 px-5 py-5 sm:px-10 lg:px-14"><DocumentField editing={editing} label="Belegfußzeile" value={field("footerText")} onChange={value => onFieldChange("footerText", value)} multiline rows={4} placeholder="Bankverbindung, USt-ID, Gerichtsstand und weitere Pflichtangaben" className="text-xs leading-5 text-zinc-600"/></footer>
+  </section>;
+}
+
+const templateFieldValue = (document, key, totals) => ({
+  issuerName: documentFieldValue(document, "issuerName"),
+  issuerAddress: documentFieldValue(document, "issuerAddress"),
+  issuerContact: documentFieldValue(document, "issuerContact"),
+  senderLine: documentFieldValue(document, "senderLine"),
+  documentType: commercialDocumentLabel(document.documentType),
+  customerName: documentFieldValue(document, "customerName"),
+  customerAddress: documentFieldValue(document, "customerAddress"),
+  documentNumber: document.documentNumber || "",
+  issuedAt: dateValue(document.issuedAt),
+  dueAt: dateValue(document.dueAt),
+  customerNumber: documentFieldValue(document, "customerNumber"),
+  projectTitle: documentFieldValue(document, "projectTitle"),
+  projectNumber: documentFieldValue(document, "projectNumber"),
+  commissionTitle: documentFieldValue(document, "commissionTitle"),
+  title: document.title || "",
+  introText: document.introText || "",
+  net: money.format(totals.net),
+  vat: money.format(totals.vat),
+  gross: money.format(totals.gross),
+  notes: document.notes || "",
+  closingText: documentFieldValue(document, "closingText"),
+  footerText: documentFieldValue(document, "footerText")
+}[key] ?? "");
+
+const layoutTextStyle = item => ({
+  color: item.color,
+  background: item.background,
+  borderColor: item.borderColor,
+  borderWidth: `${item.borderWidth || 0}px`,
+  borderStyle: item.borderStyle || "solid",
+  borderRadius: `${item.borderRadius || 0}px`,
+  padding: `${item.padding || 0}px`,
+  textAlign: item.align,
+  fontFamily: fontFamilyValue(item.fontFamily),
+  fontSize: `${(item.fontSize || 9) * 0.168}cqw`,
+  fontWeight: item.fontWeight,
+  lineHeight: item.lineHeight,
+  flexDirection: "column",
+  justifyContent: item.verticalAlign === "center" ? "center" : item.verticalAlign === "bottom" ? "flex-end" : "flex-start"
+});
+
+function TemplateStaticObject({ item, logoDataUrl }) {
+  if (item.type === "rect") return <div className="absolute" style={{ ...layoutObjectPosition(item), background: item.fill, border: `${item.strokeWidth || 0}px solid ${item.stroke}` }}/>;
+  if (item.type === "line") return <div className="absolute" style={{ ...layoutObjectPosition(item), height: "2px", borderTop: `${Math.max(1, item.strokeWidth || 0.5)}px solid ${item.stroke}` }}/>;
+  if (item.type === "logo") return <div className="absolute overflow-hidden" style={layoutObjectPosition(item)}>{logoDataUrl && <img src={logoDataUrl} alt="Unternehmenslogo" className="h-full w-full" style={{ objectFit: item.fit }}/>}</div>;
+  if (item.type === "text") return <div className="absolute flex whitespace-pre-wrap overflow-hidden" style={{ ...layoutObjectPosition(item), ...layoutTextStyle(item) }}>{item.text}</div>;
+  return null;
+}
+
+function TemplatePositions({ document, editing, onItemChange, onInsertItem, onRemoveItem }) {
+  return <div className="h-full rounded-lg bg-transparent p-0">
+    <div className="hidden grid-cols-[2.5rem_minmax(0,1fr)_5rem_6.5rem_7rem] gap-3 border-b-2 border-emerald-800 pb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 sm:grid"><span>Pos.</span><span>Beschreibung</span><span className="text-right">Menge</span><span className="text-right">Preis</span><span className="text-right">Summe</span></div>
+    {editing && <InsertPositionButton index={0} onInsert={onInsertItem}/>}
+    {(document.items || []).map((item, index) => <div key={item.id || index}><PositionEditor item={item} index={index} editing={editing} onChange={onItemChange} onRemove={onRemoveItem}/>{editing && <InsertPositionButton index={index + 1} onInsert={onInsertItem}/>}</div>)}
+    {(document.items || []).length === 0 && !editing && <div className="py-6 text-center text-sm text-zinc-400">Keine Positionen</div>}
+  </div>;
+}
+
+function TemplateDynamicField({ item, document, editing, totals, onFieldChange, onItemChange, onInsertItem, onRemoveItem }) {
+  const geometry = layoutObjectPosition(item);
+  if (item.key === "positions") return <div className="absolute overflow-visible" style={{ ...geometry, ...layoutTextStyle(item), ...(editing ? { background: "#fff7ed", border: "1px solid #fdba74", borderRadius: "10px", padding: "8px" } : {}) }}><TemplatePositions document={document} editing={editing} onItemChange={onItemChange} onInsertItem={onInsertItem} onRemoveItem={onRemoveItem}/></div>;
+  const value = templateFieldValue(document, item.key, totals);
+  const computed = ["net", "vat", "gross", "documentType"].includes(item.key);
+  const isDate = ["issuedAt", "dueAt"].includes(item.key);
+  const multiline = ["issuerAddress", "issuerContact", "customerAddress", "introText", "notes", "closingText", "footerText"].includes(item.key);
+  const displayValue = isDate ? dateLabel(document[item.key]) : value;
+  const wrapperStyle = { ...geometry, ...layoutTextStyle(item) };
+  if (!editing || computed) return <div className="absolute flex whitespace-pre-wrap overflow-hidden" style={wrapperStyle}>{String(displayValue || "").trim() || <span className="text-zinc-400">—</span>}</div>;
+  const common = { "aria-label": documentFieldLabel(item.key), value: isDate ? dateValue(document[item.key]) : value, onChange: event => onFieldChange(item.key, event.target.value), placeholder: documentFieldLabel(item.key), className: "h-full w-full resize-none border-0 bg-transparent p-0 text-inherit outline-none placeholder:text-zinc-400", style: { font: "inherit", lineHeight: "inherit", textAlign: "inherit" } };
+  return <div className="absolute flex overflow-hidden" style={{ ...wrapperStyle, background: "#fff7ed", border: "1px solid #fdba74", borderRadius: "8px" }}>{multiline ? <textarea {...common}/> : <input {...common} type={isDate ? "date" : "text"}/>}</div>;
+}
+
+function TemplateDocumentPaper({ document, editing, totals, logoDataUrl, onFieldChange, onItemChange, onInsertItem, onRemoveItem }) {
+  const layout = normalizeDocumentLayout(document.template?.analysis?.layout);
+  return <section aria-label="Beleginhalt" className="relative mx-auto w-full max-w-[960px] overflow-visible text-zinc-900 shadow-2xl" style={{ aspectRatio: `${layout.page.width}/${layout.page.height}`, background: layout.page.background, containerType: "inline-size" }}>
+    {layout.objects.filter(item => item.visible !== false).map(item => item.type === "field"
+      ? <TemplateDynamicField key={item.id} item={item} document={document} editing={editing} totals={totals} onFieldChange={onFieldChange} onItemChange={onItemChange} onInsertItem={onInsertItem} onRemoveItem={onRemoveItem}/>
+      : <TemplateStaticObject key={item.id} item={item} logoDataUrl={logoDataUrl}/>)}
+  </section>;
 }
 
 export default function CommercialDocumentEditorPage() {
@@ -171,39 +268,42 @@ export default function CommercialDocumentEditorPage() {
   const navigate = useNavigate();
   const creating = useRef(false);
   const [document, setDocument] = useState(null);
-  const [templates, setTemplates] = useState([]);
   const [vatPercent, setVatPercent] = useState(19);
+  const [editing, setEditing] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [logoDataUrl, setLogoDataUrl] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
     let active = true;
+    loadCompanySettings().then(settings => { if (active) setLogoDataUrl(settings.branding?.logoDataUrl || ""); }).catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
     const load = async () => {
       try {
-        const availableTemplates = await loadDocumentTemplates();
-        if (!active) return;
-        setTemplates(availableTemplates);
         if (documentId) {
           const existing = await loadCommercialDocument(documentId);
           if (!active) return;
           setDocument(existing);
           setVatPercent(existing.totals?.vatPercent ?? 19);
+          setEditing(existing.fieldValues?.editorLocked !== true);
           return;
         }
         if (creating.current) return;
         creating.current = true;
-        const type = searchParams.get("type") === "invoice" ? "invoice" : "quote";
-        const selectedTemplate = availableTemplates.find(template => [type, "universal"].includes(template.documentType));
+        const requestedType = searchParams.get("type");
+        const type = COMMERCIAL_DOCUMENT_TYPES.some(entry => entry.value === requestedType) ? requestedType : "quote";
         const created = await createCommercialDocument({
           customerId: searchParams.get("customerId"),
           projectId: searchParams.get("projectId") || null,
           commissionId: searchParams.get("commissionId") || null,
           documentType: type,
-          title: type === "invoice" ? "Rechnung" : "Angebot",
-          templateId: selectedTemplate?.id || null,
-          layout: selectedTemplate?.analysis?.layout || {},
+          title: commercialDocumentLabel(type),
           items: undefined,
           vatPercent: 19,
           issuedAt: new Date().toISOString()
@@ -218,31 +318,44 @@ export default function CommercialDocumentEditorPage() {
   }, [documentId, navigate, searchParams]);
 
   const totals = calculate(document?.items || [], vatPercent);
-  const layout = normalizeDocumentLayout(document?.layout);
+  const positionTemplate = document?.template?.analysis?.version === 4 && Array.isArray(document.template.analysis.layout?.objects) && document.template.analysis.layout.objects.length ? document.template : null;
   const update = (key, value) => setDocument(current => ({ ...current, [key]: value }));
-  const updateItem = (index, key, value) => update("items", document.items.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item));
+  const updateItem = (index, key, value) => setDocument(current => ({ ...current, items: current.items.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item) }));
   const updateField = (key, value) => {
-    const direct = { documentNumber: "documentNumber", title: "title", introText: "introText", notes: "notes" };
-    if (direct[key]) return update(direct[key], value);
-    if (key === "issuedAt" || key === "dueAt") return update(key, value);
+    if (["title", "introText", "notes"].includes(key)) return update(key, value);
     setDocument(current => ({ ...current, fieldValues: { ...(current.fieldValues || {}), [key]: value } }));
   };
+  const updateTemplateField = (key, value) => ["documentNumber", "issuedAt", "dueAt", "title", "introText", "notes"].includes(key) ? update(key, value) : updateField(key, value);
+  const changeDocumentType = type => setDocument(current => ({ ...current, documentType: type, title: COMMERCIAL_DOCUMENT_TYPES.some(entry => entry.label === current.title) ? commercialDocumentLabel(type) : current.title }));
+  const insertItem = index => setDocument(current => ({ ...current, items: [...current.items.slice(0, index), emptyItem(), ...current.items.slice(index)] }));
+  const removeItem = index => setDocument(current => ({ ...current, items: current.items.filter((_item, itemIndex) => itemIndex !== index) }));
 
-  const selectTemplate = templateId => {
-    const template = templates.find(item => item.id === templateId);
-    setDocument(current => ({ ...current, templateId: templateId || null, layout: template ? normalizeDocumentLayout(template.analysis?.layout) : normalizeDocumentLayout(null) }));
-  };
-
-  const save = async () => {
+  const save = async ({ lockDocument = !editing } = {}) => {
     if (!document) return false;
     setSaving(true);
     setMessage("");
     setError("");
+    const fieldValues = { ...(document.fieldValues || {}) };
+    if (lockDocument) MATERIALIZED_FIELDS.forEach(key => { fieldValues[key] = documentFieldValue(document, key); });
+    fieldValues.editorLocked = lockDocument;
     try {
-      const saved = await saveCommercialDocument(document.id, { ...document, layout, vatPercent, totals });
+      const saved = await saveCommercialDocument(document.id, {
+        documentType: document.documentType,
+        documentNumber: document.documentNumber,
+        status: document.status,
+        title: document.title,
+        issuedAt: document.issuedAt,
+        dueAt: document.dueAt,
+        introText: document.introText,
+        notes: document.notes,
+        items: document.items,
+        vatPercent,
+        fieldValues
+      });
       setDocument(saved);
       setVatPercent(saved.totals?.vatPercent ?? vatPercent);
-      setMessage("Beleg und ausgefüllte Layoutfelder wurden gespeichert.");
+      setEditing(!lockDocument);
+      setMessage(lockDocument ? "Die Eingaben wurden festgesetzt. Der Beleg wird jetzt als Text angezeigt." : "Entwurf gespeichert.");
       return true;
     } catch (saveError) {
       setError(saveError.response?.data?.message || "Beleg konnte nicht gespeichert werden.");
@@ -252,33 +365,36 @@ export default function CommercialDocumentEditorPage() {
     }
   };
 
-  const downloadPdf = async () => {
-    if (!document || !await save()) return;
-    createPdf({ ...document, totals }, layout, totals);
-  };
-
   if (loading) return <div className="h-dvh bg-gray-900 p-10 text-slate-400">Belegeditor wird geladen …</div>;
 
-  return (
-    <div className="flex h-dvh overflow-hidden bg-gray-900 text-white">
-      <SideBar selected={5}/>
-      <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8"><div className="mx-auto max-w-[1500px]">
-        <header className="flex flex-wrap items-start justify-between gap-4"><div><Link to={document?.customerId ? `/Kontakte/${document.customerId}` : "/Kontakte"} className="text-sm text-sky-400 hover:text-sky-300">← Zur Kundenübersicht</Link><div className="mt-2 text-xs font-semibold uppercase tracking-widest text-emerald-400">Visueller Belegeditor</div><h1 className="mt-1 text-2xl font-bold">{document?.documentType === "invoice" ? "Rechnung" : "Angebot"} {document?.documentNumber}</h1><p className="mt-1 text-sm text-slate-400">{document?.project?.title || document?.commission?.title || customerName(document?.customer)}</p></div>{document && <div className="flex gap-2"><button onClick={save} disabled={saving} className="rounded-lg border border-slate-600 px-4 py-2 text-sm hover:bg-slate-800 disabled:opacity-50">{saving ? "Speichert …" : "Entwurf speichern"}</button><button onClick={downloadPdf} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold hover:bg-emerald-500">PDF erstellen</button></div>}</header>
-        {message && <div className="mt-4 rounded-lg border border-emerald-800 bg-emerald-950/30 p-3 text-sm text-emerald-200">{message}</div>}{error && <div role="alert" className="mt-4 rounded-lg border border-rose-800 bg-rose-950/30 p-3 text-sm text-rose-200">{error}</div>}
-        {document && <>
-          <section className="mt-6 rounded-xl border border-slate-700 bg-slate-800/80 p-5"><div className="flex items-center justify-between gap-4"><div><h2 className="font-semibold">Vorlage, Status & allgemeine Daten</h2><p className="mt-1 text-sm text-slate-400">Die Felder auf dem A4-Beleg darunter können direkt wie in einem PDF ausgefüllt werden.</p></div><span className="rounded-full bg-sky-500/10 px-3 py-1 text-xs text-sky-300">A4 · {layout.objects.length} Elemente</span></div><div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
-            <Control label="Vorlage"><select value={document.templateId || ""} onChange={event => selectTemplate(event.target.value)} className={controlClass}><option value="">Standardlayout</option>{templates.filter(template => template.documentType === "universal" || template.documentType === document.documentType).map(template => <option key={template.id} value={template.id}>{template.name}</option>)}</select></Control>
+  return <div className="flex h-dvh overflow-hidden bg-gray-900 text-white">
+    <SideBar selected={5}/>
+    <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8"><div className="mx-auto max-w-[1500px]">
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div><Link to={document?.customerId ? `/Kontakte/${document.customerId}` : "/Kontakte"} className="text-sm text-sky-400 hover:text-sky-300">Zur Kundenübersicht</Link><div className="mt-2 text-xs font-semibold uppercase tracking-widest text-emerald-400">Belegeditor · {editing ? "Bearbeitung" : "festgesetzt"}</div><h1 className="mt-1 text-2xl font-bold">{commercialDocumentLabel(document?.documentType)} {document?.documentNumber}</h1><p className="mt-1 text-sm text-slate-400">{document?.project?.title || document?.commission?.title || customerName(document?.customer)}</p></div>
+        {document && <div className="flex flex-wrap gap-2">{editing ? <><button type="button" onClick={() => save({ lockDocument: false })} disabled={saving} className="rounded-lg border border-slate-600 px-4 py-2 text-sm hover:bg-slate-800 disabled:opacity-50">{saving ? "Speichert …" : "Entwurf speichern"}</button><button type="button" onClick={() => save({ lockDocument: true })} disabled={saving} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold hover:bg-emerald-500 disabled:opacity-50">Eingaben festsetzen</button></> : <><button type="button" onClick={() => save({ lockDocument: true })} disabled={saving} className="rounded-lg border border-slate-600 px-4 py-2 text-sm hover:bg-slate-800 disabled:opacity-50">{saving ? "Speichert …" : "Status speichern"}</button><button type="button" onClick={() => { setEditing(true); setMessage(""); }} className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold hover:bg-sky-500">Beleg bearbeiten</button></>}</div>}
+      </header>
+
+      {message && <div role="status" className="mt-4 rounded-lg border border-emerald-800 bg-emerald-950/30 p-3 text-sm text-emerald-200">{message}</div>}
+      {error && <div role="alert" className="mt-4 rounded-lg border border-rose-800 bg-rose-950/30 p-3 text-sm text-rose-200">{error}</div>}
+
+      {document && <>
+        <section className="mt-6 rounded-xl border border-slate-700 bg-slate-800/80 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-semibold">Status & allgemeine Daten</h2><p className="mt-1 text-sm text-slate-400">Diese Werte steuern den Beleg. Der Inhalt wird direkt auf der Belegseite darunter bearbeitet.</p>{positionTemplate && <p className="mt-1 text-xs text-emerald-300">Standardvorlage: {positionTemplate.name}</p>}</div><span className={`rounded-full px-3 py-1 text-xs font-semibold ${editing ? "bg-amber-500/10 text-amber-300" : "bg-emerald-500/10 text-emerald-300"}`}>{editing ? "Bearbeitungsmodus" : "Textansicht"}</span></div>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+            <Control label="Belegart"><select value={document.documentType} onChange={event => changeDocumentType(event.target.value)} className={controlClass}>{COMMERCIAL_DOCUMENT_TYPES.map(type => <option key={type.value} value={type.value}>{type.label}</option>)}</select></Control>
             <Control label="Status"><select value={document.status} onChange={event => update("status", event.target.value)} className={controlClass}><option value="draft">Entwurf</option><option value="sent">Versendet</option><option value="accepted">Angenommen</option><option value="paid">Bezahlt</option><option value="cancelled">Storniert</option></select></Control>
             <Control label="Belegnummer"><input value={document.documentNumber || ""} onChange={event => update("documentNumber", event.target.value)} className={controlClass}/></Control>
             <Control label="Ausstellungsdatum"><input type="date" value={dateValue(document.issuedAt)} onChange={event => update("issuedAt", event.target.value)} className={controlClass}/></Control>
             <Control label="Fällig am"><input type="date" value={dateValue(document.dueAt)} onChange={event => update("dueAt", event.target.value)} className={controlClass}/></Control>
             <Control label="MwSt. %"><input type="number" min="0" step="0.01" value={vatPercent} onChange={event => setVatPercent(event.target.value)} className={`${controlClass} text-right`}/></Control>
-            <div className="sm:col-span-2 xl:col-span-4"><Control label="Betreff / Titel"><input value={document.title || ""} onChange={event => update("title", event.target.value)} className={controlClass}/></Control></div>
+            <Control label="Betreff / Titel" className="sm:col-span-2 xl:col-span-4"><input value={document.title || ""} onChange={event => update("title", event.target.value)} className={controlClass}/></Control>
             <div className="grid grid-cols-3 gap-3 sm:col-span-2 xl:col-span-2"><div className="rounded-lg bg-slate-950 p-3 text-sm"><span className="block text-xs text-slate-500">Netto</span>{money.format(totals.net)}</div><div className="rounded-lg bg-slate-950 p-3 text-sm"><span className="block text-xs text-slate-500">MwSt.</span>{money.format(totals.vat)}</div><div className="rounded-lg bg-emerald-950/50 p-3 text-sm font-bold text-emerald-200"><span className="block text-xs font-normal text-emerald-500">Gesamt</span>{money.format(totals.gross)}</div></div>
-          </div></section>
-          <section className="mt-6 rounded-xl border border-slate-700 bg-slate-950/60 p-3 sm:p-6 lg:p-10"><div className="mb-4 flex flex-wrap items-center justify-between gap-2 text-sm text-slate-400"><span>Belegvorschau · direkt in den markierten Feldern schreiben</span><span>Weiße A4-Seite · 210 × 297 mm</span></div><A4Document layout={layout} document={document} totals={totals} onFieldChange={updateField} updateItem={updateItem} addItem={() => update("items", [...document.items, emptyItem(document.items.length)])} removeItem={index => update("items", document.items.filter((_item, itemIndex) => itemIndex !== index))}/></section>
-        </>}
-      </div></main>
-    </div>
-  );
+          </div>
+        </section>
+
+        <div className="mt-6 rounded-xl border border-slate-700 bg-slate-950/60 p-2 sm:p-5 lg:p-8"><div className="mb-4 flex flex-wrap items-center justify-between gap-2 px-1 text-sm text-slate-400"><span>{editing ? "Felder direkt in der gespeicherten Vorlagenstruktur ausfüllen" : "Festgesetzter Beleg · reine Textansicht"}</span><span>{positionTemplate ? "Gestaltete Standardvorlage" : "Freier Belegeditor"}</span></div>{positionTemplate ? <TemplateDocumentPaper document={{ ...document, template: positionTemplate }} editing={editing} totals={totals} logoDataUrl={logoDataUrl} onFieldChange={updateTemplateField} onItemChange={updateItem} onInsertItem={insertItem} onRemoveItem={removeItem}/> : <DocumentPaper document={document} editing={editing} totals={totals} vatPercent={vatPercent} onFieldChange={updateField} onItemChange={updateItem} onInsertItem={insertItem} onRemoveItem={removeItem}/>}</div>
+      </>}
+    </div></main>
+  </div>;
 }

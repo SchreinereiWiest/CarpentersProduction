@@ -19,4 +19,3 @@ export const saveCommissionCalculation = (id, calculation) => axios.put(`/api/co
 export const createCommercialDocument = input => axios.post("/api/commercial/documents", input).then(response => response.data.document);
 export const loadCommercialDocument = id => axios.get(`/api/commercial/documents/${id}`).then(response => response.data.document);
 export const saveCommercialDocument = (id, input) => axios.put(`/api/commercial/documents/${id}`, input).then(response => response.data.document);
-export const loadDocumentTemplates = () => axios.get("/api/commercial/templates").then(response => response.data.templates || []);

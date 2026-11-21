@@ -1,5 +1,12 @@
-const TYPES = new Set(["quote", "invoice"]);
+export const COMMERCIAL_DOCUMENT_TYPES = new Set(["quote", "invoice", "order_confirmation", "partial_invoice"]);
 const STATUSES = new Set(["draft", "sent", "accepted", "paid", "cancelled"]);
+const TEMPLATE_FIELD_KEYS = new Set(["issuerName", "issuerAddress", "issuerContact", "senderLine", "documentType", "customerName", "customerAddress", "documentNumber", "issuedAt", "dueAt", "customerNumber", "projectTitle", "projectNumber", "commissionTitle", "title", "introText", "positions", "net", "vat", "gross", "notes", "closingText", "footerText"]);
+
+export const commercialDocumentTitle = type => ({
+  invoice: "Rechnung",
+  order_confirmation: "Auftragsbestätigung",
+  partial_invoice: "Abschlagsrechnung"
+}[type] || "Angebot");
 
 export class CommercialValidationError extends Error {
   constructor(message, code = "COMMERCIAL_DOCUMENT_INVALID") {
@@ -69,7 +76,7 @@ export function calculateCommercialTotals(items, vatPercent = 19) {
 export function commercialDocumentData(input, { partial = false } = {}) {
   const documentType = input?.documentType;
   if (!partial || documentType !== undefined) {
-    if (!TYPES.has(documentType)) throw new CommercialValidationError("Belegart muss Angebot oder Rechnung sein.");
+    if (!COMMERCIAL_DOCUMENT_TYPES.has(documentType)) throw new CommercialValidationError("Ungültige Belegart.");
   }
   const status = input?.status;
   if (!partial || status !== undefined) {
@@ -80,13 +87,11 @@ export function commercialDocumentData(input, { partial = false } = {}) {
   const result = {
     ...(documentType === undefined ? {} : { documentType }),
     ...(status === undefined && partial ? {} : { status: status || "draft" }),
-    ...(input?.title === undefined && partial ? {} : { title: text(input?.title, 300, documentType === "invoice" ? "Rechnung" : "Angebot") }),
+    ...(input?.title === undefined && partial ? {} : { title: text(input?.title, 300, commercialDocumentTitle(documentType)) }),
     ...(input?.documentNumber === undefined && partial ? {} : { documentNumber: text(input?.documentNumber, 120) }),
     ...(input?.introText === undefined && partial ? {} : { introText: text(input?.introText, 10_000) }),
     ...(input?.notes === undefined && partial ? {} : { notes: text(input?.notes, 10_000) }),
-    ...(input?.templateId === undefined && partial ? {} : { templateId: text(input?.templateId, 80) }),
     ...(input?.fieldValues === undefined && partial ? {} : { fieldValues: jsonObject(input?.fieldValues || {}, "Die Feldwerte", 500_000) }),
-    ...(input?.layout === undefined && partial ? {} : { layout: jsonObject(input?.layout || {}, "Das Beleglayout") }),
     ...(items === undefined ? {} : { items, totals }),
     ...(input?.issuedAt === undefined && partial ? {} : { issuedAt: input?.issuedAt ? new Date(input.issuedAt) : null }),
     ...(input?.dueAt === undefined && partial ? {} : { dueAt: input?.dueAt ? new Date(input.dueAt) : null })
@@ -115,37 +120,64 @@ export function commissionData(input) {
   };
 }
 
+const bounded = (value, fallback, min, max) => Math.min(max, Math.max(min, Number.isFinite(Number(value)) ? Number(value) : fallback));
+const templateColor = (value, fallback) => value === "transparent" || /^#[0-9a-f]{6}$/i.test(String(value || "")) ? String(value) : fallback;
+
 export const normalizeTemplateAnalysis = value => {
   let input;
   try {
     input = typeof value === "string" ? JSON.parse(value) : value;
   } catch {
-    throw new CommercialValidationError("Die PDF-Analyse ist ungültig.", "DOCUMENT_TEMPLATE_ANALYSIS_INVALID");
+    throw new CommercialValidationError("Die Vorlagendaten sind ungültig.", "DOCUMENT_TEMPLATE_ANALYSIS_INVALID");
   }
-  if (!input || typeof input !== "object" || !Number.isInteger(Number(input.pageCount))) {
-    throw new CommercialValidationError("Die PDF-Analyse ist unvollständig.", "DOCUMENT_TEMPLATE_ANALYSIS_INVALID");
+  if (!input || typeof input !== "object" || Number(input.version) !== 4 || !Array.isArray(input.layout?.objects)) {
+    throw new CommercialValidationError("Die Vorlagendaten sind unvollständig.", "DOCUMENT_TEMPLATE_ANALYSIS_INVALID");
   }
-  const layout = jsonObject(input.layout || {}, "Das Vorlagenlayout");
+  const objects = input.layout.objects.slice(0, 250).map((item, index) => {
+    if (!item || typeof item !== "object") return null;
+    const type = ["text", "field", "line", "rect", "logo"].includes(item.type) ? item.type : null;
+    if (!type) return null;
+    const x = bounded(item.x, 14, 0, 210);
+    const y = bounded(item.y, 14, 0, 297);
+    const key = type === "field" ? text(item.key, 100, "") : null;
+    if (type === "field" && !TEMPLATE_FIELD_KEYS.has(key)) return null;
+    return {
+      id: text(item.id, 120, `layout-${index + 1}`),
+      type,
+      ...(type === "field" ? { key } : {}),
+      ...(type === "text" ? { text: text(item.text, 5000, "Statischer Text") } : {}),
+      x,
+      y,
+      width: bounded(item.width, 40, 1, Math.max(1, 210 - x)),
+      height: bounded(item.height, type === "line" ? 0 : 8, 0, Math.max(0, 297 - y)),
+      fontFamily: ["sans", "serif", "mono"].includes(item.fontFamily) ? item.fontFamily : "sans",
+      fontSize: bounded(item.fontSize, 9, 4, 72),
+      lineHeight: bounded(item.lineHeight, 1.35, 0.8, 3),
+      fontWeight: Number(item.fontWeight) >= 700 ? 700 : 400,
+      color: templateColor(item.color, "#18181b"),
+      background: templateColor(item.background, "transparent"),
+      fill: templateColor(item.fill, "#ffffff"),
+      stroke: templateColor(item.stroke, "#18181b"),
+      borderColor: templateColor(item.borderColor, "#bae6fd"),
+      borderWidth: bounded(item.borderWidth, 0, 0, 5),
+      strokeWidth: bounded(item.strokeWidth, 0.5, 0, 10),
+      borderStyle: ["solid", "dashed", "dotted", "none"].includes(item.borderStyle) ? item.borderStyle : "solid",
+      borderRadius: bounded(item.borderRadius, 0, 0, 20),
+      padding: bounded(item.padding, 0, 0, 20),
+      align: ["left", "center", "right"].includes(item.align) ? item.align : "left",
+      verticalAlign: ["top", "center", "bottom"].includes(item.verticalAlign) ? item.verticalAlign : "top",
+      fit: ["contain", "cover", "fill"].includes(item.fit) ? item.fit : "contain",
+      visible: item.visible !== false,
+      locked: item.locked === true
+    };
+  }).filter(Boolean);
+  if (!objects.length) throw new CommercialValidationError("Die Vorlage enthält keine Elemente.", "DOCUMENT_TEMPLATE_OBJECTS_REQUIRED");
   return {
-    version: 1,
-    pageCount: Math.min(500, Math.max(1, Number(input.pageCount))),
-    pageSize: input.pageSize && typeof input.pageSize === "object" ? input.pageSize : null,
-    textBlocks: Array.isArray(input.textBlocks) ? input.textBlocks.slice(0, 500).map(block => ({
-      text: text(block?.text, 1000, ""),
-      page: Math.max(1, Number(block?.page) || 1),
-      x: amount(block?.x),
-      y: amount(block?.y),
-      width: amount(block?.width),
-      height: amount(block?.height)
-    })) : [],
-    fields: Array.isArray(input.fields) ? input.fields.slice(0, 100).map(field => ({
-      key: text(field?.key, 100, "field"),
-      label: text(field?.label, 300, "Feld"),
-      page: Math.max(1, Number(field?.page) || 1),
-      anchorText: text(field?.anchorText, 300)
-    })) : [],
-    imageCount: Math.min(1000, amount(input.imageCount)),
-    colors: Array.isArray(input.colors) ? input.colors.slice(0, 20).map(value => text(value, 30)).filter(Boolean) : [],
-    layout
+    version: 4,
+    layout: {
+      version: 2,
+      page: { width: 210, height: 297, background: templateColor(input.layout.page?.background, "#ffffff"), gridSize: bounded(input.layout.page?.gridSize, 2, 0.5, 20) },
+      objects
+    }
   };
 };

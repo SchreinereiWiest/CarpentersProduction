@@ -1,160 +1,55 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 
-import { loadPdfJs } from "../../../shared/pdf/loadPdfJs.js";
-import { createDefaultDocumentLayout, layoutFromTemplateAnalysis, normalizeDocumentLayout } from "../../commercial/document-layout/documentLayout.js";
+import { loadCompanySettings } from "../../../shared/settings/company-settings.js";
+import { createDefaultDocumentLayout, normalizeDocumentLayout } from "../../commercial/document-layout/documentLayout.js";
+import { COMMERCIAL_DOCUMENT_TYPES, commercialDocumentLabel } from "../../commercial/documentTypes.js";
 import DocumentLayoutEditor from "./DocumentLayoutEditor.jsx";
 
-const FIELD_PATTERNS = [
-  ["documentNumber", "Belegnummer", /(?:angebots|rechnungs|beleg|auftrags)[-\s]?(?:nr\.?|nummer)/i],
-  ["issuedAt", "Belegdatum", /(?:angebots|rechnungs|beleg)?datum/i],
-  ["customerNumber", "Kundennummer", /kunden[-\s]?(?:nr\.?|nummer)/i],
-  ["recipient", "Empfängeranschrift", /(?:rechnungsempfänger|lieferanschrift|anschrift)/i],
-  ["items", "Positionstabelle", /(?:pos\.?|position|beschreibung|menge|einzelpreis)/i],
-  ["net", "Nettosumme", /(?:netto|zwischensumme)/i],
-  ["vat", "Mehrwertsteuer", /(?:mwst\.?|mehrwertsteuer|umsatzsteuer)/i],
-  ["gross", "Gesamtsumme", /(?:gesamt|brutto|endbetrag)/i],
-  ["dueAt", "Zahlungsziel", /(?:zahlungsziel|fällig|zahlbar bis)/i]
-];
-
-const typeLabel = value => value === "universal" ? "Angebot & Rechnung" : value === "invoice" ? "Rechnung" : "Angebot";
-const rgbToHex = ([red, green, blue]) => `#${[red, green, blue].map(value => value.toString(16).padStart(2, "0")).join("")}`;
-
-async function extractColors(page) {
-  try {
-    const viewport = page.getViewport({ scale: 0.35 });
-    const canvas = globalThis.document.createElement("canvas");
-    const context = canvas.getContext("2d", { willReadFrequently: true });
-    canvas.width = Math.max(1, Math.floor(viewport.width));
-    canvas.height = Math.max(1, Math.floor(viewport.height));
-    await page.render({ canvasContext: context, viewport }).promise;
-    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
-    const counts = new Map();
-    for (let index = 0; index < pixels.length; index += 80) {
-      const color = [pixels[index], pixels[index + 1], pixels[index + 2]].map(value => Math.min(255, Math.round(value / 32) * 32));
-      const spread = Math.max(...color) - Math.min(...color);
-      if (spread < 25 || color.every(value => value > 225) || color.every(value => value < 30)) continue;
-      const hex = rgbToHex(color);
-      counts.set(hex, (counts.get(hex) || 0) + 1);
-    }
-    return [...counts].sort((left, right) => right[1] - left[1]).slice(0, 5).map(([hex]) => hex);
-  } catch {
-    return [];
-  }
-}
-
-async function analyzeDocumentTemplate(file) {
-  const pdfjs = await loadPdfJs();
-  const data = new Uint8Array(await file.arrayBuffer());
-  const pdf = await pdfjs.getDocument({ data }).promise;
-  const textBlocks = [];
-  const fields = [];
-  let imageCount = 0;
-  let pageSize = null;
-  let colors = [];
-  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
-    const page = await pdf.getPage(pageNumber);
-    const viewport = page.getViewport({ scale: 1 });
-    if (!pageSize) pageSize = { width: Math.round(viewport.width * 100) / 100, height: Math.round(viewport.height * 100) / 100 };
-    const [content, operators] = await Promise.all([page.getTextContent(), page.getOperatorList()]);
-    for (const item of content.items || []) {
-      const text = String(item.str || "").trim();
-      if (!text) continue;
-      const block = { text, page: pageNumber, x: item.transform?.[4] || 0, y: viewport.height - (item.transform?.[5] || 0), width: item.width || 0, height: item.height || Math.abs(item.transform?.[3] || 0) };
-      if (textBlocks.length < 500) textBlocks.push(block);
-      for (const [key, label, pattern] of FIELD_PATTERNS) {
-        if (!fields.some(field => field.key === key) && pattern.test(text)) fields.push({ key, label, page: pageNumber, anchorText: text });
-      }
-    }
-    imageCount += (operators.fnArray || []).filter(operator => [pdfjs.OPS.paintImageXObject, pdfjs.OPS.paintJpegXObject, pdfjs.OPS.paintImageMaskXObject].includes(operator)).length;
-    if (pageNumber === 1) colors = await extractColors(page);
-  }
-  const result = { version: 1, pageCount: pdf.numPages, pageSize, textBlocks, fields, imageCount, colors };
-  return { ...result, layout: layoutFromTemplateAnalysis(result) };
-}
-
-const emptyAnalysis = layout => ({ version: 1, pageCount: 1, pageSize: { width: 595.28, height: 841.89 }, textBlocks: [], fields: [], imageCount: 0, colors: [], layout });
+const emptyEditor = () => ({ id: null, name: "Neue Belegvorlage", documentType: "quote", setAsDefault: true, layout: createDefaultDocumentLayout() });
 
 export default function DocumentTemplateSettingsSection() {
   const [templates, setTemplates] = useState([]);
-  const [tab, setTab] = useState("recognition");
-  const [name, setName] = useState("");
-  const [documentType, setDocumentType] = useState("universal");
-  const [file, setFile] = useState(null);
-  const [analysis, setAnalysis] = useState(null);
-  const [editorId, setEditorId] = useState(null);
-  const [layout, setLayout] = useState(createDefaultDocumentLayout());
+  const [editor, setEditor] = useState(emptyEditor);
+  const [logoDataUrl, setLogoDataUrl] = useState("");
+  const [editorOpen, setEditorOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
 
   const load = async () => {
     const response = await axios.get("/api/commercial/templates");
     setTemplates(response.data.templates || []);
-    return response.data.templates || [];
   };
+
   useEffect(() => {
     let active = true;
-    axios.get("/api/commercial/templates").then(response => {
-      if (active) setTemplates(response.data.templates || []);
-    }).catch(() => {
-      if (active) setMessage({ type: "error", text: "Belegvorlagen konnten nicht geladen werden." });
-    });
+    Promise.all([axios.get("/api/commercial/templates"), loadCompanySettings()]).then(([response, company]) => {
+      if (!active) return;
+      setTemplates(response.data.templates || []);
+      setLogoDataUrl(company.branding?.logoDataUrl || "");
+    }).catch(() => active && setMessage({ type: "error", text: "Belegvorlagen oder Unternehmenslogo konnten nicht geladen werden." }));
     return () => { active = false; };
   }, []);
 
+  const newTemplate = (documentType = "quote") => {
+    setEditor({ ...emptyEditor(), documentType, name: `Neue Vorlage ${commercialDocumentLabel(documentType)}`, layout: createDefaultDocumentLayout() });
+    setEditorOpen(true);
+  };
   const editTemplate = template => {
-    setEditorId(template.id);
-    setName(template.name);
-    setDocumentType(template.documentType);
-    setLayout(normalizeDocumentLayout(template.analysis?.layout));
-    setTab("layout");
-    setMessage(null);
+    setEditor({ id: template.id, name: template.name, documentType: template.documentType, setAsDefault: template.isDefault, layout: normalizeDocumentLayout(template.analysis?.layout) });
+    setEditorOpen(true);
   };
 
-  const newManual = () => {
-    setEditorId(null);
-    setName("Neue Belegvorlage");
-    setDocumentType("universal");
-    setLayout(createDefaultDocumentLayout());
-    setTab("layout");
-    setMessage(null);
-  };
-
-  const chooseFile = async event => {
-    const selected = event.target.files?.[0];
-    setFile(selected || null);
-    setAnalysis(null);
-    setMessage(null);
-    if (!selected) return;
-    if (!name) setName(selected.name.replace(/\.pdf$/i, ""));
-    setBusy(true);
-    try {
-      setAnalysis(await analyzeDocumentTemplate(selected));
-    } catch (error) {
-      console.error("PDF-Vorlage konnte nicht analysiert werden", error);
-      setMessage({ type: "error", text: "Die PDF-Datei konnte nicht analysiert werden." });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const upload = async event => {
-    event.preventDefault();
-    if (!file || !analysis) return;
+  const saveTemplate = async () => {
+    if (!editor.name.trim()) return;
     setBusy(true);
     setMessage(null);
     try {
-      const form = new FormData();
-      form.append("template", file);
-      form.append("name", name);
-      form.append("documentType", documentType);
-      form.append("analysis", JSON.stringify(analysis));
-      const response = await axios.post("/api/commercial/templates", form);
+      const payload = { name: editor.name.trim(), documentType: editor.documentType, setAsDefault: editor.setAsDefault, analysis: { version: 4, layout: editor.layout } };
+      const response = editor.id ? await axios.put(`/api/commercial/templates/${editor.id}`, payload) : await axios.post("/api/commercial/templates", payload);
       await load();
-      setFile(null);
-      setAnalysis(null);
-      editTemplate(response.data.template);
-      setMessage({ type: "success", text: "Vorlage wurde erkannt. Das abgeleitete A4-Layout kann jetzt geprüft und angepasst werden." });
+      setEditor({ id: response.data.template.id, name: response.data.template.name, documentType: response.data.template.documentType, setAsDefault: response.data.template.isDefault, layout: normalizeDocumentLayout(response.data.template.analysis?.layout) });
+      setMessage({ type: "success", text: `Vorlage „${response.data.template.name}“ gespeichert${response.data.template.isDefault ? " und als Standard festgelegt" : ""}.` });
     } catch (error) {
       setMessage({ type: "error", text: error.response?.data?.message || "Vorlage konnte nicht gespeichert werden." });
     } finally {
@@ -162,48 +57,65 @@ export default function DocumentTemplateSettingsSection() {
     }
   };
 
-  const saveLayout = async () => {
-    if (!name.trim()) return;
+  const changeDefault = async (type, templateId) => {
     setBusy(true);
     setMessage(null);
     try {
-      const response = editorId
-        ? await axios.put(`/api/commercial/templates/${editorId}/layout`, { name, documentType, layout })
-        : await axios.post("/api/commercial/templates/manual", { name, documentType, analysis: emptyAnalysis(layout) });
-      setEditorId(response.data.template.id);
+      if (templateId) await axios.put(`/api/commercial/templates/${templateId}/default`);
+      else await axios.delete(`/api/commercial/templates/default/${type}`);
       await load();
-      setMessage({ type: "success", text: "A4-Layout wurde gespeichert und steht im Belegeditor zur Auswahl." });
+      setMessage({ type: "success", text: templateId ? `Standard für ${commercialDocumentLabel(type)} gespeichert.` : `Für ${commercialDocumentLabel(type)} wird der freie Belegeditor verwendet.` });
     } catch (error) {
-      setMessage({ type: "error", text: error.response?.data?.message || "Layout konnte nicht gespeichert werden." });
+      setMessage({ type: "error", text: error.response?.data?.message || "Standardvorlage konnte nicht geändert werden." });
     } finally {
       setBusy(false);
     }
   };
 
-  const openTemplate = async template => {
-    if (!template.file) return editTemplate(template);
-    const response = await axios.get(`/api/commercial/templates/${template.id}/download`);
-    window.open(response.data.downloadUrl, "_blank", "noopener,noreferrer");
+  const removeTemplate = async template => {
+    if (!globalThis.confirm?.(`Vorlage „${template.name}“ wirklich löschen?`)) return;
+    setBusy(true);
+    try {
+      await axios.delete(`/api/commercial/templates/${template.id}`);
+      await load();
+      if (editor.id === template.id) { setEditor(emptyEditor()); setEditorOpen(false); }
+      setMessage({ type: "success", text: "Vorlage gelöscht." });
+    } catch (error) {
+      setMessage({ type: "error", text: error.response?.data?.message || "Vorlage konnte nicht gelöscht werden." });
+    } finally {
+      setBusy(false);
+    }
   };
 
-  return (
+  const usableTemplates = templates.filter(template => template.analysis?.version === 4 && template.analysis?.layout?.objects?.length);
+
+  return <div className="space-y-5">
+    {message && <div role="status" className={`rounded-lg border px-4 py-3 text-sm ${message.type === "success" ? "border-emerald-800 bg-emerald-950/30 text-emerald-200" : "border-rose-800 bg-rose-950/30 text-rose-200"}`}>{message.text}</div>}
     <section className="rounded-xl border border-emerald-900/60 bg-gray-800 p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="text-xs font-semibold uppercase tracking-wider text-emerald-400">Belege</div><h2 className="mt-1 font-semibold">Vorlagenerkennung & Layout-Editor</h2><p className="mt-1 max-w-3xl text-sm text-gray-500">Firmenbeleg erkennen lassen oder ein A4-Layout frei aus Text, Datenfeldern, Linien, Farben und Logo aufbauen.</p></div><span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-300">{templates.length} Vorlagen</span></div>
-      <div className="mt-5 flex flex-wrap gap-2"><button type="button" onClick={() => setTab("recognition")} className={`rounded-lg px-4 py-2 text-sm ${tab === "recognition" ? "bg-emerald-600 font-semibold" : "bg-gray-900 text-gray-400"}`}>PDF erkennen</button><button type="button" onClick={() => setTab("layout")} className={`rounded-lg px-4 py-2 text-sm ${tab === "layout" ? "bg-emerald-600 font-semibold" : "bg-gray-900 text-gray-400"}`}>Layout-Editor</button><button type="button" onClick={newManual} className="rounded-lg border border-gray-600 px-4 py-2 text-sm hover:bg-gray-700">+ Leeres Layout</button></div>
-      {templates.length > 0 && <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{templates.map(template => <article key={template.id} className={`rounded-lg border bg-gray-900 p-3 ${editorId === template.id ? "border-sky-600" : "border-gray-700"}`}><button type="button" onClick={() => editTemplate(template)} className="block w-full text-left"><span className="block font-medium text-emerald-200">{template.name}</span><span className="mt-1 block text-xs text-gray-500">{typeLabel(template.documentType)} · {template.analysis?.layout?.objects?.length || 0} Layoutelemente</span></button><div className="mt-3 flex gap-2"><button type="button" onClick={() => editTemplate(template)} className="rounded border border-gray-700 px-2 py-1 text-xs hover:bg-gray-800">Bearbeiten</button>{template.file && <button type="button" onClick={() => openTemplate(template)} className="rounded border border-gray-700 px-2 py-1 text-xs hover:bg-gray-800">Original-PDF</button>}</div></article>)}</div>}
-      {message && <div role="status" className={`mt-4 rounded-lg border px-4 py-3 text-sm ${message.type === "success" ? "border-emerald-800 bg-emerald-950/30 text-emerald-200" : "border-rose-800 bg-rose-950/30 text-rose-200"}`}>{message.text}</div>}
-
-      {tab === "recognition" && <form onSubmit={upload} className="mt-5 rounded-xl border border-dashed border-gray-600 bg-gray-950/40 p-4">
-        <div className="grid gap-4 md:grid-cols-2"><label><span className="mb-1.5 block text-sm font-medium text-gray-300">Vorlagenname</span><input required value={name} onChange={event => setName(event.target.value)} placeholder="z. B. Angebot Firmenlayout 2026" className="w-full rounded-lg border border-gray-600 bg-gray-950 px-3 py-2.5 outline-none focus:border-emerald-500"/></label><label><span className="mb-1.5 block text-sm font-medium text-gray-300">Verwendung</span><select value={documentType} onChange={event => setDocumentType(event.target.value)} className="w-full rounded-lg border border-gray-600 bg-gray-950 px-3 py-2.5"><option value="universal">Angebot & Rechnung</option><option value="quote">Nur Angebot</option><option value="invoice">Nur Rechnung</option></select></label></div>
-        <label className="mt-4 block cursor-pointer rounded-lg border border-gray-700 bg-gray-900 p-4 text-center hover:border-emerald-700"><span className="text-sm font-medium text-gray-200">{file ? file.name : "Firmenbeleg als PDF auswählen"}</span><span className="mt-1 block text-xs text-gray-500">Maximal 25 MB · Textanker und Positionen werden vor dem Upload erkannt</span><input type="file" accept="application/pdf" onChange={chooseFile} className="sr-only"/></label>
-        {analysis && <div className="mt-4 grid gap-3 rounded-lg bg-gray-900 p-4 text-sm sm:grid-cols-4"><div><span className="block text-xs text-gray-500">Seiten</span><span className="font-semibold">{analysis.pageCount}</span></div><div><span className="block text-xs text-gray-500">Textblöcke</span><span className="font-semibold">{analysis.textBlocks.length}</span></div><div><span className="block text-xs text-gray-500">Datenfelder</span><span className="font-semibold">{analysis.fields.length}</span></div><div><span className="block text-xs text-gray-500">Layoutelemente</span><span className="font-semibold">{analysis.layout.objects.length}</span></div><div className="sm:col-span-4 text-gray-300">{analysis.fields.map(field => field.label).join(" · ") || "Keine typischen Anker erkannt; ein vollständiges Standardlayout wurde erzeugt."}</div></div>}
-        <div className="mt-4 flex justify-end"><button disabled={busy || !analysis || !name.trim()} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40">{busy ? "Bitte warten …" : "Erkennen & im Editor öffnen"}</button></div>
-      </form>}
-
-      {tab === "layout" && <div className="mt-5">
-        <div className="mb-4 grid gap-3 rounded-xl border border-gray-700 bg-gray-950/40 p-4 md:grid-cols-[1fr_260px_auto]"><label><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Vorlagenname</span><input value={name} onChange={event => setName(event.target.value)} className="w-full rounded-lg border border-gray-600 bg-gray-950 px-3 py-2"/></label><label><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Verwendung</span><select value={documentType} onChange={event => setDocumentType(event.target.value)} className="w-full rounded-lg border border-gray-600 bg-gray-950 px-3 py-2"><option value="universal">Angebot & Rechnung</option><option value="quote">Nur Angebot</option><option value="invoice">Nur Rechnung</option></select></label><button type="button" onClick={saveLayout} disabled={busy || !name.trim()} className="self-end rounded-lg bg-emerald-600 px-5 py-2 font-semibold hover:bg-emerald-500 disabled:opacity-40">{busy ? "Speichert …" : "Layout speichern"}</button></div>
-        <DocumentLayoutEditor value={layout} onChange={setLayout}/>
-      </div>}
+      <div><div className="text-xs font-semibold uppercase tracking-wider text-emerald-400">Belegvorlagen</div><h2 className="mt-1 font-semibold">Standardvorlage je Belegart</h2><p className="mt-1 max-w-3xl text-sm leading-6 text-gray-400">Neue Belege verwenden automatisch die hier gewählte Vorlage. Ohne Standard bleibt der freie Belegeditor aktiv.</p></div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">{COMMERCIAL_DOCUMENT_TYPES.map(type => {
+        const matching = usableTemplates.filter(template => template.documentType === type.value);
+        const selected = matching.find(template => template.isDefault)?.id || "";
+        return <div key={type.value} className="rounded-lg border border-gray-700 bg-gray-900 p-3"><label><span className="mb-1.5 block text-sm font-medium text-gray-300">{type.label}</span><select disabled={busy} value={selected} onChange={event => changeDefault(type.value, event.target.value)} className="w-full rounded-lg border border-gray-600 bg-gray-950 px-3 py-2.5 text-sm"><option value="">Keine Standardvorlage</option>{matching.map(template => <option key={template.id} value={template.id}>{template.name}</option>)}</select></label><button type="button" onClick={() => newTemplate(type.value)} className="mt-2 text-xs text-sky-300 hover:text-sky-200">Neue {type.label}-Vorlage anlegen</button></div>;
+      })}</div>
     </section>
-  );
+
+    <section className="rounded-xl border border-gray-700 bg-gray-800 p-5"><div className="flex flex-wrap items-center justify-between gap-4"><div><h2 className="font-semibold">Gespeicherte Vorlagen</h2><p className="mt-1 text-sm text-gray-500">Der Layouteditor öffnet sich ausschließlich im Vollbild.</p></div><button type="button" onClick={() => newTemplate()} className="rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-semibold hover:bg-sky-500">Vorlage erstellen</button></div>{usableTemplates.length === 0 ? <div className="mt-4 rounded-lg border border-dashed border-gray-700 p-5 text-center text-sm text-gray-500">Noch keine Vorlage angelegt.</div> : <div className="mt-4 grid gap-2 sm:grid-cols-2">{usableTemplates.map(template => <div key={template.id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-700 bg-gray-900 p-3"><div className="min-w-0 flex-1"><span className="block truncate text-sm font-medium text-gray-200">{template.name}</span><span className="mt-1 block text-xs text-gray-500">{commercialDocumentLabel(template.documentType)}{template.isDefault ? " · Standard" : ""}</span></div><div className="flex gap-1"><button type="button" onClick={() => editTemplate(template)} className="rounded border border-sky-800 px-2.5 py-1.5 text-xs text-sky-300 hover:bg-sky-950/50">Vorlage editieren</button><button type="button" aria-label={`${template.name} löschen`} onClick={() => removeTemplate(template)} className="rounded px-2 py-1 text-xs text-rose-300 hover:bg-rose-950/50">Löschen</button></div></div>)}</div>}</section>
+
+    {editorOpen && <DocumentLayoutEditor
+      value={editor.layout}
+      onChange={layout => setEditor(current => ({ ...current, layout }))}
+      logoDataUrl={logoDataUrl}
+      templateName={editor.name}
+      onTemplateNameChange={name => setEditor(current => ({ ...current, name }))}
+      documentType={editor.documentType}
+      onDocumentTypeChange={documentType => setEditor(current => ({ ...current, documentType }))}
+      documentTypes={COMMERCIAL_DOCUMENT_TYPES}
+      setAsDefault={editor.setAsDefault}
+      onSetAsDefaultChange={setAsDefault => setEditor(current => ({ ...current, setAsDefault }))}
+      onSave={saveTemplate}
+      saving={busy}
+      onClose={() => setEditorOpen(false)}
+    />}
+  </div>;
 }

@@ -28,31 +28,38 @@ test("Belegsummen berücksichtigen Menge, Positionsrabatt und Mehrwertsteuer", (
   assert.deepEqual(calculateCommercialTotals(items, 19), { net: 1800, vatPercent: 19, vat: 342, gross: 2142 });
 });
 
-test("Belege akzeptieren nur Angebot oder Rechnung", () => {
+test("Belege akzeptieren die vier unterstützten Belegarten", () => {
+  assert.equal(commercialDocumentData({ documentType: "order_confirmation", items: [] }).title, "Auftragsbestätigung");
+  assert.equal(commercialDocumentData({ documentType: "partial_invoice", items: [] }).title, "Abschlagsrechnung");
   assert.throws(() => commercialDocumentData({ documentType: "memo", items: [] }), /Belegart/);
 });
 
-test("PDF-Analysen werden begrenzt und validiert", () => {
-  assert.throws(() => normalizeTemplateAnalysis("not-json"), /PDF-Analyse/);
+test("Layoutvorlagen speichern nur normalisierte Gestaltungselemente", () => {
   const analysis = normalizeTemplateAnalysis({
-    pageCount: 2,
-    imageCount: 3,
-    textBlocks: [{ text: "Rechnungsnummer", page: 1, x: 10, y: 20 }],
-    fields: [{ key: "documentNumber", label: "Belegnummer", page: 1, anchorText: "Rechnungsnummer" }],
-    layout: { version: 1, objects: [{ id: "date", type: "field", key: "issuedAt", x: 150, y: 30 }] }
+    version: 4,
+    layout: { page: { background: "#ffffff", gridSize: 2 }, objects: [
+      { id: "address", type: "field", key: "customerAddress", x: 9.5, y: 16, width: 42, height: 11, fontSize: 10, background: "#ffffff" },
+      { id: "static", type: "text", text: "Feststehender Text", x: 14, y: 30, width: 60, height: 8 },
+      { id: "unknown", type: "field", key: "unknown", x: 1, y: 1, width: 1, height: 1 }
+    ] }
   });
-  assert.equal(analysis.pageCount, 2);
-  assert.equal(analysis.fields[0].key, "documentNumber");
-  assert.equal(analysis.layout.objects[0].key, "issuedAt");
+  assert.equal(analysis.version, 4);
+  assert.equal(analysis.layout.objects.length, 2);
+  const { id, type, key, x, y, width, height } = analysis.layout.objects[0];
+  assert.deepEqual({ id, type, key, x, y, width, height }, { id: "address", type: "field", key: "customerAddress", x: 9.5, y: 16, width: 42, height: 11 });
+  assert.equal(analysis.layout.objects[1].text, "Feststehender Text");
 });
 
-test("Belege speichern Layout-Snapshot und ausgefüllte automatische Felder", () => {
+test("Belege speichern ihre Inhalte und den festgesetzten Editorzustand ohne Layout", () => {
   const document = commercialDocumentData({
     documentType: "quote",
     items: [],
-    fieldValues: { customerAddress: "Musterweg 1" },
-    layout: { version: 1, objects: [{ id: "address", type: "field", key: "customerAddress" }] }
+    fieldValues: { customerAddress: "Musterweg 1", editorLocked: true },
+    layout: { version: 1, objects: [{ id: "legacy-layout" }] },
+    templateId: "legacy-template"
   });
   assert.equal(document.fieldValues.customerAddress, "Musterweg 1");
-  assert.equal(document.layout.objects[0].id, "address");
+  assert.equal(document.fieldValues.editorLocked, true);
+  assert.equal("layout" in document, false);
+  assert.equal("templateId" in document, false);
 });

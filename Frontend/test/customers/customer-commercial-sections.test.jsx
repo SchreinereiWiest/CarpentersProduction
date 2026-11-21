@@ -4,13 +4,11 @@ import { describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   createDocument: vi.fn(),
-  loadTemplates: vi.fn(),
   createCommission: vi.fn()
 }));
 
 vi.mock("../../src/features/commercial/commercialApi.js", () => ({
   createCommercialDocument: mocks.createDocument,
-  loadDocumentTemplates: mocks.loadTemplates,
   createCommission: mocks.createCommission
 }));
 
@@ -48,7 +46,6 @@ describe("Kundenprojekte und Belege", () => {
   });
 
   it("erstellt im Modal einen Beleg mit festem Projektbezug und zeigt vorhandene Belege", async () => {
-    mocks.loadTemplates.mockResolvedValue([]);
     mocks.createDocument.mockResolvedValue({ id: "document-new" });
     render(
       <MemoryRouter initialEntries={["/Kontakte/customer-1"]}>
@@ -59,6 +56,7 @@ describe("Kundenprojekte und Belege", () => {
       </MemoryRouter>
     );
     expect(screen.getByText("ANG-1 · Angebot Garderobe")).toBeInTheDocument();
+    expect(screen.queryByText("PDF-Vorlage")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Angebot anlegen" }));
     await waitFor(() => expect(mocks.createDocument).toHaveBeenCalledWith(expect.objectContaining({ customerId: "customer-1", projectId: "project-2", commissionId: null, documentType: "quote" })));
     expect(await screen.findByText("Belegeditor")).toBeInTheDocument();
