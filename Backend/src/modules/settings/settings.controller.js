@@ -11,7 +11,6 @@ import {
     getSignedUrl
 } from "@aws-sdk/s3-request-presigner";
 import { publishFileChange } from "../files/file-change-events.service.js";
-import { validateAttachmentSearchSettings } from "../attachment-search/attachment-search.service.js";
 import { normalizeEticketSettings } from "../../../../Engine/src/eticket/index.js";
 
 export const getSettingsData = async (req, res) => {
@@ -158,9 +157,6 @@ export async function createSettingsData(req,res){
         });
     }
 
-    if (name === "company" && req.body?.attachmentSearch) {
-        req.body.attachmentSearch = validateAttachmentSearchSettings(req.body.attachmentSearch);
-    }
     if (name === "cnc" && req.body?.eticket) {
         req.body.eticket = normalizeEticketSettings(req.body.eticket);
     }

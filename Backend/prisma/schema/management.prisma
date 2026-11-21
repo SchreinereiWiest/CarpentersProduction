@@ -139,17 +139,17 @@ model ManagementProjectStage {
 }
 
 model ManagementProjectSchedule {
-  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId     String   @map("tenant_id") @db.Uuid
-  projectId    String   @unique @map("project_id") @db.Uuid
-  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  plannedStart DateTime @map("planned_start") @db.Date
-  plannedEnd   DateTime @map("planned_end") @db.Date
-  plan         Json     @default("[]")
-  calendarEventId String? @unique @map("calendar_event_id") @db.Uuid
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String         @map("tenant_id") @db.Uuid
+  projectId       String         @unique @map("project_id") @db.Uuid
+  project         Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  plannedStart    DateTime       @map("planned_start") @db.Date
+  plannedEnd      DateTime       @map("planned_end") @db.Date
+  plan            Json           @default("[]")
+  calendarEventId String?        @unique @map("calendar_event_id") @db.Uuid
   calendarEvent   CalendarEvent? @relation("ManagementScheduleCalendarEvent", fields: [calendarEventId], references: [id], onDelete: SetNull)
-  calendarType    String? @map("calendar_type")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  calendarType    String?        @map("calendar_type")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
 
   @@unique([tenantId, projectId])
   @@unique([tenantId, id])

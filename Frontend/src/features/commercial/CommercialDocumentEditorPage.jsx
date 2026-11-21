@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 
+import { useAuth } from "../../app/providers/AuthContext.js";
 import SideBar from "../../shared/components/sideBar.jsx";
 import { loadCompanySettings } from "../../shared/settings/company-settings.js";
-import { createCommercialDocument, loadCommercialDocument, saveCommercialDocument } from "./commercialApi.js";
+import { assignCommercialDocument, createCommercialDocument, loadCommercialDocument, loadCommercialDocumentAssignees, saveCommercialDocument } from "./commercialApi.js";
 import { documentFieldLabel, fontFamilyValue, layoutObjectPosition, normalizeDocumentLayout } from "./document-layout/documentLayout.js";
 import { COMMERCIAL_DOCUMENT_TYPES, commercialDocumentLabel } from "./documentTypes.js";
 
@@ -74,6 +75,47 @@ const MATERIALIZED_FIELDS = [
 
 function Control({ label, children, className = "" }) {
   return <label className={`block ${className}`}><span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</span>{children}</label>;
+}
+
+const roleLabel = role => ({ admin: "Administrator", manager: "Manager", user: "Mitarbeiter" })[role] || "Mitarbeiter";
+
+function DocumentAssigneeDialog({ document, onClose, onAssigned }) {
+  const [assignees, setAssignees] = useState([]);
+  const [userId, setUserId] = useState(document.assignedTo?.id || "");
+  const [busy, setBusy] = useState(false);
+  const [dialogError, setDialogError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    loadCommercialDocumentAssignees()
+      .then(items => active && setAssignees(items))
+      .catch(requestError => active && setDialogError(requestError.response?.data?.message || "Mitarbeiter konnten nicht geladen werden."));
+    return () => { active = false; };
+  }, []);
+
+  const submit = async event => {
+    event.preventDefault();
+    setBusy(true);
+    setDialogError("");
+    try {
+      onAssigned(await assignCommercialDocument(document.id, userId));
+      onClose();
+    } catch (requestError) {
+      setDialogError(requestError.response?.data?.message || "Die Bearbeitung konnte nicht zugewiesen werden.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return <div className="fixed inset-0 z-[120] grid place-items-center bg-black/70 p-4" role="presentation" onMouseDown={event => event.target === event.currentTarget && onClose()}>
+    <form onSubmit={submit} role="dialog" aria-modal="true" aria-labelledby="commercial-assignee-title" className="w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
+      <div className="flex items-start justify-between gap-4"><div><h2 id="commercial-assignee-title" className="text-xl font-semibold">Bearbeitung zuweisen</h2><p className="mt-1 truncate text-sm text-slate-400">{document.documentNumber ? `${document.documentNumber} · ` : ""}{document.title}</p></div><button type="button" onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-800">✕</button></div>
+      {dialogError && <p role="alert" className="mt-4 rounded-lg border border-rose-800 bg-rose-950/40 p-3 text-sm text-rose-300">{dialogError}</p>}
+      <label className="mt-5 block text-sm text-slate-300">Bearbeiter<select aria-label="Bearbeiter" value={userId} onChange={event => setUserId(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-600 bg-slate-950 px-3 py-2.5 outline-none focus:border-sky-500"><option value="">Nicht zugewiesen</option>{assignees.map(assignee => <option key={assignee.id} value={assignee.id}>{assignee.name} · {roleLabel(assignee.role)}</option>)}</select></label>
+      <p className="mt-3 text-xs leading-5 text-slate-500">Der Beleg erscheint als offene Aufgabe unter „Meine Aufträge“ auf der Startseite des ausgewählten Mitarbeiters.</p>
+      <div className="mt-6 flex justify-end gap-3"><button type="button" disabled={busy} onClick={onClose} className="rounded-lg border border-slate-600 px-4 py-2 text-sm hover:bg-slate-800">Abbrechen</button><button type="submit" disabled={busy} className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold hover:bg-violet-500 disabled:opacity-50">{busy ? "Weist zu …" : "Bearbeitung zuweisen"}</button></div>
+    </form>
+  </div>;
 }
 
 const controlClass = "w-full rounded-lg border border-slate-600 bg-slate-950 px-3 py-2.5 text-white outline-none focus:border-emerald-500";
@@ -263,6 +305,7 @@ function TemplateDocumentPaper({ document, editing, totals, logoDataUrl, onField
 }
 
 export default function CommercialDocumentEditorPage() {
+  const { user } = useAuth();
   const { documentId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -275,6 +318,8 @@ export default function CommercialDocumentEditorPage() {
   const [logoDataUrl, setLogoDataUrl] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [assigning, setAssigning] = useState(false);
+  const canAssign = ["admin", "manager"].includes(user?.role);
 
   useEffect(() => {
     let active = true;
@@ -371,14 +416,22 @@ export default function CommercialDocumentEditorPage() {
     <SideBar selected={5}/>
     <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8"><div className="mx-auto max-w-[1500px]">
       <header className="flex flex-wrap items-start justify-between gap-4">
-        <div><Link to={document?.customerId ? `/Kontakte/${document.customerId}` : "/Kontakte"} className="text-sm text-sky-400 hover:text-sky-300">Zur Kundenübersicht</Link><div className="mt-2 text-xs font-semibold uppercase tracking-widest text-emerald-400">Belegeditor · {editing ? "Bearbeitung" : "festgesetzt"}</div><h1 className="mt-1 text-2xl font-bold">{commercialDocumentLabel(document?.documentType)} {document?.documentNumber}</h1><p className="mt-1 text-sm text-slate-400">{document?.project?.title || document?.commission?.title || customerName(document?.customer)}</p></div>
-        {document && <div className="flex flex-wrap gap-2">{editing ? <><button type="button" onClick={() => save({ lockDocument: false })} disabled={saving} className="rounded-lg border border-slate-600 px-4 py-2 text-sm hover:bg-slate-800 disabled:opacity-50">{saving ? "Speichert …" : "Entwurf speichern"}</button><button type="button" onClick={() => save({ lockDocument: true })} disabled={saving} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold hover:bg-emerald-500 disabled:opacity-50">Eingaben festsetzen</button></> : <><button type="button" onClick={() => save({ lockDocument: true })} disabled={saving} className="rounded-lg border border-slate-600 px-4 py-2 text-sm hover:bg-slate-800 disabled:opacity-50">{saving ? "Speichert …" : "Status speichern"}</button><button type="button" onClick={() => { setEditing(true); setMessage(""); }} className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold hover:bg-sky-500">Beleg bearbeiten</button></>}</div>}
+        <div><Link to={user?.role === "user" ? "/" : document?.customerId ? `/Kontakte/${document.customerId}` : "/Kontakte"} className="text-sm text-sky-400 hover:text-sky-300">{user?.role === "user" ? "Zur Startseite" : "Zur Kundenübersicht"}</Link><div className="mt-2 text-xs font-semibold uppercase tracking-widest text-emerald-400">Belegeditor · {editing ? "Bearbeitung" : "festgesetzt"}</div><h1 className="mt-1 text-2xl font-bold">{commercialDocumentLabel(document?.documentType)} {document?.documentNumber}</h1><p className="mt-1 text-sm text-slate-400">{document?.project?.title || document?.commission?.title || customerName(document?.customer)}</p></div>
+        {document && <div className="flex flex-wrap gap-2">{editing ? <><button type="button" onClick={() => save({ lockDocument: false })} disabled={saving} className="rounded-lg border border-slate-600 px-4 py-2 text-sm hover:bg-slate-800 disabled:opacity-50">{saving ? "Speichert …" : "Entwurf speichern"}</button><button type="button" onClick={() => save({ lockDocument: true })} disabled={saving} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold hover:bg-emerald-500 disabled:opacity-50">Eingaben festsetzen</button></> : <><button type="button" onClick={() => save({ lockDocument: true })} disabled={saving} className="rounded-lg border border-slate-600 px-4 py-2 text-sm hover:bg-slate-800 disabled:opacity-50">{saving ? "Speichert …" : "Status speichern"}</button><button type="button" onClick={() => { setEditing(true); setMessage(""); }} className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold hover:bg-sky-500">Beleg bearbeiten</button>{canAssign && <button type="button" onClick={() => setAssigning(true)} className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold hover:bg-violet-500">Bearbeitung zuweisen</button>}</>}</div>}
       </header>
 
       {message && <div role="status" className="mt-4 rounded-lg border border-emerald-800 bg-emerald-950/30 p-3 text-sm text-emerald-200">{message}</div>}
       {error && <div role="alert" className="mt-4 rounded-lg border border-rose-800 bg-rose-950/30 p-3 text-sm text-rose-200">{error}</div>}
 
       {document && <>
+        {assigning && <DocumentAssigneeDialog
+          document={document}
+          onClose={() => setAssigning(false)}
+          onAssigned={assignedDocument => {
+            setDocument(assignedDocument);
+            setMessage(assignedDocument.assignedToId ? "Die Belegbearbeitung wurde zugewiesen." : "Die Belegzuweisung wurde entfernt.");
+          }}
+        />}
         <section className="mt-6 rounded-xl border border-slate-700 bg-slate-800/80 p-5">
           <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-semibold">Status & allgemeine Daten</h2><p className="mt-1 text-sm text-slate-400">Diese Werte steuern den Beleg. Der Inhalt wird direkt auf der Belegseite darunter bearbeitet.</p>{positionTemplate && <p className="mt-1 text-xs text-emerald-300">Standardvorlage: {positionTemplate.name}</p>}</div><span className={`rounded-full px-3 py-1 text-xs font-semibold ${editing ? "bg-amber-500/10 text-amber-300" : "bg-emerald-500/10 text-emerald-300"}`}>{editing ? "Bearbeitungsmodus" : "Textansicht"}</span></div>
           <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-6">

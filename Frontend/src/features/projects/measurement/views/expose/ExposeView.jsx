@@ -36,6 +36,8 @@ const PAGE_WIDTH = EXPOSE_LANDSCAPE_WIDTH;
 const PAGE_HEIGHT = EXPOSE_LANDSCAPE_HEIGHT;
 const GRID_STEP_MM = 5;
 const PAGE_RENDER_SCALE = 3;
+const exposePagesCache = new Map();
+const MAX_EXPOSE_PAGE_CACHES = 4;
 const POSITION_INPUT =
   "mt-1 w-full rounded-md border border-[#344651] bg-[#10181f] px-2.5 py-2 text-xs text-[#dfe9ef] outline-none focus:border-[#5f9cc4] disabled:opacity-50";
 
@@ -75,6 +77,24 @@ const customBlockLabel = (type) => ({
   logo: "Unternehmenslogo",
   qr: "Projekt-QR-Code"
 }[type] ?? "Objekt");
+
+const cachedExposePages = (key, dependencies, create) => {
+  if (!key) return create();
+  const cached = exposePagesCache.get(key);
+  if (cached && cached.dependencies.length === dependencies.length
+    && cached.dependencies.every((value, index) => value === dependencies[index])) {
+    exposePagesCache.delete(key);
+    exposePagesCache.set(key, cached);
+    return cached.pages;
+  }
+  const pages = create();
+  exposePagesCache.delete(key);
+  exposePagesCache.set(key, { dependencies, pages });
+  while (exposePagesCache.size > MAX_EXPOSE_PAGE_CACHES) {
+    exposePagesCache.delete(exposePagesCache.keys().next().value);
+  }
+  return pages;
+};
 
 function CustomBlocks({
   page,
@@ -1526,9 +1546,10 @@ export default function ExposeView({
   focusPageId = null,
   focusBlockId = null,
   lineLockThresholdCm = 5,
-  measurementLabelOffsetY = -30
+  measurementLabelOffsetY = -30,
+  cacheKey = null
 }) {
-  const expose = normalizeExpose(value);
+  const expose = useMemo(() => normalizeExpose(value), [value]);
   const [activePageId, setActivePageId] = useState(focusPageId);
   const [selectedBlockId, setSelectedBlockId] = useState(focusBlockId);
   const [insertTool, setInsertTool] = useState(null);
@@ -1537,10 +1558,12 @@ export default function ExposeView({
   const [draggedPageId, setDraggedPageId] = useState(null);
   const draggedPageIdRef = useRef(null);
   const [pageZoom, setPageZoom] = useState(1);
+  const [editing, setEditing] = useState(() => !readOnly);
   const [workspaceSize, setWorkspaceSize] = useState({ width: 900, height: 620 });
   const workspaceRef = useRef(null);
-  const pages = useMemo(
-    () => createExposePages({
+  const pages = useMemo(() => {
+    const dependencies = [expose, project, photos, views, pdfPages, objects, dxfLayers, cabinets, partsList, partsListPdfPages, nesting, measurementLabelOffsetY];
+    return cachedExposePages(cacheKey, dependencies, () => createExposePages({
       expose,
       project,
       photos,
@@ -1553,10 +1576,11 @@ export default function ExposeView({
       partsListPdfPages,
       nesting,
       measurementLabelOffsetY
-    }),
-    [cabinets, dxfLayers, expose, measurementLabelOffsetY, nesting, objects, partsList, partsListPdfPages, pdfPages, photos, project, views]
-  );
+    }));
+  }, [cacheKey, cabinets, dxfLayers, expose, measurementLabelOffsetY, nesting, objects, partsList, partsListPdfPages, pdfPages, photos, project, views]);
   const activePage = pages.find((page) => page.id === activePageId) ?? null;
+  const activePageIndex = activePage ? pages.indexOf(activePage) : -1;
+  const editorReadOnly = readOnly || !editing;
   const snapTolerance = clamp((Number(lineLockThresholdCm) || 0) * 10, 0, 50);
   const basePageWidth = (activePage?.width ?? PAGE_WIDTH) * PAGE_RENDER_SCALE;
   const basePageHeight = (activePage?.height ?? PAGE_HEIGHT) * PAGE_RENDER_SCALE;
@@ -1569,6 +1593,23 @@ export default function ExposeView({
   const displayScale = fitScale * pageZoom;
   const scaledPageWidth = basePageWidth * displayScale;
   const scaledPageHeight = basePageHeight * displayScale;
+
+  useEffect(() => {
+    if (readOnly) setEditing(false);
+  }, [readOnly]);
+
+  const finishEditing = () => {
+    setEditing(false);
+    setActivePageId(null);
+    setSelectedBlockId(null);
+    setInsertTool(null);
+  };
+
+  const movePreview = (direction) => {
+    if (!pages.length) return;
+    const nextIndex = clamp((activePageIndex < 0 ? 0 : activePageIndex) + direction, 0, pages.length - 1);
+    setActivePageId(pages[nextIndex]?.id ?? null);
+  };
 
   useEffect(() => {
     const element = workspaceRef.current;
@@ -1983,10 +2024,17 @@ export default function ExposeView({
     <div className="flex h-full min-h-0 flex-col bg-[#0c1217]">
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-[#2a3741] bg-[#152029] px-4">
         <div>
-          <div className="flex items-center gap-2"><AufmasIcon name="plan" className="size-4 text-[#79b6dc]" /><h2 className="text-sm font-semibold text-[#e5edf3]">Exposé-Druckeditor</h2></div>
-          <p className="mt-0.5 text-[10px] text-[#6f818e]">{activePage ? `${activePage.label} · Einzelansicht` : `${pages.length} Seiten · Gesamtansicht`}</p>
+          <div className="flex items-center gap-2"><AufmasIcon name="plan" className="size-4 text-[#79b6dc]" /><h2 className="text-sm font-semibold text-[#e5edf3]">{editing ? "Exposé-Druckeditor" : "Exposé-Vorschau"}</h2></div>
+          <p className="mt-0.5 text-[10px] text-[#6f818e]">{activePage ? (editing ? `${activePage.label} · Einzelansicht` : `${activePage.label} · Vorschau · Seite ${activePageIndex + 1} von ${pages.length}`) : `${pages.length} Seiten · Gesamtansicht`}</p>
         </div>
         <div className="flex items-center gap-2">
+          {!editing && activePage && (
+            <div className="flex items-center gap-1 rounded-md border border-[#344957] bg-[#101920] p-0.5" role="group" aria-label="Durch Exposé-Seiten blättern">
+              <button type="button" onClick={() => setActivePageId(null)} className="rounded px-2 py-1 text-[10px] font-semibold text-[#b8c7d0] hover:bg-[#223541]" aria-label="Alle Exposé-Seiten anzeigen">Alle Seiten</button>
+              <button type="button" disabled={activePageIndex <= 0} onClick={() => movePreview(-1)} className="rounded px-2 py-1 text-xs text-[#b8c7d0] hover:bg-[#223541] disabled:opacity-30" aria-label="Vorherige Exposé-Seite">←</button>
+              <button type="button" disabled={activePageIndex >= pages.length - 1} onClick={() => movePreview(1)} className="rounded px-2 py-1 text-xs text-[#b8c7d0] hover:bg-[#223541] disabled:opacity-30" aria-label="Nächste Exposé-Seite">→</button>
+            </div>
+          )}
           {activePage && (
             <div className="flex items-center rounded-md border border-[#344957] bg-[#101920] p-0.5" role="group" aria-label="Seitenzoom">
               <button type="button" onClick={() => setPageZoom((current) => clamp(current - 0.25, 0.25, 2.5))} className="flex size-7 items-center justify-center rounded text-[#9eb3c0] hover:bg-[#223541] hover:text-white" aria-label="Seite verkleinern"><AufmasIcon name="zoomOut" className="size-3.5" /></button>
@@ -1996,14 +2044,19 @@ export default function ExposeView({
             </div>
           )}
           <span className={`rounded-md border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.12em] ${saveStatus === "error" ? "border-[#70413f] bg-[#2d1c1d] text-[#f0aaa6]" : "border-[#34566b] bg-[#1d3442] text-[#acd5eb]"}`}>{saveLabel}</span>
+          {!readOnly && (editing ? (
+            <button type="button" onClick={finishEditing} className="inline-flex items-center gap-2 rounded-md border border-[#47745f] bg-[#20382e] px-3 py-1.5 text-[11px] font-semibold text-[#c5e7d6] hover:bg-[#29493b]"><AufmasIcon name="check" className="size-4" /> Bearbeitung abschließen</button>
+          ) : (
+            <button type="button" onClick={() => setEditing(true)} className="inline-flex items-center gap-2 rounded-md border border-[#405d70] bg-[#203746] px-3 py-1.5 text-[11px] font-semibold text-[#cee6f4] hover:bg-[#29495d]"><AufmasIcon name="edit" className="size-4" /> Bearbeiten</button>
+          ))}
           <button type="button" onClick={onPrint} disabled={printing} className="inline-flex items-center gap-2 rounded-md border border-[#466a7f] bg-[#234052] px-3 py-1.5 text-[11px] font-semibold text-[#d6ebf6] hover:bg-[#2d5268] disabled:opacity-50" title="Exposé als PDF drucken">
             <AufmasIcon name="print" className="size-4" /> {printing ? "PDF wird erstellt …" : "Drucken"}
           </button>
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[184px_minmax(0,1fr)_292px]">
-        <aside className="min-h-0 overflow-y-auto border-r border-[#2a3741] bg-[#141e26] p-3">
+      <div className={`grid min-h-0 flex-1 ${editing ? "grid-cols-[184px_minmax(0,1fr)_292px]" : "grid-cols-1"}`}>
+        {editing && <aside className="min-h-0 overflow-y-auto border-r border-[#2a3741] bg-[#141e26] p-3">
           <div className="flex items-center justify-between gap-2 px-1">
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#718391]">Seiten</p>
             <button type="button" onClick={addManualPage} disabled={readOnly} className="inline-flex items-center gap-1 rounded border border-[#3b5667] bg-[#1d303b] px-2 py-1 text-[9px] font-semibold text-[#bcd6e4] hover:bg-[#274454] disabled:opacity-40" title="Neue Seite nach der aktiven Seite einfügen"><AufmasIcon name="plus" className="size-3" /> Seite</button>
@@ -2049,7 +2102,7 @@ export default function ExposeView({
               <SectionSwitch label="Nesting" checked={expose.sections.nesting !== false} disabled={readOnly} onChange={(value) => updateSection("nesting", value)} />
             </div>
           </div>
-        </aside>
+        </aside>}
 
         <main
           ref={workspaceRef}
@@ -2066,7 +2119,7 @@ export default function ExposeView({
                 minWidth: "100%",
                 minHeight: "100%"
               }}
-              onPointerDown={(event) => { if (event.target === event.currentTarget) { setActivePageId(null); setSelectedBlockId(null); setInsertTool(null); } }}
+              onPointerDown={(event) => { if (editing && event.target === event.currentTarget) { setActivePageId(null); setSelectedBlockId(null); setInsertTool(null); } }}
             >
               <div
                 className="relative shrink-0 shadow-[0_18px_70px_rgba(0,0,0,.55)]"
@@ -2095,10 +2148,10 @@ export default function ExposeView({
                     photos={photos}
                     materials={materials}
                     companySettings={companySettings}
-                    editable
+                    editable={editing}
                     selectedBlockId={selectedBlockId}
                     setSelectedBlockId={setSelectedBlockId}
-                    readOnly={readOnly}
+                    readOnly={editorReadOnly}
                     snapTolerance={snapTolerance}
                     onLayoutChange={(blockId, layout) => updateBlockLayout(activePage.id, blockId, layout)}
                     onTextChange={(blockId, text) => updateBlockText(activePage, blockId, text)}
@@ -2108,7 +2161,7 @@ export default function ExposeView({
                   />
                   {activePage.optional && (
                     <label data-expose-ui className="absolute right-3 top-3 z-[60] flex cursor-pointer items-center gap-2 rounded-md border border-black/20 bg-white/95 px-2.5 py-1.5 text-[10px] font-semibold text-[#27343b] shadow">
-                      <input type="checkbox" checked={pageEnabled(activePage)} disabled={readOnly} onChange={(event) => togglePage(activePage, event.target.checked)} className="size-3.5 accent-[#39779c]" /> Im Druck verwenden
+                      <input type="checkbox" checked={pageEnabled(activePage)} disabled={editorReadOnly} onChange={(event) => togglePage(activePage, event.target.checked)} className="size-3.5 accent-[#39779c]" /> Im Druck verwenden
                     </label>
                   )}
                 </div>
@@ -2132,12 +2185,12 @@ export default function ExposeView({
                   }}
                   role="button"
                   tabIndex={0}
-                  aria-label={`${page.label} bearbeiten`}
+                  aria-label={`${page.label} ${editing ? "bearbeiten" : "öffnen"}`}
                 >
                   <PageCanvas page={page} expose={expose} project={project} photos={photos} materials={materials} companySettings={companySettings} editable={false} selectedBlockId={null} setSelectedBlockId={() => {}} readOnly snapTolerance={snapTolerance} onLayoutChange={() => {}} onTextChange={() => {}} insertTool={null} onCreateCustomBlock={() => {}} pageNumber={index + 1} />
                   {page.optional && (
                     <label className="absolute right-2 top-2 z-[60] flex cursor-pointer items-center gap-1.5 rounded bg-white/90 px-2 py-1 text-[9px] font-semibold text-[#27343b] shadow" onClick={(event) => event.stopPropagation()}>
-                      <input type="checkbox" checked={pageEnabled(page)} disabled={readOnly} onChange={(event) => togglePage(page, event.target.checked)} className="size-3 accent-[#39779c]" /> Druck
+                      <input type="checkbox" checked={pageEnabled(page)} disabled={editorReadOnly} onChange={(event) => togglePage(page, event.target.checked)} className="size-3 accent-[#39779c]" /> Druck
                     </label>
                   )}
                 </div>
@@ -2146,11 +2199,11 @@ export default function ExposeView({
           )}
         </main>
 
-        <PropertiesPanel
+        {editing && <PropertiesPanel
           page={activePage}
           selectedBlock={blockDefinition}
           layout={selectedLayout}
-          readOnly={readOnly || blockDefinition?.type === "generated"}
+          readOnly={editorReadOnly || blockDefinition?.type === "generated"}
           insertTool={insertTool}
           onInsertToolChange={(tool) => { setInsertTool(tool); setSelectedBlockId(null); }}
           onTemplateChange={(templateId) => activePage && updatePageTemplate(activePage.id, templateId)}
@@ -2171,7 +2224,7 @@ export default function ExposeView({
           qrError={qrError}
           textValue={selectedText}
           onTextChange={(text) => activePage && blockDefinition && updateBlockText(activePage, blockDefinition.id, text)}
-        />
+        />}
       </div>
     </div>
   );

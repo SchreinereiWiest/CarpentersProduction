@@ -1,39 +1,7 @@
 export const DEFAULT_VIEWS = [
-  {
-    id: "front",
-    label: "Frontansicht",
-    type: "elevation",
-    planFileId: null,
-    dxfFileId: null,
-    pageNumber: 1
-  },
-  {
-    id: "side-1",
-    label: "Seitenansicht 1",
-    type: "elevation",
-    planFileId: null,
-    dxfFileId: null,
-    pageNumber: 2
-  },
-  {
-    id: "side-2",
-    label: "Seitenansicht 2",
-    type: "elevation",
-    planFileId: null,
-    dxfFileId: null,
-    pageNumber: 3
-  },
-  {
-    id: "floor",
-    label: "Grundriss",
-    type: "floor",
-    planFileId: null,
-    dxfFileId: null,
-    pageNumber: 4
-  },
+  { id: "expose", label: "Exposé", type: "expose", exposeId: "default" },
   { id: "three", label: "3D-Ansicht", type: "three" },
-  { id: "images", label: "Bilder", type: "images" },
-  { id: "expose", label: "Exposé", type: "expose" }
+  { id: "images", label: "Bilder", type: "images" }
 ];
 
 export const DEFAULT_TODOS = [
@@ -57,15 +25,31 @@ export const DEFAULT_DISPLAY = {
   objectLabels: true
 };
 
-export function ensureWorkspaceViews(views) {
-  const source = Array.isArray(views) && views.length ? views : DEFAULT_VIEWS;
-  if (source.some((view) => view.type === "expose")) return source;
-  const imagesIndex = source.findIndex((view) => view.type === "images");
-  const exposeView = { id: "expose", label: "Exposé", type: "expose" };
-  if (imagesIndex < 0) return [...source, exposeView];
-  return [
-    ...source.slice(0, imagesIndex + 1),
-    exposeView,
-    ...source.slice(imagesIndex + 1)
-  ];
+const SPECIAL_VIEW_TYPES = new Set(["three", "images", "expose"]);
+
+export const isDrawingView = (view) => !SPECIAL_VIEW_TYPES.has(view?.type);
+
+export const hasViewContent = (view, objects = []) => (
+  !isDrawingView(view)
+  || Boolean(view?.planFileId || view?.dxfFileId || view?.imageFileId)
+  || objects.some((object) => object?.viewId === view?.id)
+);
+
+export function ensureWorkspaceViews(views, objects = []) {
+  const supplied = Array.isArray(views) ? views : [];
+  const source = supplied.length ? supplied : DEFAULT_VIEWS;
+  const next = source.filter((view) => hasViewContent(view, objects));
+
+  for (const specialView of DEFAULT_VIEWS) {
+    if (!next.some((view) => view.type === specialView.type)) next.push(specialView);
+  }
+
+  const exposeIndex = next.findIndex((view) => view.type === "expose");
+  if (exposeIndex > 0) {
+    next.unshift(next.splice(exposeIndex, 1)[0]);
+  }
+
+  const unchanged = next.length === source.length
+    && next.every((view, index) => view === source[index]);
+  return unchanged ? source : next;
 }

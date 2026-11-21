@@ -7,8 +7,9 @@ import prisma, { systemPrisma } from "../../infrastructure/database/prisma.js";
 import { getTenantId } from "../../infrastructure/database/tenant-context.js";
 import { enqueueStorageDeletions } from "../../infrastructure/storage/storage-deletion.service.js";
 import { s3Download, s3Upload } from "../../infrastructure/storage/s3.js";
-import { getTenantSecret, getTenantSecretStatus } from "../attachment-search/tenant-secrets.service.js";
+import { getTenantSecret, getTenantSecretStatus } from "../secrets/tenant-secrets.service.js";
 import { publishFileChange } from "../files/file-change-events.service.js";
+import { removeWorkAssignments, upsertWorkAssignment, WORK_ASSIGNMENT_KIND } from "../assignments/work-assignment.service.js";
 import {
   PAPERLESS_API_TOKEN_SECRET,
   PAPERLESS_QR_SIGNING_SECRET,
@@ -531,6 +532,20 @@ export async function updatePaperlessAssignee(req, res) {
     const result = await transaction.paperlessDocument.update({
       where: { id: document.id }, data: { assignedToId: requestedUserId }, include: paperlessDocumentInclude
     });
+    if (document.assignedToId && document.assignedToId !== requestedUserId) {
+      await removeWorkAssignments(transaction, { kind: WORK_ASSIGNMENT_KIND.PAPERLESS_DOCUMENT, sourceId: document.id, assigneeId: document.assignedToId });
+    }
+    if (requestedUserId) {
+      await upsertWorkAssignment(transaction, {
+        kind: WORK_ASSIGNMENT_KIND.PAPERLESS_DOCUMENT,
+        sourceId: result.id,
+        assigneeId: requestedUserId,
+        createdById: req.user.id,
+        title: result.title,
+        info: result.project?.title || result.correspondent || null,
+        href: `/Documents?document=${result.id}`
+      });
+    }
     await transaction.auditLog.create({
       data: {
         actorUserId: req.user.id,

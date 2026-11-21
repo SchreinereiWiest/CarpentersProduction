@@ -9,7 +9,7 @@ import {
 } from "../../src/shared/settings/company-settings.js";
 
 describe("company settings", () => {
-  it("adds defaults to legacy settings and normalizes search and AI values", () => {
+  it("adds defaults to legacy settings and removes obsolete estimation AI values", () => {
     expect(normalizeCompanySettings({
       workingHours: { start: "08:00", end: "17:00" },
       estimation: {
@@ -24,7 +24,7 @@ describe("company settings", () => {
         }
       }
     })).toMatchObject({
-      schemaVersion: 12,
+      schemaVersion: 13,
       workWeek: expect.arrayContaining([
         expect.objectContaining({ weekday: 1, label: "Montag", enabled: true, start: "08:00", end: "17:00" })
       ]),
@@ -51,19 +51,13 @@ describe("company settings", () => {
         candidatePoolSize: 500,
         maximumMatches: 1,
         minimumSimilarity: 45,
-        weights: { text: 40, cabinetCount: 20, materials: 10 },
-        ollama: {
-          enabled: true,
-          baseUrl: "http://localhost:11434",
-          embeddingModel: "custom-embed"
-        }
+        weights: { text: 40, cabinetCount: 20, materials: 10 }
       },
-      attachmentSearch: {
+      aiIntegration: {
         enabled: false,
-        openWebUiEndpoint: "http://host.docker.internal:3000",
-        model: "carpenters-qwen3627b",
-        manufacturerWebsites: [],
-        allowOpenWebFallback: true
+        provider: "ollama",
+        endpoint: "http://ollama:11434",
+        model: ""
       }
     });
     expect(DEFAULT_COMPANY_SETTINGS.estimation.maximumMatches).toBe(5);

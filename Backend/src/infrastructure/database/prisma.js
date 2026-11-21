@@ -73,7 +73,8 @@ const TENANT_DELEGATES = new Set([
     "tenantOnboarding",
     "commission",
     "documentTemplate",
-    "commercialDocument"
+    "commercialDocument",
+    "workAssignment"
 ]);
 
 const READ_WITH_WHERE = new Set([
@@ -84,8 +85,21 @@ const WRITE_WITH_WHERE = new Set([
     "update", "updateMany", "updateManyAndReturn", "delete", "deleteMany"
 ]);
 
-function tenantArgs(method, input, tenantId) {
+export function tenantArgs(method, input, tenantId) {
     const args = input ? { ...input } : {};
+
+    // Zusammengesetzte eindeutige Schlüssel wie tenantId_projectId_userId
+    // benötigen tenantId innerhalb des generierten Prisma-Schlüsselobjekts.
+    // Der Server überschreibt auch dort jeden übergebenen Wert, damit weder ein
+    // vergessener Parameter noch manipulierte Eingaben den Mandanten wechseln.
+    if (args.where && typeof args.where === "object") {
+        args.where = { ...args.where };
+        for (const [key, value] of Object.entries(args.where)) {
+            if (key.startsWith("tenantId_") && value && typeof value === "object" && !Array.isArray(value)) {
+                args.where[key] = { ...value, tenantId };
+            }
+        }
+    }
 
     // Die serverseitige tenantId überschreibt absichtlich einen gleichnamigen
     // Wert aus Controllerdaten. Ein Client kann den Mandanten nie auswählen.

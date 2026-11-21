@@ -30,6 +30,10 @@ export default function ManagementOverview() {
     (groups[item.assigneeId] ||= []).push(item);
     return groups;
   }, {}), [workspace.assignments]);
+  const workAssignmentByEmployee = useMemo(() => (workspace.workAssignments || []).reduce((groups, item) => {
+    (groups[item.assignee?.id] ||= []).push(item);
+    return groups;
+  }, {}), [workspace.workAssignments]);
   const assignedProjectIds = new Set(workspace.assignments.map(item => item.projectId));
   const activeEmployees = workspace.employees.filter(item => item.isActive);
   const profile = (workspace.employeeProfiles || []).find(item => item.userId === selectedEmployeeId);
@@ -111,18 +115,21 @@ export default function ManagementOverview() {
     <div className="grid gap-4 xl:grid-cols-2">
       {workspace.employees.map(employee => {
         const assignments = assignmentByEmployee[employee.id] || [];
+        const workAssignments = workAssignmentByEmployee[employee.id] || [];
+        const otherAssignments = workAssignments.filter(item => item.kind !== "project");
         return <section key={employee.id} className={`rounded-2xl border bg-gray-800 p-5 ${employee.isActive ? "border-gray-700" : "border-gray-800 opacity-65"}`}>
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 className="text-lg font-semibold">{employee.name}</h2>
               <p className="mt-1 text-sm text-gray-500">{employee.role} · {employee.isActive ? "aktiv" : "deaktiviert"}</p>
             </div>
-            <span className="rounded-full bg-gray-900 px-3 py-1 text-sm text-blue-300">{assignments.length} {assignments.length === 1 ? "Auftrag" : "Aufträge"}</span>
+            <span className="rounded-full bg-gray-900 px-3 py-1 text-sm text-blue-300">{workAssignments.length} {workAssignments.length === 1 ? "Auftrag" : "Aufträge"}</span>
           </div>
           <div className="mt-4 space-y-3">
-            {!assignments.length && <div className="rounded-xl border border-dashed border-gray-700 p-5 text-center text-sm text-gray-500">Noch kein Auftrag zugewiesen.</div>}
+            {!assignments.length && !otherAssignments.length && <div className="rounded-xl border border-dashed border-gray-700 p-5 text-center text-sm text-gray-500">Noch kein Auftrag zugewiesen.</div>}
             {assignments.map(assignment => {
               const project = workspace.projects.find(item => item.id === assignment.projectId);
+              const workAssignment = workAssignments.find(item => item.kind === "project" && item.sourceId === assignment.projectId);
               if (!project) return null;
               return <article key={assignment.id} className="rounded-xl border border-gray-700 bg-gray-900 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -130,7 +137,7 @@ export default function ManagementOverview() {
                     <Link to={`/Projects/${project.id}`} className="font-semibold text-blue-300 hover:underline">{project.title}</Link>
                     <p className="mt-1 text-xs text-gray-500">{customerName(project.customer)} · Projektstatus {project.status}</p>
                   </div>
-                  {assignment.calendarEvent && <span className="rounded-full bg-green-950 px-2.5 py-1 text-xs text-green-300">{displayDate(assignment.calendarEvent.startAt)} – {displayInclusiveEnd(assignment.calendarEvent.endAt)}</span>}
+                  <div className="flex flex-wrap gap-2">{workAssignment?.status === "completed" && <span className="rounded-full bg-emerald-950 px-2.5 py-1 text-xs text-emerald-300">Abgeschlossen gemeldet</span>}{assignment.calendarEvent && <span className="rounded-full bg-green-950 px-2.5 py-1 text-xs text-green-300">{displayDate(assignment.calendarEvent.startAt)} – {displayInclusiveEnd(assignment.calendarEvent.endAt)}</span>}</div>
                 </div>
                 <p className="mt-3 whitespace-pre-wrap text-sm text-gray-300">{assignment.info || "Keine Zusatzinformation hinterlegt."}</p>
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -140,6 +147,11 @@ export default function ManagementOverview() {
                 </div>
               </article>;
             })}
+            {otherAssignments.map(assignment => <article key={assignment.id} className={`rounded-xl border p-4 ${assignment.status === "completed" ? "border-emerald-800 bg-emerald-950/20" : "border-violet-900 bg-gray-900"}`}>
+              <div className="flex flex-wrap items-start justify-between gap-3"><div><Link to={assignment.href} className="font-semibold text-violet-300 hover:underline">{assignment.title}</Link><p className="mt-1 text-xs text-gray-500">{assignment.kind === "commercial_document" ? "Belegbearbeitung" : "Dokumentenbearbeitung"} · von {assignment.createdBy?.name || "Unbekannt"}</p></div><span className={`rounded-full px-2.5 py-1 text-xs ${assignment.status === "completed" ? "bg-emerald-950 text-emerald-300" : "bg-violet-950 text-violet-300"}`}>{assignment.status === "completed" ? "Abgeschlossen" : "Offen"}</span></div>
+              {assignment.info && <p className="mt-3 whitespace-pre-wrap text-sm text-gray-300">{assignment.info}</p>}
+              <Link to={assignment.href} className="mt-4 inline-block rounded-lg border border-violet-800 px-3 py-2 text-xs text-violet-300 hover:bg-violet-950">Auftrag öffnen</Link>
+            </article>)}
           </div>
         </section>;
       })}

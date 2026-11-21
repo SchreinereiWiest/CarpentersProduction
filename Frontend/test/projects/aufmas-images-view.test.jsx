@@ -3,19 +3,16 @@ import { describe, expect, it, vi } from "vitest";
 import ImagesView from "../../src/features/projects/measurement/views/images/ImagesView.jsx";
 
 describe("Aufmaß project images", () => {
-  it("creates a named editable view from a selected project image", () => {
+  it("opens a project image in fullscreen", () => {
     const photo = {
       id: "photo-1",
       fileName: "schrankwand.jpg",
       url: "blob:schrankwand"
     };
-    const onCreateView = vi.fn();
-
     render(
       <ImagesView
         photos={[photo]}
         onUpload={vi.fn()}
-        onCreateView={onCreateView}
         uploading={false}
       />
     );
@@ -23,28 +20,23 @@ describe("Aufmaß project images", () => {
     fireEvent.click(
       screen.getByRole("button", { name: /schrankwand\.jpg/i })
     );
-    const nameInput = screen.getByLabelText("Name der Ansicht");
-    expect(nameInput).toHaveValue("schrankwand");
-
-    fireEvent.change(nameInput, { target: { value: "Front Schrankwand" } });
-    fireEvent.click(screen.getByRole("button", { name: "Ansicht hinzufügen" }));
-
-    expect(onCreateView).toHaveBeenCalledWith(photo, "Front Schrankwand");
+    expect(screen.getByRole("dialog", { name: "schrankwand.jpg im Vollbild" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Vollbild schließen" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("does not offer view creation in read-only mode", () => {
+  it("keeps fullscreen viewing available in read-only mode", () => {
     render(
       <ImagesView
         photos={[{ id: "photo-1", fileName: "raum.png", url: "blob:raum" }]}
         onUpload={vi.fn()}
-        onCreateView={vi.fn()}
         uploading={false}
         readOnly
       />
     );
 
-    expect(screen.getByRole("button", { name: /raum\.png/i })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /raum\.png/i }));
+    expect(screen.getByRole("dialog", { name: "raum.png im Vollbild" })).toBeInTheDocument();
   });
 
   it("setzt im Auswahlmodus ein Bild direkt in das Exposé ein", () => {
@@ -56,7 +48,6 @@ describe("Aufmaß project images", () => {
       <ImagesView
         photos={[photo]}
         onUpload={vi.fn()}
-        onCreateView={vi.fn()}
         uploading={false}
         selectionMode
         onSelectPhoto={onSelectPhoto}

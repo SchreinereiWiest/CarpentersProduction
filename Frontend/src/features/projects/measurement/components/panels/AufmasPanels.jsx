@@ -664,7 +664,7 @@ const ViewPreview = ({ view, imageUrl }) => {
       <img
         src={imageUrl}
         alt=""
-        className="h-full w-full object-cover opacity-80"
+        className="h-full w-full object-cover"
       />
     );
   }
@@ -685,6 +685,7 @@ export function ViewStrip({
   onViewChange,
   objects,
   photos = [],
+  onAddView,
   collapsed = false,
   onToggleCollapsed
 }) {
@@ -772,6 +773,19 @@ export function ViewStrip({
             </button>
           );
         })}
+        <button
+          type="button"
+          onClick={onAddView}
+          disabled={!onAddView}
+          className="flex w-24 shrink-0 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-[#405666] bg-[#17232c] text-[#83a2b5] transition hover:border-[#6aa8d1] hover:bg-[#1d303d] hover:text-[#bfe3f7] disabled:cursor-not-allowed disabled:opacity-35"
+          aria-label="Neue Ansicht hinzufügen"
+          title="Neue Ansicht oder neues Exposé hinzufügen"
+        >
+          <span className="flex size-9 items-center justify-center rounded-full border border-current/40 bg-[#101920]">
+            <AufmasIcon name="plus" className="size-4" />
+          </span>
+          <span className="text-[10px] font-semibold">Hinzufügen</span>
+        </button>
       </div>
       <button
         type="button"

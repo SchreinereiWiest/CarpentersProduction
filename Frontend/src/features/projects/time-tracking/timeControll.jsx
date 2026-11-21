@@ -26,6 +26,16 @@ export default function TimeControls({
 
     const [selectedUserId, setSelectedUserId] = useState("");
 
+    const [directTime, setDirectTime] = useState(() => ({
+        date: new Date().toLocaleDateString("sv-SE"),
+        start: "",
+        end: "",
+        workType: "",
+        customWorkType: ""
+    }));
+
+    const [directTimeMessage, setDirectTimeMessage] = useState(null);
+
     const timeUser = allUsers.find(entry => entry.id === selectedUserId) ?? user ?? null;
 
     useEffect(() => {
@@ -152,6 +162,41 @@ export default function TimeControls({
 
         }
 
+    }
+
+    async function saveDirectTime() {
+        const startTime = new Date(`${directTime.date}T${directTime.start}`);
+        const endTime = new Date(`${directTime.date}T${directTime.end}`);
+        const duration = Math.round((endTime.getTime() - startTime.getTime()) / 60_000);
+        if (!directTime.workType || !directTime.start || !directTime.end || !Number.isInteger(duration) || duration <= 0) {
+            setDirectTimeMessage({ type: "error", text: "Bitte Tätigkeit, Beginn und ein späteres Ende eintragen." });
+            return;
+        }
+        if (directTime.workType === CUSTOM_WORK_TYPE_ID && !directTime.customWorkType.trim()) {
+            setDirectTimeMessage({ type: "error", text: "Bitte die eigene Tätigkeit benennen." });
+            return;
+        }
+
+        setDirectTimeMessage(null);
+        try {
+            await axios.post(`/api/projects/time/${projectId}/new`, {
+                workType: directTime.workType,
+                customWorkType: directTime.workType === CUSTOM_WORK_TYPE_ID
+                    ? directTime.customWorkType.trim()
+                    : null,
+                userId: timeUser.id,
+                startTime: startTime.toISOString(),
+                endTime: endTime.toISOString()
+            });
+            setDirectTime(previous => ({ ...previous, start: "", end: "", customWorkType: "" }));
+            setDirectTimeMessage({ type: "success", text: "Der Uhrzeiteintrag wurde direkt diesem Projekt zugeordnet." });
+            await reload();
+        } catch (error) {
+            setDirectTimeMessage({
+                type: "error",
+                text: error.response?.data?.message || "Der Uhrzeiteintrag konnte nicht gespeichert werden."
+            });
+        }
     }
 
     useEffect(() => {
@@ -385,6 +430,40 @@ export default function TimeControls({
 
 </div>
 
+            <section className="rounded-lg border border-gray-700 bg-gray-900 p-4">
+                <div>
+                    <h3 className="font-semibold">Direkter Uhrzeiteintrag</h3>
+                    <p className="mt-1 text-xs text-gray-500">Beginn und Ende werden automatisch dem geöffneten Projekt zugeordnet.</p>
+                </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                    <label className="text-sm text-gray-300">
+                        Datum
+                        <input type="date" value={directTime.date} onChange={event => setDirectTime(previous => ({ ...previous, date: event.target.value }))} className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white" />
+                    </label>
+                    <label className="text-sm text-gray-300">
+                        Tätigkeit
+                        <select value={directTime.workType} onChange={event => setDirectTime(previous => ({ ...previous, workType: event.target.value }))} className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white">
+                            <option value="">Tätigkeit wählen</option>
+                            {workTypes.map(work => <option key={work.id} value={work.id}>{work.label}</option>)}
+                            <option value={CUSTOM_WORK_TYPE_ID}>Eigene Tätigkeit</option>
+                        </select>
+                    </label>
+                    <label className="text-sm text-gray-300">
+                        Start
+                        <input type="time" value={directTime.start} onChange={event => setDirectTime(previous => ({ ...previous, start: event.target.value }))} className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white" />
+                    </label>
+                    <label className="text-sm text-gray-300">
+                        Ende
+                        <input type="time" value={directTime.end} onChange={event => setDirectTime(previous => ({ ...previous, end: event.target.value }))} className="mt-1 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-white" />
+                    </label>
+                </div>
+                {directTime.workType === CUSTOM_WORK_TYPE_ID && (
+                    <input type="text" value={directTime.customWorkType} onChange={event => setDirectTime(previous => ({ ...previous, customWorkType: event.target.value }))} placeholder="Eigene Tätigkeit benennen" className="mt-3 w-full rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white" />
+                )}
+                {directTimeMessage && <p className={`mt-3 text-sm ${directTimeMessage.type === "success" ? "text-green-400" : "text-red-400"}`} role="status">{directTimeMessage.text}</p>}
+                <button type="button" onClick={saveDirectTime} disabled={Boolean(runningEntry) || !timeUser} className="mt-4 w-full rounded-lg bg-cyan-700 py-2.5 font-semibold hover:bg-cyan-600 disabled:cursor-not-allowed disabled:bg-gray-700 disabled:text-gray-500">Uhrzeit direkt eintragen</button>
+            </section>
+
             <button
 
                 onClick={saveManualTimes}
@@ -408,7 +487,7 @@ export default function TimeControls({
 
             >
 
-                Manuelle Zeiten speichern
+                Stunden eintragen
 
             </button>
 

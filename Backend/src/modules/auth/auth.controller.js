@@ -12,6 +12,8 @@ import { assertActiveLicense, LicenseError } from "../licensing/services/index.j
 import {
   bootstrapTenantAdmin,
   ensureOnboardingForFirstAdminLogin,
+  parseTenantBootstrapInput,
+  provisionBootstrapTenant,
   TenantBootstrapError,
   tenantNeedsBootstrap
 } from "../tenants/tenant-bootstrap.service.js";
@@ -146,10 +148,11 @@ export const bootstrap = async (req, res) => {
       return res.status(400).json({ error: "BOOTSTRAP_VALIDATION", message: "Firma ist erforderlich" });
     }
 
-    const tenant = await findActiveTenant(companyInput);
-    if (!tenant) {
-      return res.status(401).json({ error: "BOOTSTRAP_NOT_AVAILABLE", message: "Ersteinrichtung nicht verfügbar" });
-    }
+    // Erst die vollständigen Eingaben validieren, bevor für eine neue Lizenz
+    // eine lokale Installations-ID reserviert wird.
+    parseTenantBootstrapInput(req.body);
+    const tenant = await findActiveTenant(companyInput)
+      ?? await provisionBootstrapTenant(companyInput);
 
     const user = await bootstrapTenantAdmin(tenant, req.body);
     return res.status(201).json({

@@ -413,7 +413,7 @@ function EstimationView({ project, cabinetSummary, materialCost, estimation, onA
         </Card>
         <Card
           title="Automatische Stundenschätzung"
-          description="Derzeitige Übergangsschätzung aus Iststunden und Projektmerkmalen; später durch die Snapshot- und Embedding-Pipeline ersetzt."
+          description="Algorithmische Schätzung aus freigegebenen Iststunden, Projektmerkmalen und gewichteten Vergleichsdaten."
           className="lg:col-span-2"
         >
           <div className="flex flex-wrap items-end justify-between gap-5">
@@ -473,9 +473,6 @@ function EstimationView({ project, cabinetSummary, materialCost, estimation, onA
           <div className="rounded-xl border border-blue-900/70 bg-blue-950/30 p-4 text-sm leading-6 text-blue-100">
             {estimation.explanation}
           </div>
-          <p className="mt-4 text-xs leading-5 text-gray-500">
-            Geplante Pipeline: Projektbaum als versionierten Snapshot verdichten, mit einem lokalen Ollama-Embedding-Modell indexieren und passende Snapshots anhand der Suchkriterien abrufen. Ein separates generatives Ollama-Modell formuliert anschließend aus den Treffern die Begründung der Stundenprognose.
-          </p>
         </Card>
       </div>
     </div>

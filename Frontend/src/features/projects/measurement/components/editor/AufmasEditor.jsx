@@ -998,7 +998,7 @@ export default function AufmasEditor({
               width="892"
               height="542"
               preserveAspectRatio="xMidYMid meet"
-              opacity={calibrationDxfStep ? 0.18 : 0.74}
+              opacity={calibrationDxfStep ? 0.18 : 1}
             />
           )}
           {display.dxf && drawingPath && (

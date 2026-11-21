@@ -1,4 +1,4 @@
-import prisma from "../../infrastructure/database/prisma.js";
+import prisma, { systemPrisma } from "../../infrastructure/database/prisma.js";
 import { loadCommissionWorkspace, sourceItems } from "./commercial.service.js";
 import {
   COMMERCIAL_DOCUMENT_TYPES,
@@ -7,6 +7,7 @@ import {
   commissionData,
   normalizeTemplateAnalysis
 } from "./commercial.validation.js";
+import { removeWorkAssignments, upsertWorkAssignment, WORK_ASSIGNMENT_KIND } from "../assignments/work-assignment.service.js";
 
 const sendExpectedError = (res, error) => {
   if (!error.statusCode && !(error instanceof CommercialValidationError)) throw error;
@@ -113,8 +114,13 @@ const documentInclude = {
   customer: { select: { id: true, firstName: true, lastName: true, companyName: true, customerNumber: true, addresses: { where: { deletedAt: null } } } },
   project: { select: { id: true, title: true, projectNumber: true } },
   commission: { select: { id: true, title: true, commissionNumber: true } },
-  template: { select: { id: true, name: true, documentType: true, isDefault: true, analysis: true } }
+  template: { select: { id: true, name: true, documentType: true, isDefault: true, analysis: true } },
+  assignedTo: { select: { id: true, firstName: true, lastName: true, login: true } }
 };
+
+const canManageCommercialDocuments = user => ["admin", "manager"].includes(user?.role);
+const canAccessCommercialDocument = (user, document) => canManageCommercialDocuments(user) || document?.assignedToId === user?.id;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export async function listCustomerDocuments(req, res) {
   const documents = await prisma.commercialDocument.findMany({ where: { customerId: req.params.customerId }, include: documentInclude, orderBy: { createdAt: "desc" } });
@@ -124,7 +130,63 @@ export async function listCustomerDocuments(req, res) {
 export async function getCommercialDocument(req, res) {
   const document = await prisma.commercialDocument.findFirst({ where: { id: req.params.id }, include: documentInclude });
   if (!document) return res.status(404).json({ message: "Beleg nicht gefunden." });
+  if (!canAccessCommercialDocument(req.user, document)) return res.status(403).json({ message: "Dieser Beleg ist dir nicht zur Bearbeitung zugewiesen." });
   return res.json({ document });
+}
+
+export async function listCommercialDocumentAssignees(req, res) {
+  const memberships = await systemPrisma.tenantMembership.findMany({
+    where: { tenantId: req.tenant.id, isActive: true, user: { isActive: true, deletedAt: null } },
+    include: { user: { select: { id: true, firstName: true, lastName: true, login: true } } },
+    orderBy: [{ user: { lastName: "asc" } }, { user: { firstName: "asc" } }]
+  });
+  return res.json({ assignees: memberships.map(membership => ({
+    id: membership.user.id,
+    name: [membership.user.firstName, membership.user.lastName].filter(Boolean).join(" ") || membership.user.login,
+    role: membership.role
+  })) });
+}
+
+export async function updateCommercialDocumentAssignee(req, res) {
+  const document = await prisma.commercialDocument.findFirst({ where: { id: req.params.id }, select: { id: true, assignedToId: true } });
+  if (!document) return res.status(404).json({ message: "Beleg nicht gefunden." });
+  const assignedToId = req.body?.userId ? String(req.body.userId) : null;
+  if (assignedToId && !UUID.test(assignedToId)) return res.status(400).json({ message: "Ungültiger Bearbeiter." });
+  if (assignedToId) {
+    const membership = await systemPrisma.tenantMembership.findFirst({
+      where: { tenantId: req.tenant.id, userId: assignedToId, isActive: true, user: { isActive: true, deletedAt: null } },
+      select: { id: true }
+    });
+    if (!membership) return res.status(404).json({ message: "Bearbeiter wurde nicht gefunden." });
+  }
+  const updated = await prisma.$transaction(async transaction => {
+    const result = await transaction.commercialDocument.update({ where: { id: document.id }, data: { assignedToId }, include: documentInclude });
+    if (document.assignedToId && document.assignedToId !== assignedToId) {
+      await removeWorkAssignments(transaction, { kind: WORK_ASSIGNMENT_KIND.COMMERCIAL_DOCUMENT, sourceId: document.id, assigneeId: document.assignedToId });
+    }
+    if (assignedToId) {
+      await upsertWorkAssignment(transaction, {
+        kind: WORK_ASSIGNMENT_KIND.COMMERCIAL_DOCUMENT,
+        sourceId: result.id,
+        assigneeId: assignedToId,
+        createdById: req.user.id,
+        title: `${result.documentNumber ? `${result.documentNumber} · ` : ""}${result.title}`,
+        info: result.project?.title || result.customer?.companyName || null,
+        href: `/Belege/${result.id}`
+      });
+    }
+    await transaction.auditLog.create({
+      data: {
+        actorUserId: req.user.id,
+        action: "commercial.document.assign_user",
+        entityType: "CommercialDocument",
+        entityId: document.id,
+        metadata: { assignedToId, previousAssignedToId: document.assignedToId }
+      }
+    });
+    return result;
+  });
+  return res.json({ document: updated });
 }
 
 async function nextDocumentNumber(documentType) {
@@ -134,13 +196,29 @@ async function nextDocumentNumber(documentType) {
   return `${prefix}-${year}-${String(count + 1).padStart(4, "0")}`;
 }
 
+async function validateCommercialTargets(customerId, rawProjectId, rawCommissionId) {
+  const projectId = rawProjectId ? String(rawProjectId) : null;
+  const commissionId = rawCommissionId ? String(rawCommissionId) : null;
+  if (projectId && commissionId) throw new CommercialValidationError("Ein Beleg kann entweder einem Projekt oder einer Kommission zugeordnet werden.");
+  if (projectId) {
+    if (!UUID.test(projectId)) throw new CommercialValidationError("Ungültiges Projekt.");
+    const project = await prisma.project.findFirst({ where: { id: projectId, customerId, deletedAt: null }, select: { id: true } });
+    if (!project) throw new CommercialValidationError("Das Projekt wurde nicht gefunden oder gehört nicht zu diesem Kunden.");
+  }
+  if (commissionId) {
+    if (!UUID.test(commissionId)) throw new CommercialValidationError("Ungültige Kommission.");
+    const commission = await prisma.commission.findFirst({ where: { id: commissionId, customerId }, select: { id: true } });
+    if (!commission) throw new CommercialValidationError("Die Kommission wurde nicht gefunden oder gehört nicht zu diesem Kunden.");
+  }
+  return { projectId, commissionId };
+}
+
 export async function createCommercialDocument(req, res) {
   try {
     const customerId = String(req.body?.customerId || "");
     const customer = await prisma.customer.findFirst({ where: { id: customerId, deletedAt: null }, select: { id: true } });
     if (!customer) return res.status(404).json({ message: "Kunde nicht gefunden." });
-    const projectId = req.body?.projectId || null;
-    const commissionId = req.body?.commissionId || null;
+    const { projectId, commissionId } = await validateCommercialTargets(customerId, req.body?.projectId, req.body?.commissionId);
     const seededItems = req.body?.items || await sourceItems({ customerId, projectId, commissionId });
     const normalized = commercialDocumentData({ ...req.body, items: seededItems });
     const defaultTemplate = await prisma.documentTemplate.findFirst({
@@ -169,8 +247,9 @@ export async function createCommercialDocument(req, res) {
 
 export async function updateCommercialDocument(req, res) {
   try {
-    const current = await prisma.commercialDocument.findFirst({ where: { id: req.params.id }, select: { id: true } });
+    const current = await prisma.commercialDocument.findFirst({ where: { id: req.params.id }, select: { id: true, assignedToId: true } });
     if (!current) return res.status(404).json({ message: "Beleg nicht gefunden." });
+    if (!canAccessCommercialDocument(req.user, current)) return res.status(403).json({ message: "Dieser Beleg ist dir nicht zur Bearbeitung zugewiesen." });
     const data = commercialDocumentData(req.body, { partial: true });
     if (data.documentType) {
       const defaultTemplate = await prisma.documentTemplate.findFirst({ where: { documentType: data.documentType, status: "active", isDefault: true }, select: { id: true, analysis: true } });

@@ -57,6 +57,11 @@ import { getAufmasWorkspaceCache, setAufmasWorkspaceCache } from "../measurement
 import { createProjectRecord } from "../legacy-editor/uploadProject.js";
 import CustomerSearch from "../legacy-editor/customerSearch.jsx";
 import { getProjectRecord } from "../../../shared/projects/project-records.js";
+import { getProjectAssetUrl } from "../../../shared/cache/project-asset-cache.js";
+import {
+    isProjectAttachmentFile,
+    loadAttachmentLinks
+} from "../attachments/attachmentLinks.js";
 export default function CabinetEditor() {
 
     // conmstant Section alle Editor daten
@@ -115,6 +120,10 @@ export default function CabinetEditor() {
     const [cabinetPresets, setCabinetPresets] = useState([]);
 
     const [functionPresets, setFunctionPresets] = useState([]);
+
+    const [projectAttachments, setProjectAttachments] = useState([]);
+
+    const [attachmentLinks, setAttachmentLinks] = useState({ version: 1, links: {} });
 
     const [presetEditorCabinet, setPresetEditorCabinet] = useState(null);
 
@@ -1234,6 +1243,25 @@ export default function CabinetEditor() {
     }, [projectId]);
 
     useEffect(() => {
+        if (!projectId || !project?.files) return;
+        let cancelled = false;
+        Promise.all([
+            loadAttachmentLinks(projectId),
+            Promise.all(project.files.filter(isProjectAttachmentFile).map(async file => ({
+                ...file,
+                url: await getProjectAssetUrl(file)
+            })))
+        ]).then(([links, attachments]) => {
+            if (cancelled) return;
+            setAttachmentLinks(links);
+            setProjectAttachments(attachments);
+        }).catch(error => {
+            if (!cancelled) console.warn("Verknüpfte Anlagen konnten nicht geladen werden", error);
+        });
+        return () => { cancelled = true; };
+    }, [project?.files, projectId]);
+
+    useEffect(() => {
         if (mode !== "edit" || !projectId) {
             return;
         }
@@ -1561,6 +1589,8 @@ export default function CabinetEditor() {
                                 cabinetPresets={cabinetPresets}
                                 functionPresets={functionPresets}
                                 activeCabinet={activeCabinet}
+                                attachments={projectAttachments}
+                                attachmentLinks={attachmentLinks}
                                 onInsertCabinetPreset={insertSelectedCabinetPreset}
                                 onInsertFunctionPreset={insertSelectedFunctionPreset}
                                 onSavePreset={() => setPresetEditorCabinet({ cabinet: activeCabinet, presetId: null, allowTypeSelection: true })}

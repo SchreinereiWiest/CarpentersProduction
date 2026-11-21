@@ -122,7 +122,7 @@ export default function AppRouter() {
           <Route path="/Kontakte/NewProject/:userId" element={protectedPage(<CabinetEditorPage />, "admin", ["crm", "work-preparation"])} />
           <Route path="/Kommissionen/:commissionId" element={protectedPage(<CommissionPage />, "admin", ["crm", "work-preparation", "calculation"])} />
           <Route path="/Belege/neu" element={protectedPage(<CommercialDocumentEditorPage />, "admin", ["crm"])} />
-          <Route path="/Belege/:documentId" element={protectedPage(<CommercialDocumentEditorPage />, "admin", ["crm"])} />
+          <Route path="/Belege/:documentId" element={protectedPage(<CommercialDocumentEditorPage />, "user", ["crm"])} />
 
           <Route path="/CompanySettings" element={protectedPage(<CompanySettingsPage />, "user")} />
           <Route path="/User" element={protectedPage(<UserProfilePage />)} />

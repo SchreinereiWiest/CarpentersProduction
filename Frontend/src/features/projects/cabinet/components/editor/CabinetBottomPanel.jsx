@@ -3,6 +3,7 @@ import { buildPartList } from "@Engine/cabinet/partList/buildPartList.js";
 import CncViewport from "../../../cnc/shared/cncViewport.jsx";
 import { CarcassLayer } from "../view/corpus.view.jsx";
 import { InteriorLayer } from "../view/interiorLayer.view.jsx";
+import { attachmentsForCabinet } from "../../../attachments/attachmentLinks.js";
 
 const flattenParts = roots => (roots ?? []).flatMap(root =>
     (root.Children ?? []).map(part => ({
@@ -45,6 +46,8 @@ export default function CabinetBottomPanel({
     cabinetPresets,
     functionPresets,
     activeCabinet,
+    attachments = [],
+    attachmentLinks = { links: {} },
     onInsertCabinetPreset,
     onInsertFunctionPreset,
     onSavePreset,
@@ -56,6 +59,7 @@ export default function CabinetBottomPanel({
     const [partError, setPartError] = useState("");
     const [collapsed, setCollapsed] = useState(false);
     const [selectedFace, setSelectedFace] = useState("A");
+    const [selectedAttachment, setSelectedAttachment] = useState(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -85,9 +89,21 @@ export default function CabinetBottomPanel({
         [parts, selectedPartId]
     );
     const operations = selectedPart?.CNC?.operations ?? [];
+    const linkedAttachments = useMemo(
+        () => attachmentsForCabinet(attachments, attachmentLinks, activeCabinet?.id),
+        [activeCabinet?.id, attachmentLinks, attachments]
+    );
     const faceCount = face => operations.filter(operation => (operation.face ?? "A") === face).length;
 
+    useEffect(() => {
+        if (!selectedAttachment) return undefined;
+        const close = event => event.key === "Escape" && setSelectedAttachment(null);
+        window.addEventListener("keydown", close);
+        return () => window.removeEventListener("keydown", close);
+    }, [selectedAttachment]);
+
     return (
+        <>
         <section className={`${collapsed ? "h-9" : "h-[220px]"} shrink-0 border-t border-white/10 bg-[#151719] transition-[height]`}>
             <div className="flex h-9 items-center border-b border-white/10 px-2">
                 <button
@@ -103,6 +119,7 @@ export default function CabinetBottomPanel({
                     <TabButton active={tab === "presets"} onClick={() => setTab("presets")}>Preset-Liste</TabButton>
                     <TabButton active={tab === "functions"} onClick={() => setTab("functions")}>Function Presets</TabButton>
                     <TabButton active={tab === "parts"} onClick={() => setTab("parts")}>Bauteile <span className="ml-1 text-gray-600">{parts.length}</span></TabButton>
+                    <TabButton active={tab === "attachments"} onClick={() => setTab("attachments")}>Anlagen <span className="ml-1 text-gray-600">{linkedAttachments.length}</span></TabButton>
                 </>}
                 {!collapsed && tab === "presets" && canSavePreset && (
                     <button
@@ -193,6 +210,32 @@ export default function CabinetBottomPanel({
                     </div>
                 </div>
             )}
+
+            {!collapsed && tab === "attachments" && (
+                <div className="flex h-[180px] gap-3 overflow-x-auto p-3">
+                    {!activeCabinet && <p className="text-sm text-gray-500">Wähle einen Korpus aus, um seine Anlagen zu sehen.</p>}
+                    {activeCabinet && linkedAttachments.length === 0 && <p className="text-sm text-gray-500">Mit diesem Korpus sind noch keine Anlagen verknüpft.</p>}
+                    {linkedAttachments.map(attachment => (
+                        <button key={attachment.id} type="button" onClick={() => setSelectedAttachment(attachment)} className="h-36 w-52 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-[#1d2023] text-left hover:border-blue-600/70 hover:bg-[#24282c]">
+                            <div className="flex h-24 items-center justify-center overflow-hidden bg-[#0f1113]">
+                                {attachment.mimeType === "application/pdf" ? <span className="rounded bg-red-950 px-3 py-2 text-xs font-semibold text-red-300">PDF</span> : <img src={attachment.url} alt="" className="h-full w-full object-cover" />}
+                            </div>
+                            <div className="truncate px-3 py-2 text-xs text-gray-300">{attachment.fileName}</div>
+                        </button>
+                    ))}
+                </div>
+            )}
         </section>
+        {selectedAttachment && (
+            <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/85 p-5" role="dialog" aria-modal="true" aria-label={`${selectedAttachment.fileName} im Vollbild`} onMouseDown={event => event.target === event.currentTarget && setSelectedAttachment(null)}>
+                <button type="button" onClick={() => setSelectedAttachment(null)} className="absolute right-5 top-5 rounded-lg border border-white/20 bg-black/60 px-4 py-2 text-sm text-white hover:bg-black/80">Schließen</button>
+                {selectedAttachment.mimeType === "application/pdf" ? (
+                    <iframe src={selectedAttachment.url} title={selectedAttachment.fileName} className="h-[calc(100dvh-5rem)] w-[min(1100px,calc(100vw-3rem))] bg-white" />
+                ) : (
+                    <img src={selectedAttachment.url} alt={selectedAttachment.fileName} className="max-h-[calc(100dvh-3rem)] max-w-[calc(100vw-3rem)] object-contain" />
+                )}
+            </div>
+        )}
+        </>
     );
 }

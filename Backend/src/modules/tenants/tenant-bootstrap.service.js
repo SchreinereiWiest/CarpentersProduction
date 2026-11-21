@@ -52,6 +52,52 @@ export async function tenantNeedsBootstrap(tenantId, database = systemPrisma) {
     return (await database.tenantMembership.count({ where: { tenantId } })) === 0;
 }
 
+export function tenantSlugForCompany(value) {
+    return String(value || "")
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLocaleLowerCase("de-DE")
+        .replace(/ß/g, "ss")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 80) || "unternehmen";
+}
+
+export async function provisionBootstrapTenant(company, database = systemPrisma) {
+    const name = requiredText(company, "Firma");
+    const requestedSlug = tenantSlugForCompany(name);
+
+    return database.$transaction(async transaction => {
+        await transaction.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${name.toLocaleLowerCase("de-DE")}))`;
+        const existing = await transaction.tenant.findFirst({
+            where: { name: { equals: name, mode: "insensitive" } }
+        }) ?? await transaction.tenant.findFirst({
+            where: {
+                slug: { equals: name, mode: "insensitive" },
+                status: "pending-setup"
+            }
+        });
+        if (existing) {
+            if (["active", "pending-setup"].includes(existing.status)) return existing;
+            throw new TenantBootstrapError(
+                "Die Ersteinrichtung ist für dieses Unternehmen nicht verfügbar",
+                "BOOTSTRAP_NOT_AVAILABLE",
+                401
+            );
+        }
+
+        let slug = requestedSlug;
+        let suffix = 1;
+        while (await transaction.tenant.findUnique({ where: { slug } })) {
+            suffix += 1;
+            slug = `${requestedSlug.slice(0, 72)}-${suffix}`;
+        }
+        return transaction.tenant.create({
+            data: { name, slug, status: "pending-setup" }
+        });
+    });
+}
+
 /**
  * Sichert auch für extern oder per CLI angelegte Mandanten den gewünschten
  * Erststart ab. Migrierte Bestandsmandanten besitzen bereits einen als
@@ -108,6 +154,13 @@ export async function bootstrapTenantAdmin(tenant, body, database = systemPrisma
     const license = await activateLicense(tenant, input.licenseKey);
     if (license.status !== "active") {
         throw new TenantBootstrapError("Die Lizenz ist nicht aktiv", "LICENSE_INACTIVE", 403);
+    }
+
+    if (tenant.status !== "active") {
+        tenant = await database.tenant.update({
+            where: { id: tenant.id },
+            data: { status: "active" }
+        });
     }
 
     const passwordHash = await hashPassword(input.password);

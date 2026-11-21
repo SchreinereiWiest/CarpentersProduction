@@ -64,7 +64,9 @@ export default function DocumentLayoutEditor({ value, onChange, logoDataUrl = ""
   const [zoom, setZoom] = useState(100);
   const [guides, setGuides] = useState({ x: null, y: null });
   const canvasRef = useRef(null);
+  const editorRef = useRef(null);
   const gestureRef = useRef(null);
+  const pinchRef = useRef(null);
   const selected = layout.objects.find(item => item.id === selectedId) || null;
 
   useEffect(() => {
@@ -80,6 +82,24 @@ export default function DocumentLayoutEditor({ value, onChange, logoDataUrl = ""
       document.removeEventListener("keydown", onKey);
     };
   }, [layout, onChange, onClose, selectedId]);
+
+  useEffect(() => {
+    const editorNode = editorRef.current;
+    if (!editorNode) return undefined;
+    const onWheel = event => {
+      const zoomArea = event.target.closest?.("[data-layout-zoom]");
+      if (zoomArea) {
+        const delta = event.deltaY || event.deltaX;
+        if (!delta) return;
+        event.preventDefault();
+        setZoom(current => Math.max(40, Math.min(180, current + (delta < 0 ? 5 : -5))));
+        return;
+      }
+      if (!event.target.closest?.("[data-layout-scroll]")) event.preventDefault();
+    };
+    editorNode.addEventListener("wheel", onWheel, { passive: false });
+    return () => editorNode.removeEventListener("wheel", onWheel);
+  }, []);
 
   const commit = objects => onChange({ ...layout, objects });
   const patchSelected = patch => commit(layout.objects.map(item => item.id === selectedId ? { ...item, ...patch } : item));
@@ -150,6 +170,19 @@ export default function DocumentLayoutEditor({ value, onChange, logoDataUrl = ""
   };
 
   const stopGesture = () => { gestureRef.current = null; setGuides({ x: null, y: null }); };
+  const touchDistance = touches => Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
+  const startPinch = event => {
+    if (event.touches.length !== 2) return;
+    gestureRef.current = null;
+    pinchRef.current = { distance: touchDistance(event.touches), zoom };
+  };
+  const movePinch = event => {
+    if (event.touches.length !== 2 || !pinchRef.current?.distance) return;
+    event.preventDefault();
+    const scale = touchDistance(event.touches) / pinchRef.current.distance;
+    setZoom(Math.max(40, Math.min(180, Math.round(pinchRef.current.zoom * scale))));
+  };
+  const stopPinch = event => { if (event.touches.length < 2) pinchRef.current = null; };
   const removeSelected = () => { if (!selected) return; commit(layout.objects.filter(item => item.id !== selected.id)); setSelectedId(null); };
   const reorder = direction => {
     if (!selected) return;
@@ -162,17 +195,17 @@ export default function DocumentLayoutEditor({ value, onChange, logoDataUrl = ""
 
   const gridSize = layout.page.gridSize;
   const editor = <div className="grid min-h-0 flex-1 gap-4 overflow-hidden p-3 xl:grid-cols-[210px_minmax(540px,1fr)_285px]">
-    <aside className="min-h-0 overflow-y-auto rounded-xl border border-slate-700 bg-slate-900/70 p-3">
+    <aside data-layout-scroll className="min-h-0 overscroll-contain overflow-y-auto rounded-xl border border-slate-700 bg-slate-900/70 p-3">
       <h3 className="text-sm font-semibold">Elemente einfügen</h3>
       <div className="mt-3 grid grid-cols-2 gap-2 xl:grid-cols-1">{TOOLS.map(([id, label]) => <button key={id} type="button" disabled={id === "logo" && !logoDataUrl} onClick={() => setTool(id)} className={`rounded-lg border px-3 py-2 text-left text-sm disabled:opacity-40 ${tool === id ? "border-sky-500 bg-sky-500/15 text-sky-200" : "border-slate-700 hover:bg-slate-800"}`}>{label}</button>)}</div>
-      <p className="mt-3 text-xs leading-relaxed text-slate-500">Element wählen und auf die Arbeitsfläche klicken. Ziehen verschiebt, der blaue Griff ändert die Größe. Raster und Objektkanten rasten automatisch ein.</p>
+      <p className="mt-3 text-xs leading-relaxed text-slate-500">Element wählen und auf die Arbeitsfläche klicken. Ziehen verschiebt, der blaue Griff ändert die Größe. Mausrad oder Zwei-Finger-Geste skalieren die Belegansicht. Raster und Objektkanten rasten automatisch ein.</p>
       {!logoDataUrl && <p className="mt-2 text-xs text-amber-300">Ein Logo kann unter „Unternehmen“ hinterlegt werden.</p>}
       <div className="mt-4 grid grid-cols-2 gap-2"><NumberField label="Raster (mm)" value={gridSize} min={0.5} max={20} onChange={value => onChange({ ...layout, page: { ...layout.page, gridSize: value } })}/><ColorField label="Seitenfarbe" value={layout.page.background} onChange={background => onChange({ ...layout, page: { ...layout.page, background } })}/></div>
       <h3 className="mt-5 border-t border-slate-700 pt-4 text-sm font-semibold">Ebenen</h3>
       <div className="mt-2 max-h-80 space-y-1 overflow-y-auto">{[...layout.objects].reverse().map(item => <button type="button" key={item.id} onClick={() => setSelectedId(item.id)} className={`block w-full truncate rounded px-2 py-1.5 text-left text-xs ${selectedId === item.id ? "bg-sky-500/20 text-sky-200" : "text-slate-400 hover:bg-slate-800"}`}>{objectLabel(item)}</button>)}</div>
     </aside>
 
-    <div className="min-h-0 overflow-auto rounded-xl bg-slate-950/70 p-4 sm:p-7">
+    <div data-layout-scroll data-layout-zoom role="region" aria-label="Skalierbare Beleg-Arbeitsfläche" onTouchStart={startPinch} onTouchMove={movePinch} onTouchEnd={stopPinch} onTouchCancel={stopPinch} className="min-h-0 touch-none overscroll-contain overflow-auto rounded-xl bg-slate-950/70 p-4 sm:p-7">
       <div ref={canvasRef} onPointerDown={canvasPointerDown} onPointerMove={moveGesture} onPointerUp={stopGesture} onPointerCancel={stopGesture} className={`relative mx-auto touch-none overflow-hidden shadow-2xl ${tool !== "select" ? "cursor-crosshair" : ""}`} style={{ width: `${zoom}%`, minWidth: `${zoom * 5.4}px`, aspectRatio: `${LAYOUT_WIDTH}/${LAYOUT_HEIGHT}`, backgroundColor: layout.page.background, backgroundImage: "linear-gradient(to right, rgba(100,116,139,.14) 1px, transparent 1px), linear-gradient(to bottom, rgba(100,116,139,.14) 1px, transparent 1px)", backgroundSize: `${gridSize / LAYOUT_WIDTH * 100}% ${gridSize / LAYOUT_HEIGHT * 100}%`, containerType: "inline-size" }}>
         {layout.objects.filter(item => item.visible !== false).map(item => <PreviewObject key={item.id} item={item} logoDataUrl={logoDataUrl} selected={item.id === selectedId} onMoveStart={(event, entry) => startGesture(event, entry, "move")} onResizeStart={(event, entry) => startGesture(event, entry, "resize")}/>) }
         {guides.x !== null && (
@@ -184,7 +217,7 @@ export default function DocumentLayoutEditor({ value, onChange, logoDataUrl = ""
       </div>
     </div>
 
-    <aside className="min-h-0 overflow-y-auto rounded-xl border border-slate-700 bg-slate-900/70 p-3">
+    <aside data-layout-scroll className="min-h-0 overscroll-contain overflow-y-auto rounded-xl border border-slate-700 bg-slate-900/70 p-3">
       <h3 className="text-sm font-semibold">Eigenschaften</h3>
       {!selected && <p className="mt-3 text-xs text-slate-500">Ein Element auf der Seite oder in der Ebenenliste auswählen.</p>}
       {selected && <div className="mt-3 space-y-3">
@@ -209,7 +242,7 @@ export default function DocumentLayoutEditor({ value, onChange, logoDataUrl = ""
     </aside>
   </div>;
 
-  return <div className="fixed inset-0 z-[110] flex flex-col overflow-hidden bg-slate-950 text-white shadow-2xl" role="region" aria-label="Belegvorlage im Vollbild bearbeiten">
+  return <div ref={editorRef} className="fixed inset-0 z-[110] flex flex-col overscroll-none overflow-hidden bg-slate-950 text-white shadow-2xl" role="region" aria-label="Belegvorlage im Vollbild bearbeiten">
     <div className="flex shrink-0 flex-wrap items-center gap-3 border-b border-slate-700 bg-slate-900 px-4 py-3">
       <div className="mr-auto min-w-[180px]"><h3 className="font-semibold text-slate-100">Belegvorlage bearbeiten</h3><p className="text-xs text-slate-500">Raster, Snapping und Hilfslinien sind aktiv</p></div>
       <input aria-label="Vorlagenname" value={templateName || ""} onChange={event => onTemplateNameChange?.(event.target.value)} className="w-56 rounded border border-slate-600 bg-slate-950 px-3 py-2 text-sm outline-none focus:border-sky-500"/>

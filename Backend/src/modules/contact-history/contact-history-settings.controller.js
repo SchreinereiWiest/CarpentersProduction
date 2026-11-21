@@ -4,7 +4,7 @@ import {
   deleteTenantSecret,
   getTenantSecretStatus,
   setTenantSecret
-} from "../attachment-search/tenant-secrets.service.js";
+} from "../secrets/tenant-secrets.service.js";
 import { testContactHistoryConnection } from "./contact-history-imap.service.js";
 import { enqueueContactHistorySync } from "./contact-history-queue.service.js";
 import {

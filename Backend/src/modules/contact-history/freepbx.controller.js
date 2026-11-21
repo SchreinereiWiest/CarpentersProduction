@@ -5,7 +5,7 @@ import {
   deleteTenantSecret,
   getTenantSecretStatus,
   setTenantSecret
-} from "../attachment-search/tenant-secrets.service.js";
+} from "../secrets/tenant-secrets.service.js";
 import { subscribeToPhoneCalls } from "./freepbx-call-events.service.js";
 import {
   FREEPBX_WEBHOOK_SECRET,

@@ -35,14 +35,23 @@ function Module({ title, eyebrow, action, children }) {
     </section>;
 }
 
-function AssignmentModule({ assignments }) {
+const assignmentKindLabel = kind => ({ project: "Projekt", commercial_document: "Beleg", paperless_document: "Dokument" })[kind] || "Auftrag";
+
+function AssignmentModule({ assignments, completed, onComplete, onDismiss, busyId }) {
+    const empty = !assignments.length && !completed.length;
     return <Module title="Meine Aufträge" eyebrow="Zuweisungen" action={<Link to="/Projects" className="text-xs text-blue-300 hover:underline">Alle Projekte</Link>}>
-        {!assignments.length ? <EmptyState>Dir sind aktuell keine Aufträge zugewiesen.</EmptyState> : <div className="space-y-3">
-            {assignments.map(assignment => <Link key={assignment.id} to={`/Projects/${assignment.project.id}`} className="block rounded-xl border border-slate-700 bg-slate-900/65 p-4 transition hover:border-blue-700 hover:bg-slate-900">
-                <div className="flex items-start justify-between gap-3"><strong className="text-sm text-blue-200">{projectLabel(assignment.project)}</strong><span className="rounded-full bg-blue-950 px-2 py-1 text-[10px] uppercase text-blue-300">{assignment.project.status}</span></div>
+        {empty ? <EmptyState>Dir sind aktuell keine Aufträge oder Belege zugewiesen.</EmptyState> : <div className="space-y-3">
+            {assignments.map(assignment => <article key={assignment.id} className="rounded-xl border border-slate-700 bg-slate-900/65 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3"><Link to={assignment.href} className="min-w-0 font-semibold text-blue-200 hover:underline">{assignment.title}</Link><span className="rounded-full bg-blue-950 px-2 py-1 text-[10px] uppercase text-blue-300">{assignmentKindLabel(assignment.kind)}</span></div>
                 {assignment.info && <p className="mt-2 text-sm leading-5 text-slate-300">{assignment.info}</p>}
-                {assignment.calendarEvent && <p className="mt-2 text-xs text-slate-500">Geplant: {dateTimeFormatter.format(new Date(assignment.calendarEvent.startAt))} – {dateTimeFormatter.format(new Date(assignment.calendarEvent.endAt))}</p>}
-            </Link>)}
+                {assignment.createdBy && <p className="mt-2 text-xs text-slate-500">Zugewiesen von {assignment.createdBy.name}</p>}
+                <div className="mt-3 flex flex-wrap gap-2"><Link to={assignment.href} className="rounded-lg border border-slate-600 px-3 py-2 text-xs text-slate-300 hover:bg-slate-800">Öffnen</Link><button type="button" disabled={busyId === assignment.id} onClick={() => onComplete(assignment.id)} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold hover:bg-emerald-500 disabled:opacity-50">Abgeschlossen</button></div>
+            </article>)}
+            {completed.length > 0 && <div className="pt-2"><p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-emerald-400">Abschlussmeldungen</p><div className="space-y-3">{completed.map(assignment => <article key={assignment.id} className="rounded-xl border border-emerald-800 bg-emerald-950/25 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3"><Link to={assignment.href} className="min-w-0 font-semibold text-emerald-200 hover:underline">{assignment.title}</Link><span className="rounded-full bg-emerald-950 px-2 py-1 text-[10px] uppercase text-emerald-300">Abgeschlossen</span></div>
+                <p className="mt-2 text-xs text-emerald-300">{assignment.assignee?.name || "Empfänger"} hat den Auftrag abgeschlossen.</p>
+                <div className="mt-3 flex flex-wrap gap-2"><Link to={assignment.href} className="rounded-lg border border-emerald-800 px-3 py-2 text-xs text-emerald-200 hover:bg-emerald-950">Auftrag ansehen</Link><button type="button" disabled={busyId === assignment.id} onClick={() => onDismiss(assignment.id)} className="rounded-lg border border-slate-600 px-3 py-2 text-xs text-slate-300 hover:bg-slate-800 disabled:opacity-50">Ausblenden</button></div>
+            </article>)}</div></div>}
         </div>}
     </Module>;
 }
@@ -106,6 +115,7 @@ export default function DashboardPage() {
     const [dashboard, setDashboard] = useState(null);
     const [companySettings, setCompanySettings] = useState(null);
     const [error, setError] = useState("");
+    const [assignmentBusyId, setAssignmentBusyId] = useState("");
 
     useEffect(() => {
         let active = true;
@@ -121,8 +131,28 @@ export default function DashboardPage() {
 
     const preferences = useMemo(() => normalizeHomePreferences(dashboard?.preferences?.home, user?.role), [dashboard?.preferences?.home, user?.role]);
     const moduleLabels = new Map(HOME_MODULES.map(module => [module.id, module.label]));
+    const updateAssignment = async (id, action) => {
+        setAssignmentBusyId(id);
+        setError("");
+        try {
+            const { data } = await axios.post(`/api/dashboard/assignments/${id}/${action}`);
+            setDashboard(current => {
+                if (!current) return current;
+                if (action === "complete") return {
+                    ...current,
+                    workAssignments: (current.workAssignments || []).filter(item => item.id !== id),
+                    completedAssignments: data.assignment.createdBy?.id === user?.id ? [data.assignment, ...(current.completedAssignments || [])] : (current.completedAssignments || [])
+                };
+                return { ...current, completedAssignments: (current.completedAssignments || []).filter(item => item.id !== id) };
+            });
+        } catch (requestError) {
+            setError(requestError.response?.data?.message || "Die Zuweisung konnte nicht aktualisiert werden.");
+        } finally {
+            setAssignmentBusyId("");
+        }
+    };
     const renderModule = id => ({
-        assignments: <AssignmentModule assignments={dashboard.assignments || []} />,
+        assignments: <AssignmentModule assignments={dashboard.workAssignments || []} completed={dashboard.completedAssignments || []} busyId={assignmentBusyId} onComplete={assignmentId => updateAssignment(assignmentId, "complete")} onDismiss={assignmentId => updateAssignment(assignmentId, "dismiss")} />,
         appointments: <AppointmentModule events={dashboard.events || []} admin={user?.role === "admin"} />,
         week: <WeekModule start={dashboard.week.start} events={dashboard.events || []} />,
         managerDocuments: <ManagerDocumentsModule documents={dashboard.assignedDocuments || []} />,
@@ -144,7 +174,7 @@ export default function DashboardPage() {
                 {!dashboard && !error && <p className="mt-10 text-sm text-slate-500">Arbeitsübersicht wird geladen …</p>}
 
                 {dashboard && <>
-                    {(dashboard.assignments || []).length > 0 && <div role="status" className="mt-7 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-800 bg-blue-950/45 p-4"><div><p className="font-semibold text-blue-100">Neue Arbeitszuweisung</p><p className="mt-1 text-sm text-blue-300">{dashboard.assignments.length} zugewiesene{dashboard.assignments.length === 1 ? "r Auftrag" : " Aufträge"} auf deiner Startseite.</p></div><span className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold">Notification</span></div>}
+                    {((dashboard.workAssignments || []).length + (dashboard.completedAssignments || []).length) > 0 && <div role="status" className="mt-7 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-800 bg-blue-950/45 p-4"><div><p className="font-semibold text-blue-100">Auftragszuweisung</p><p className="mt-1 text-sm text-blue-300">{(dashboard.workAssignments || []).length} offen · {(dashboard.completedAssignments || []).length} als abgeschlossen zurückgemeldet.</p></div><span className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold">Notification</span></div>}
                     <div className="mt-7 grid gap-5 xl:grid-cols-2">
                         {preferences.order.filter(id => !preferences.hidden.includes(id)).map(id => <div key={id} className={id === "week" ? "xl:col-span-2" : ""} aria-label={moduleLabels.get(id)}>{renderModule(id)}</div>)}
                     </div>

@@ -88,6 +88,76 @@ const safePdfName = (value) =>
     .replace(/^-+|-+$/g, "")
     .toLowerCase() || "projekt";
 
+const normalizeExposeVariants = (variants, legacyExpose) => {
+  const entries = variants && typeof variants === "object"
+    ? Object.entries(variants)
+    : [];
+  const normalized = Object.fromEntries(entries.map(([id, value]) => [
+    String(id),
+    normalizeExpose(value)
+  ]));
+  if (!normalized.default) normalized.default = normalizeExpose(legacyExpose ?? DEFAULT_EXPOSE);
+  return normalized;
+};
+
+const createWorkspaceId = (prefix) =>
+  `${prefix}-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
+
+function NewViewModal({ onClose, onCreate }) {
+  const [name, setName] = useState("");
+  const [type, setType] = useState("front");
+  const [content, setContent] = useState("project");
+
+  const submit = (event) => {
+    event.preventDefault();
+    if (!name.trim()) return;
+    onCreate({ name: name.trim(), type, content });
+  };
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 p-4" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <form onSubmit={submit} className="w-full max-w-lg rounded-xl border border-[#3b4e5b] bg-[#17212a] p-5 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="new-view-title">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 id="new-view-title" className="text-lg font-semibold text-[#edf4f8]">Neue Ansicht</h2>
+            <p className="mt-1 text-xs leading-relaxed text-[#7d909d]">Lege eine bemaßte Front oder eine weitere, unabhängig editierbare Exposé-Variante an.</p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded p-1.5 text-[#8799a5] hover:bg-[#24333d] hover:text-white" aria-label="Dialog schließen">✕</button>
+        </div>
+        <label className="mt-5 block text-xs font-semibold text-[#bac8d1]">
+          Name
+          <input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder={type === "expose" ? "z. B. Exposé Kunde" : "z. B. Front Schrankwand"} className="mt-2 w-full rounded-md border border-[#3a4b57] bg-[#0f171e] px-3 py-2.5 text-sm text-white outline-none focus:border-[#66a6d1]" />
+        </label>
+        <fieldset className="mt-4">
+          <legend className="text-xs font-semibold text-[#bac8d1]">Art der Ansicht</legend>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            {[["front", "Bemaßte Front", "Bild wählen und anschließend bemaßen"], ["expose", "Neues Exposé", "Eigene, frei editierbare Variante"]].map(([value, label, description]) => (
+              <label key={value} className={`cursor-pointer rounded-lg border p-3 ${type === value ? "border-[#65a5ce] bg-[#213b4b]" : "border-[#344550] bg-[#111a21] hover:border-[#4a6576]"}`}>
+                <input type="radio" name="view-type" value={value} checked={type === value} onChange={() => { setType(value); setContent(value === "expose" ? "project" : "image"); }} className="sr-only" />
+                <span className="block text-sm font-semibold text-[#e1ebf1]">{label}</span>
+                <span className="mt-1 block text-[10px] leading-relaxed text-[#758895]">{description}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <label className="mt-4 block text-xs font-semibold text-[#bac8d1]">
+          Inhalt
+          <select value={type === "front" ? "image" : content} onChange={(event) => setContent(event.target.value)} disabled={type === "front"} className="mt-2 w-full rounded-md border border-[#3a4b57] bg-[#0f171e] px-3 py-2.5 text-sm text-white outline-none focus:border-[#66a6d1] disabled:text-[#8da0ac]">
+            {type === "front" ? <option value="image">Bild aus dem Bilderbereich auswählen</option> : <>
+              <option value="project">Automatisch aus den Projektinhalten aufbauen</option>
+              <option value="empty">Leere, frei gestaltbare Exposé-Seiten</option>
+            </>}
+          </select>
+        </label>
+        <div className="mt-6 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="rounded-md border border-[#3b4d59] px-4 py-2 text-xs font-semibold text-[#afbdc6] hover:bg-[#22313b]">Abbrechen</button>
+          <button type="submit" disabled={!name.trim()} className="rounded-md bg-[#356a8b] px-4 py-2 text-xs font-semibold text-white hover:bg-[#427fa5] disabled:opacity-40">Erstellen</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 export default function AufmasWorkspace() {
   const { projectId } = useParams();
   const navigate = useNavigate();
@@ -99,24 +169,26 @@ export default function AufmasWorkspace() {
   const [project, setProject] = useState(
     () => cachedWorkspace?.project ?? null
   );
-  const [views, setViews] = useState(
-    () => ensureWorkspaceViews(cachedWorkspace?.views)
-  );
   const [objects, setObjects] = useState(() => cachedWorkspace?.objects ?? []);
+  const [views, setViews] = useState(
+    () => ensureWorkspaceViews(cachedWorkspace?.views, cachedWorkspace?.objects)
+  );
   const [variables, setVariables] = useState(
     () => cachedWorkspace?.variables ?? []
   );
   const [todos, setTodos] = useState(
     () => cachedWorkspace?.todos ?? DEFAULT_TODOS
   );
-  const [expose, setExpose] = useState(
-    () => normalizeExpose(cachedWorkspace?.expose ?? DEFAULT_EXPOSE)
+  const [exposes, setExposes] = useState(
+    () => normalizeExposeVariants(cachedWorkspace?.exposes, cachedWorkspace?.expose)
   );
   const [activeViewId, setActiveViewId] = useState(
     () => cachedWorkspace?.activeViewId ?? DEFAULT_VIEWS[0].id
   );
   const [exposeImageTarget, setExposeImageTarget] = useState(null);
   const [exposeReturnFocus, setExposeReturnFocus] = useState(null);
+  const [viewCreatorOpen, setViewCreatorOpen] = useState(false);
+  const [pendingImageView, setPendingImageView] = useState(null);
   const [selectedId, setSelectedId] = useState(
     () => cachedWorkspace?.selectedId ?? null
   );
@@ -173,13 +245,27 @@ export default function AufmasWorkspace() {
           objects: cachedWorkspace.objects ?? [],
           variables: cachedWorkspace.variables ?? [],
           todos: cachedWorkspace.todos ?? DEFAULT_TODOS,
-          expose: normalizeExpose(cachedWorkspace.expose ?? DEFAULT_EXPOSE),
+          expose: normalizeExpose(cachedWorkspace.exposes?.default ?? cachedWorkspace.expose ?? DEFAULT_EXPOSE),
+          exposes: normalizeExposeVariants(cachedWorkspace.exposes, cachedWorkspace.expose),
           completed: Boolean(cachedWorkspace.isCompleted)
         })
       : ""
   );
 
   const activeView = views.find((view) => view.id === activeViewId) ?? views[0];
+  const activeExposeId = activeView?.type === "expose"
+    ? String(activeView.exposeId || "default")
+    : "default";
+  const expose = exposes[activeExposeId] ?? exposes.default ?? normalizeExpose(DEFAULT_EXPOSE);
+  const setExpose = useCallback((valueOrUpdater) => {
+    setExposes((current) => {
+      const currentValue = current[activeExposeId] ?? current.default ?? normalizeExpose(DEFAULT_EXPOSE);
+      const nextValue = typeof valueOrUpdater === "function"
+        ? valueOrUpdater(currentValue)
+        : valueOrUpdater;
+      return { ...current, [activeExposeId]: normalizeExpose(nextValue) };
+    });
+  }, [activeExposeId]);
   const activeObjects = useMemo(
     () => objects.filter((object) => object.viewId === activeView?.id),
     [activeView?.id, objects]
@@ -267,12 +353,14 @@ export default function AufmasWorkspace() {
         if (cancelled) return;
         setProject(loadedProject);
         if (saved) {
-          const loadedViews = ensureWorkspaceViews(saved.views);
+          const loadedObjects = Array.isArray(saved.objects) ? saved.objects : [];
+          const loadedViews = ensureWorkspaceViews(saved.views, loadedObjects);
+          const loadedExposes = normalizeExposeVariants(saved.exposes, saved.expose);
           setViews(loadedViews);
-          setObjects(Array.isArray(saved.objects) ? saved.objects : []);
+          setObjects(loadedObjects);
           setVariables(Array.isArray(saved.variables) ? saved.variables : []);
           setTodos(Array.isArray(saved.todos) ? saved.todos : DEFAULT_TODOS);
-          setExpose(normalizeExpose(saved.expose));
+          setExposes(loadedExposes);
           setIsCompleted(Boolean(saved.completed));
           setActiveViewId(loadedViews[0].id);
           lastSavedPayload.current = JSON.stringify({
@@ -281,7 +369,8 @@ export default function AufmasWorkspace() {
             objects: saved.objects ?? [],
             variables: saved.variables ?? [],
             todos: saved.todos ?? DEFAULT_TODOS,
-            expose: normalizeExpose(saved.expose),
+            expose: loadedExposes.default,
+            exposes: loadedExposes,
             completed: Boolean(saved.completed)
           });
         }
@@ -400,7 +489,8 @@ export default function AufmasWorkspace() {
       objects,
       variables,
       todos,
-      expose,
+      expose: exposes.default,
+      exposes,
       activeViewId,
       selectedId,
       activeTool,
@@ -420,7 +510,7 @@ export default function AufmasWorkspace() {
     cabinets,
     display,
     dxfLayers,
-    expose,
+    exposes,
     hydrated,
     isCompleted,
     nesting,
@@ -436,6 +526,16 @@ export default function AufmasWorkspace() {
     variables,
     views
   ]);
+
+  useEffect(() => {
+    setViews((current) => {
+      const next = ensureWorkspaceViews(current, objects);
+      if (next !== current && !next.some((view) => view.id === activeViewId)) {
+        setActiveViewId(next[0]?.id ?? DEFAULT_VIEWS[0].id);
+      }
+      return next;
+    });
+  }, [activeViewId, objects]);
 
   useEffect(() => {
     const updateSaveStatus = (event) => {
@@ -578,7 +678,8 @@ export default function AufmasWorkspace() {
       objects,
       variables,
       todos,
-      expose,
+      expose: exposes.default,
+      exposes,
       completed: isCompleted
     };
     const serialised = JSON.stringify(payload);
@@ -603,7 +704,7 @@ export default function AufmasWorkspace() {
       }
     }, 750);
     return () => window.clearTimeout(timeoutId);
-  }, [expose, hydrated, isCompleted, objects, projectId, todos, variables, views]);
+  }, [exposes, hydrated, isCompleted, objects, projectId, todos, variables, views]);
 
   useEffect(() => {
     const onKeyDown = (event) => {
@@ -994,16 +1095,16 @@ export default function AufmasWorkspace() {
       }
     });
     if (!saved) return;
-    const loadedViews = ensureWorkspaceViews(saved.views);
     const loadedObjects = Array.isArray(saved.objects) ? saved.objects : [];
+    const loadedViews = ensureWorkspaceViews(saved.views, loadedObjects);
     const loadedVariables = Array.isArray(saved.variables) ? saved.variables : [];
     const loadedTodos = Array.isArray(saved.todos) ? saved.todos : DEFAULT_TODOS;
-    const loadedExpose = normalizeExpose(saved.expose);
+    const loadedExposes = normalizeExposeVariants(saved.exposes, saved.expose);
     setViews(loadedViews);
     setObjects(loadedObjects);
     setVariables(loadedVariables);
     setTodos(loadedTodos);
-    setExpose(loadedExpose);
+    setExposes(loadedExposes);
     setIsCompleted(Boolean(saved.completed));
     lastSavedPayload.current = JSON.stringify({
       version: 1,
@@ -1011,17 +1112,18 @@ export default function AufmasWorkspace() {
       objects: loadedObjects,
       variables: loadedVariables,
       todos: loadedTodos,
-      expose: loadedExpose,
+      expose: loadedExposes.default,
+      exposes: loadedExposes,
       completed: Boolean(saved.completed)
     });
     showNotice("Die bestätigten OCR-Maße wurden als gemessen übernommen.");
   };
 
-  const createViewFromPhoto = (photo, name) => {
+  const createViewFromPhoto = (photo, pendingView = pendingImageView) => {
     if (isCompleted || !photo?.id) return;
-    const label = String(name || "").trim();
+    const label = String(pendingView?.label || "").trim();
     if (!label) return;
-    const viewId = `image-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
+    const viewId = pendingView?.id || createWorkspaceId("image");
     const imageView = {
       id: viewId,
       label,
@@ -1047,38 +1149,96 @@ export default function AufmasWorkspace() {
       ];
     });
     setActiveViewId(viewId);
+    setPendingImageView(null);
     setSelectedId(null);
     setActiveTool("measurement");
     showNotice(`„${label}“ wurde als neue Ansicht hinzugefügt.`);
   };
 
-  const exposeViewId = () => views.find((view) => view.type === "expose")?.id ?? "expose";
   const imagesViewId = () => views.find((view) => view.type === "images")?.id ?? "images";
+
+  const createWorkspaceView = ({ name, type, content }) => {
+    const label = String(name || "").trim();
+    if (!label || isCompleted) return;
+    setViewCreatorOpen(false);
+    if (type === "expose") {
+      const exposeId = createWorkspaceId("expose");
+      const viewId = createWorkspaceId("expose-view");
+      const initialExpose = content === "empty"
+        ? normalizeExpose({ ...DEFAULT_EXPOSE, sections: {
+            perspectives: false,
+            measurement: false,
+            cabinets: false,
+            partsList: false,
+            cnc: false,
+            nesting: false
+          } })
+        : normalizeExpose(DEFAULT_EXPOSE);
+      setExposes((current) => ({ ...current, [exposeId]: initialExpose }));
+      setViews((current) => [...current, { id: viewId, label, type: "expose", exposeId }]);
+      setActiveViewId(viewId);
+      setActiveTool(null);
+      showNotice(`„${label}“ wurde als weiteres Exposé angelegt.`);
+      return;
+    }
+
+    setPendingImageView({ id: createWorkspaceId("image"), label, type: "elevation" });
+    setActiveViewId(imagesViewId());
+    setActiveTool(null);
+    showNotice("Wähle jetzt das Bild für die neue bemaßte Front aus.");
+  };
 
   const requestExposeImage = (target) => {
     if (isCompleted || !target?.pageId || !target?.blockId) return;
-    setExposeImageTarget(target);
+    setExposeImageTarget({
+      ...target,
+      exposeId: activeExposeId,
+      returnViewId: activeView?.id
+    });
     setExposeReturnFocus({ pageId: target.pageId, blockId: target.blockId });
     setActiveViewId(imagesViewId());
     setActiveTool(null);
   };
 
   const cancelExposeImageSelection = () => {
+    const returnViewId = exposeImageTarget?.returnViewId;
     setExposeImageTarget(null);
-    setActiveViewId(exposeViewId());
+    if (returnViewId) setActiveViewId(returnViewId);
     setActiveTool(null);
+  };
+
+  const cancelImageSelection = () => {
+    if (exposeImageTarget) {
+      cancelExposeImageSelection();
+      return;
+    }
+    setPendingImageView(null);
+  };
+
+  const selectImage = (photo) => {
+    if (pendingImageView) {
+      createViewFromPhoto(photo, pendingImageView);
+      return;
+    }
+    selectExposeImage(photo);
   };
 
   const selectExposeImage = (photo) => {
     if (!exposeImageTarget || !photo?.id) return;
     const target = exposeImageTarget;
-    setExpose((currentValue) => {
-      const current = normalizeExpose(currentValue);
+    setExposes((currentVariants) => {
+      const targetExposeId = String(target.exposeId || "default");
+      const current = normalizeExpose(
+        currentVariants[targetExposeId]
+        ?? currentVariants.default
+        ?? DEFAULT_EXPOSE
+      );
+      let next;
       if (target.kind === "custom") {
         const pageBlocks = Array.isArray(current.customBlocks[target.pageId])
           ? current.customBlocks[target.pageId]
           : [];
-        return {
+        next = {
           ...current,
           customBlocks: {
             ...current.customBlocks,
@@ -1087,18 +1247,23 @@ export default function AufmasWorkspace() {
               : block)
           }
         };
+      } else {
+        next = {
+          ...current,
+          imageOverrides: {
+            ...current.imageOverrides,
+            [target.pageId]: String(photo.id)
+          }
+        };
       }
       return {
-        ...current,
-        imageOverrides: {
-          ...current.imageOverrides,
-          [target.pageId]: String(photo.id)
-        }
+        ...currentVariants,
+        [targetExposeId]: normalizeExpose(next)
       };
     });
     setExposeReturnFocus({ pageId: target.pageId, blockId: target.blockId });
     setExposeImageTarget(null);
-    setActiveViewId(exposeViewId());
+    setActiveViewId(target.returnViewId || views.find((view) => view.type === "expose")?.id || "expose");
     setActiveTool(null);
     showNotice("Das Projektbild wurde in das Exposé eingesetzt.");
   };
@@ -1116,7 +1281,8 @@ export default function AufmasWorkspace() {
       objects,
       variables,
       todos,
-      expose,
+      expose: exposes.default,
+      exposes,
       completed: isCompleted
     };
     setAufmasWorkspaceCache(projectId, {
@@ -1125,7 +1291,8 @@ export default function AufmasWorkspace() {
       objects,
       variables,
       todos,
-      expose,
+      expose: exposes.default,
+      exposes,
       activeViewId,
       selectedId,
       activeTool,
@@ -1309,12 +1476,12 @@ export default function AufmasWorkspace() {
               <ImagesView
                 photos={photos}
                 onUpload={uploadPhoto}
-                onCreateView={createViewFromPhoto}
                 uploading={uploadingPhoto}
                 readOnly={isCompleted}
-                selectionMode={Boolean(exposeImageTarget)}
-                onSelectPhoto={selectExposeImage}
-                onCancelSelection={cancelExposeImageSelection}
+                selectionMode={Boolean(exposeImageTarget || pendingImageView)}
+                selectionTitle={pendingImageView ? `Bild für „${pendingImageView.label}“ auswählen` : "Bild für das Exposé auswählen"}
+                onSelectPhoto={selectImage}
+                onCancelSelection={cancelImageSelection}
               />
             ) : activeView?.type === "expose" ? (
               <ExposeView
@@ -1345,6 +1512,7 @@ export default function AufmasWorkspace() {
                 measurementLabelOffsetY={
                   companySettings.userInterface?.measurementLabelOffsetY ?? -30
                 }
+                cacheKey={`${projectId}:${activeExposeId}`}
               />
             ) : (
               <AufmasEditor
@@ -1424,12 +1592,17 @@ export default function AufmasWorkspace() {
               onViewChange={changeView}
               objects={listedObjects}
               photos={photos}
+              onAddView={isCompleted ? null : () => setViewCreatorOpen(true)}
               collapsed={viewsCollapsed}
               onToggleCollapsed={() => setViewsCollapsed((current) => !current)}
             />
           </div>
         </div>
       </main>
+
+      {viewCreatorOpen && (
+        <NewViewModal onClose={() => setViewCreatorOpen(false)} onCreate={createWorkspaceView} />
+      )}
 
       {notice && (
         <div

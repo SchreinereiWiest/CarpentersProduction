@@ -130,7 +130,7 @@ export default function PaperlessSettingsPanel() {
 
     return (
         <div className="responsive-settings-panel h-full overflow-y-auto p-6">
-            <div className="max-w-5xl space-y-6">
+            <div className="flex max-w-5xl flex-col gap-6">
                 <header className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                         <div className="text-xs font-semibold uppercase tracking-wider text-blue-400">Advanced · Dokumente</div>
@@ -145,9 +145,7 @@ export default function PaperlessSettingsPanel() {
 
                 <Message value={message} />
 
-                <DocumentTemplateSettingsSection />
-
-                <section className="rounded-xl border border-gray-700 bg-gray-800 p-5">
+                <section className="order-2 rounded-xl border border-gray-700 bg-gray-800 p-5">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <label className="flex items-center gap-3 font-semibold"><input type="checkbox" checked={settings.enabled} onChange={event => update("enabled", event.target.checked)} className="h-4 w-4" />Paperless-Verknüpfung aktivieren</label>
                         <span className={`rounded-full px-3 py-1 text-xs ${settings.connected ? "bg-emerald-950 text-emerald-300" : "bg-amber-950 text-amber-300"}`}>{settings.connected ? "Verbunden" : "Nicht verbunden"}</span>
@@ -160,7 +158,7 @@ export default function PaperlessSettingsPanel() {
                     {settings.tokenConfigured && <div className="mt-4 flex justify-end"><button type="button" disabled={busy} onClick={removeToken} className="rounded-lg border border-red-900 px-4 py-2 text-sm text-red-300 hover:bg-red-950/60 disabled:opacity-50">Verknüpfung trennen</button></div>}
                 </section>
 
-                <section className="rounded-xl border border-gray-700 bg-gray-800 p-5">
+                <section className="order-4 rounded-xl border border-gray-700 bg-gray-800 p-5">
                     <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-semibold">Manuelle Ordner in Carpenters</h2><p className="mt-1 text-sm text-gray-500">Diese Ordner gruppieren nur Paperless-Referenzen und verändern keine Ablage in Paperless.</p></div><button type="button" onClick={() => update("folders", [...settings.folders, { name: "" }])} className="rounded-lg bg-gray-700 px-4 py-2 text-sm hover:bg-gray-600">Ordner hinzufügen</button></div>
                     <div className="mt-4 space-y-3">
                         {settings.folders.length === 0 && <div className="rounded-lg border border-dashed border-gray-600 p-5 text-center text-sm text-gray-500">Noch keine manuellen Ordner angelegt.</div>}
@@ -169,7 +167,7 @@ export default function PaperlessSettingsPanel() {
                 </section>
 
                 {settings.webhook && (
-                    <section className="rounded-xl border border-gray-700 bg-gray-800 p-5">
+                    <section className="order-3 rounded-xl border border-gray-700 bg-gray-800 p-5">
                         <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-semibold">Paperless-Workflow</h2><p className="mt-1 text-sm text-gray-500">In Paperless einen Workflow mit Trigger „Document Added“ und Aktion „Webhook“ anlegen.</p></div><button type="button" disabled={busy} onClick={rotateWebhookSecret} className="rounded-lg border border-gray-600 px-4 py-2 text-sm hover:bg-gray-700 disabled:opacity-50">Secret erneuern</button></div>
                         <div className="mt-4 space-y-3 text-sm">
                             <div><span className="mb-1 block text-xs font-semibold uppercase text-gray-500">URL</span><div className="flex gap-2"><code className="min-w-0 flex-1 overflow-x-auto rounded-lg bg-gray-950 px-3 py-2.5 text-blue-200">{settings.webhook.url}</code><CopyButton value={settings.webhook.url} /></div></div>
@@ -179,6 +177,7 @@ export default function PaperlessSettingsPanel() {
                         {!settings.webhookSecret && settings.webhookConfigured && <p className="mt-3 text-xs text-amber-300">Das Secret kann aus Sicherheitsgründen nicht ausgelesen werden. Falls es in Paperless noch fehlt, „Secret erneuern“ verwenden.</p>}
                     </section>
                 )}
+                <div className="order-5"><DocumentTemplateSettingsSection /></div>
             </div>
         </div>
     );

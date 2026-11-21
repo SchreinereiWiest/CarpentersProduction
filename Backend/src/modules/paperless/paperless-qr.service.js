@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import prisma from "../../infrastructure/database/prisma.js";
 import { getTenantId } from "../../infrastructure/database/tenant-context.js";
 import { pushValkeyJob } from "../../infrastructure/queue/valkey.js";
-import { getTenantSecret } from "../attachment-search/tenant-secrets.service.js";
+import { getTenantSecret } from "../secrets/tenant-secrets.service.js";
 import {
   PAPERLESS_QR_SIGNING_SECRET,
   getPaperlessConfiguration,

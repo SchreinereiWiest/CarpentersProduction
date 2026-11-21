@@ -6,6 +6,7 @@ import {
     uploadSupplierDatanorm
 } from "../../purchasing/procurementApi.js";
 import {
+    createManufacturerWebsiteId,
     createSupplierId,
     LEGRABOX_COLORS,
     LEGRABOX_VARIANTS,
@@ -113,6 +114,35 @@ export default function ShopSettingsPanel() {
         setMessage(null);
     };
 
+    const addManufacturerWebsite = () => {
+        setConfig(current => ({
+            ...current,
+            manufacturerWebsites: [
+                ...current.manufacturerWebsites,
+                { id: createManufacturerWebsiteId(), name: "", baseUrl: "" }
+            ]
+        }));
+        setMessage(null);
+    };
+
+    const updateManufacturerWebsite = (id, field, value) => {
+        setConfig(current => ({
+            ...current,
+            manufacturerWebsites: current.manufacturerWebsites.map(website => (
+                website.id === id ? { ...website, [field]: value } : website
+            ))
+        }));
+        setMessage(null);
+    };
+
+    const removeManufacturerWebsite = id => {
+        setConfig(current => ({
+            ...current,
+            manufacturerWebsites: current.manufacturerWebsites.filter(website => website.id !== id)
+        }));
+        setMessage(null);
+    };
+
     const save = async () => {
         setMessage(null);
 
@@ -132,6 +162,13 @@ export default function ShopSettingsPanel() {
                 ...config,
                 edgeWastePercentage: Math.max(0, Number(config.edgeWastePercentage) || 0),
                 suppliers: activeSuppliers,
+                manufacturerWebsites: config.manufacturerWebsites
+                    .map(website => ({
+                        id: website.id,
+                        name: website.name.trim(),
+                        baseUrl: website.baseUrl.trim()
+                    }))
+                    .filter(website => website.name || website.baseUrl),
                 version: 1,
                 updatedAt: new Date().toISOString()
             };
@@ -192,39 +229,6 @@ export default function ShopSettingsPanel() {
                         Im internen Shop sind noch keine Artikel angelegt. Lege dort zuerst die benötigten Legrabox-Artikel an.
                     </div>
                 )}
-
-                <section className="rounded-xl border border-gray-700 bg-gray-800">
-                    <div className="border-b border-gray-700 px-5 py-4">
-                        <h2 className="font-semibold">Kanteneinkauf</h2>
-                        <p className="mt-1 text-sm text-gray-400">
-                            Dieser pauschale Zuschlag wird auf den aus dem Nesting berechneten Kantenbedarf aufgeschlagen.
-                        </p>
-                    </div>
-                    <div className="px-5 py-4">
-                        <label className="block max-w-xs">
-                            <span className="mb-1.5 block text-xs uppercase tracking-wide text-gray-500">Verschnittzuschlag</span>
-                            <div className="relative">
-                                <input
-                                    type="number"
-                                    min="0"
-                                    max="1000"
-                                    step="0.1"
-                                    value={config.edgeWastePercentage}
-                                    onChange={event => {
-                                        setConfig(current => ({
-                                            ...current,
-                                            edgeWastePercentage: event.target.value
-                                        }));
-                                        setMessage(null);
-                                    }}
-                                    className="w-full rounded-lg border border-gray-600 bg-gray-900 py-2 pl-3 pr-9 text-white outline-none focus:border-blue-500"
-                                />
-                                <span className="pointer-events-none absolute right-3 top-2 text-gray-500">%</span>
-                            </div>
-                            <span className="mt-1.5 block text-xs text-gray-500">Standard: 10 %</span>
-                        </label>
-                    </div>
-                </section>
 
                 <section className="overflow-hidden rounded-xl border border-gray-700 bg-gray-800">
                     <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-700 px-5 py-4">
@@ -329,6 +333,46 @@ export default function ShopSettingsPanel() {
                             ))}
                         </div>
                     )}
+                </section>
+
+                <section className="overflow-hidden rounded-xl border border-gray-700 bg-gray-800">
+                    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gray-700 px-5 py-4">
+                        <div>
+                            <h2 className="font-semibold">Herstellerwebsites</h2>
+                            <p className="mt-1 text-sm text-gray-400">Öffentliche Herstellerseiten zentral für spätere Shop- und Produktverknüpfungen hinterlegen.</p>
+                        </div>
+                        <button type="button" onClick={addManufacturerWebsite} className="rounded-lg border border-gray-600 px-3 py-2 text-sm text-gray-200 hover:bg-gray-700">+ Herstellerwebsite</button>
+                    </div>
+                    {config.manufacturerWebsites.length === 0 ? (
+                        <div className="px-5 py-8 text-center text-sm text-gray-500">Noch keine Herstellerwebsite eingerichtet.</div>
+                    ) : (
+                        <div className="divide-y divide-gray-700">
+                            {config.manufacturerWebsites.map(website => (
+                                <div key={website.id} className="grid gap-3 px-5 py-4 md:grid-cols-[minmax(180px,0.7fr)_minmax(260px,1.3fr)_auto]">
+                                    <label><span className="mb-1.5 block text-xs uppercase tracking-wide text-gray-500">Hersteller</span><input value={website.name} onChange={event => updateManufacturerWebsite(website.id, "name", event.target.value)} placeholder="z. B. Häfele" className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-white outline-none focus:border-blue-500" /></label>
+                                    <label><span className="mb-1.5 block text-xs uppercase tracking-wide text-gray-500">Website</span><input type="url" value={website.baseUrl} onChange={event => updateManufacturerWebsite(website.id, "baseUrl", event.target.value)} placeholder="https://www.hersteller.de" className="w-full rounded-lg border border-gray-600 bg-gray-900 px-3 py-2 text-sm text-white outline-none focus:border-blue-500" /></label>
+                                    <button type="button" onClick={() => removeManufacturerWebsite(website.id)} className="self-end rounded-lg p-2.5 text-gray-500 hover:bg-gray-700 hover:text-red-400" aria-label={`${website.name || "Herstellerwebsite"} entfernen`}>Entfernen</button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </section>
+
+                <section className="rounded-xl border border-gray-700 bg-gray-800">
+                    <div className="border-b border-gray-700 px-5 py-4">
+                        <h2 className="font-semibold">Kanteneinkauf</h2>
+                        <p className="mt-1 text-sm text-gray-400">Dieser pauschale Zuschlag wird auf den aus dem Nesting berechneten Kantenbedarf aufgeschlagen.</p>
+                    </div>
+                    <div className="px-5 py-4">
+                        <label className="block max-w-xs">
+                            <span className="mb-1.5 block text-xs uppercase tracking-wide text-gray-500">Verschnittzuschlag</span>
+                            <div className="relative">
+                                <input type="number" min="0" max="1000" step="0.1" value={config.edgeWastePercentage} onChange={event => { setConfig(current => ({ ...current, edgeWastePercentage: event.target.value })); setMessage(null); }} className="w-full rounded-lg border border-gray-600 bg-gray-900 py-2 pl-3 pr-9 text-white outline-none focus:border-blue-500" />
+                                <span className="pointer-events-none absolute right-3 top-2 text-gray-500">%</span>
+                            </div>
+                            <span className="mt-1.5 block text-xs text-gray-500">Standard: 10 %</span>
+                        </label>
+                    </div>
                 </section>
 
                 <section className="overflow-hidden rounded-xl border border-gray-700 bg-gray-800">

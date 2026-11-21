@@ -1,4 +1,4 @@
-import prisma from "../../infrastructure/database/prisma.js";
+import prisma, { systemPrisma } from "../../infrastructure/database/prisma.js";
 import { getTenantId } from "../../infrastructure/database/tenant-context.js";
 import {s3Download, s3Upload} from "../../infrastructure/storage/s3.js"
 import {
@@ -9,11 +9,30 @@ import { publishFileChange } from "../files/file-change-events.service.js";
 import {
     getSignedUrl
 } from "@aws-sdk/s3-request-presigner";
+import {
+    normalizeTimeEntryTiming,
+    TimeEntryTimingError
+} from "./time-entry-timing.js";
 
 const mayManageOtherUsers = user => ["admin", "manager"].includes(user?.role);
-const requestedUserId = req => mayManageOtherUsers(req.user)
-    ? (req.body.userId || req.user.id)
-    : req.user.id;
+const requestedUserId = async req => {
+    const userId = String(mayManageOtherUsers(req.user) ? (req.body.userId || req.user.id) : req.user.id);
+    const membership = await systemPrisma.tenantMembership.findFirst({
+        where: {
+            tenantId: req.tenant.id,
+            userId,
+            isActive: true,
+            user: { isActive: true, deletedAt: null }
+        },
+        select: { id: true }
+    });
+    if (!membership) {
+        const error = new Error("Mitarbeiter wurde in diesem Unternehmen nicht gefunden.");
+        error.statusCode = 404;
+        throw error;
+    }
+    return userId;
+};
 
 export const startTime = async (req, res) => {
 
@@ -30,7 +49,7 @@ export const startTime = async (req, res) => {
 
                 user: {
                     connect: {
-                        id: requestedUserId(req)
+                        id: await requestedUserId(req)
                     }
                 },
 
@@ -47,6 +66,7 @@ export const startTime = async (req, res) => {
     }
 
     catch (error) {
+        if (error.statusCode) return res.status(error.statusCode).json({ error: "USER_NOT_IN_TENANT", message: error.message });
         console.error(error);
         res.status(500).json({ error: "Internal server error" });
     }
@@ -72,7 +92,7 @@ export const stopTime = async (req, res) => {
             duration = 1;
         }
 
-        await prisma.timeEntry.update({
+        const updatedEntry = await prisma.timeEntry.update({
 
             where:{
                 id:req.params.id
@@ -82,13 +102,13 @@ export const stopTime = async (req, res) => {
 
                 endedAt:new Date(),
 
-                duration
+                duration: Math.max(1, duration)
 
             }
 
         });
 
-        return res.status(201).json(entry);
+        return res.status(200).json(updatedEntry);
     }
 
     catch (error) {
@@ -221,6 +241,8 @@ export const newTime = async (req, res) => {
 
     try {
 
+        const timing = normalizeTimeEntryTiming(req.body);
+
         const entry = await prisma.timeEntry.create({
 
             data: {
@@ -233,7 +255,7 @@ export const newTime = async (req, res) => {
 
                 user: {
                     connect: {
-                        id: requestedUserId(req)
+                        id: await requestedUserId(req)
                     }
                 },
 
@@ -241,11 +263,7 @@ export const newTime = async (req, res) => {
 
                 customWorkType: req.body.customWorkType?.trim() || null,
 
-                startedAt: new Date(req.body.startTime),
-
-                endedAt: new Date(req.body.endTime),
-
-                duration: req.body.duration,
+                ...timing,
 
             }
 
@@ -257,6 +275,10 @@ export const newTime = async (req, res) => {
     }
 
     catch (error) {
+        if (error instanceof TimeEntryTimingError) {
+            return res.status(400).json({ error: "INVALID_TIME_ENTRY", message: error.message });
+        }
+        if (error.statusCode) return res.status(error.statusCode).json({ error: "USER_NOT_IN_TENANT", message: error.message });
         console.error(error);
         res.status(500).json({ error: "Internal server error" });
     }
@@ -268,6 +290,8 @@ export const manualTime = async (req, res) => {
 
     try {
 
+        const timing = normalizeTimeEntryTiming(req.body, { allowDurationOnly: true });
+
         const entry = await prisma.timeEntry.create({
 
             data: {
@@ -280,7 +304,7 @@ export const manualTime = async (req, res) => {
 
                 user: {
                     connect: {
-                        id: requestedUserId(req)
+                        id: await requestedUserId(req)
                     }
                 },
 
@@ -288,7 +312,7 @@ export const manualTime = async (req, res) => {
 
                 customWorkType: req.body.customWorkType?.trim() || null,
 
-                duration: req.body.duration,
+                ...timing,
 
             }
 
@@ -300,6 +324,10 @@ export const manualTime = async (req, res) => {
     }
 
     catch (error) {
+        if (error instanceof TimeEntryTimingError) {
+            return res.status(400).json({ error: "INVALID_TIME_ENTRY", message: error.message });
+        }
+        if (error.statusCode) return res.status(error.statusCode).json({ error: "USER_NOT_IN_TENANT", message: error.message });
         console.error(error);
         res.status(500).json({ error: "Internal server error" });
     }
@@ -422,19 +450,7 @@ export const updateTimeEntry = async (req, res) => {
 
     try {
 
-        const startedAt = new Date(req.body.startTime);
-        const endedAt = new Date(req.body.endTime);
-        const duration = Number(req.body.duration);
-
-        if (
-            Number.isNaN(startedAt.getTime()) ||
-            Number.isNaN(endedAt.getTime()) ||
-            endedAt <= startedAt ||
-            !Number.isFinite(duration) ||
-            duration <= 0
-        ) {
-            return res.status(400).json({ error: "Invalid time entry" });
-        }
+        const timing = normalizeTimeEntryTiming(req.body);
 
         const existingEntry = await prisma.timeEntry.findUnique({
             where: { id: req.params.id }
@@ -454,15 +470,17 @@ export const updateTimeEntry = async (req, res) => {
                 projectId: req.body.projectId,
                 workType: req.body.workType,
                 customWorkType: req.body.customWorkType?.trim() || null,
-                startedAt,
-                endedAt,
-                duration
+                ...timing
             }
         });
 
         return res.json(entry);
 
     } catch (error) {
+
+        if (error instanceof TimeEntryTimingError) {
+            return res.status(400).json({ error: "INVALID_TIME_ENTRY", message: error.message });
+        }
 
         if (error.code === "P2025") {
             return res.status(404).json({ error: "Time entry not found" });

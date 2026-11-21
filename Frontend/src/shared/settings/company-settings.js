@@ -14,7 +14,7 @@ const DEFAULT_BREAKS = [
 const dayBreaks = () => DEFAULT_BREAKS.map(entry => ({ ...entry }));
 
 export const DEFAULT_COMPANY_SETTINGS = {
-    schemaVersion: 12,
+    schemaVersion: 13,
     branding: {
         logoDataUrl: "",
         logoFileName: "",
@@ -81,22 +81,13 @@ export const DEFAULT_COMPANY_SETTINGS = {
         }
     },
     estimation: {
-        ...normalizeEstimationSettings(),
-        ollama: {
-            enabled: false,
-            baseUrl: "http://ollama:11434",
-            embeddingModel: "nomic-embed-text",
-            explanationModel: ""
-        }
+        ...normalizeEstimationSettings()
     },
-    attachmentSearch: {
+    aiIntegration: {
         enabled: false,
-        openWebUiEndpoint: "http://host.docker.internal:3000",
-        model: "carpenters-qwen3627b",
-        manufacturerWebsites: [],
-        allowOpenWebFallback: true,
-        searchPrompt: "Bewerte die gefundenen Herstellerunterlagen zur Artikelnummer. Behalte nur technisch und fertigungsrelevante Dokumente oder Bilder.",
-        filterPrompt: "Extrahiere insbesondere Maße, Montagehinweise, Bohrbilder, Materialangaben, Belastbarkeit und Varianten. Erfinde keine Angaben."
+        provider: "ollama",
+        endpoint: "http://ollama:11434",
+        model: ""
     }
 };
 
@@ -185,20 +176,13 @@ export function normalizeCompanySettings(data) {
         .map(value => String(value || "").trim())
         .filter(Boolean))].slice(0, 20);
     const estimation = normalizeEstimationSettings(data?.estimation);
-    const ollama = {
-        ...DEFAULT_COMPANY_SETTINGS.estimation.ollama,
-        ...(data?.estimation?.ollama ?? {})
+    const aiIntegration = {
+        ...DEFAULT_COMPANY_SETTINGS.aiIntegration,
+        ...(data?.aiIntegration ?? {})
     };
-    const attachmentSearch = {
-        ...DEFAULT_COMPANY_SETTINGS.attachmentSearch,
-        ...(data?.attachmentSearch ?? {})
-    };
-    const manufacturerWebsites = Array.isArray(attachmentSearch.manufacturerWebsites)
-        ? attachmentSearch.manufacturerWebsites
-        : [];
 
     return {
-        schemaVersion: 12,
+        schemaVersion: 13,
         branding: {
             logoDataUrl: /^data:image\/(png|jpe?g);base64,/i.test(String(branding.logoDataUrl || ""))
                 ? String(branding.logoDataUrl)
@@ -260,30 +244,12 @@ export function normalizeCompanySettings(data) {
                 documentTags: homeDocumentTags
             }
         },
-        estimation: {
-            ...estimation,
-            ollama: {
-                enabled: Boolean(ollama.enabled),
-                baseUrl: String(ollama.baseUrl || "").trim(),
-                embeddingModel: String(ollama.embeddingModel || "").trim(),
-                explanationModel: String(ollama.explanationModel || "").trim()
-            }
-        },
-        attachmentSearch: {
-            enabled: Boolean(attachmentSearch.enabled),
-            openWebUiEndpoint: String(attachmentSearch.openWebUiEndpoint || "").trim().replace(/\/+$/, ""),
-            model: String(attachmentSearch.model || "").trim(),
-            manufacturerWebsites: manufacturerWebsites.map((website, index) => ({
-                id: String(website?.id || `manufacturer-${index + 1}`),
-                name: String(website?.name || "").trim(),
-                baseUrl: String(website?.baseUrl || "").trim().replace(/\/+$/, ""),
-                searchUrlTemplate: String(website?.searchUrlTemplate || "").trim(),
-                downloadsApproved: Boolean(website?.downloadsApproved),
-                licenseNote: String(website?.licenseNote || "").trim()
-            })).filter(website => website.baseUrl),
-            allowOpenWebFallback: attachmentSearch.allowOpenWebFallback !== false,
-            searchPrompt: String(attachmentSearch.searchPrompt || DEFAULT_COMPANY_SETTINGS.attachmentSearch.searchPrompt).trim(),
-            filterPrompt: String(attachmentSearch.filterPrompt || DEFAULT_COMPANY_SETTINGS.attachmentSearch.filterPrompt).trim()
+        estimation,
+        aiIntegration: {
+            enabled: Boolean(aiIntegration.enabled),
+            provider: aiIntegration.provider === "openai-compatible" ? "openai-compatible" : "ollama",
+            endpoint: String(aiIntegration.endpoint || "").trim().replace(/\/+$/, ""),
+            model: String(aiIntegration.model || "").trim()
         }
     };
 }

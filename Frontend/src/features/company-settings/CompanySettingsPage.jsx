@@ -32,8 +32,8 @@ import UserInterfaceSettingsPanel
 
 import EstimationSettingsPanel
     from "./panels/estimationSettingsPanel.jsx";
-import AttachmentSearchSettingsPanel
-    from "./panels/attachmentSearchSettingsPanel.jsx";
+import AiSettingsPanel
+    from "./panels/aiSettingsPanel.jsx";
 import StorageSettingsPanel
     from "./panels/storageSettingsPanel.jsx";
 import HourlyRatesSettingsPanel
@@ -143,7 +143,7 @@ export default function CompanySettings() {
 
             case "ai":
                 return (
-                    <AttachmentSearchSettingsPanel />
+                    <AiSettingsPanel />
                 );
 
             case "documents":

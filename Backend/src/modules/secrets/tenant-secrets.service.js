@@ -3,7 +3,6 @@ import crypto from "node:crypto";
 import prisma from "../../infrastructure/database/prisma.js";
 import { getTenantId } from "../../infrastructure/database/tenant-context.js";
 
-export const ATTACHMENT_SEARCH_API_KEY_SECRET = "attachment-search.openwebui-api-key";
 const KEY_VERSION = 1;
 
 function configurationError() {

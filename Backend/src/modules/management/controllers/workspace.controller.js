@@ -5,6 +5,7 @@ import { getTenantId } from "../../../infrastructure/database/tenant-context.js"
 import { requestYear } from "../services/http.js";
 import { write } from "../services/persistence.js";
 import { invalid, number, textValue, uuid, yearValue } from "../services/validation/values.js";
+import { presentWorkAssignment, removeWorkAssignments, upsertWorkAssignment, WORK_ASSIGNMENT_KIND, workAssignmentPeopleInclude } from "../../assignments/work-assignment.service.js";
 
 const goalInclude = { checkpoints: { orderBy: [{ date: "asc" }, { createdAt: "asc" }] } };
 
@@ -61,7 +62,7 @@ export async function getManagementWorkspace(req, res) {
   const year = requestYear(req);
   const yearStart = new Date(`${year}-01-01T00:00:00.000Z`);
   const nextYearStart = new Date(`${year + 1}-01-01T00:00:00.000Z`);
-  const [memberships, projects, assignments, projectStages, projectSchedules, employeeProfiles, timeRows, vacationEvents, goals, goalYearRows, period] = await Promise.all([
+  const [memberships, projects, assignments, workAssignments, projectStages, projectSchedules, employeeProfiles, timeRows, vacationEvents, goals, goalYearRows, period] = await Promise.all([
     systemPrisma.tenantMembership.findMany({
       where: { tenantId: req.tenant.id, user: { deletedAt: null } },
       include: { user: { select: { id: true, firstName: true, lastName: true, login: true, email: true, isActive: true } } },
@@ -80,6 +81,11 @@ export async function getManagementWorkspace(req, res) {
       include: {
         calendarEvent: { select: { id: true, startAt: true, endAt: true, allDay: true } }
       },
+      orderBy: { updatedAt: "desc" }
+    }),
+    prisma.workAssignment.findMany({
+      where: { status: { not: "dismissed" } },
+      include: workAssignmentPeopleInclude,
       orderBy: { updatedAt: "desc" }
     }),
     prisma.managementProjectStage.findMany({ orderBy: [{ stageId: "asc" }, { position: "asc" }] }),
@@ -123,6 +129,7 @@ export async function getManagementWorkspace(req, res) {
     })),
     projects,
     assignments,
+    workAssignments: workAssignments.map(presentWorkAssignment),
     projectStages,
     projectSchedules,
     employeeProfiles: employeeProfiles.map(item => ({
@@ -150,11 +157,22 @@ export async function saveAssignment(req, res) {
   await assertEmployee(assigneeId);
   const result = await write(req, "assignment.save", async db => {
     await assertProject(db, projectId);
-    return db.managementAssignment.upsert({
+    const assignment = await db.managementAssignment.upsert({
       where: { tenantId_projectId_assigneeId: { tenantId: getTenantId(), projectId, assigneeId } },
       create: { projectId, assigneeId, createdById: req.user.id, info },
       update: { info }
     });
+    const project = await db.project.findFirst({ where: { id: projectId }, select: { id: true, title: true, projectNumber: true } });
+    await upsertWorkAssignment(db, {
+      kind: WORK_ASSIGNMENT_KIND.PROJECT,
+      sourceId: projectId,
+      assigneeId,
+      createdById: req.user.id,
+      title: `${project.projectNumber ? `${project.projectNumber} · ` : ""}${project.title}`,
+      info,
+      href: `/Projects/${projectId}`
+    });
+    return assignment;
   });
   res.status(201).json(result);
 }
@@ -165,6 +183,7 @@ export async function deleteAssignment(req, res) {
     const assignment = await db.managementAssignment.findFirst({ where: { id } });
     if (!assignment) invalid("Zuweisung nicht gefunden.", 404);
     if (assignment.calendarEventId) await db.calendarEvent.deleteMany({ where: { id: assignment.calendarEventId } });
+    await removeWorkAssignments(db, { kind: WORK_ASSIGNMENT_KIND.PROJECT, sourceId: assignment.projectId, assigneeId: assignment.assigneeId });
     await db.managementAssignment.delete({ where: { id } });
     return assignment;
   });

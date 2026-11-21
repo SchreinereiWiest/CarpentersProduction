@@ -1,5 +1,5 @@
 import prisma from "../../infrastructure/database/prisma.js";
-import { getTenantSecret } from "../attachment-search/tenant-secrets.service.js";
+import { getTenantSecret } from "../secrets/tenant-secrets.service.js";
 
 export const PAPERLESS_API_TOKEN_SECRET = "paperless.api-token";
 export const PAPERLESS_WEBHOOK_SECRET = "paperless.webhook-secret";

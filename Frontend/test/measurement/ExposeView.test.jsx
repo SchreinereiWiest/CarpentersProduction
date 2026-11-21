@@ -45,6 +45,30 @@ describe("Exposé-Live-Editor", () => {
     expect(screen.getByText("1 Seiten · Gesamtansicht")).toBeInTheDocument();
   });
 
+  it("schließt die Bearbeitung ab und blättert unveränderbar durch die Seiten", () => {
+    const onChange = vi.fn();
+    render(
+      <ExposeView
+        value={{}}
+        onChange={onChange}
+        project={{ id: "project-1", title: "Empfangstheke" }}
+        photos={[{ id: "photo-1", fileName: "Raum.jpg", url: "blob:raum" }]}
+        views={[]}
+        focusPageId="cover"
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Bearbeitung abschließen" }));
+    expect(screen.getByText("2 Seiten · Gesamtansicht")).toBeInTheDocument();
+    expect(screen.queryByText("Werkzeuge")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Titelseite öffnen" }));
+    expect(screen.getByText(/Titelseite · Vorschau · Seite 1 von 2/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Nächste Exposé-Seite" }));
+    expect(screen.getByText(/Perspektive 1 · Vorschau · Seite 2 von 2/)).toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it("öffnet in der Gesamtansicht eine Seite auch beim Klick auf einen belegten Block", () => {
     render(
       <ExposeView

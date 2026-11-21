@@ -4,6 +4,7 @@ import { normalizeHomePreferences } from "../../../../Engine/src/dashboard/home.
 import prisma, { systemPrisma } from "../../infrastructure/database/prisma.js";
 import { s3Upload } from "../../infrastructure/storage/s3.js";
 import { calendarVisibilityWhere } from "../calendar/calendar.validation.js";
+import { presentWorkAssignment, workAssignmentPeopleInclude } from "../assignments/work-assignment.service.js";
 
 const berlinDateKey = value => new Intl.DateTimeFormat("en-CA", {
   timeZone: "Europe/Berlin", year: "numeric", month: "2-digit", day: "2-digit"
@@ -47,6 +48,17 @@ const paperlessInclude = {
   project: { select: { id: true, title: true, projectNumber: true } },
   assignedTo: { select: { id: true, firstName: true, lastName: true, login: true } }
 };
+
+const commercialDocumentSummary = document => ({
+  id: document.id,
+  title: document.title,
+  documentType: document.documentType,
+  documentNumber: document.documentNumber,
+  status: document.status,
+  project: document.project || null,
+  customer: document.customer || null,
+  updatedAt: document.updatedAt
+});
 
 const purchaseSummary = (item, project = null) => ({
   id: String(item.id || item.sourceKey),
@@ -93,6 +105,18 @@ export async function getDashboard(req, res) {
     where: { tenantId_userId: { tenantId: req.tenant.id, userId: req.user.id } },
     select: { preferences: true }
   });
+  const workAssignmentsPromise = prisma.workAssignment.findMany({
+    where: { assigneeId: req.user.id, status: "open" },
+    include: workAssignmentPeopleInclude,
+    orderBy: { updatedAt: "desc" },
+    take: 100
+  });
+  const completedAssignmentsPromise = prisma.workAssignment.findMany({
+    where: { createdById: req.user.id, status: "completed" },
+    include: workAssignmentPeopleInclude,
+    orderBy: { completedAt: "desc" },
+    take: 100
+  });
 
   const assignmentsPromise = features.has("business-management")
     ? prisma.managementAssignment.findMany({
@@ -133,6 +157,17 @@ export async function getDashboard(req, res) {
         take: 100
       })
     : Promise.resolve([]);
+  const assignedCommercialDocumentsPromise = features.has("crm")
+    ? prisma.commercialDocument.findMany({
+        where: { assignedToId: req.user.id },
+        include: {
+          project: { select: { id: true, title: true, projectNumber: true } },
+          customer: { select: { id: true, firstName: true, lastName: true, companyName: true } }
+        },
+        orderBy: { updatedAt: "desc" },
+        take: 50
+      })
+    : Promise.resolve([]);
 
   let releasedPurchases = [];
   let openDeliveries = [];
@@ -165,8 +200,9 @@ export async function getDashboard(req, res) {
     openDeliveries = [...grouped.values()];
   }
 
-  const [membership, assignments, events, assignedDocuments, inboxDocuments] = await Promise.all([
-    membershipPromise, assignmentsPromise, eventsPromise, assignedDocumentsPromise, inboxDocumentsPromise
+  const [membership, assignments, events, assignedDocuments, inboxDocuments, assignedCommercialDocuments, workAssignments, completedAssignments] = await Promise.all([
+    membershipPromise, assignmentsPromise, eventsPromise, assignedDocumentsPromise, inboxDocumentsPromise, assignedCommercialDocumentsPromise,
+    workAssignmentsPromise, completedAssignmentsPromise
   ]);
   const rawPreferences = membership?.preferences && typeof membership.preferences === "object" && !Array.isArray(membership.preferences)
     ? membership.preferences : {};
@@ -175,10 +211,59 @@ export async function getDashboard(req, res) {
     week: { start: week.start, end: week.end },
     preferences: { ...rawPreferences, home: normalizeHomePreferences(rawPreferences.home, role) },
     assignments,
+    assignedCommercialDocuments: assignedCommercialDocuments.map(commercialDocumentSummary),
+    workAssignments: workAssignments.map(presentWorkAssignment),
+    completedAssignments: completedAssignments.map(presentWorkAssignment),
     events,
     assignedDocuments: assignedDocuments.map(documentSummary),
     inboxDocuments: inboxDocuments.map(documentSummary),
     releasedPurchases,
     openDeliveries
   });
+}
+
+export async function completeWorkAssignment(req, res) {
+  const assignment = await prisma.workAssignment.findFirst({ where: { id: req.params.id } });
+  if (!assignment) return res.status(404).json({ message: "Zuweisung nicht gefunden." });
+  if (assignment.assigneeId !== req.user.id) return res.status(403).json({ message: "Nur der Empfänger kann diesen Auftrag abschließen." });
+  if (assignment.status !== "open") return res.status(409).json({ message: "Dieser Auftrag ist nicht mehr offen." });
+  const updated = await prisma.$transaction(async transaction => {
+    const result = await transaction.workAssignment.update({
+      where: { id: assignment.id },
+      data: { status: "completed", completedAt: new Date(), dismissedAt: null },
+      include: workAssignmentPeopleInclude
+    });
+    await transaction.auditLog.create({ data: {
+      actorUserId: req.user.id,
+      action: "work_assignment.complete",
+      entityType: "WorkAssignment",
+      entityId: assignment.id,
+      metadata: { kind: assignment.kind, sourceId: assignment.sourceId, createdById: assignment.createdById }
+    } });
+    return result;
+  });
+  return res.json({ assignment: presentWorkAssignment(updated) });
+}
+
+export async function dismissWorkAssignment(req, res) {
+  const assignment = await prisma.workAssignment.findFirst({ where: { id: req.params.id } });
+  if (!assignment) return res.status(404).json({ message: "Zuweisung nicht gefunden." });
+  if (assignment.createdById !== req.user.id) return res.status(403).json({ message: "Nur der Absender kann die Rückmeldung ausblenden." });
+  if (assignment.status !== "completed") return res.status(409).json({ message: "Nur abgeschlossene Aufträge können ausgeblendet werden." });
+  const updated = await prisma.$transaction(async transaction => {
+    const result = await transaction.workAssignment.update({
+      where: { id: assignment.id },
+      data: { status: "dismissed", dismissedAt: new Date() },
+      include: workAssignmentPeopleInclude
+    });
+    await transaction.auditLog.create({ data: {
+      actorUserId: req.user.id,
+      action: "work_assignment.dismiss",
+      entityType: "WorkAssignment",
+      entityId: assignment.id,
+      metadata: { kind: assignment.kind, sourceId: assignment.sourceId }
+    } });
+    return result;
+  });
+  return res.json({ assignment: presentWorkAssignment(updated) });
 }

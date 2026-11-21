@@ -1,19 +1,25 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   loadDocument: vi.fn(),
   saveDocument: vi.fn(),
-  createDocument: vi.fn()
+  createDocument: vi.fn(),
+  loadAssignees: vi.fn(),
+  assignDocument: vi.fn(),
+  user: { id: "admin-1", role: "admin" }
 }));
 
+vi.mock("../src/app/providers/AuthContext.js", () => ({ useAuth: () => ({ user: mocks.user }) }));
 vi.mock("../src/shared/components/sideBar.jsx", () => ({ default: () => <nav aria-label="Sidebar"/> }));
 vi.mock("../src/shared/settings/company-settings.js", () => ({ loadCompanySettings: vi.fn(async () => ({ branding: { logoDataUrl: "data:image/png;base64,AAAA" } })) }));
 vi.mock("../src/features/commercial/commercialApi.js", () => ({
   loadCommercialDocument: mocks.loadDocument,
   saveCommercialDocument: mocks.saveDocument,
-  createCommercialDocument: mocks.createDocument
+  createCommercialDocument: mocks.createDocument,
+  loadCommercialDocumentAssignees: mocks.loadAssignees,
+  assignCommercialDocument: mocks.assignDocument
 }));
 
 import CommercialDocumentEditorPage from "../src/features/commercial/CommercialDocumentEditorPage.jsx";
@@ -89,5 +95,21 @@ describe("strukturierter Belegeditor", () => {
     expect(screen.getByLabelText("Kundenanschrift")).toHaveValue("Muster GmbH\nMusterweg 1\n12345 Musterstadt");
     expect(screen.getAllByLabelText("Belegnummer").some(input => input.value === "ANG-2026-0001")).toBe(true);
     expect(screen.getByLabelText("Beschreibung Position 1")).toHaveValue("Einbauschrank");
+  });
+
+  it("weist einen festgesetzten Beleg einem Mitarbeiter zur Bearbeitung zu", async () => {
+    const employeeId = "11111111-1111-4111-8111-111111111111";
+    mocks.loadDocument.mockResolvedValue({ ...document, fieldValues: { editorLocked: true }, assignedTo: null });
+    mocks.loadAssignees.mockResolvedValue([{ id: employeeId, name: "Anna Holz", role: "user" }]);
+    mocks.assignDocument.mockResolvedValue({ ...document, fieldValues: { editorLocked: true }, assignedToId: employeeId, assignedTo: { id: employeeId, firstName: "Anna", lastName: "Holz" } });
+
+    render(<MemoryRouter initialEntries={["/Belege/document-1"]}><Routes><Route path="/Belege/:documentId" element={<CommercialDocumentEditorPage/>}/></Routes></MemoryRouter>);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Bearbeitung zuweisen" }));
+    fireEvent.change(await screen.findByLabelText("Bearbeiter"), { target: { value: employeeId } });
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Bearbeitung zuweisen" })).getByRole("button", { name: "Bearbeitung zuweisen" }));
+
+    await waitFor(() => expect(mocks.assignDocument).toHaveBeenCalledWith("document-1", employeeId));
+    expect(await screen.findByText("Die Belegbearbeitung wurde zugewiesen.")).toBeInTheDocument();
   });
 });

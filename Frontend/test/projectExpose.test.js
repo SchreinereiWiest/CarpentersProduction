@@ -19,12 +19,28 @@ describe("Projekt-Exposé", () => {
     ];
     const migrated = ensureWorkspaceViews(legacyViews);
 
-    expect(migrated.map((view) => view.type)).toEqual([
-      "elevation",
+    expect(migrated.map((view) => view.type)).toEqual(["expose", "images", "three"]);
+    expect(ensureWorkspaceViews(migrated)).toBe(migrated);
+  });
+
+  it("entfernt leere Zeichenansichten, behält aber Ansichten mit Bild oder Objekten", () => {
+    const views = [
+      { id: "empty", label: "Leere Front", type: "elevation" },
+      { id: "photo", label: "Fotofront", type: "elevation", imageFileId: "photo-1" },
+      { id: "measured", label: "Aufmaßfront", type: "elevation" }
+    ];
+
+    const normalized = ensureWorkspaceViews(views, [{ id: "object-1", viewId: "measured" }]);
+
+    expect(normalized.map(view => view.id)).not.toContain("empty");
+    expect(normalized.map(view => view.id)).toEqual(expect.arrayContaining([
+      "photo",
+      "measured",
+      "three",
       "images",
       "expose"
-    ]);
-    expect(ensureWorkspaceViews(migrated)).toBe(migrated);
+    ]));
+    expect(normalized[0].type).toBe("expose");
   });
 
   it("behält editierte Texte und ergänzt fehlende Druckbereiche mit Standardwerten", () => {

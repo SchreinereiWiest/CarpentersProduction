@@ -1,64 +1,47 @@
 import { useEffect, useState } from "react";
 import AufmasIcon from "../../components/common/AufmasIcon.jsx";
 
-const nameFromFile = (fileName) =>
-  String(fileName || "Neue Ansicht").replace(/\.[^.]+$/, "");
-
 export default function ImagesView({
   photos,
   onUpload,
-  onCreateView,
   uploading,
   readOnly = false,
   selectionMode = false,
+  selectionTitle = "Bild für das Exposé auswählen",
   onSelectPhoto,
   onCancelSelection
 }) {
   const [selectedPhoto, setSelectedPhoto] = useState(null);
-  const [viewName, setViewName] = useState("");
 
-  const openCreateDialog = (photo) => {
-    if (readOnly) return;
+  const openPhoto = (photo) => {
     if (selectionMode) {
       onSelectPhoto?.(photo);
       return;
     }
     setSelectedPhoto(photo);
-    setViewName(nameFromFile(photo.fileName));
   };
 
-  const closeCreateDialog = () => {
-    setSelectedPhoto(null);
-    setViewName("");
-  };
+  const closePhoto = () => setSelectedPhoto(null);
 
   useEffect(() => {
     if (!selectedPhoto) return undefined;
     const closeOnEscape = (event) => {
-      if (event.key === "Escape") closeCreateDialog();
+      if (event.key === "Escape") closePhoto();
     };
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [selectedPhoto]);
-
-  const createView = (event) => {
-    event.preventDefault();
-    const name = viewName.trim();
-    if (!selectedPhoto || !name) return;
-    onCreateView(selectedPhoto, name);
-    closeCreateDialog();
-  };
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[#10171e]">
       <div className="flex min-h-14 shrink-0 items-center justify-between border-b border-[#2b3844] bg-[#17212a] px-4 py-2">
         <div>
           <h2 className="text-sm font-semibold text-[#e5edf3]">
-            {selectionMode ? "Bild für das Exposé auswählen" : "Projektbilder"}
+            {selectionMode ? selectionTitle : "Projektbilder"}
           </h2>
           <p className="mt-0.5 text-[11px] text-[#728391]">
             {selectionMode
-              ? "Ein Bild anklicken – anschließend geht es direkt zurück zum Exposé."
+              ? "Ein Bild anklicken – es wird direkt in die neue Ansicht eingesetzt."
               : `${photos.length} Projektbild${photos.length === 1 ? "" : "er"}`}
           </p>
         </div>
@@ -94,10 +77,9 @@ export default function ImagesView({
               <button
                 key={photo.id}
                 type="button"
-                onClick={() => openCreateDialog(photo)}
-                disabled={readOnly}
-                className="group overflow-hidden rounded-lg border border-[#2f3e49] bg-[#17212a] text-left transition hover:border-[#5c8eb4] disabled:cursor-default disabled:hover:border-[#2f3e49]"
-                title={readOnly ? photo.fileName : selectionMode ? "In das Exposé einsetzen" : "Als neue Ansicht verwenden"}
+                onClick={() => openPhoto(photo)}
+                className="group overflow-hidden rounded-lg border border-[#2f3e49] bg-[#17212a] text-left transition hover:border-[#5c8eb4]"
+                title={selectionMode ? "Bild auswählen" : "Bild im Vollbild öffnen"}
               >
                 <div className="aspect-[4/3] overflow-hidden bg-[#0c1217]">
                   <img
@@ -129,64 +111,16 @@ export default function ImagesView({
       </div>
 
       {selectedPhoto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4" role="dialog" aria-modal="true" aria-label={`${selectedPhoto.fileName} im Vollbild`} onMouseDown={(event) => event.target === event.currentTarget && closePhoto()}>
           <button
             type="button"
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-            onClick={closeCreateDialog}
-            aria-label="Dialog schließen"
-          />
-          <form
-            onSubmit={createView}
-            className="relative w-full max-w-md rounded-xl border border-[#3a4c59] bg-[#17212a] p-5 shadow-2xl"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="image-view-dialog-title"
+            onClick={closePhoto}
+            className="absolute right-4 top-4 z-10 rounded-lg border border-white/20 bg-black/60 px-4 py-2 text-sm font-semibold text-white hover:bg-black/80"
+            aria-label="Vollbild schließen"
           >
-            <h3
-              id="image-view-dialog-title"
-              className="text-base font-semibold text-[#e5edf3]"
-            >
-              Bild als Ansicht hinzufügen
-            </h3>
-            <p className="mt-1 text-xs leading-relaxed text-[#7f919e]">
-              Vergib einen Namen für die neue bearbeitbare Front- oder
-              Detailansicht.
-            </p>
-            <div className="mt-4 flex gap-4">
-              <img
-                src={selectedPhoto.url}
-                alt=""
-                className="h-20 w-24 shrink-0 rounded-md border border-[#31414c] object-cover"
-              />
-              <label className="min-w-0 flex-1 text-xs font-medium text-[#b9c7d1]">
-                Name der Ansicht
-                <input
-                  autoFocus
-                  value={viewName}
-                  onChange={(event) => setViewName(event.target.value)}
-                  className="mt-2 w-full rounded-md border border-[#3a4b57] bg-[#0f171e] px-3 py-2 text-sm text-white outline-none focus:border-[#66a6d1]"
-                  placeholder="z. B. Front Hochschrank"
-                />
-              </label>
-            </div>
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={closeCreateDialog}
-                className="rounded-md border border-[#3a4b57] px-4 py-2 text-xs font-semibold text-[#aab8c2] hover:bg-[#202d37]"
-              >
-                Abbrechen
-              </button>
-              <button
-                type="submit"
-                disabled={!viewName.trim()}
-                className="rounded-md bg-[#315c78] px-4 py-2 text-xs font-semibold text-[#e5f3fb] hover:bg-[#3c6f90] disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Ansicht hinzufügen
-              </button>
-            </div>
-          </form>
+            Schließen
+          </button>
+          <img src={selectedPhoto.url} alt={selectedPhoto.fileName} className="max-h-[calc(100dvh-2rem)] max-w-[calc(100vw-2rem)] object-contain" />
         </div>
       )}
     </div>

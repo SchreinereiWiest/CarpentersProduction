@@ -12,7 +12,7 @@ import CabinetSettingsPanel from "../company-settings/panels/cabinetSettingsPane
 import CncSettingsPanel from "../company-settings/panels/cncSettingsPanel.jsx";
 import EstimationSettingsPanel from "../company-settings/panels/estimationSettingsPanel.jsx";
 import HourlyRatesSettingsPanel from "../company-settings/panels/hourlyRatesSettingsPanel.jsx";
-import AttachmentSearchSettingsPanel from "../company-settings/panels/attachmentSearchSettingsPanel.jsx";
+import AiSettingsPanel from "../company-settings/panels/aiSettingsPanel.jsx";
 import PaperlessSettingsPanel from "../company-settings/panels/paperlessSettingsPanel.jsx";
 import ContactHistorySettingsPanel from "../company-settings/panels/contactHistorySettingsPanel.jsx";
 import ShopSettingsPanel from "../company-settings/panels/shopSettingsPanel.jsx";
@@ -79,7 +79,7 @@ function StepContent({ stepId, user, stepCount }) {
     ]} />;
     case "integrations": return <SectionTabs tabs={[
       { id: "documents", label: "Dokumente & Paperless", content: <PaperlessSettingsPanel /> },
-      ...(features.has("work-preparation") ? [{ id: "ai", label: "AI & Anhangssuche", content: <AttachmentSearchSettingsPanel /> }] : []),
+      { id: "ai", label: "AI & Ollama", content: <AiSettingsPanel /> },
       ...(features.has("crm") ? [{ id: "contact", label: "E-Mail & Telefonie", content: <ContactHistorySettingsPanel /> }] : [])
     ]} />;
     case "shop-settings": return <ShopSettingsPanel />;

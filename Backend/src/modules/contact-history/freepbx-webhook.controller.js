@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 
 import prisma, { systemPrisma } from "../../infrastructure/database/prisma.js";
 import { runWithTenant } from "../../infrastructure/database/tenant-context.js";
-import { getTenantSecret } from "../attachment-search/tenant-secrets.service.js";
+import { getTenantSecret } from "../secrets/tenant-secrets.service.js";
 import { publishPhoneCall } from "./freepbx-call-events.service.js";
 import {
   FREEPBX_WEBHOOK_SECRET,

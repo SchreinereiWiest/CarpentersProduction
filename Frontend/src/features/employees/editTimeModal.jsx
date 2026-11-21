@@ -2,10 +2,19 @@ import { useMemo, useState } from "react";
 import { CUSTOM_WORK_TYPE_ID } from "../../shared/settings/company-settings.js";
 
 function calculateOffset(start, end) {
+    if (!start || !end) return Number.NaN;
     const [sh, sm] = start.split(":").map(Number);
     const [eh, em] = end.split(":").map(Number);
 
     return (eh * 60 + em) - (sh * 60 + sm);
+}
+
+function addMinutes(start, duration) {
+    if (!start || !Number.isFinite(Number(duration))) return "";
+    const [hours, minutes] = start.split(":").map(Number);
+    const total = hours * 60 + minutes + Number(duration);
+    if (total < 0 || total >= 24 * 60) return "";
+    return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
 export default function EditTimeModal({
@@ -51,6 +60,7 @@ export default function EditTimeModal({
 
         }
 
+        const duration = Number(slot?.duration) || 0;
         return {
             projectId: slot?.projectId ?? "",
 
@@ -62,14 +72,16 @@ export default function EditTimeModal({
 
             start: startTime,
 
-            duration: slot?.duration ?? 0
+            end: typeof slot?.end === "string" ? slot.end : addMinutes(startTime, duration),
+
+            duration
         };
     });
 
     if (!open || !slot)
         return null;
 
-    const remaining = calculateOffset(entry.start, blockEnd);
+    const remaining = Math.max(0, calculateOffset(entry.start, blockEnd) || 0);
 
     return (
 
@@ -87,13 +99,15 @@ export default function EditTimeModal({
 
                     <div>
 
-                        <label className="mb-1 block text-sm">
+                        <label htmlFor="employee-time-project" className="mb-1 block text-sm">
 
                             Projekt
 
                         </label>
 
                         <select
+
+                            id="employee-time-project"
 
                             value={entry.projectId}
 
@@ -131,13 +145,15 @@ export default function EditTimeModal({
 
                     <div>
 
-                        <label className="mb-1 block text-sm">
+                        <label htmlFor="employee-time-work-type" className="mb-1 block text-sm">
 
                             Tätigkeit
 
                         </label>
 
                         <select
+
+                            id="employee-time-work-type"
 
                             value={entry.workType}
 
@@ -179,8 +195,9 @@ export default function EditTimeModal({
 
                     {entry.workType === CUSTOM_WORK_TYPE_ID && (
                         <div>
-                            <label className="mb-1 block text-sm">Eigene Bezeichnung</label>
+                            <label htmlFor="employee-time-custom-work" className="mb-1 block text-sm">Eigene Bezeichnung</label>
                             <input
+                                id="employee-time-custom-work"
                                 type="text"
                                 value={entry.customWorkType}
                                 onChange={event => setEntry(previous => ({
@@ -195,13 +212,15 @@ export default function EditTimeModal({
 
                     <div>
 
-                        <label className="mb-1 block text-sm">
+                        <label htmlFor="employee-time-start" className="mb-1 block text-sm">
 
                             Start
 
                         </label>
 
                         <input
+
+                            id="employee-time-start"
 
                             type="time"
 
@@ -211,7 +230,17 @@ export default function EditTimeModal({
 
                                 const start = e.target.value;
 
-                                const max = calculateOffset(start, blockEnd);
+                                const calculatedMaximum = calculateOffset(start, blockEnd);
+
+                                const max = Number.isFinite(calculatedMaximum) && calculatedMaximum > 0
+                                    ? calculatedMaximum
+                                    : 0;
+
+                                const durationFromEnd = calculateOffset(start, entry.end);
+
+                                const duration = Number.isFinite(durationFromEnd) && durationFromEnd > 0
+                                    ? Math.min(durationFromEnd, max)
+                                    : Math.min(Number(entry.duration) || 0, max);
 
                                 setEntry(prev => ({
 
@@ -219,8 +248,9 @@ export default function EditTimeModal({
 
                                     start,
 
-                                    duration:
-                                        Math.min(prev.duration, max)
+                                    duration,
+
+                                    end: addMinutes(start, duration)
 
                                 }));
 
@@ -234,13 +264,55 @@ export default function EditTimeModal({
 
                     <div>
 
-                        <label className="mb-1 block text-sm">
+                        <label htmlFor="employee-time-end" className="mb-1 block text-sm">
+
+                            Ende
+
+                        </label>
+
+                        <input
+
+                            id="employee-time-end"
+
+                            type="time"
+
+                            min={entry.start}
+
+                            max={blockEnd}
+
+                            value={entry.end}
+
+                            onChange={e => {
+                                const end = e.target.value;
+                                const calculated = calculateOffset(entry.start, end);
+                                setEntry(prev => ({
+                                    ...prev,
+                                    end,
+                                    duration: Number.isFinite(calculated) && calculated > 0 && calculated <= remaining
+                                        ? calculated
+                                        : 0
+                                }));
+                            }}
+
+                            className="w-full rounded-lg bg-gray-800 p-2"
+
+                        />
+
+                        <p className="mt-1 text-xs text-gray-500">Start + Ende berechnet die Dauer automatisch.</p>
+
+                    </div>
+
+                    <div>
+
+                        <label htmlFor="employee-time-duration" className="mb-1 block text-sm">
 
                             Dauer (Minuten)
 
                         </label>
 
                         <input
+
+                            id="employee-time-duration"
 
                             type="number"
 
@@ -250,23 +322,20 @@ export default function EditTimeModal({
 
                             value={entry.duration}
 
-                            onChange={e =>
+                            onChange={e => {
+                                const duration = Math.min(Math.max(0, Number(e.target.value) || 0), remaining);
                                 setEntry(prev => ({
-
                                     ...prev,
-
-                                    duration:
-                                        Math.min(
-                                            Number(e.target.value),
-                                            remaining
-                                        )
-
-                                }))
-                            }
+                                    duration,
+                                    end: addMinutes(prev.start, duration)
+                                }));
+                            }}
 
                             className="w-full rounded-lg bg-gray-800 p-2"
 
                         />
+
+                        <p className="mt-1 text-xs text-gray-500">Start + Dauer berechnet die Endzeit automatisch.</p>
 
                     </div>
 
@@ -339,6 +408,8 @@ export default function EditTimeModal({
 
                                     start: entry.start,
 
+                                    end: entry.end,
+
                                     date: slot.date,
 
                                 }, mode, Cal)
@@ -348,6 +419,9 @@ export default function EditTimeModal({
                             disabled={
                                 !entry.projectId ||
                                 !entry.workType ||
+                                !entry.start ||
+                                !entry.end ||
+                                !Number.isFinite(Number(entry.duration)) ||
                                 entry.duration <= 0 ||
                                 (entry.workType === CUSTOM_WORK_TYPE_ID && !entry.customWorkType.trim())
                             }

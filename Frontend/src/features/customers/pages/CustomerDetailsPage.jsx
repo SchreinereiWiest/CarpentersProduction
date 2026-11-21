@@ -30,30 +30,45 @@ export default function CustomerDetailsPage() {
   const [error, setError] = useState("");
 
   const loadRelatedData = async () => {
-    const [projectsResponse, commercial] = await Promise.all([
+    const [projectsResult, commercialResult] = await Promise.allSettled([
       axios.get(`/api/projects/getAll/${userid}`),
       loadCustomerCommercial(userid)
     ]);
-    setProjects(projectsResponse.data.projects ?? []);
-    setCommissions(commercial.commissions);
-    setDocuments(commercial.documents);
+    if (projectsResult.status === "fulfilled") setProjects(projectsResult.value.data.projects ?? []);
+    if (commercialResult.status === "fulfilled") {
+      setCommissions(commercialResult.value.commissions);
+      setDocuments(commercialResult.value.documents);
+    }
+    const relatedErrors = [projectsResult, commercialResult].filter(result => result.status === "rejected");
+    if (commercialResult.status === "fulfilled") relatedErrors.push(...commercialResult.value.loadErrors);
+    setError(relatedErrors.length ? "Einzelne projekt- oder belegbezogene Daten konnten nicht geladen werden. Die Kontaktdaten bleiben verfügbar." : "");
   };
 
   useEffect(() => {
     let active = true;
-    Promise.all([
+    Promise.allSettled([
       axios.get(`/api/customers/get/${userid}`),
       axios.get(`/api/projects/getAll/${userid}`),
       loadCustomerCommercial(userid)
-    ]).then(([customerResponse, projectsResponse, commercial]) => {
+    ]).then(([customerResult, projectsResult, commercialResult]) => {
       if (!active) return;
-      setCustomer(customerResponse.data.customer);
-      setProjects(projectsResponse.data.projects ?? []);
-      setCommissions(commercial.commissions);
-      setDocuments(commercial.documents);
-    }).catch(loadError => {
-      console.error("Kontakt konnte nicht geladen werden:", loadError);
-      if (active) setError("Die Kundendaten konnten nicht geladen werden.");
+      if (customerResult.status === "rejected") {
+        console.error("Kontakt konnte nicht geladen werden:", customerResult.reason);
+        setError("Die Kundendaten konnten nicht geladen werden.");
+        return;
+      }
+      setCustomer(customerResult.value.data.customer);
+      if (projectsResult.status === "fulfilled") setProjects(projectsResult.value.data.projects ?? []);
+      if (commercialResult.status === "fulfilled") {
+        setCommissions(commercialResult.value.commissions);
+        setDocuments(commercialResult.value.documents);
+      }
+      const relatedErrors = [projectsResult, commercialResult].filter(result => result.status === "rejected");
+      if (commercialResult.status === "fulfilled") relatedErrors.push(...commercialResult.value.loadErrors);
+      if (relatedErrors.length) {
+        console.error("Zusatzdaten des Kontakts konnten teilweise nicht geladen werden:", relatedErrors);
+        setError("Einzelne projekt- oder belegbezogene Daten konnten nicht geladen werden. Die Kontaktdaten bleiben verfügbar.");
+      }
     });
     return () => { active = false; };
   }, [userid]);
