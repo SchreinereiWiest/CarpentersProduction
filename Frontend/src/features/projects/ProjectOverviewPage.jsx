@@ -1,26 +1,38 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import SideBar from '../../shared/components/sideBar.jsx'
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { useAuth } from '../../app/providers/AuthContext.js';
 import ProjectImportDialog from './import/ProjectImportDialog.jsx';
 import { getProjectRecords } from '../../shared/projects/project-records.js';
 import { formatGermanDate } from '../../shared/utils/date.js';
+import {
+    ensureGuidedTourDemoProject,
+    isGuidedTourDemoProject
+} from '../guided-help/guidedTourDemoProject.js';
 
 function ProjectOverview() {
 
     const navigate = useNavigate();
+    const location = useLocation();
     const { user } = useAuth();
 
     const [projects, setProjects] = useState([]);
     const [showImport, setShowImport] = useState(false);
     const [loadError, setLoadError] = useState("");
+    const onboardingTour = new URLSearchParams(location.search).get("guidedTour") === "onboarding";
     const projectsEndpoint = user?.role === "user"
         ? "/api/projects/getActive"
         : "/api/projects/getAll";
 
+    const prepareProjects = useCallback(async records => {
+        const realProjects = (records ?? []).filter(project => !isGuidedTourDemoProject(project));
+        if (!onboardingTour || realProjects.length > 0) return realProjects;
+        return [await ensureGuidedTourDemoProject()];
+    }, [onboardingTour]);
+
     const fetchProjects = async () => {
         try {
-            setProjects(await getProjectRecords(projectsEndpoint));
+            setProjects(await prepareProjects(await getProjectRecords(projectsEndpoint)));
             setLoadError("");
         } catch (error) {
             console.error("Projekte konnten nicht geladen werden:", error);
@@ -30,19 +42,29 @@ function ProjectOverview() {
 
     useEffect(() => {
         let active = true;
-        getProjectRecords(projectsEndpoint).then(projects => {
+        getProjectRecords(projectsEndpoint).then(prepareProjects).then(projects => {
             if (active) {
                 setProjects(projects);
                 setLoadError("");
             }
-        }).catch(error => {
+        }).catch(async error => {
             console.error("Projekte konnten nicht geladen werden:", error);
-            if (active) setLoadError("Die Projekte konnten nicht geladen werden. Bitte die Verbindung zum Backend prüfen.");
+            if (!active) return;
+            if (onboardingTour) {
+                try {
+                    setProjects([await ensureGuidedTourDemoProject()]);
+                    setLoadError("");
+                    return;
+                } catch (demoError) {
+                    console.error("Temporäres Rundgangsprojekt konnte nicht angelegt werden:", demoError);
+                }
+            }
+            setLoadError("Die Projekte konnten nicht geladen werden. Bitte die Verbindung zum Backend prüfen.");
         });
         return () => {
             active = false;
         };
-    }, [projectsEndpoint]);
+    }, [projectsEndpoint, onboardingTour, prepareProjects]);
 
     const groupedProjects = useMemo(() => {
         const commissions = new Map();

@@ -68,7 +68,10 @@ export async function provisionBootstrapTenant(company, database = systemPrisma)
     const requestedSlug = tenantSlugForCompany(name);
 
     return database.$transaction(async transaction => {
-        await transaction.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${name.toLocaleLowerCase("de-DE")}))`;
+        // pg_advisory_xact_lock liefert PostgreSQL-Typ void. Prisma 7 kann
+        // diesen Rückgabewert über $queryRaw nicht deserialisieren; $executeRaw
+        // führt die Sperre aus, ohne ein Resultset auszulesen.
+        await transaction.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${name.toLocaleLowerCase("de-DE")}))`;
         const existing = await transaction.tenant.findFirst({
             where: { name: { equals: name, mode: "insensitive" } }
         }) ?? await transaction.tenant.findFirst({
@@ -169,7 +172,7 @@ export async function bootstrapTenantAdmin(tenant, body, database = systemPrisma
         return await database.$transaction(async transaction => {
             // Serialisiert konkurrierende Einrichtungsversuche je Tenant. Die
             // erneute Prüfung innerhalb der Transaktion schließt Doppel-Admins aus.
-            await transaction.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${tenant.id}))`;
+            await transaction.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${tenant.id}))`;
             await transaction.$executeRaw`SELECT set_config('app.tenant_id', ${tenant.id}, true)`;
             if (!(await tenantNeedsBootstrap(tenant.id, transaction))) {
                 throw new TenantBootstrapError(

@@ -36,8 +36,10 @@ test("Neue Firmen erhalten einen stabilen, URL-tauglichen Tenant-Slug", () => {
 
 test("eine neue Lizenz erhält vor der Aktivierung einen wiederverwendbaren Setup-Mandanten", async () => {
   const created = [];
+  let lockCalls = 0;
   const transaction = {
-    $queryRaw: async () => [],
+    $executeRaw: async () => { lockCalls += 1; return 1; },
+    $queryRaw: async () => assert.fail("Void-Funktionen dürfen nicht über $queryRaw ausgeführt werden"),
     tenant: {
       findFirst: async () => null,
       findUnique: async () => null,
@@ -57,6 +59,7 @@ test("eine neue Lizenz erhält vor der Aktivierung einen wiederverwendbaren Setu
     status: "pending-setup"
   }]);
   assert.equal(tenant.id, "tenant-new");
+  assert.equal(lockCalls, 1);
 });
 
 test("Bootstrap verlangt ein eigenständiges starkes Benutzerpasswort", () => {

@@ -2,7 +2,6 @@ import express from "express";
 import prisma from "../../infrastructure/database/prisma.js";
 
 import {createUpload, createDownloadUrl, deleteFile, streamFileContent} from "../../middleware/upload.middleware.js";
-import {uploadcomplete} from "./file.controller.js";
 import { authenticate, authorizeRoles, requireFeature } from "../../middleware/auth.middleware.js";
 import { authorizeFile, authorizeUploadTarget } from "../../middleware/resourceAuthorization.middleware.js";
 import { subscribeToFileChanges } from "./file-change-events.service.js";
@@ -131,8 +130,6 @@ router.post(
     },
     createUpload
 );
-
-// router.post("/complete", uploadcomplete);
 
 router.get("/download/:id", authenticate, authorizeFile("id", { allowSharedShop: true }), requireAuthorizedFileModule, createDownloadUrl);
 router.get("/content/:id", authenticate, authorizeFile("id", { allowSharedShop: true }), requireAuthorizedFileModule, streamFileContent);

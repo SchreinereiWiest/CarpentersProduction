@@ -6,11 +6,18 @@ import { useGuidedHelp } from "../../src/features/guided-help/GuidedHelpContext.
 import GuidedHelpProvider from "../../src/features/guided-help/GuidedHelpProvider.jsx";
 import { OnboardingContext } from "../../src/features/onboarding/OnboardingContext.js";
 
+const demoProjectMocks = vi.hoisted(() => ({ cleanup: vi.fn().mockResolvedValue(0) }));
+
+vi.mock("../../src/features/guided-help/guidedTourDemoProject.js", () => ({
+  cleanupGuidedTourDemoProjects: demoProjectMocks.cleanup
+}));
+
 function TourLauncher() {
   const help = useGuidedHelp();
   return <>
     <button type="button" onClick={() => help?.startTour("projects")}>Direkt starten</button>
     <button type="button" onClick={() => help?.startTour("system-overview")}>System starten</button>
+    <button type="button" onClick={() => help?.startTour("system-overview", { mode: "onboarding" })}>Onboarding starten</button>
   </>;
 }
 
@@ -44,6 +51,8 @@ function renderHelp(initialEntry = "/Projects") {
 describe("Top-Layer-Hilfe", () => {
   beforeEach(() => {
     window.sessionStorage.clear();
+    demoProjectMocks.cleanup.mockClear();
+    demoProjectMocks.cleanup.mockResolvedValue(0);
     HTMLElement.prototype.scrollIntoView = vi.fn();
   });
 
@@ -104,5 +113,17 @@ describe("Top-Layer-Hilfe", () => {
 
     expect(await screen.findByRole("dialog", { name: "Projektkopf" })).toBeInTheDocument();
     expect(screen.queryByRole("dialog", { name: "Der Projektarbeitsplatz" })).not.toBeInTheDocument();
+  });
+
+  it("entfernt das temporäre Projekt beim Abbruch des Einrichtungsrundgangs", async () => {
+    renderHelp("/init");
+    await waitFor(() => expect(demoProjectMocks.cleanup).toHaveBeenCalled());
+    demoProjectMocks.cleanup.mockClear();
+
+    fireEvent.click(screen.getByRole("button", { name: "Onboarding starten" }));
+    expect(await screen.findByRole("dialog", { name: "Die zentrale Navigation" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Später/ }));
+
+    await waitFor(() => expect(demoProjectMocks.cleanup).toHaveBeenCalledTimes(1));
   });
 });

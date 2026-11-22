@@ -8,6 +8,8 @@ import {
 import { getProjectFile } from '../../src/shared/cache/project-cache.js';
 import { getCachedProjectFile } from '../../src/shared/cache/project-indexed-db.js';
 import {
+  createLocalProject,
+  deleteLocalProject,
   getLocalProject,
   markLocalProjectCreatedOnServer,
 } from '../../src/shared/offline/local-projects.js';
@@ -324,6 +326,26 @@ describe('Projektanlage im Frontend', () => {
       localOnly: true,
     });
     expect(axios.post).toHaveBeenCalledTimes(1);
+  });
+
+  it('lädt ein temporäres Rundgangsprojekt niemals zum Server hoch', async () => {
+    const project = await createLocalProject({
+      title: 'Temporäres Rundgangsprojekt',
+      status: 'active',
+      temporary: true,
+      temporaryPurpose: 'guided-tour',
+    });
+
+    await expect(promoteLocalProject({
+      projectId: project.id,
+      customerId: 'customer-1',
+      title: project.title,
+      description: project.description,
+      status: project.status,
+    })).rejects.toThrow('temporäres Rundgangsprojekt');
+    expect(axios.post).not.toHaveBeenCalled();
+
+    await deleteLocalProject(project.id);
   });
 
   it('legt einen lokal als erstellt markierten, aber serverseitig fehlenden Datensatz erneut an', async () => {

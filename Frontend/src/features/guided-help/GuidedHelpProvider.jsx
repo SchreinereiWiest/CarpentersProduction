@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router";
 import { useAuth } from "../../app/providers/AuthContext.js";
 import { useOnboarding } from "../onboarding/OnboardingContext.js";
 import { GuidedHelpContext } from "./GuidedHelpContext.js";
+import { cleanupGuidedTourDemoProjects } from "./guidedTourDemoProject.js";
 import { availableTours, describeRoute, filterTourSteps, tourById } from "./tourRegistry.js";
 
 const STORAGE_KEY = "carpenters-guided-help";
@@ -138,6 +139,20 @@ export default function GuidedHelpProvider({ children }) {
   const contextualTours = useMemo(() => availableTours(location.pathname, user), [location.pathname, user]);
   const hiddenRoute = location.pathname === "/login" || location.pathname === "/init";
 
+  const removeGuidedTourDemoProjects = useCallback(async () => {
+    try {
+      await cleanupGuidedTourDemoProjects();
+    } catch (cleanupError) {
+      console.error("Temporäres Rundgangsprojekt konnte nicht entfernt werden:", cleanupError);
+    }
+  }, []);
+
+  useEffect(() => {
+    const onboardingSession = initialSession.active?.mode === "onboarding"
+      || initialSession.paused?.active?.mode === "onboarding";
+    if (!onboardingSession) void removeGuidedTourDemoProjects();
+  }, [initialSession, removeGuidedTourDemoProjects]);
+
   const navigateForTour = useCallback((path, mode, options) => {
     const url = tourUrl(path, mode);
     expectedPath.current = new URL(url, window.location.origin).pathname;
@@ -249,6 +264,7 @@ export default function GuidedHelpProvider({ children }) {
       return;
     }
     const onboardingMode = active?.mode === "onboarding";
+    if (onboardingMode) void removeGuidedTourDemoProjects();
     storeTourSession(null, null);
     setActive(null);
     setPausedTour(null);
@@ -258,7 +274,7 @@ export default function GuidedHelpProvider({ children }) {
     const destination = onboardingMode ? "/init" : location.pathname;
     expectedPath.current = destination;
     navigate(destination, { replace: true });
-  }, [active?.mode, location.pathname, navigate, pausedTour]);
+  }, [active?.mode, location.pathname, navigate, pausedTour, removeGuidedTourDemoProjects]);
 
   const finishTour = useCallback(async () => {
     if (active?.mode === "view-help") {
@@ -272,7 +288,10 @@ export default function GuidedHelpProvider({ children }) {
     setBusy(true);
     setError("");
     try {
-      if (active?.mode === "onboarding") await onboarding.advance("tour", "complete");
+      if (active?.mode === "onboarding") {
+        await onboarding.advance("tour", "complete");
+        await removeGuidedTourDemoProjects();
+      }
       storeTourSession(null, null);
       setActive(null);
       setPausedTour(null);
@@ -283,7 +302,7 @@ export default function GuidedHelpProvider({ children }) {
     } finally {
       setBusy(false);
     }
-  }, [active, location.pathname, navigate, onboarding, pausedTour]);
+  }, [active, location.pathname, navigate, onboarding, pausedTour, removeGuidedTourDemoProjects]);
 
   const moveTo = useCallback(nextIndex => {
     if (!active || !steps.length) return;

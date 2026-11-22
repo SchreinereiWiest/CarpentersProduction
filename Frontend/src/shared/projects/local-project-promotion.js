@@ -142,6 +142,9 @@ export const promoteLocalProject = async ({
     if (!project) {
         throw new Error("Das lokale Projekt wurde nicht gefunden.");
     }
+    if (project.temporary) {
+        throw new Error("Ein temporäres Rundgangsprojekt kann nicht zum Server hochgeladen werden.");
+    }
     if (!customerId) {
         throw new Error("Für den Upload muss ein Kunde ausgewählt werden.");
     }

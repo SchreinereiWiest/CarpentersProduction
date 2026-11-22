@@ -2,9 +2,17 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ getProjects: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  ensureDemoProject: vi.fn(),
+  getProjects: vi.fn(),
+  isDemoProject: vi.fn(project => project?.temporaryPurpose === "guided-tour")
+}));
 
 vi.mock("../../src/shared/projects/project-records.js", () => ({ getProjectRecords: mocks.getProjects }));
+vi.mock("../../src/features/guided-help/guidedTourDemoProject.js", () => ({
+  ensureGuidedTourDemoProject: mocks.ensureDemoProject,
+  isGuidedTourDemoProject: mocks.isDemoProject
+}));
 vi.mock("../../src/app/providers/AuthContext.js", () => ({ useAuth: () => ({ user: { role: "admin" } }) }));
 vi.mock("../../src/shared/components/sideBar.jsx", () => ({ default: () => <div data-testid="sidebar" /> }));
 vi.mock("../../src/features/projects/import/ProjectImportDialog.jsx", () => ({ default: () => null }));
@@ -13,6 +21,16 @@ import ProjectOverviewPage from "../../src/features/projects/ProjectOverviewPage
 
 describe("Projektübersicht", () => {
   beforeEach(() => {
+    mocks.ensureDemoProject.mockReset();
+    mocks.ensureDemoProject.mockResolvedValue({
+      id: "tour-project",
+      title: "Temporäres Rundgangsprojekt",
+      status: "active",
+      priority: "normal",
+      localOnly: true,
+      temporaryPurpose: "guided-tour"
+    });
+    mocks.isDemoProject.mockClear();
     mocks.getProjects.mockResolvedValue([
       {
         id: "project-1",
@@ -51,5 +69,20 @@ describe("Projektübersicht", () => {
       </MemoryRouter>
     );
     expect(await screen.findByRole("alert")).toHaveTextContent("Projekte konnten nicht geladen werden");
+  });
+
+  it("legt im Einrichtungsrundgang bei leerer Projektliste ein lokales Testprojekt an", async () => {
+    mocks.getProjects.mockResolvedValueOnce([]);
+    render(
+      <MemoryRouter initialEntries={["/Projects?guidedTour=onboarding"]}>
+        <Routes>
+          <Route path="/Projects" element={<ProjectOverviewPage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    expect(await screen.findByText("Temporäres Rundgangsprojekt")).toBeInTheDocument();
+    expect(screen.getByText("Ohne Kunde (lokal)")).toBeInTheDocument();
+    expect(mocks.ensureDemoProject).toHaveBeenCalledTimes(1);
   });
 });
