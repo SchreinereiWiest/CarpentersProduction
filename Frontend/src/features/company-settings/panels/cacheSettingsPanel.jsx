@@ -15,14 +15,11 @@ import {
 import {
     clearOfflineData,
     downloadProjectData,
-    getOfflineStorageSummary,
-    isOfflineModeEnabled,
-    setOfflineModeEnabled
+    getOfflineStorageSummary
 } from "../../../shared/offline/offline-repository.js";
 
 const DEFAULT_CONFIG = {
     schemaVersion: 3,
-    offlineMode: false,
     preloadMode: "active",
     selectedProjectIds: [],
     cacheRetentionDays: DEFAULT_CACHE_RETENTION_DAYS
@@ -38,10 +35,7 @@ const formatBytes = value => {
 export default function CacheSettingsPanel() {
     const { user } = useAuth();
     const isAdmin = user?.role === "admin";
-    const [config, setConfig] = useState({
-        ...DEFAULT_CONFIG,
-        offlineMode: isOfflineModeEnabled()
-    });
+    const [config, setConfig] = useState(DEFAULT_CONFIG);
     const [projects, setProjects] = useState([]);
     const [summary, setSummary] = useState({ projects: 0, apiEntries: 0, usageBytes: 0, quotaBytes: 0 });
     const [loading, setLoading] = useState(true);
@@ -73,8 +67,7 @@ export default function CacheSettingsPanel() {
                     schemaVersion: 3,
                     cacheRetentionDays: normalizeCacheRetentionDays(
                         settingsResult.value.cacheRetentionDays
-                    ),
-                    offlineMode: isOfflineModeEnabled()
+                    )
                 }));
                 void setCacheRetentionDays(settingsResult.value.cacheRetentionDays);
             }
@@ -87,11 +80,6 @@ export default function CacheSettingsPanel() {
     }, [isAdmin]);
 
     const updateConfig = (key, value) => setConfig(previous => ({ ...previous, [key]: value }));
-
-    const toggleOfflineMode = async enabled => {
-        updateConfig("offlineMode", enabled);
-        await setOfflineModeEnabled(enabled);
-    };
 
     const toggleProject = projectId => {
         setConfig(previous => ({
@@ -107,13 +95,11 @@ export default function CacheSettingsPanel() {
         setMessage(null);
         const data = {
             schemaVersion: 3,
-            offlineMode: Boolean(config.offlineMode),
             preloadMode: config.preloadMode,
             selectedProjectIds: config.selectedProjectIds,
             cacheRetentionDays: normalizeCacheRetentionDays(config.cacheRetentionDays)
         };
         try {
-            await setOfflineModeEnabled(data.offlineMode);
             await setCacheRetentionDays(data.cacheRetentionDays);
             if (isAdmin) {
                 await uploadGlobalFile({
@@ -134,11 +120,11 @@ export default function CacheSettingsPanel() {
             setMessage({
                 type: "success",
                 text: deleted > 0
-                    ? `Offline-Einstellungen gespeichert. ${deleted} veraltete Cache-Einträge wurden gelöscht.`
-                    : isAdmin ? "Offline-Einstellungen gespeichert." : "Persönliche Offline-Einstellungen gespeichert."
+                    ? `Cache-Einstellungen gespeichert. ${deleted} veraltete Cache-Einträge wurden gelöscht.`
+                    : isAdmin ? "Cache-Einstellungen gespeichert." : "Persönliche Cache-Einstellungen gespeichert."
             });
         } catch (error) {
-            console.error("Offline-Einstellungen konnten nicht gespeichert werden", error);
+            console.error("Cache-Einstellungen konnten nicht gespeichert werden", error);
             setMessage({ type: "error", text: "Die persönlichen Cache-Einstellungen konnten nicht gespeichert werden." });
         } finally {
             setSaving(false);
@@ -191,15 +177,15 @@ export default function CacheSettingsPanel() {
     };
 
     if (loading) {
-        return <div className="responsive-settings-panel h-full overflow-y-auto p-6 text-sm text-gray-500">Offline-Einstellungen werden geladen …</div>;
+        return <div className="responsive-settings-panel h-full overflow-y-auto p-6 text-sm text-gray-500">Cache-Einstellungen werden geladen …</div>;
     }
 
     return (
         <div className="responsive-settings-panel h-full overflow-y-auto p-6">
             <div className="max-w-4xl space-y-6">
                 <header>
-                    <h1 className="text-xl font-semibold">Offline-Modus</h1>
-                    <p className="mt-1 text-sm text-gray-500">Projekte und Anwendungsdaten persönlich für diesen Account und lokal auf diesem Gerät verwalten.</p>
+                    <h1 className="text-xl font-semibold">Lokaler Speicher</h1>
+                    <p className="mt-1 text-sm text-gray-500">Projekte und Anwendungsdaten lokal auf diesem Gerät verwalten.</p>
                 </header>
 
                 {message && (
@@ -209,16 +195,8 @@ export default function CacheSettingsPanel() {
                 )}
 
                 <section className="rounded-xl border border-gray-700 bg-gray-800 p-5">
-                    <div className="flex items-start justify-between gap-6">
-                        <div>
-                            <h2 className="text-sm font-semibold text-gray-100">Offline-Modus auf diesem Gerät</h2>
-                            <p className="mt-1 max-w-2xl text-xs text-gray-400">API-Antworten werden nur für heruntergeladene Projekte gespeichert. Bei aktivem Offline-Modus werden zusätzlich benötigte Ansichten lokal vorgehalten.</p>
-                        </div>
-                        <label className="relative inline-flex cursor-pointer items-center">
-                            <input type="checkbox" checked={config.offlineMode} onChange={event => toggleOfflineMode(event.target.checked)} className="peer sr-only" />
-                            <span className="h-6 w-11 rounded-full bg-gray-600 after:absolute after:left-1 after:top-1 after:h-4 after:w-4 after:rounded-full after:bg-white after:transition peer-checked:bg-blue-600 peer-checked:after:translate-x-5" />
-                        </label>
-                    </div>
+                    <h2 className="text-sm font-semibold text-gray-100">Local-first ist immer aktiv</h2>
+                    <p className="mt-1 max-w-2xl text-xs text-gray-400">Änderungen werden zuerst auf diesem Gerät gespeichert und anschließend automatisch im Hintergrund mit dem Server synchronisiert. Vorhandene lokale Daten stehen ohne zusätzliche Wartezeit zur Verfügung.</p>
                     <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:max-w-2xl sm:grid-cols-3">
                         <div className="rounded-lg bg-gray-900 p-3"><div className="text-xl font-semibold">{summary.projects}</div><div className="text-xs text-gray-500">Offline-Projekte</div></div>
                         <div className="rounded-lg bg-gray-900 p-3"><div className="text-xl font-semibold">{summary.apiEntries}</div><div className="text-xs text-gray-500">Lokale Datensätze</div></div>

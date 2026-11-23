@@ -66,7 +66,8 @@ export default function CabinetWorkspaceToolbar({
     onUpdateGuide,
     onDeleteGuide,
     onApplyGuide,
-    measurementVariables = []
+    measurementVariables = [],
+    actions = null
 }) {
     const toolActive = orientation => activeGuideTool?.layer === guideLayer && activeGuideTool?.orientation === orientation;
     const modes = [
@@ -86,6 +87,7 @@ export default function CabinetWorkspaceToolbar({
                         </ToolButton>
                     ))}
                 </div>
+                {actions && <div className="ml-auto flex shrink-0 items-center gap-2 pl-2">{actions}</div>}
             </div>
 
             <div className="flex min-h-12 items-center gap-2 px-3 py-2">

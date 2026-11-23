@@ -28,7 +28,6 @@ export function normalizePersonalCache(value) {
   const source = value && typeof value === "object" && !Array.isArray(value) ? value : {};
   return {
     schemaVersion: 3,
-    offlineMode: Boolean(source.offlineMode),
     preloadMode: source.preloadMode === "selected" ? "selected" : "active",
     selectedProjectIds: [...new Set((Array.isArray(source.selectedProjectIds) ? source.selectedProjectIds : [])
       .map(id => String(id || "").trim())

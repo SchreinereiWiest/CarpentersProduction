@@ -19,9 +19,7 @@ vi.mock("../../src/shared/cache/cache-retention.js", () => ({
 vi.mock("../../src/shared/offline/offline-repository.js", () => ({
   clearOfflineData: vi.fn(async () => undefined),
   downloadProjectData: vi.fn(async () => ({ bundle: { projects: [] }, failures: [] })),
-  getOfflineStorageSummary: vi.fn(async () => ({ projects: 0, apiEntries: 0, usageBytes: 0, quotaBytes: 0 })),
-  isOfflineModeEnabled: vi.fn(() => false),
-  setOfflineModeEnabled: vi.fn(async () => undefined)
+  getOfflineStorageSummary: vi.fn(async () => ({ projects: 0, apiEntries: 0, usageBytes: 0, quotaBytes: 0 }))
 }));
 
 import CacheSettingsPanel from "../../src/features/company-settings/panels/cacheSettingsPanel.jsx";
@@ -37,7 +35,9 @@ describe("persönliche Cache-Einstellungen", () => {
 
   it("lädt und speichert Manager-Cachewerte ohne globale Cachedatei", async () => {
     render(<CacheSettingsPanel />);
-    expect(await screen.findByRole("heading", { name: "Offline-Modus" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Lokaler Speicher" })).toBeInTheDocument();
+    expect(screen.getByText("Local-first ist immer aktiv")).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: /Offline-Modus/ })).not.toBeInTheDocument();
     expect(screen.getByRole("spinbutton", { name: /Ungenutzte Cache-Dateien/ })).toHaveValue(45);
 
     fireEvent.click(screen.getByRole("button", { name: "Einstellungen speichern" }));

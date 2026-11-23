@@ -1475,36 +1475,23 @@ export default function CabinetEditor() {
                     <h1 className="text-sm font-semibold text-gray-100">Cabinet Editor</h1>
                     <span className="h-5 w-px bg-white/10" />
                     <span className="truncate text-xs text-gray-500">{project?.title ?? "Korpusplanung"}</span>
-                    <div className="ml-auto flex items-center gap-2">
-                        {mode === "create" && (
+                    {mode !== "create" && (
+                        <div className="ml-auto flex items-center gap-2">
                             <button
                                 type="button"
-                                onClick={handleSkip}
-                                onPointerDown={startSkipLongPress}
-                                onPointerUp={cancelSkipLongPress}
-                                onPointerLeave={cancelSkipLongPress}
-                                onPointerCancel={cancelSkipLongPress}
+                                onClick={handleSaveButtonClick}
+                                onPointerDown={startSaveLongPress}
+                                onPointerUp={cancelSaveLongPress}
+                                onPointerLeave={cancelSaveLongPress}
+                                onPointerCancel={cancelSaveLongPress}
                                 onContextMenu={event => event.preventDefault()}
-                                disabled={creatingEmptyProject || showEmptyProjectModal}
-                                className="rounded-md border border-white/10 px-3 py-1.5 text-xs text-gray-300 hover:bg-white/5 disabled:opacity-40"
+                                disabled={saving || creatingEmptyProject}
+                                className="rounded-md border border-amber-600 bg-amber-600/90 px-4 py-1.5 text-xs font-medium text-black hover:bg-amber-500 disabled:opacity-40"
                             >
-                                Überspringen
+                                {saving ? "Speichern …" : "Speichern"}
                             </button>
-                        )}
-                        <button
-                            type="button"
-                            onClick={mode === "create" ? handleNext : handleSaveButtonClick}
-                            onPointerDown={startSaveLongPress}
-                            onPointerUp={cancelSaveLongPress}
-                            onPointerLeave={cancelSaveLongPress}
-                            onPointerCancel={cancelSaveLongPress}
-                            onContextMenu={event => event.preventDefault()}
-                            disabled={saving || creatingEmptyProject}
-                            className="rounded-md border border-amber-600 bg-amber-600/90 px-4 py-1.5 text-xs font-medium text-black hover:bg-amber-500 disabled:opacity-40"
-                        >
-                            {mode === "create" ? "Weiter" : saving ? "Speichern …" : "Speichern"}
-                        </button>
-                    </div>
+                        </div>
+                    )}
                 </header>
 
                 <div className="min-h-0 flex-1">
@@ -1546,6 +1533,36 @@ export default function CabinetEditor() {
                                 onDeleteGuide={deleteGuide}
                                 onApplyGuide={applyGuide}
                                 measurementVariables={formulaVariables}
+                                actions={mode === "create" ? (
+                                    <>
+                                        <button
+                                            type="button"
+                                            onClick={handleSkip}
+                                            onPointerDown={startSkipLongPress}
+                                            onPointerUp={cancelSkipLongPress}
+                                            onPointerLeave={cancelSkipLongPress}
+                                            onPointerCancel={cancelSkipLongPress}
+                                            onContextMenu={event => event.preventDefault()}
+                                            disabled={creatingEmptyProject || showEmptyProjectModal}
+                                            className="rounded-md border border-white/10 px-3 py-1.5 text-xs text-gray-300 hover:bg-white/5 disabled:opacity-40"
+                                        >
+                                            Überspringen
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleNext}
+                                            onPointerDown={startSaveLongPress}
+                                            onPointerUp={cancelSaveLongPress}
+                                            onPointerLeave={cancelSaveLongPress}
+                                            onPointerCancel={cancelSaveLongPress}
+                                            onContextMenu={event => event.preventDefault()}
+                                            disabled={saving || creatingEmptyProject}
+                                            className="rounded-md border border-amber-600 bg-amber-600/90 px-4 py-1.5 text-xs font-medium text-black hover:bg-amber-500 disabled:opacity-40"
+                                        >
+                                            Weiter
+                                        </button>
+                                    </>
+                                ) : null}
                             />
 
                             <div data-tour="project-cabinet-viewport" className="relative min-h-0 flex-1">

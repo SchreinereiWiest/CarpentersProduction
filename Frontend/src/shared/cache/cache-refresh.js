@@ -1,6 +1,10 @@
-import { refreshCachedGlobalFiles, S3_REVALIDATE_INTERVAL_MS } from "./global-cache.js";
+import {
+    refreshCachedGlobalFiles,
+    S3_REVALIDATE_INTERVAL_MS,
+    syncPendingGlobalFiles
+} from "./global-cache.js";
 import { refreshCachedProjectAssets } from "./project-asset-cache.js";
-import { refreshCachedProjectFiles } from "./project-cache.js";
+import { refreshCachedProjectFiles, syncPendingProjectFiles } from "./project-cache.js";
 import {
     getOfflineStatusSnapshot,
     pushOfflineNotice,
@@ -14,6 +18,8 @@ let activeRefresh = null;
 export const refreshActiveS3Caches = ({ force = false } = {}) => {
     if (activeRefresh || typeof navigator === "undefined" || !navigator.onLine) return activeRefresh;
     activeRefresh = Promise.allSettled([
+        syncPendingProjectFiles(),
+        syncPendingGlobalFiles(),
         refreshCachedGlobalFiles({ force }),
         refreshCachedProjectFiles({ force }),
         refreshCachedProjectAssets({ force })

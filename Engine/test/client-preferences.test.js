@@ -29,7 +29,6 @@ test("personal cache settings are bounded and deduplicated", () => {
     cacheRetentionDays: 9999
   }), {
     schemaVersion: 3,
-    offlineMode: true,
     preloadMode: "selected",
     selectedProjectIds: ["project-1", "project-2"],
     cacheRetentionDays: 3650

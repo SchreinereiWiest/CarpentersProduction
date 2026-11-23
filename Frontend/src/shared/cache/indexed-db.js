@@ -4,29 +4,44 @@ export const API_STORE_NAME = "apiResponses";
 export const OFFLINE_PROJECT_STORE_NAME = "offlineProjects";
 export const META_STORE_NAME = "metadata";
 const DB_VERSION = 2;
+let persistenceRequested = false;
 
-export const openDb = () => new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+const requestPersistentStorage = () => {
+    if (persistenceRequested || typeof navigator === "undefined") return;
+    persistenceRequested = true;
+    if (navigator.storage?.persist) {
+        void navigator.storage.persist().catch(() => {
+            // IndexedDB bleibt auch verfügbar, wenn der Browser dauerhaften
+            // Speicher nicht gewährt oder keine Abfrage unterstützt.
+        });
+    }
+};
 
-    request.onupgradeneeded = () => {
-        const db = request.result;
-        if (!db.objectStoreNames.contains(STORE_NAME)) {
-            db.createObjectStore(STORE_NAME, { keyPath: "key" });
-        }
-        if (!db.objectStoreNames.contains(API_STORE_NAME)) {
-            db.createObjectStore(API_STORE_NAME, { keyPath: "key" });
-        }
-        if (!db.objectStoreNames.contains(OFFLINE_PROJECT_STORE_NAME)) {
-            db.createObjectStore(OFFLINE_PROJECT_STORE_NAME, { keyPath: "projectId" });
-        }
-        if (!db.objectStoreNames.contains(META_STORE_NAME)) {
-            db.createObjectStore(META_STORE_NAME, { keyPath: "key" });
-        }
-    };
+export const openDb = () => {
+    requestPersistentStorage();
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-});
+        request.onupgradeneeded = () => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                db.createObjectStore(STORE_NAME, { keyPath: "key" });
+            }
+            if (!db.objectStoreNames.contains(API_STORE_NAME)) {
+                db.createObjectStore(API_STORE_NAME, { keyPath: "key" });
+            }
+            if (!db.objectStoreNames.contains(OFFLINE_PROJECT_STORE_NAME)) {
+                db.createObjectStore(OFFLINE_PROJECT_STORE_NAME, { keyPath: "projectId" });
+            }
+            if (!db.objectStoreNames.contains(META_STORE_NAME)) {
+                db.createObjectStore(META_STORE_NAME, { keyPath: "key" });
+            }
+        };
+
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+};
 
 const globalKey = file => `global:${file}`;
 

@@ -25,7 +25,7 @@ const SETTINGS_LABELS = {
     cabinet: "Schrank-Einstellungen",
     cabinetPreset: "Schrank-Vorlagen",
     functionPreset: "Funktions-Vorlagen",
-    cache: "Offline-Einstellungen",
+    cache: "Cache-Einstellungen",
     cnc: "CNC-Einstellungen",
     company: "Firmeneinstellungen"
 };
