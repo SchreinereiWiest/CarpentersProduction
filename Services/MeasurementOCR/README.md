@@ -20,6 +20,6 @@ Mehrseitige PDFs dürfen bis zu `MEASUREMENT_OCR_MAX_PAGES` Seiten enthalten
 Einzelseiten werden als Warnung ausgewiesen; erfolgreich gelesene Seiten bleiben
 prüfbar.
 
-Das kompakte MNIST-Modell stammt aus Microsofts MIT-lizenziertem
-`onnxruntime-inference-examples`-Repository. Der Download ist im Dockerfile auf
-einen Commit und eine SHA-256-Prüfsumme festgelegt.
+Das kompakte MNIST-8-Modell stammt aus dem Apache-2.0-lizenzierten ONNX Model
+Zoo. Der Download ist im Dockerfile auf einen Commit und eine
+SHA-256-Prüfsumme festgelegt.
