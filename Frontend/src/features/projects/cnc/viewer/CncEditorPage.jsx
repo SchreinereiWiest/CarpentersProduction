@@ -46,6 +46,7 @@ import {
     getPartMachineCodeFaces,
     resolveMachineCodeFace
 } from "../shared/machineCodeFaces.js";
+import { resolveCncOperationSelection } from "./cncOperationSelection.js";
 
 import ProjectBar
     from "../../../../shared/components/projectBar.jsx";
@@ -237,11 +238,14 @@ export default function CncEditor() {
      */
 
     const handleSelectOperation = (
-        operation
+        operationOrId
     ) => {
 
         setSelectedOperation(
-            operation
+            resolveCncOperationSelection(
+                operations,
+                operationOrId
+            )
         );
 
     };

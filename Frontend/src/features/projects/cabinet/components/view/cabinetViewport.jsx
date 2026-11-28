@@ -73,6 +73,14 @@ export default function CabinetViewport({
         if (Array.isArray(cabinets)) return cabinets;
         return [cabinet ?? FALLBACK_CABINET];
     }, [cabinet, cabinets]);
+    const renderActiveCabinetId = activeCabinetId ?? cabinet?.id;
+    const cabinetRenderEntries = useMemo(() => sourceCabinets
+        .map((currentCabinet, sourceIndex) => ({ currentCabinet, sourceIndex }))
+        .sort((left, right) => {
+            const leftIsActive = left.currentCabinet.id === renderActiveCabinetId;
+            const rightIsActive = right.currentCabinet.id === renderActiveCabinetId;
+            return Number(leftIsActive) - Number(rightIsActive) || left.sourceIndex - right.sourceIndex;
+        }), [renderActiveCabinetId, sourceCabinets]);
     const canvasBounds = useMemo(
         () => getCanvasBounds(sourceCabinets, placements),
         [placements, sourceCabinets]
@@ -279,12 +287,12 @@ export default function CabinetViewport({
                 {showGrid && <rect x={viewBox.x - 1000} y={viewBox.y - 1000} width={viewBox.width + 2000} height={viewBox.height + 2000} fill="url(#cabinet-page-grid)" />}
                 <line x1={viewBox.x} y1={0} x2={viewBox.x + viewBox.width} y2={0} stroke="#50555a" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
 
-                {sourceCabinets.map((currentCabinet, index) => {
+                {cabinetRenderEntries.map(({ currentCabinet, sourceIndex }) => {
                     const placement = placements[currentCabinet.id] ?? {
-                        x: index * numberOr(currentCabinet.width, 600),
+                        x: sourceIndex * numberOr(currentCabinet.width, 600),
                         y: 0
                     };
-                    const active = currentCabinet.id === (activeCabinetId ?? cabinet?.id);
+                    const active = currentCabinet.id === renderActiveCabinetId;
                     const multiSelected = selectedCabinetIds.includes(currentCabinet.id);
                     const materialColor = active ? "#a96932" : multiSelected ? "#496f78" : "#4B5563";
                     const interiorColor = active ? "#4a2f20" : multiSelected ? "#233b42" : "#1F2937";
@@ -296,6 +304,7 @@ export default function CabinetViewport({
                     return (
                         <g
                             key={currentCabinet.id}
+                            data-cabinet-id={currentCabinet.id}
                             transform={`translate(${numberOr(placement.x)} ${-(numberOr(placement.y) + numberOr(currentCabinet.height))})`}
                             onClick={event => {
                                 if (activeGuideTool) return;

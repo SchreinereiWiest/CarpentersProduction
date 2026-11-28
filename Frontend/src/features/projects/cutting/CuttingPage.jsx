@@ -263,6 +263,7 @@ function CutingView() {
                 : strip.id === selectedPart.stripId
         )) ?? null;
     }, [activeStack, selectedPart]);
+    const displayedStripEntry = selectedStripEntry ?? activeStack?.strips[0] ?? null;
     const materialsByReference = useMemo(() => {
         const references = new Map();
         (materialCatalog ?? []).forEach((material) => {
@@ -494,6 +495,11 @@ function CutingView() {
                                     <div className="font-semibold text-white text-sm xl:text-lg">
                                         Außenbreite {activeStack.strips[0].strip.plates[0].originalWidth} mm
                                     </div>
+                                    {displayedStripEntry && (
+                                        <div className="mt-1 text-sm text-gray-300">
+                                            Strip-Außenmaße {displayedStripEntry.width} × {displayedStripEntry.length} mm
+                                        </div>
+                                    )}
                                     <div className="text-xs text-gray-400 mt-1">
                                         {activeStack.strips.length} {isDirect2DNesting ? "Bauteile" : "Strips"}, nach Länge sortiert
                                     </div>

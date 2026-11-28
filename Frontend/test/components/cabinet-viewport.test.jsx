@@ -58,4 +58,27 @@ describe("CabinetViewport", () => {
         expect(wheelEvent.defaultPrevented).toBe(true);
         expect(svg.getAttribute("viewBox")).not.toBe(initialViewBox);
     });
+
+    it("renders the active cabinet last so its dimensions stay above neighboring cabinets", () => {
+        const cabinets = [
+            { id: "left", name: "Links", width: 600, height: 2000, sections: [], fronts: [] },
+            { id: "active", name: "Aktiv", width: 600, height: 2000, sections: [], fronts: [] },
+            { id: "right", name: "Rechts", width: 600, height: 2000, sections: [], fronts: [] }
+        ];
+        const { container } = render(
+            <CabinetViewport
+                cabinets={cabinets}
+                activeCabinetId="active"
+                placements={{
+                    left: { x: 0, y: 0 },
+                    active: { x: 600, y: 0 },
+                    right: { x: 1200, y: 0 }
+                }}
+            />
+        );
+
+        const cabinetLayers = [...container.querySelectorAll("[data-cabinet-id]")];
+        expect(cabinetLayers.map(layer => layer.dataset.cabinetId)).toEqual(["left", "right", "active"]);
+        expect(cabinetLayers.at(-1)).toHaveTextContent("600 mm");
+    });
 });

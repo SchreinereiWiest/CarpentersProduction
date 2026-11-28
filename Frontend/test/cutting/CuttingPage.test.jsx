@@ -99,4 +99,10 @@ describe("Cutting-Eticket", () => {
 
         expect(screen.getByRole("dialog")).toHaveTextContent("Eticket-Dialog PID 000042 · 1d");
     });
+
+    it("zeigt das Außenmaß des im Stapel ausgewählten Strips", async () => {
+        render(<CuttingPage />);
+
+        expect(await screen.findByText("Strip-Außenmaße 260 × 140 mm")).toBeInTheDocument();
+    });
 });
