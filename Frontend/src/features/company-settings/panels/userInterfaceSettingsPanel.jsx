@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
+import axios from "axios";
+import { useSearchParams } from "react-router";
 
 import { uploadJSONFile } from "../../../shared/api/file-api.js";
 import { uploadGlobalFile } from "../../../shared/cache/global-cache.js";
+import { useAuth } from "../../../app/providers/AuthContext.js";
 import { useTheme } from "../../../app/theme/ThemeContext.js";
 import { THEMES } from "../../../app/theme/theme.js";
 import { eventToKeybinding } from "../../../shared/workspace/keybindings.js";
 import { persistWorkspacePreferences } from "../../../shared/workspace/workspace-settings.js";
+import { availableHomeModules, normalizeHomePreferences } from "@Engine/dashboard/home.mjs";
 import {
     DEFAULT_COMPANY_SETTINGS,
     loadCompanySettings,
@@ -18,20 +22,40 @@ import {
     normalizeCompanySettings
 } from "../../../shared/settings/company-settings.js";
 
+const interfaceTabs = [
+    ["home", "Startseite"],
+    ["general", "Allgemein"],
+    ["measurement", "Aufmaß"],
+    ["keybindings", "Tastatur"],
+    ["workspace", "Fensterlayout"]
+];
+
 export default function UserInterfaceSettingsPanel() {
+    const { user } = useAuth();
     const { theme, setTheme } = useTheme();
+    const [searchParams] = useSearchParams();
+    const isAdmin = user?.role === "admin";
     const [companySettings, setCompanySettings] = useState(DEFAULT_COMPANY_SETTINGS);
+    const [homePreferences, setHomePreferences] = useState(() => normalizeHomePreferences({}, user?.role));
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState(null);
-    const [activeTab, setActiveTab] = useState("general");
+    const [activeTab, setActiveTab] = useState(() => {
+        const requested = searchParams.get("uitab");
+        return interfaceTabs.some(([id]) => id === requested) ? requested : isAdmin ? "general" : "home";
+    });
 
     useEffect(() => {
         let active = true;
 
-        loadCompanySettings()
-            .then(settings => {
-                if (active) setCompanySettings(settings);
+        Promise.all([
+            loadCompanySettings(),
+            axios.get("/api/user/me/preferences")
+        ])
+            .then(([settings, preferencesResponse]) => {
+                if (!active) return;
+                setCompanySettings(settings);
+                setHomePreferences(normalizeHomePreferences(preferencesResponse.data?.preferences?.home, user?.role));
             })
             .catch(error => {
                 console.warn("Einstellungen der Benutzeroberfläche konnten nicht geladen werden:", error);
@@ -49,7 +73,7 @@ export default function UserInterfaceSettingsPanel() {
         return () => {
             active = false;
         };
-    }, []);
+    }, [user?.role]);
 
     const setShowTips = showTips => {
         setCompanySettings(previous => ({
@@ -116,20 +140,46 @@ export default function UserInterfaceSettingsPanel() {
         setMessage(null);
 
         try {
-            const normalized = normalizeCompanySettings(companySettings);
-            await uploadGlobalFile({
-                file: "settings-company.json",
-                data: normalized,
-                uploadFunction: {
-                    upload: uploadJSONFile,
-                    path: "/api/settings/company"
+            if (activeTab === "home") {
+                const normalizedHome = normalizeHomePreferences(homePreferences, user?.role);
+                await axios.put("/api/user/me/preferences", { home: normalizedHome });
+                setHomePreferences(normalizedHome);
+            }
+            if (activeTab !== "home") {
+                const normalized = normalizeCompanySettings(companySettings);
+                if (isAdmin) {
+                    await uploadGlobalFile({
+                        file: "settings-company.json",
+                        data: normalized,
+                        uploadFunction: {
+                            upload: uploadJSONFile,
+                            path: "/api/settings/company"
+                        }
+                    });
+                } else {
+                    const personalUserInterface = Object.fromEntries(
+                        Object.entries(normalized.userInterface).filter(([key]) => key !== "home")
+                    );
+                    await axios.put("/api/user/me/preferences", { userInterface: personalUserInterface });
                 }
-            });
-            setCompanySettings(normalized);
-            persistWorkspacePreferences(normalized.userInterface);
+                setCompanySettings(normalized);
+                persistWorkspacePreferences(normalized.userInterface);
+            }
+            if (activeTab === "home" && isAdmin) {
+                const normalized = normalizeCompanySettings(companySettings);
+                await uploadGlobalFile({
+                    file: "settings-company.json",
+                    data: normalized,
+                    uploadFunction: {
+                        upload: uploadJSONFile,
+                        path: "/api/settings/company"
+                    }
+                });
+                setCompanySettings(normalized);
+            }
             setMessage({
                 type: "success",
-                text: "Einstellungen der Benutzeroberfläche wurden gespeichert."
+                text: activeTab === "home" ? "Startseiten-Einstellungen wurden gespeichert." : "Einstellungen der Benutzeroberfläche wurden gespeichert."
             });
         } catch (error) {
             console.error("Einstellungen der Benutzeroberfläche konnten nicht gespeichert werden:", error);
@@ -157,7 +207,7 @@ export default function UserInterfaceSettingsPanel() {
                     <div>
                         <h1 className="text-xl font-semibold">Benutzeroberfläche</h1>
                         <p className="mt-1 text-sm text-gray-500">
-                            Darstellung und Bedienhilfen zentral verwalten.
+                            {isAdmin ? "Darstellung und Bedienhilfen zentral verwalten." : "Darstellung und Bedienhilfen persönlich für deinen Account verwalten."}
                         </p>
                     </div>
                     <button
@@ -183,15 +233,12 @@ export default function UserInterfaceSettingsPanel() {
 
                 <nav aria-label="Bereiche der Benutzeroberfläche" className="overflow-x-auto border-b border-gray-700">
                     <div className="flex min-w-max gap-1">
-                        {[
-                            ["general", "Allgemein"],
-                            ["measurement", "Aufmaß"],
-                            ["keybindings", "Tastatur"],
-                            ["workspace", "Fensterlayout"]
-                        ].map(([id, label]) => (
+                        {interfaceTabs.map(([id, label]) => (
                             <button
                                 key={id}
                                 type="button"
+                                role="tab"
+                                aria-selected={activeTab === id}
                                 onClick={() => setActiveTab(id)}
                                 aria-current={activeTab === id ? "page" : undefined}
                                 className={`border-b-2 px-4 py-3 text-sm font-medium transition ${
@@ -206,6 +253,17 @@ export default function UserInterfaceSettingsPanel() {
                     </div>
                 </nav>
 
+                {activeTab === "home" && <HomeSettings
+                    role={user?.role}
+                    preferences={homePreferences}
+                    onChange={setHomePreferences}
+                    documentTags={companySettings.userInterface.home.documentTags}
+                    onDocumentTagsChange={documentTags => setUserInterface({
+                        home: { ...companySettings.userInterface.home, documentTags }
+                    })}
+                    canConfigureDocumentTags={isAdmin}
+                />}
+
                 {activeTab === "general" && <section className="rounded-xl border border-gray-700 bg-gray-800 p-5">
                     <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-400">Darstellung</p>
@@ -219,14 +277,14 @@ export default function UserInterfaceSettingsPanel() {
                         <ThemeOption
                             id={THEMES.DARK}
                             title="Dark Mode"
-                            description="Das bisherige Carpenters-Theme mit dunklen Arbeitsflächen."
+                            description="Ruhige Graphitflächen mit warmen Copper-Akzenten."
                             selected={theme === THEMES.DARK}
                             onSelect={setTheme}
                         />
                         <ThemeOption
                             id={THEMES.LIGHT}
                             title="Light Mode"
-                            description="Helle Flächen, Ink-Navigation und Copper-Akzente wie im Licensing-Portal."
+                            description="Warme Papierflächen, klare Ink-Navigation und Copper-Akzente."
                             selected={theme === THEMES.LIGHT}
                             onSelect={setTheme}
                         />
@@ -517,6 +575,64 @@ export default function UserInterfaceSettingsPanel() {
     );
 }
 
+function HomeSettings({ role, preferences, onChange, documentTags, onDocumentTagsChange, canConfigureDocumentTags }) {
+    const modules = availableHomeModules(role);
+    const moduleById = new Map(modules.map(module => [module.id, module]));
+    const orderedModules = preferences.order.map(id => moduleById.get(id)).filter(Boolean);
+
+    const toggleModule = id => onChange({
+        ...preferences,
+        hidden: preferences.hidden.includes(id)
+            ? preferences.hidden.filter(value => value !== id)
+            : [...preferences.hidden, id]
+    });
+    const moveModule = (id, direction) => {
+        const index = preferences.order.indexOf(id);
+        const target = index + direction;
+        if (index < 0 || target < 0 || target >= preferences.order.length) return;
+        const order = [...preferences.order];
+        [order[index], order[target]] = [order[target], order[index]];
+        onChange({ ...preferences, order });
+    };
+    const updateTag = (index, value) => onDocumentTagsChange(documentTags.map((tag, tagIndex) => tagIndex === index ? value : tag));
+
+    return <div className="space-y-5">
+        <section className="rounded-xl border border-gray-700 bg-gray-800 p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-400">Persönliche Startseite</p>
+            <h2 className="mt-1 text-base font-semibold text-gray-100">Module anordnen und ausblenden</h2>
+            <p className="mt-1 max-w-2xl text-xs leading-5 text-gray-400">Die Auswahl gilt nur für deinen Account. Inhalte und Berechtigungen richten sich weiterhin nach deiner Rolle.</p>
+            <div className="mt-5 divide-y divide-gray-700 overflow-hidden rounded-lg border border-gray-700">
+                {orderedModules.map((module, index) => {
+                    const visible = !preferences.hidden.includes(module.id);
+                    return <div key={module.id} className="flex flex-wrap items-center gap-3 bg-gray-900/50 p-3">
+                        <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 text-sm text-gray-200">
+                            <input type="checkbox" checked={visible} onChange={() => toggleModule(module.id)} className="size-4 rounded border-gray-600 bg-gray-950 text-blue-600" />
+                            <span className={visible ? "" : "text-gray-500 line-through"}>{module.label}</span>
+                        </label>
+                        <div className="flex gap-1">
+                            <button type="button" aria-label={`${module.label} nach oben`} disabled={index === 0} onClick={() => moveModule(module.id, -1)} className="rounded border border-gray-700 px-2 py-1 text-gray-300 hover:bg-gray-700 disabled:opacity-30">↑</button>
+                            <button type="button" aria-label={`${module.label} nach unten`} disabled={index === orderedModules.length - 1} onClick={() => moveModule(module.id, 1)} className="rounded border border-gray-700 px-2 py-1 text-gray-300 hover:bg-gray-700 disabled:opacity-30">↓</button>
+                        </div>
+                    </div>;
+                })}
+            </div>
+        </section>
+
+        {canConfigureDocumentTags && <section className="rounded-xl border border-gray-700 bg-gray-800 p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-violet-400">Firmenweite Anzeige</p>
+            <h2 className="mt-1 text-base font-semibold text-gray-100">Dokument-Tags auf der Admin-Startseite</h2>
+            <p className="mt-1 max-w-2xl text-xs leading-5 text-gray-400">Dokumente aus dem DMS-Eingang erscheinen, wenn Dokumenttyp oder Paperless-Tag einem dieser Werte entspricht.</p>
+            <div className="mt-4 space-y-2">
+                {documentTags.map((tag, index) => <div key={index} className="flex gap-2">
+                    <input aria-label={`Dokument-Tag ${index + 1}`} value={tag} onChange={event => updateTag(index, event.target.value)} placeholder="z. B. Rechnung" className="min-w-0 flex-1 rounded-lg border border-gray-600 bg-gray-950 px-3 py-2 text-sm text-gray-100 outline-none focus:border-blue-500" />
+                    <button type="button" onClick={() => onDocumentTagsChange(documentTags.filter((_, tagIndex) => tagIndex !== index))} className="rounded-lg border border-red-900 px-3 py-2 text-sm text-red-300 hover:bg-red-950/40">Entfernen</button>
+                </div>)}
+                <button type="button" disabled={documentTags.length >= 20} onClick={() => onDocumentTagsChange([...documentTags, ""])} className="rounded-lg border border-gray-600 px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 disabled:opacity-40">Tag hinzufügen</button>
+            </div>
+        </section>}
+    </div>;
+}
+
 function KeybindingRow({ label, description, value, onChange }) {
     return (
         <div className="flex flex-wrap items-center justify-between gap-4 p-4">
@@ -583,18 +699,18 @@ function ThemeOption({ id, title, description, selected, onSelect }) {
                     : "border-gray-700 hover:border-gray-600"
             }`}
         >
-            <span className={`block p-3 ${light ? "bg-[#f4f5f2]" : "bg-[#111827]"}`} aria-hidden="true">
+            <span className={`block p-3 ${light ? "bg-[#f2f0ea]" : "bg-[#111214]"}`} aria-hidden="true">
                 <span className="grid h-24 grid-cols-[3.25rem_1fr] overflow-hidden rounded-lg shadow-lg">
-                    <span className={`flex flex-col gap-2 p-2 ${light ? "bg-[#111516]" : "bg-[#1f2937]"}`}>
-                        <span className={`h-2.5 rounded-full ${light ? "bg-[#cf8b4f]" : "bg-[#2563eb]"}`} />
-                        <span className={`h-2 rounded-full ${light ? "bg-[#223033]" : "bg-[#374151]"}`} />
-                        <span className={`h-2 rounded-full ${light ? "bg-[#223033]" : "bg-[#374151]"}`} />
+                    <span className={`flex flex-col gap-2 p-2 ${light ? "bg-[#18231f]" : "bg-[#151618]"}`}>
+                        <span className={`h-2.5 rounded-full ${light ? "bg-[#a95f2f]" : "bg-[#d09552]"}`} />
+                        <span className={`h-2 rounded-full ${light ? "bg-[#314139]" : "bg-[#2b2d30]"}`} />
+                        <span className={`h-2 rounded-full ${light ? "bg-[#314139]" : "bg-[#2b2d30]"}`} />
                     </span>
-                    <span className={`p-3 ${light ? "bg-[#f4f5f2]" : "bg-[#111827]"}`}>
-                        <span className={`block h-full rounded-md border p-2 ${light ? "border-[#d7ded9] bg-white" : "border-[#374151] bg-[#1f2937]"}`}>
-                            <span className={`block h-2 w-2/3 rounded ${light ? "bg-[#34413e]" : "bg-[#d1d5db]"}`} />
-                            <span className={`mt-2 block h-1.5 w-full rounded ${light ? "bg-[#d7ded9]" : "bg-[#4b5563]"}`} />
-                            <span className={`mt-1.5 block h-1.5 w-4/5 rounded ${light ? "bg-[#d7ded9]" : "bg-[#4b5563]"}`} />
+                    <span className={`p-3 ${light ? "bg-[#f2f0ea]" : "bg-[#111214]"}`}>
+                        <span className={`block h-full rounded-md border p-2 ${light ? "border-[#d7d1c5] bg-white" : "border-[#35373b] bg-[#1b1c1f]"}`}>
+                            <span className={`block h-2 w-2/3 rounded ${light ? "bg-[#44514b]" : "bg-[#d4d3d0]"}`} />
+                            <span className={`mt-2 block h-1.5 w-full rounded ${light ? "bg-[#d7d1c5]" : "bg-[#505359]"}`} />
+                            <span className={`mt-1.5 block h-1.5 w-4/5 rounded ${light ? "bg-[#d7d1c5]" : "bg-[#505359]"}`} />
                         </span>
                     </span>
                 </span>

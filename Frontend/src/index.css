@@ -382,7 +382,7 @@ textarea {
 
 @media (min-width: 768px) and (max-width: 1299px) {
     .cabinet-editor-layout {
-        grid-template-columns: 210px minmax(0, 1fr) clamp(390px, 40vw, 470px) !important;
+        grid-template-columns: 210px minmax(0, 1fr) clamp(320px, 32vw, 360px) !important;
     }
 
     .project-editor-layout {
@@ -407,7 +407,7 @@ textarea {
 
 @media (hover: none) and (pointer: coarse) and (min-width: 1300px) and (max-width: 1366px) {
     .cabinet-editor-layout {
-        grid-template-columns: 210px minmax(0, 1fr) 470px !important;
+        grid-template-columns: 210px minmax(0, 1fr) 340px !important;
     }
 }
 
@@ -455,6 +455,19 @@ textarea {
     grid-row: 2;
 }
 
+.aufmas-shell--wide {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.aufmas-shell--wide > section {
+    grid-column: 1;
+    grid-row: 1;
+}
+
+.aufmas-shell--wide .aufmas-views {
+    grid-column: 1;
+}
+
 .aufmas-view-scroll {
     scrollbar-width: thin;
     scrollbar-color: #435460 transparent;
@@ -469,4 +482,8 @@ textarea {
     .aufmas-right-sidebar {
         grid-template-rows: minmax(0, 1fr) 164px;
     }
+}
+
+.aufmas-shell.aufmas-shell--views-collapsed {
+    grid-template-rows: minmax(0, 1fr) 38px;
 }

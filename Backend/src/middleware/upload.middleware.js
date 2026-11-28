@@ -3,13 +3,10 @@ import {
     GetObjectCommand
 } from "@aws-sdk/client-s3";
 import crypto from "crypto";
-import {
-    getSignedUrl
-} from "@aws-sdk/s3-request-presigner";
 
 import prisma from "../infrastructure/database/prisma.js";
 
-import { s3Upload, s3Download } from "../infrastructure/storage/s3.js"
+import { s3Upload } from "../infrastructure/storage/s3.js"
 import { enqueueStorageDeletions, processStorageDeletions } from "../infrastructure/storage/storage-deletion.service.js";
 import { getTenantId } from "../infrastructure/database/tenant-context.js";
 import { publishFileChange } from "../modules/files/file-change-events.service.js";
@@ -169,19 +166,6 @@ export async function createUpload(req, res) {
                 },
             });
 
-            if (req.uploadAuditMetadata) {
-                await transaction.auditLog.create({
-                    data: {
-                        actorUserId: req.user.id,
-                        action: "attachment.search.import",
-                        entityType: "File",
-                        entityId: createdFile.id,
-                        metadata: req.uploadAuditMetadata,
-                        ipAddress: req.ip || null,
-                        userAgent: req.get("user-agent") || null
-                    }
-                });
-            }
             return createdFile;
         });
 
@@ -269,20 +253,14 @@ export async function createDownloadUrl(req, res) {
 
 
 
-        const command = new GetObjectCommand({
-            Bucket: process.env.S3_BUCKET,
-            Key: file.storageObject.objectKey
-        });
+        // Assets werden ueber denselben HTTP-Ursprung ausgeliefert. Dadurch
+        // funktionieren auch Installationen, deren interner Objektspeicher
+        // keine vom Browser erreichbare (oder nur eine file://-) URL besitzt.
+        const url = `/api/files/content/${file.id}?v=${file.serverVersion}`;
 
-
-        const url = await getSignedUrl(
-            s3Download,
-            command,
-            {
-                expiresIn: 900
-            }
-        );
-
+        res.set("Cache-Control", "private, no-store, max-age=0");
+        res.set("Pragma", "no-cache");
+        res.set("Expires", "0");
         res.json({
             url,
             fileId: file.id,
@@ -303,6 +281,47 @@ export async function createDownloadUrl(req, res) {
     }
 
 
+}
+
+export async function streamFileContent(req, res) {
+    try {
+        const file = await prisma.file.findUnique({
+            where: { id: req.params.id },
+            include: { storageObject: true }
+        });
+        if (!file?.storageObject) {
+            return res.status(404).json({ message: "File not found" });
+        }
+
+        const object = await s3Upload.send(new GetObjectCommand({
+            Bucket: file.storageObject.bucketName || process.env.S3_BUCKET,
+            Key: file.storageObject.objectKey
+        }));
+        res.set("Content-Type", object.ContentType || file.mimeType || "application/octet-stream");
+        res.set("Content-Disposition", `inline; filename*=UTF-8''${encodeURIComponent(file.fileName || "datei")}`);
+        res.set("Cache-Control", "private, no-store, max-age=0");
+        res.set("X-Content-Type-Options", "nosniff");
+        if (object.ContentLength != null) res.set("Content-Length", String(object.ContentLength));
+
+        if (typeof object.Body?.pipe === "function") {
+            object.Body.on("error", error => {
+                console.error("File stream failed:", error);
+                if (!res.headersSent) res.status(502).json({ message: "File stream failed" });
+                else res.destroy(error);
+            });
+            object.Body.pipe(res);
+            return;
+        }
+
+        if (typeof object.Body?.transformToByteArray === "function") {
+            return res.send(Buffer.from(await object.Body.transformToByteArray()));
+        }
+        return res.status(502).json({ message: "File stream unavailable" });
+    } catch (error) {
+        console.error("File stream failed:", error);
+        if (!res.headersSent) return res.status(500).json({ message: "Could not load file" });
+        return res.destroy(error);
+    }
 }
 
 

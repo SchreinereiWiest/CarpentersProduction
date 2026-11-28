@@ -1,9 +1,11 @@
 import { prepareProjectPartList } from "@Engine/cabinet/projectSave.js";
 import { downloadFile, uploadJSONFile } from "../../../../shared/api/file-api.js";
 import { getProjectFile, uploadProjectFile } from "../../../../shared/cache/project-cache.js";
+import { compactCabinetVariantsForSave } from "../workspace/cabinetVariants.js";
 
 export async function saveCabinetProject({
     cabinets,
+    workspace,
     materials,
     projectId,
     defaultConfig,
@@ -32,7 +34,8 @@ export async function saveCabinetProject({
         return;
     }
 
-    await Promise.all([
+    const cabinetsToSave = compactCabinetVariantsForSave(cabinets);
+    const uploads = [
         uploadProjectFile({
             projectId,
             file: "list.json",
@@ -45,11 +48,25 @@ export async function saveCabinetProject({
         uploadProjectFile({
             projectId,
             file: "cabinet.json",
-            data: cabinets,
+            data: cabinetsToSave,
             uploadFunction: {
                 upload: uploadJSONFile,
                 path: `/api/projects/generated/${projectId}/cabinet`
             }
         })
-    ]);
+    ];
+
+    if (workspace) {
+        uploads.push(uploadProjectFile({
+            projectId,
+            file: "cabinetWorkspace.json",
+            data: workspace,
+            uploadFunction: {
+                upload: uploadJSONFile,
+                path: `/api/projects/generated/${projectId}/cabinetWorkspace`
+            }
+        }));
+    }
+
+    await Promise.all(uploads);
 }

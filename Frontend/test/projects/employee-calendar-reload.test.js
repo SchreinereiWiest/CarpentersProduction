@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const cacheMocks = vi.hoisted(() => ({
-    getGlobalFile: vi.fn()
+    getGlobalFile: vi.fn(),
+    axiosGet: vi.fn()
 }));
+
+vi.mock("axios", () => ({ default: { get: cacheMocks.axiosGet } }));
 
 vi.mock("../../src/shared/cache/global-cache.js", () => ({
     getGlobalFile: cacheMocks.getGlobalFile
@@ -14,6 +17,7 @@ vi.mock("../../src/shared/api/file-api.js", () => ({
 
 import { createWeek } from "../../src/features/employees/calendar/createCalendar.js";
 import { loadWeek } from "../../src/features/employees/calendar/loadCalendar.js";
+import { DEFAULT_COMPANY_SETTINGS } from "../../src/shared/settings/company-settings.js";
 
 const calendar = () => ({
     weekOffset: 0,
@@ -25,13 +29,18 @@ const calendar = () => ({
         { id: 3, label: "Donnerstag" },
         { id: 4, label: "Freitag" }
     ],
-    blocks: [{ id: 0, start: "07:00", end: "12:00", duration: 300 }]
+    blocks: [{ id: 0, start: "07:00", end: "12:00", duration: 300 }],
+    companySettings: {
+        ...DEFAULT_COMPANY_SETTINGS,
+        workWeek: DEFAULT_COMPANY_SETTINGS.workWeek.map(day => ({ ...day, end: "12:00", breaks: [] }))
+    }
 });
 
 describe("Mitarbeiterkalender beim Neuladen", () => {
     beforeEach(() => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date(2026, 9, 20, 12));
+        cacheMocks.axiosGet.mockResolvedValue({ data: { events: [] } });
     });
 
     it("erzeugt lokale Wochentage ohne UTC-Verschiebung", () => {

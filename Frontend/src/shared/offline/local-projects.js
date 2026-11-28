@@ -46,9 +46,11 @@ export const createLocalProject = async ({
     title = "Neues Projekt",
     description = "",
     status = "inactive",
-    files = []
+    files = [],
+    ...properties
 } = {}) => {
     const project = normalizeProject({
+        ...properties,
         id,
         title,
         description,

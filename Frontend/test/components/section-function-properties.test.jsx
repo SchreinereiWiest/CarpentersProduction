@@ -65,4 +65,74 @@ describe("SectionFunctionProperties", () => {
             })]
         });
     });
+
+    it("allows locked middle walls to be positioned only from cabinet edges", () => {
+        const updateActiveCabinet = vi.fn();
+        const selectedSnapshot = {
+            id: "wall-section",
+            type: "section",
+            x: 19,
+            y: 100,
+            width: 562,
+            height: 19,
+            functionConfig: [],
+            children: []
+        };
+        const currentSection = {
+            ...selectedSnapshot,
+            y: 300,
+            lockedMiddleWall: true,
+            functionConfig: [{
+                id: "wall",
+                type: "middleWall",
+                locked: true,
+                orientation: "horizontal",
+                positionReference: "cabinetTop",
+                positionOffset: 309.5
+            }]
+        };
+
+        render(
+            <SectionFunctionProperties
+                selectedElement={selectedSnapshot}
+                activeCabinet={{
+                    width: 600,
+                    height: 720,
+                    depth: 535,
+                    thickness: 19,
+                    functionDefaults: {
+                        shelf: {
+                            holeRow: { centered: true }
+                        }
+                    },
+                    sections: [currentSection]
+                }}
+                updateActiveCabinet={updateActiveCabinet}
+                setSelectedElement={vi.fn()}
+                cncConfig={{}}
+            />
+        );
+
+        expect(screen.getByDisplayValue("309.5")).toBeInTheDocument();
+        expect(screen.getByDisplayValue("410.5")).toBeInTheDocument();
+        expect(screen.queryByText("Abstand zur Sektionoberkante")).not.toBeInTheDocument();
+        expect(screen.queryByText("Abstand zur Sektionunterkante")).not.toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Horizontal" })).toBeDisabled();
+        expect(screen.getByRole("button", { name: "Vertikal" })).toBeDisabled();
+
+        fireEvent.change(screen.getByDisplayValue("410.5"), {
+            target: { value: "100" }
+        });
+
+        expect(updateActiveCabinet).toHaveBeenLastCalledWith({
+            sections: [expect.objectContaining({
+                functionConfig: [expect.objectContaining({
+                    id: "wall",
+                    positionReference: "cabinetBottom",
+                    positionOffset: 100,
+                    absoluteOffset: 100
+                })]
+            })]
+        });
+    });
 });

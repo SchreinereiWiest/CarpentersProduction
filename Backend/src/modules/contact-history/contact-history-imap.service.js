@@ -2,7 +2,7 @@ import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
 
 import prisma from "../../infrastructure/database/prisma.js";
-import { getTenantSecret } from "../attachment-search/tenant-secrets.service.js";
+import { getTenantSecret } from "../secrets/tenant-secrets.service.js";
 import {
   CONTACT_HISTORY_IMAP_PASSWORD_SECRET,
   ContactHistoryError,

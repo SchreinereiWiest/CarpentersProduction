@@ -5,6 +5,7 @@ import {
     groupCatalogEntriesBySupplier,
     runShopDataFetch
 } from "../src/procurement/shop-data-fetch.js";
+import { normalizeShopSettings } from "../src/procurement/procurement.js";
 
 const suppliers = [
     { id: "wuerth", name: "Würth", procurementType: "datanorm" },
@@ -44,5 +45,15 @@ test("der Script-Block isoliert fehlende Plugins und behält die Sortierung", as
     assert.deepEqual(calls, [["1", "20"]]);
     assert.equal(result.results.filter(item => item.ok).length, 2);
     assert.match(result.results.find(item => item.entryId === "1").error, /kein Plugin/i);
+});
+
+test("Shop-Einstellungen bewahren die konfigurierten Herstellerwebsites", () => {
+    const normalized = normalizeShopSettings({
+        manufacturerWebsites: [{ id: "website-1", name: "Häfele", baseUrl: "https://www.haefele.de" }]
+    });
+
+    assert.deepEqual(normalized.manufacturerWebsites, [
+        { id: "website-1", name: "Häfele", baseUrl: "https://www.haefele.de" }
+    ]);
 });
 

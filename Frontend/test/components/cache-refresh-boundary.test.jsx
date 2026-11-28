@@ -30,4 +30,21 @@ describe("CacheRefreshBoundary", () => {
 
         expect(screen.getByText("Zustand 0")).toBeInTheDocument();
     });
+
+    it("übernimmt eine im Hintergrund geladene neuere Serverversion in die geöffnete Ansicht", () => {
+        render(
+            <CacheRefreshBoundary>
+                <StatefulPage />
+            </CacheRefreshBoundary>
+        );
+
+        fireEvent.click(screen.getByRole("button"));
+        expect(screen.getByText("Zustand 1")).toBeInTheDocument();
+
+        act(() => {
+            window.dispatchEvent(new CustomEvent("s3-cache-updated"));
+        });
+
+        expect(screen.getByText("Zustand 0")).toBeInTheDocument();
+    });
 });

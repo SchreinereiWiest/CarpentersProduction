@@ -38,6 +38,23 @@ describe("cabinet measurement expressions", () => {
         expect(result).toEqual([{ name: "RH", value: 2300, unit: "mm", status: "measured", label: "Raumhöhe" }]);
     });
 
+    it("combines manually entered variables with linked Aufmaß objects", () => {
+        const result = extractMeasurementVariables({
+            variables: [
+                { name: "SOCKEL", value: "120,5", unit: "mm", status: "manual" },
+                { name: "RH", value: 999, unit: "mm", status: "manual" }
+            ],
+            objects: [
+                { variableName: "RH", value: "2400", unit: "mm", status: "measured", label: "Raumhöhe" }
+            ]
+        });
+
+        expect(result).toEqual([
+            { name: "RH", value: 2400, unit: "mm", status: "measured", label: "Raumhöhe" },
+            { name: "SOCKEL", value: 120.5, unit: "mm", status: "manual", label: "SOCKEL" }
+        ]);
+    });
+
     it("resolves persisted formulas into numeric cabinet dimensions", () => {
         expect(resolveCabinetMeasurementExpressions({
             width: 600,

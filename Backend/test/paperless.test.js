@@ -5,7 +5,7 @@ import test from "node:test";
 process.env.DATABASE_URL ||= "postgresql://test:test@127.0.0.1:5432/test";
 
 const { normalizePaperlessBaseUrl, paperlessApiUrl } = await import("../src/modules/paperless/paperless.service.js");
-const { createPaperlessQrValue, verifyPaperlessQrValue } = await import("../src/modules/paperless/paperless-qr.service.js");
+const { buildPaperlessSplitPlan, createPaperlessQrValue, selectPaperlessQrAssignment, verifyPaperlessQrValue } = await import("../src/modules/paperless/paperless-qr.service.js");
 const { streamPaperlessResponse } = await import("../src/modules/paperless/paperless-stream.service.js");
 const {
   isSupportedPaperlessUpload,
@@ -48,13 +48,61 @@ test("CPD1-QR-Payloads sind signiert und mandantengebunden", () => {
     tenantId,
     customerId: "00000000-0000-4000-8000-000000000002",
     projectId: "00000000-0000-4000-8000-000000000003",
-    documentType: "Lieferschein"
+    documentType: "Lieferschein",
+    wholePdf: true
   };
   const value = createPaperlessQrValue(payload, "test-secret-with-enough-entropy");
   assert.deepEqual(verifyPaperlessQrValue(value, "test-secret-with-enough-entropy", tenantId), payload);
   assert.equal(verifyPaperlessQrValue(`${value}x`, "test-secret-with-enough-entropy", tenantId), null);
   assert.equal(verifyPaperlessQrValue(value, "wrong-secret", tenantId), null);
   assert.equal(verifyPaperlessQrValue(value, "test-secret-with-enough-entropy", "00000000-0000-4000-8000-000000000004"), null);
+  const invalidScope = createPaperlessQrValue({ ...payload, wholePdf: "yes" }, "test-secret-with-enough-entropy");
+  assert.equal(verifyPaperlessQrValue(invalidScope, "test-secret-with-enough-entropy", tenantId), null);
+});
+
+test("ein Gesamt-PDF-QR hat beim Einlesen Vorrang vor seitenspezifischen QRs", () => {
+  const pageAssignment = { sourcePage: 1, payload: { projectId: "project-a", wholePdf: false } };
+  const wholePdfAssignment = { sourcePage: 4, payload: { projectId: "project-b", wholePdf: true } };
+
+  assert.equal(selectPaperlessQrAssignment([pageAssignment, wholePdfAssignment]), wholePdfAssignment);
+  assert.equal(selectPaperlessQrAssignment([pageAssignment]), pageAssignment);
+  assert.equal(selectPaperlessQrAssignment([]), null);
+});
+
+test("normale Dokument-QRs bilden fortlaufende Paperless-Segmente", () => {
+  const plan = buildPaperlessSplitPlan([
+    { sourceKind: "document", sourcePage: 1, projectId: "project-a", payload: { wholePdf: false } },
+    { sourceKind: "measurement", sourcePage: 2, projectId: "project-a", payload: {} },
+    { sourceKind: "document", sourcePage: 4, projectId: "project-a", payload: { wholePdf: false } },
+    { sourceKind: "document", sourcePage: 7, projectId: "project-b", payload: { wholePdf: false } }
+  ], 9);
+
+  assert.deepEqual(plan.pages, [[1, 2, 3], [4, 5, 6], [7, 8, 9]]);
+  assert.deepEqual(plan.operations.slice(2, 5), [
+    { page: 3, doc: 0 },
+    { page: 4, doc: 1 },
+    { page: 5, doc: 1 }
+  ]);
+  assert.equal(buildPaperlessSplitPlan([
+    { sourceKind: "document", sourcePage: 1, projectId: "project-a", payload: { wholePdf: true } },
+    { sourceKind: "document", sourcePage: 4, projectId: "project-a", payload: { wholePdf: false } }
+  ], 6), null);
+});
+
+test("ein Gesamt-PDF-QR reicht bis zum ersten QR eines anderen Projekts", () => {
+  const plan = buildPaperlessSplitPlan([
+    { sourceKind: "document", sourcePage: 1, projectId: "project-a", payload: { wholePdf: true } },
+    { sourceKind: "measurement", sourcePage: 3, projectId: "project-a", payload: {} },
+    { sourceKind: "document", sourcePage: 5, projectId: "project-b", payload: { wholePdf: false } },
+    { sourceKind: "measurement", sourcePage: 6, projectId: "project-b", payload: {} },
+    { sourceKind: "document", sourcePage: 8, projectId: "project-b", payload: { wholePdf: false } }
+  ], 10);
+
+  assert.deepEqual(plan.pages, [
+    [1, 2, 3, 4],
+    [5, 6, 7],
+    [8, 9, 10]
+  ]);
 });
 
 test("Paperless-Streams werden vollständig übertragen und Streamabbrüche beendet", async () => {

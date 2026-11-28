@@ -104,6 +104,7 @@ export function FrontLayer({
     onSelect,
     opacity = 1,
     showBackground = true,
+    backgroundColor = "#171717",
     showMachining = false,
     machiningOpacity = 0.5
 }) {
@@ -333,7 +334,7 @@ export function FrontLayer({
                     width={cabinet.width}
                     height={cabinet.height}
 
-                    fill="#171717"
+                    fill={backgroundColor}
 
                     stroke="#737373"
 

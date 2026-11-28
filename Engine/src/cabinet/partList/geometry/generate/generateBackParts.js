@@ -7,6 +7,9 @@ export const generateBackPart = ({
     nextPID,
     color
 }) => {
+    const usesLegacyMaterialOverride = cabinet.backPanel?.materialSource === "legacy" ||
+        cabinet.backPanel?.materialManuallyChanged === true ||
+        cabinet.backPanel?.manualMaterial === true;
 
     const geometry =
         getBackPanelGeometry(
@@ -38,8 +41,9 @@ export const generateBackPart = ({
             geometry.T,
 
         materialId:
-            cabinet.backPanel?.materialId ??
-            cabinet.materialId,
+            usesLegacyMaterialOverride
+                ? cabinet.backPanel?.materialId ?? cabinet.materialId
+                : cabinet.materialId,
 
         materials,
 

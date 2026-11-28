@@ -94,6 +94,29 @@ Benutzerverwaltung Teil der ausgenommenen `/CompanySettings`-Route ist.
 | `PUT` | `/user/password/:id` | `changeUserPassword` | Passwort ersetzen |
 | `DELETE` | `/user/delete/:id` | `deleteUser` | Benutzer soft-löschen |
 
+Angemeldete Benutzer können unabhängig von der Admin-Benutzerverwaltung ihre persönlichen Startseitenpräferenzen lesen und ändern:
+
+| Methode | Pfad | Zweck |
+|---|---|---|
+| `GET` | `/user/me/preferences` | normalisierte Einstellungen der aktuellen Firmenmitgliedschaft laden |
+| `PUT` | `/user/me/preferences` | persönliche Startseitenmodule sowie für User/Manager erlaubte UI- und Cachewerte speichern |
+
+## Startseite
+
+| Methode | Pfad | Schutz | Zweck |
+|---|---|---|---|
+| `GET` | `/dashboard` | angemeldet; Inhalte zusätzlich rollen- und lizenzbezogen | Zuweisungen, aktuelle Kalenderwoche sowie Manager-/Adminmodule laden |
+
+## Firmenkalender
+
+| Methode | Pfad | Schutz | Zweck |
+|---|---|---|---|
+| `GET` | `/calendar/events` | angemeldet | Alle nicht privaten Firmentermine und die eigenen privaten Termine im Zeitraum laden |
+| `POST` | `/calendar/events` | angemeldet | Termin anlegen; ohne `isPrivate: true` ist er firmenweit sichtbar |
+| `PUT` | `/calendar/events/:id` | Eigentümer; Produktionsplanung Admin | Termin und Privatstatus ändern |
+| `DELETE` | `/calendar/events/:id` | Eigentümer; Produktionsplanung Admin | Termin löschen |
+| `POST` | `/calendar/company-days/sync` | Admin | Sonderregeln eines Jahres als firmenweites „Betriebsfrei“ synchronisieren |
+
 ## Lizenzierung
 
 Beide Endpunkte sind ausschließlich für Administratoren des aktuellen Mandanten verfügbar. Die Lizenzprüfung selbst wird zusätzlich bereits durch die Authentifizierungs-Middleware erzwungen.

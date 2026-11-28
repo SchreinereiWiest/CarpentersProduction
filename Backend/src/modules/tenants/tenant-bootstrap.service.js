@@ -52,6 +52,92 @@ export async function tenantNeedsBootstrap(tenantId, database = systemPrisma) {
     return (await database.tenantMembership.count({ where: { tenantId } })) === 0;
 }
 
+export function tenantSlugForCompany(value) {
+    return String(value || "")
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLocaleLowerCase("de-DE")
+        .replace(/ß/g, "ss")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 80) || "unternehmen";
+}
+
+export async function provisionBootstrapTenant(company, database = systemPrisma) {
+    const name = requiredText(company, "Firma");
+    const requestedSlug = tenantSlugForCompany(name);
+
+    return database.$transaction(async transaction => {
+        // pg_advisory_xact_lock liefert PostgreSQL-Typ void. Prisma 7 kann
+        // diesen Rückgabewert über $queryRaw nicht deserialisieren; $executeRaw
+        // führt die Sperre aus, ohne ein Resultset auszulesen.
+        await transaction.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${name.toLocaleLowerCase("de-DE")}))`;
+        const existing = await transaction.tenant.findFirst({
+            where: { name: { equals: name, mode: "insensitive" } }
+        }) ?? await transaction.tenant.findFirst({
+            where: {
+                slug: { equals: name, mode: "insensitive" },
+                status: "pending-setup"
+            }
+        });
+        if (existing) {
+            if (["active", "pending-setup"].includes(existing.status)) return existing;
+            throw new TenantBootstrapError(
+                "Die Ersteinrichtung ist für dieses Unternehmen nicht verfügbar",
+                "BOOTSTRAP_NOT_AVAILABLE",
+                401
+            );
+        }
+
+        let slug = requestedSlug;
+        let suffix = 1;
+        while (await transaction.tenant.findUnique({ where: { slug } })) {
+            suffix += 1;
+            slug = `${requestedSlug.slice(0, 72)}-${suffix}`;
+        }
+        return transaction.tenant.create({
+            data: { name, slug, status: "pending-setup" }
+        });
+    });
+}
+
+/**
+ * Sichert auch für extern oder per CLI angelegte Mandanten den gewünschten
+ * Erststart ab. Migrierte Bestandsmandanten besitzen bereits einen als
+ * abgeschlossen markierten Datensatz und werden dadurch nicht umgeleitet.
+ */
+export async function ensureOnboardingForFirstAdminLogin(tenantId, userId, database = systemPrisma) {
+    try {
+        return await database.$transaction(async transaction => {
+            await transaction.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
+            const existing = await transaction.tenantOnboarding.findUnique({ where: { tenantId } });
+            if (existing) return existing;
+            const onboarding = await transaction.tenantOnboarding.create({
+                data: { tenantId, status: "pending", currentStep: "welcome", startedById: userId }
+            });
+            await transaction.auditLog.create({
+                data: {
+                    tenantId,
+                    actorUserId: userId,
+                    action: "tenant.onboarding_started",
+                    entityType: "TenantOnboarding",
+                    entityId: onboarding.id,
+                    metadata: { trigger: "first_admin_login" }
+                }
+            });
+            return onboarding;
+        });
+    } catch (error) {
+        if (error?.code === "P2002") {
+            return database.$transaction(async transaction => {
+                await transaction.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
+                return transaction.tenantOnboarding.findUnique({ where: { tenantId } });
+            });
+        }
+        throw error;
+    }
+}
+
 /**
  * Legt genau den ersten Administrator eines leeren Mandanten an. Der
  * Lizenzschlüssel dient nur als einmaliger Besitznachweis und wird weder als
@@ -73,13 +159,21 @@ export async function bootstrapTenantAdmin(tenant, body, database = systemPrisma
         throw new TenantBootstrapError("Die Lizenz ist nicht aktiv", "LICENSE_INACTIVE", 403);
     }
 
+    if (tenant.status !== "active") {
+        tenant = await database.tenant.update({
+            where: { id: tenant.id },
+            data: { status: "active" }
+        });
+    }
+
     const passwordHash = await hashPassword(input.password);
 
     try {
         return await database.$transaction(async transaction => {
             // Serialisiert konkurrierende Einrichtungsversuche je Tenant. Die
             // erneute Prüfung innerhalb der Transaktion schließt Doppel-Admins aus.
-            await transaction.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${tenant.id}))`;
+            await transaction.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${tenant.id}))`;
+            await transaction.$executeRaw`SELECT set_config('app.tenant_id', ${tenant.id}, true)`;
             if (!(await tenantNeedsBootstrap(tenant.id, transaction))) {
                 throw new TenantBootstrapError(
                     "Die Ersteinrichtung dieses Unternehmens ist bereits abgeschlossen",
@@ -113,6 +207,14 @@ export async function bootstrapTenantAdmin(tenant, body, database = systemPrisma
             });
             await transaction.tenantMembership.create({
                 data: { tenantId: tenant.id, userId: user.id, role: "admin", isActive: true }
+            });
+            await transaction.tenantOnboarding.create({
+                data: {
+                    tenantId: tenant.id,
+                    status: "pending",
+                    currentStep: "welcome",
+                    startedById: user.id
+                }
             });
             await transaction.auditLog.create({
                 data: {

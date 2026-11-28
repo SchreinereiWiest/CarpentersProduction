@@ -68,6 +68,12 @@ const paths = {
       <path d="M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18" />
     </>
   ),
+  qr: (
+    <>
+      <path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3z" />
+      <path d="M5.5 5.5h2v2h-2zM16.5 5.5h2v2h-2zM5.5 16.5h2v2h-2zM14 14h3v3h-3zM19 14h2v2M14 19h2v2M18 18h3v3" />
+    </>
+  ),
   zoomIn: (
     <>
       <circle cx="10" cy="10" r="6" />

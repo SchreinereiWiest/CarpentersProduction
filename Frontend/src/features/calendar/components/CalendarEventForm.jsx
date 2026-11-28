@@ -16,7 +16,8 @@ const productionTypes = [
   ["planning", "Planung"],
   ["manufacturing", "Fertigung"],
   ["installation", "Montage"],
-  ["appointment", "Einzeltermin"]
+  ["appointment", "Einzeltermin"],
+  ["company-closed", "Betriebsfrei"]
 ];
 
 const personalTypes = [
@@ -32,6 +33,7 @@ const blankForm = ({ date, admin }) => ({
   description: "",
   projectId: "",
   allDay: admin,
+  isPrivate: false,
   startDate: dateKey(date),
   startTime: "08:00",
   endDate: dateKey(date),
@@ -46,6 +48,7 @@ const eventForm = event => ({
   description: event.description ?? "",
   projectId: event.projectId ?? "",
   allDay: event.allDay,
+  isPrivate: Boolean(event.isPrivate),
   startDate: dateKey(event.startAt),
   startTime: timeKey(event.startAt),
   endDate: dateKey(event.endAt),
@@ -110,7 +113,7 @@ export default function CalendarEventForm({
 
       {admin && (
         <div className="grid grid-cols-2 gap-2 rounded-lg bg-slate-900 p-1">
-          {[['production', 'Produktion'], ['personal', 'Persönlich']].map(([value, label]) => (
+          {[['production', 'Produktion'], ['personal', 'Allgemeiner Termin']].map(([value, label]) => (
             <button
               key={value}
               type="button"
@@ -133,7 +136,7 @@ export default function CalendarEventForm({
 
       {form.scope === "production" && (
         <label className={labelClass}>
-          Projekt {form.type !== "appointment" && <span className="text-rose-400">*</span>}
+          Projekt {["project", "measurement", "planning", "manufacturing", "installation"].includes(form.type) && <span className="text-rose-400">*</span>}
           <select className={inputClass} value={form.projectId} disabled={readOnly} onChange={e => set("projectId", e.target.value)}>
             <option value="">Ohne Projekt</option>
             {projectGroups.active.length > 0 && (
@@ -163,6 +166,11 @@ export default function CalendarEventForm({
       <label className="flex items-center gap-3 rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-300">
         <input type="checkbox" checked={form.allDay} disabled={readOnly} onChange={e => set("allDay", e.target.checked)} className="size-4 accent-sky-500" />
         Ganztägig / über mehrere Tage
+      </label>
+
+      <label className="flex items-start gap-3 rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-2 text-sm text-slate-300">
+        <input type="checkbox" checked={form.isPrivate} disabled={readOnly} onChange={e => set("isPrivate", e.target.checked)} className="mt-0.5 size-4 accent-sky-500" />
+        <span><span className="block font-medium text-white">Privat</span><span className="mt-0.5 block text-xs text-slate-400">Nur für dich sichtbar. Ohne diesen Haken sehen alle Mitarbeiter den Termin.</span></span>
       </label>
 
       <div className="grid grid-cols-2 gap-3">
@@ -201,7 +209,7 @@ export default function CalendarEventForm({
         <textarea className={`${inputClass} min-h-20 resize-y`} value={form.description} disabled={readOnly} onChange={e => set("description", e.target.value)} />
       </label>
 
-      {readOnly && <p className="rounded-lg bg-slate-900 p-3 text-xs text-slate-400">Produktionszeiten können nur von Administratoren bearbeitet werden.</p>}
+      {readOnly && <p className="rounded-lg bg-slate-900 p-3 text-xs text-slate-400">Dieser Termin gehört einem anderen Benutzer oder kann nur von Administratoren bearbeitet werden.</p>}
       {error && <p role="alert" className="rounded-lg border border-rose-800 bg-rose-950/50 p-3 text-sm text-rose-300">{error}</p>}
 
       {!readOnly && (

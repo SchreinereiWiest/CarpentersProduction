@@ -6,7 +6,8 @@ import {
 
 import {
     useNavigate,
-    useParams
+    useParams,
+    useSearchParams
 } from "react-router";
 
 import CncPartSidebar
@@ -45,6 +46,7 @@ import {
     getPartMachineCodeFaces,
     resolveMachineCodeFace
 } from "../shared/machineCodeFaces.js";
+import { resolveCncOperationSelection } from "./cncOperationSelection.js";
 
 import ProjectBar
     from "../../../../shared/components/projectBar.jsx";
@@ -73,6 +75,8 @@ export default function CncEditor() {
     } = useParams();
 
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const scannedPid = searchParams.get("pid");
 
 
     const [groups, setGroups] =
@@ -234,11 +238,14 @@ export default function CncEditor() {
      */
 
     const handleSelectOperation = (
-        operation
+        operationOrId
     ) => {
 
         setSelectedOperation(
-            operation
+            resolveCncOperationSelection(
+                operations,
+                operationOrId
+            )
         );
 
     };
@@ -359,8 +366,9 @@ export default function CncEditor() {
                         grouped.length > 0
                     ) {
 
-                        const firstGroup =
-                            grouped[0];
+                        const firstGroup = scannedPid
+                            ? grouped.find(group => group.parts?.some(part => String(part.PID) === String(scannedPid))) ?? grouped[0]
+                            : grouped[0];
 
 
                         setSelectedGroupId(
@@ -376,7 +384,7 @@ export default function CncEditor() {
                         ) {
 
                             setSelectedPart(
-                                firstGroup.parts[0]
+                                firstGroup.parts.find(part => String(part.PID) === String(scannedPid)) ?? firstGroup.parts[0]
                             );
 
                         } else {
@@ -424,7 +432,8 @@ export default function CncEditor() {
         loadPartList();
 
     }, [
-        projectId
+        projectId,
+        scannedPid
     ]);
 
 
@@ -486,7 +495,7 @@ export default function CncEditor() {
 
     const currentProgramHeader = useMemo(() => selectedPart?.CNC?.header ?? ({
         stopId: activePostprocessor?.configuration?.workingFields ?? "A",
-        edgeAtStop: "front",
+        edgeAtStop: activePostprocessor?.configuration?.defaultEdgeAtStop === "back" ? "back" : "front",
         sx: false,
         sy: false,
         comment: ""
@@ -928,7 +937,7 @@ export default function CncEditor() {
                                         )
                                     }
 
-                                    <div className="ml-auto flex items-center gap-3">
+                                    <div data-tour="project-cnc-export" className="ml-auto flex items-center gap-3">
 
                                         {
                                             exportNotice && (
@@ -958,7 +967,16 @@ export default function CncEditor() {
                                             type="button"
                                             onClick={() => {
                                                 const editablePid = selectedPart?._cncBasePid ?? selectedPart?.PID;
-                                                if (editablePid) navigate(`/Projects/Cnc/${projectId}/Edit/${encodeURIComponent(editablePid)}`);
+                                                if (!editablePid) return;
+                                                const params = new URLSearchParams();
+                                                const basePartKey = getCncPartKey(selectedPart);
+                                                const cabinetId = selectedPart?._cncCabinetId ?? selectedPart?._cabinetId;
+                                                const variantId = selectedPart?._cncMachiningVariant?.id;
+                                                if (basePartKey) params.set("partKey", basePartKey);
+                                                if (cabinetId != null) params.set("cabinetId", cabinetId);
+                                                if (variantId != null) params.set("variantId", variantId);
+                                                const query = params.toString();
+                                                navigate(`/Projects/Cnc/${projectId}/Edit/${encodeURIComponent(editablePid)}${query ? `?${query}` : ""}`);
                                             }}
                                             disabled={!selectedPart?.PID}
                                             className="rounded border border-violet-700 bg-violet-950/40 px-3 py-1.5 text-xs font-medium text-violet-200 transition hover:bg-violet-900/60 disabled:cursor-not-allowed disabled:border-gray-700 disabled:bg-gray-800 disabled:text-gray-500"
@@ -991,7 +1009,7 @@ export default function CncEditor() {
                                     min-h-0
                                 ">
 
-                                    <div className="
+                                    <div data-tour="project-cnc-viewport" className="
                                         relative
                                         h-full
                                         w-full

@@ -6,7 +6,7 @@ import {
   deleteTenantSecret,
   getTenantSecretStatus,
   setTenantSecret
-} from "../attachment-search/tenant-secrets.service.js";
+} from "../secrets/tenant-secrets.service.js";
 import {
   PAPERLESS_API_TOKEN_SECRET,
   PAPERLESS_QR_SIGNING_SECRET,

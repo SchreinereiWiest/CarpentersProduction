@@ -1,7 +1,6 @@
 import axios from "axios";
 import {
     API_STORE_NAME,
-    META_STORE_NAME,
     OFFLINE_PROJECT_STORE_NAME,
     openDb,
     setCachedGlobalFile
@@ -11,7 +10,6 @@ import { invalidateAllProjects, setCachedProjectFile } from "../cache/project-in
 import { cacheProjectAsset, clearProjectAssetMemory } from "../cache/project-asset-cache.js";
 import { clearProjectMemoryCache } from "../cache/project-cache.js";
 
-const OFFLINE_MODE_KEY = "carpentersproduction:offline-mode";
 const GENERATED_NAMES = new Map([
     ["aufmas.json", "aufmas"],
     ["cabinet.json", "cabinet"],
@@ -34,30 +32,6 @@ export const createApiCacheKey = (url, params = {}) => {
     });
     parsed.searchParams.sort();
     return `${parsed.pathname}${parsed.search}`;
-};
-
-export const isOfflineModeEnabled = () => {
-    try {
-        return localStorage.getItem(OFFLINE_MODE_KEY) === "true";
-    } catch {
-        return false;
-    }
-};
-
-export const setOfflineModeEnabled = async enabled => {
-    localStorage.setItem(OFFLINE_MODE_KEY, String(Boolean(enabled)));
-    if (enabled && navigator.storage?.persist) {
-        try {
-            await navigator.storage.persist();
-        } catch {
-            // Einige Browser erlauben persistente Speicherung nur nach einer
-            // eigenen Berechtigungsentscheidung. IndexedDB bleibt nutzbar.
-        }
-    }
-    const db = await openDb();
-    await requestResult(db.transaction(META_STORE_NAME, "readwrite")
-        .objectStore(META_STORE_NAME)
-        .put({ key: "offlineMode", value: Boolean(enabled), updatedAt: Date.now() }));
 };
 
 export const cacheApiResponse = async (url, data, params, { retentionProtected = false } = {}) => {
@@ -126,13 +100,10 @@ export const shouldCacheApiResponse = async url => {
     if (String(url).includes("/generated/")
         || String(url).includes("/files/download/")
         || String(url).includes("/api/settings/")) return false;
-    // Die letzte serverseitig bestätigte Sitzung ermöglicht einen Reload der
-    // bereits installierten Anwendung ohne Internetverbindung.
-    if (String(url).includes("/api/auth/me")) return true;
-    if (isOfflineModeEnabled()) return true;
-    const projectMatch = String(url).match(/\/api\/projects\/(?:get|time)\/([^/?]+)/);
-    if (projectMatch) return isProjectOffline(projectMatch[1]);
-    return false;
+    // Alle normalen GET-Antworten werden automatisch lokal vorgehalten. Beim
+    // nächsten Online-Abruf bleibt der Server die Quelle der Wahrheit; der
+    // Cache dient als sofort verfügbare Rückfallebene.
+    return true;
 };
 
 const cacheBundleResponses = async bundle => {

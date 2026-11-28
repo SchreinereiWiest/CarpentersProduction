@@ -6,9 +6,9 @@ import { uploadGlobalFile } from "../../../shared/cache/global-cache.js";
 export async function saveEditedSlot(entry, mode, Cal) {
 
     const startDate = new Date(`${entry.date}T${entry.start}`);
-    const endDate = new Date(
-        startDate.getTime() + entry.duration * 60 * 1000
-    );
+    const endDate = entry.end
+        ? new Date(`${entry.date}T${entry.end}`)
+        : new Date(startDate.getTime() + entry.duration * 60 * 1000);
 
     const payload = {
         projectId: entry.projectId,

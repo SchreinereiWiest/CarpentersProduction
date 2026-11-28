@@ -1,6 +1,6 @@
 import { MACHINING_KINDS } from "./machiningModel.js";
 
-export const POSTPROCESSOR_API_VERSION = 3;
+export const POSTPROCESSOR_API_VERSION = 4;
 
 export const POSTPROCESSOR_CAPABILITIES = Object.freeze({
     VIEWER: "viewer",
@@ -64,6 +64,16 @@ export const validatePostprocessorPlugin = plugin => {
             throw new PostprocessorContractError(`Bearbeitungsstandort ${location.id} benötigt feste X/Y-Spiegelachsen.`);
         }
     });
+    const centeredDrillRowMode = plugin.manifest.centeredDrillRows?.mode;
+    if (!["native", "mathematical"].includes(centeredDrillRowMode)) {
+        throw new PostprocessorContractError(`Postprozessor ${plugin.manifest.id} muss die Auflösung mittiger Lochreihen als native oder mathematical deklarieren.`);
+    }
+    if (centeredDrillRowMode === "native") {
+        const centeredRows = plugin.manifest.centeredDrillRows;
+        if (!centeredRows.command || !(Number(centeredRows.spacing) > 0) || centeredRows.fallbackMode !== "mathematical") {
+            throw new PostprocessorContractError(`Postprozessor ${plugin.manifest.id} benötigt für native mittige Lochreihen Befehl, Raster und einen mathematischen Fallback.`);
+        }
+    }
     return plugin;
 };
 

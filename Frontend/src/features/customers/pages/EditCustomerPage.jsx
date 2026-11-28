@@ -140,7 +140,7 @@ return (
             <div>
 
                 <div>
-                    <form className="grid gap-8 lg:grid-cols-2 lg:gap-12 lg:pr-12" onSubmit={handleSubmit}>
+                    <form data-tour="contact-form" className="grid gap-8 lg:grid-cols-2 lg:gap-12 lg:pr-12" onSubmit={handleSubmit}>
                         <div className="w-full">
                             <label className="mb-5 block text-base font-semibold text-gray-300 sm:text-xl">
                                 User Details

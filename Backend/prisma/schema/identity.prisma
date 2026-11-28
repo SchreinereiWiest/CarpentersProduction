@@ -10,25 +10,52 @@ model Tenant {
   slug   String @unique
   status String @default("active")
 
-  memberships             TenantMembership[]
-  license                 TenantLicense?
-  syncMutations           SyncMutation[]
-  shopConfiguration       ShopConfiguration?
-  shopCatalogEntries      ShopCatalogEntry[]
-  supplierCatalogArticles SupplierCatalogArticle[]
-  calculationSnapshots    CalculationSnapshot[]
-  secrets                 TenantSecret[]
-  calendarEvents         CalendarEvent[]
-  paperlessConfiguration PaperlessConfiguration?
+  memberships                 TenantMembership[]
+  license                     TenantLicense?
+  syncMutations               SyncMutation[]
+  shopConfiguration           ShopConfiguration?
+  shopCatalogEntries          ShopCatalogEntry[]
+  supplierCatalogArticles     SupplierCatalogArticle[]
+  calculationSnapshots        CalculationSnapshot[]
+  secrets                     TenantSecret[]
+  calendarEvents              CalendarEvent[]
+  paperlessConfiguration      PaperlessConfiguration?
   contactHistoryConfiguration ContactHistoryConfiguration?
   freePbxConfiguration        FreePbxConfiguration?
   phoneCalls                  PhoneCall[]
+  onboarding                  TenantOnboarding?
+  commissions                 Commission[]
+  documentTemplates           DocumentTemplate[]
+  commercialDocuments         CommercialDocument[]
+  workAssignments             WorkAssignment[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([name])
   @@map("tenants")
+}
+
+model TenantOnboarding {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String    @unique @map("tenant_id") @db.Uuid
+  status         String    @default("pending")
+  currentStep    String    @default("welcome") @map("current_step")
+  completedSteps String[]  @default([]) @map("completed_steps")
+  skippedSteps   String[]  @default([]) @map("skipped_steps")
+  version        Int       @default(1)
+  resetCount     Int       @default(0) @map("reset_count")
+  startedById    String?   @map("started_by") @db.Uuid
+  completedById  String?   @map("completed_by") @db.Uuid
+  startedAt      DateTime  @default(now()) @map("started_at")
+  completedAt    DateTime? @map("completed_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, id])
+  @@map("tenant_onboarding")
 }
 
 model TenantSecret {
@@ -51,11 +78,12 @@ model TenantSecret {
 }
 
 model TenantMembership {
-  id       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tenantId String   @map("tenant_id") @db.Uuid
-  userId   String   @map("user_id") @db.Uuid
-  role     UserRole @default(user)
-  isActive Boolean  @default(true) @map("is_active")
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String   @map("tenant_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  role        UserRole @default(user)
+  isActive    Boolean  @default(true) @map("is_active")
+  preferences Json     @default("{}")
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -112,19 +140,57 @@ model User {
   timeTable                    TimeEntry[]
   auditLogs                    AuditLog[]
   memberships                  TenantMembership[]
-  releasedCalculationSnapshots CalculationSnapshot[] @relation("CalculationSnapshotReleasedBy")
+  releasedCalculationSnapshots CalculationSnapshot[]       @relation("CalculationSnapshotReleasedBy")
   tenantBackups                TenantBackup[]
-  measurementPrintRuns         MeasurementPrintRun[] @relation("MeasurementPrintRunCreatedBy")
-  measurementScans             MeasurementScan[]     @relation("MeasurementScanUploadedBy")
-  calendarEventsOwned          CalendarEvent[]       @relation("CalendarEventOwner")
-  calendarEventsCreated        CalendarEvent[]       @relation("CalendarEventCreatedBy")
+  measurementPrintRuns         MeasurementPrintRun[]       @relation("MeasurementPrintRunCreatedBy")
+  measurementScans             MeasurementScan[]           @relation("MeasurementScanUploadedBy")
+  calendarEventsOwned          CalendarEvent[]             @relation("CalendarEventOwner")
+  calendarEventsCreated        CalendarEvent[]             @relation("CalendarEventCreatedBy")
+  managementAssignments        ManagementAssignment[]      @relation("ManagementAssignmentAssignee")
+  managementAssignmentsCreated ManagementAssignment[]      @relation("ManagementAssignmentCreatedBy")
+  managementAnnualGoalsCreated ManagementAnnualGoal[]      @relation("ManagementAnnualGoalCreatedBy")
+  managementEmployeeProfiles   ManagementEmployeeProfile[]
   paperlessDocumentsLinked     PaperlessDocument[]
+  paperlessDocumentsAssigned   PaperlessDocument[]         @relation("PaperlessDocumentAssignee")
+  documentTemplatesUploaded    DocumentTemplate[]          @relation("DocumentTemplateUploadedBy")
+  commercialDocumentsCreated   CommercialDocument[]        @relation("CommercialDocumentCreatedBy")
+  commercialDocumentsAssigned  CommercialDocument[]        @relation("CommercialDocumentAssignee")
+  workAssignmentsAssigned      WorkAssignment[]             @relation("WorkAssignmentAssignee")
+  workAssignmentsCreated       WorkAssignment[]             @relation("WorkAssignmentCreatedBy")
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
   @@map("users")
+}
+
+model WorkAssignment {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String @map("tenant_id") @db.Uuid
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  kind      String
+  sourceId  String @map("source_id") @db.Uuid
+  assigneeId String @map("assignee_id") @db.Uuid
+  assignee   User   @relation("WorkAssignmentAssignee", fields: [assigneeId], references: [id], onDelete: Cascade)
+  createdById String @map("created_by") @db.Uuid
+  createdBy   User   @relation("WorkAssignmentCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  title       String
+  info        String?
+  href        String
+  status      String    @default("open")
+  completedAt DateTime? @map("completed_at")
+  dismissedAt DateTime? @map("dismissed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@unique([tenantId, kind, sourceId, assigneeId])
+  @@unique([tenantId, id])
+  @@index([assigneeId, status, updatedAt])
+  @@index([createdById, status, updatedAt])
+  @@map("work_assignments")
 }
 
 model AuditLog {

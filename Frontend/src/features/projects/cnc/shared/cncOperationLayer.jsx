@@ -5,6 +5,7 @@ import VBH from "./operations/vbh.jsx";
 import LgBox from "./operations/lgBox.jsx";
 import Milling from "./operations/milling.jsx";
 import Groove from "./operations/groove.jsx";
+import { neutralOperationToViewer } from "@Engine/postprocessor/index.js";
 
 import {
     getOperationId
@@ -25,7 +26,11 @@ export default function CncOperationsLayer({
     }
 
 
-    const viewerOperations = Array.isArray(operations) ? operations : [];
+    const viewerOperations = (Array.isArray(operations) ? operations : [])
+        .map(operation => operation?.type || !operation?.kind
+            ? operation
+            : neutralOperationToViewer(operation))
+        .filter(Boolean);
 
 
     return (

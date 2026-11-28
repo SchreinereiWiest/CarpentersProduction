@@ -93,7 +93,10 @@ function drawEdgeSketch(doc, item, x, y, size = 12) {
  * Fuegt die bestehende Teileliste in ein vorhandenes PDF ein.
  * So verwendet die Projekt-PDF exakt denselben Tabellen-Generator.
  */
-export function appendPartsListPDF(doc, processedContent, { addPage = false } = {}) {
+export function appendPartsListPDF(doc, processedContent, {
+    addPage = false,
+    pageNumberOffset = 0
+} = {}) {
 
     if (addPage) {
         doc.addPage("a4", "portrait");
@@ -264,8 +267,12 @@ autoTable(doc, {
 
 
     margin: {
+        // startY steuert nur die erste Seite. Auf automatisch erzeugten
+        // Folgeseiten sorgt dieser Wert für einen ruhigen oberen Rand.
+        top: 20,
         left: 12,
-        right: 12
+        right: 12,
+        bottom: 14
     },
 
 
@@ -520,6 +527,14 @@ autoTable(doc, {
 
         );
 
+    },
+
+    didDrawPage: function () {
+        const pageNumber = doc.internal.getCurrentPageInfo().pageNumber + pageNumberOffset;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7);
+        doc.setTextColor(110, 110, 110);
+        doc.text(`Seite ${pageNumber}`, 198, 290, { align: "right" });
     }
 
 

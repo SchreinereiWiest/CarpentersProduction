@@ -186,10 +186,25 @@ describe('Projektpipeline Korpus → Stückliste → CNC → Nesting', () => {
       grainedMaterials,
     );
     const boardGroup = nesting.find((group) => group.MID === 'BOARD-19');
-    const backGroup = nesting.find((group) => group.MID === 'BACK-8');
 
     expect(boardGroup.settings.allowRotation).toBe(false);
     expect(boardGroup.storageMaterialHasGrain).toBe(true);
-    expect(backGroup.settings.allowRotation).toBe(true);
+    expect(nesting.some((group) => group.MID === 'BACK-8')).toBe(false);
+
+    const legacyPartList = await buildPartList([{
+      ...cabinet,
+      backPanel: {
+        ...cabinet.backPanel,
+        materialSource: 'legacy',
+      },
+    }], materials);
+    const legacyNesting = calculateNesting(
+      legacyPartList,
+      [{ allowRotation: true }, { allowRotation: true }],
+      grainedMaterials,
+    );
+    const legacyBackGroup = legacyNesting.find((group) => group.MID === 'BACK-8');
+
+    expect(legacyBackGroup.settings.allowRotation).toBe(true);
   });
 });

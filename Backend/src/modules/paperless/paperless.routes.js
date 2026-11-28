@@ -26,6 +26,7 @@ import {
   unlinkLocalDocument,
   unlinkPaperlessDocument,
   updateLocalDocumentAssignment,
+  updatePaperlessAssignee,
   updatePaperlessAssignment
 } from "./paperless.controller.js";
 import {
@@ -76,6 +77,7 @@ router.post("/sync", syncPaperlessNow);
 router.post("/upload", receiveUpload, uploadPaperlessDocument);
 router.get("/assignment-options", getAssignmentOptions);
 router.put("/documents/:documentId/assignment", updatePaperlessAssignment);
+router.put("/documents/:documentId/assignee", updatePaperlessAssignee);
 router.delete("/documents/:documentId/assignment", unlinkPaperlessDocument);
 router.post("/documents/:documentId/dismiss", dismissPaperlessDocument);
 router.delete("/documents/:documentId", deletePaperlessDocument);

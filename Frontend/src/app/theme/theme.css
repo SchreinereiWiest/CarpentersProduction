@@ -1,30 +1,86 @@
 /*
- * Zentrale Theme-Tokens
- * ---------------------
- * Neue Komponenten sollten diese Variablen oder die theme-* Hilfsklassen
- * verwenden. Der Kompatibilitätsblock darunter übersetzt die historisch
- * verwendeten Gray-Tailwind-Klassen, damit das bestehende UI mitwechselt.
+ * Carpenters Design System
+ * ------------------------
+ * "Precision Workshop" verbindet warme Holz-/Messingakzente mit ruhigen,
+ * entsaettigten Arbeitsflaechen. Die Tailwind-Kompatibilitaet weiter unten
+ * bindet auch historische Komponenten an dieselben semantischen Tokens an.
  */
 :root,
 :root[data-theme="dark"] {
-    --theme-canvas: #111827;
-    --theme-surface: #1f2937;
-    --theme-surface-subtle: #374151;
-    --theme-surface-muted: #4b5563;
-    --theme-border: #374151;
-    --theme-border-strong: #4b5563;
-    --theme-text-primary: #f9fafb;
-    --theme-text-secondary: #d1d5db;
-    --theme-text-muted: #9ca3af;
-    --theme-text-faint: #6b7280;
-    --theme-navigation: #1f2937;
-    --theme-navigation-active: #111827;
-    --theme-navigation-text: #f9fafb;
-    --theme-accent: #2563eb;
-    --theme-accent-hover: #3b82f6;
-    --theme-accent-strong: #1d4ed8;
-    --theme-on-accent: #ffffff;
-    --theme-shadow: rgb(0 0 0 / 0.28);
+    color-scheme: dark;
+    --theme-canvas: #111214;
+    --theme-canvas-raised: #161719;
+    --theme-surface: #1b1c1f;
+    --theme-surface-elevated: #222326;
+    --theme-surface-subtle: #2a2c2f;
+    --theme-surface-muted: #34373b;
+    --theme-border: #35373b;
+    --theme-border-strong: #505359;
+    --theme-text-primary: #f3f1ed;
+    --theme-text-secondary: #d4d3d0;
+    --theme-text-muted: #aaa9a7;
+    --theme-text-faint: #858589;
+    --theme-navigation: #151618;
+    --theme-navigation-active: #2b2d30;
+    --theme-navigation-hover: #232427;
+    --theme-navigation-text: #f5f3ef;
+    --theme-accent: #d09552;
+    --theme-accent-hover: #e0aa70;
+    --theme-accent-strong: #b36f38;
+    --theme-accent-ink: #edc392;
+    --theme-accent-soft: rgb(208 149 82 / 0.15);
+    --theme-on-accent: #17110c;
+    --theme-focus: rgb(224 170 112 / 0.38);
+    --theme-shadow: rgb(0 0 0 / 0.38);
+    --theme-shadow-soft: rgb(0 0 0 / 0.2);
+
+    /* Tailwind-Grays und -Slates bilden dieselbe Oberflaechenhierarchie ab. */
+    --color-gray-950: #0d0e10;
+    --color-gray-900: #141517;
+    --color-gray-800: #1b1c1f;
+    --color-gray-700: #2a2c2f;
+    --color-gray-600: #414349;
+    --color-gray-500: #858589;
+    --color-gray-400: #aaa9a7;
+    --color-gray-300: #cac8c5;
+    --color-gray-200: #dedcd8;
+    --color-gray-100: #eeece8;
+    --color-gray-50: #f8f6f2;
+    --color-slate-950: #0d0e10;
+    --color-slate-900: #151619;
+    --color-slate-800: #1d1f22;
+    --color-slate-700: #2f3135;
+    --color-slate-600: #46494f;
+    --color-slate-500: #888a8f;
+    --color-slate-400: #adaeb1;
+    --color-slate-300: #cecfd1;
+    --color-slate-200: #e0e1e2;
+    --color-slate-100: #f0f0f1;
+    --color-slate-50: #f8f8f8;
+
+    /* Bestehende Blue-Utilities werden zum markentypischen Copper-Akzent. */
+    --color-blue-950: #2b1b10;
+    --color-blue-900: #4a2d18;
+    --color-blue-800: #704525;
+    --color-blue-700: #92592f;
+    --color-blue-600: #b8733d;
+    --color-blue-500: #d09552;
+    --color-blue-400: #e0aa70;
+    --color-blue-300: #edc392;
+    --color-blue-200: #f4d8b7;
+    --color-blue-100: #faead8;
+    --color-blue-50: #fdf7f0;
+    --color-sky-950: #2b1b10;
+    --color-sky-900: #4a2d18;
+    --color-sky-800: #704525;
+    --color-sky-700: #92592f;
+    --color-sky-600: #b8733d;
+    --color-sky-500: #d09552;
+    --color-sky-400: #e0aa70;
+    --color-sky-300: #edc392;
+    --color-sky-200: #f4d8b7;
+    --color-sky-100: #faead8;
+    --color-sky-50: #fdf7f0;
     --measurement-canvas: #10171e;
     --measurement-surface: #172029;
     --measurement-surface-raised: #1d2a34;
@@ -43,77 +99,111 @@
     --measurement-label-background: #16222d;
     --measurement-label-text: #dce8f1;
     --measurement-line-backdrop: #0e171f;
-    --cabinet-editor-background: #111827;
-    --cnc-editor-background: #0b1118;
-    --cnc-editor-grid: #1f2937;
-    --cnc-part-fill: #1e252d;
-    --cnc-part-stroke: #66717d;
-    --cnc-part-stroke-selected: #aeb7c0;
-    --cnc-part-guide: #596574;
-    --cnc-dimension-line: #f97316;
-    --cnc-dimension-text: #fb923c;
+    --cabinet-editor-background: #111214;
+    --cabinet-dimension-line: #d09552;
+    --cabinet-dimension-text: #e0aa70;
+    --cnc-editor-background: #0c0d0f;
+    --cnc-editor-grid: #292b2f;
+    --cnc-part-fill: #25272a;
+    --cnc-part-stroke: #74777d;
+    --cnc-part-stroke-selected: #d8d5cf;
+    --cnc-part-guide: #676b71;
+    --cnc-operation-fill: #d9bea0;
+    --cnc-operation-stroke: #fff0dc;
+    --cnc-operation-selected: #d09552;
+    --cnc-operation-selected-stroke: #f6d9b7;
+    --cnc-operation-path: #cbb18f;
+    --cnc-compensation-path: #aeb2b8;
+    --cnc-dimension-line: #d09552;
+    --cnc-dimension-text: #e0aa70;
 }
 
 :root[data-theme="light"] {
-    /* An MoebelDesignLicencing angelehnte Light-Palette. */
-    --theme-canvas: #f4f5f2;
-    --theme-surface: #ffffff;
-    --theme-surface-subtle: #eef1ef;
-    --theme-surface-muted: #e2e7e4;
-    --theme-border: #d7ded9;
-    --theme-border-strong: #bcc7c1;
-    --theme-text-primary: #111516;
-    --theme-text-secondary: #34413e;
-    --theme-text-muted: #64716d;
-    --theme-text-faint: #84908b;
-    --theme-navigation: #223033;
-    --theme-navigation-active: #344447;
-    --theme-navigation-text: #f8faf9;
-    --theme-accent: #cf8b4f;
-    --theme-accent-hover: #e3ad75;
-    --theme-accent-strong: #b96f35;
-    --theme-on-accent: #111516;
-    --theme-shadow: rgb(31 42 44 / 0.10);
-    --measurement-canvas: #eef1ef;
-    --measurement-surface: #ffffff;
-    --measurement-surface-raised: #f4f5f2;
-    --measurement-surface-deep: #e7ece9;
-    --measurement-border: #d7ded9;
-    --measurement-border-strong: #b8c5be;
-    --measurement-text: #111516;
-    --measurement-text-secondary: #34413e;
-    --measurement-text-muted: #64716d;
-    --measurement-accent: #cf8b4f;
-    --measurement-accent-hover: #e3ad75;
-    --measurement-on-accent: #111516;
-    --measurement-editor-background: #f8f9f6;
-    --measurement-grid: #d7ded9;
-    --measurement-grid-strong: #b8c5be;
-    --measurement-label-background: #ffffff;
-    --measurement-label-text: #111516;
-    --measurement-line-backdrop: #eef1ef;
-    --cabinet-editor-background: #eef1ef;
-    --cnc-editor-background: #eef1ef;
-    --cnc-editor-grid: #d1d9d4;
-    --cnc-part-fill: var(--theme-accent);
-    --cnc-part-stroke: var(--theme-accent-strong);
-    --cnc-part-stroke-selected: #96552b;
-    --cnc-part-guide: #754326;
-    --cnc-dimension-line: #111516;
-    --cnc-dimension-text: #111516;
+    color-scheme: light;
+    --theme-canvas: #f2f0ea;
+    --theme-canvas-raised: #f7f5f0;
+    --theme-surface: #fbfaf7;
+    --theme-surface-elevated: #ffffff;
+    --theme-surface-subtle: #ebe8df;
+    --theme-surface-muted: #dfdbd0;
+    --theme-border: #d7d1c5;
+    --theme-border-strong: #b8b0a2;
+    --theme-text-primary: #202824;
+    --theme-text-secondary: #44514b;
+    --theme-text-muted: #68746e;
+    --theme-text-faint: #858f89;
+    --theme-navigation: #18231f;
+    --theme-navigation-active: #314139;
+    --theme-navigation-hover: #27362f;
+    --theme-navigation-text: #f7f5ef;
+    --theme-accent: #a95f2f;
+    --theme-accent-hover: #bd7040;
+    --theme-accent-strong: #874622;
+    --theme-accent-ink: #874622;
+    --theme-accent-soft: rgb(169 95 47 / 0.11);
+    --theme-on-accent: #fffaf4;
+    --theme-focus: rgb(169 95 47 / 0.25);
+    --theme-shadow: rgb(39 46 42 / 0.13);
+    --theme-shadow-soft: rgb(39 46 42 / 0.08);
+    --measurement-canvas: #ece9e1;
+    --measurement-surface: #fbfaf7;
+    --measurement-surface-raised: #f4f2ec;
+    --measurement-surface-deep: #e5e1d7;
+    --measurement-border: #d2ccc0;
+    --measurement-border-strong: #aaa193;
+    --measurement-text: #202824;
+    --measurement-text-secondary: #44514b;
+    --measurement-text-muted: #68746e;
+    --measurement-accent: #a95f2f;
+    --measurement-accent-hover: #bd7040;
+    --measurement-on-accent: #fffaf4;
+    --measurement-editor-background: #f8f6f1;
+    --measurement-grid: #d8d2c7;
+    --measurement-grid-strong: #b9b1a4;
+    --measurement-label-background: #fbfaf7;
+    --measurement-label-text: #202824;
+    --measurement-line-backdrop: #ebe8df;
+    --cabinet-editor-background: #ece9e1;
+    --cabinet-dimension-line: #a95f2f;
+    --cabinet-dimension-text: #874622;
+    --cnc-editor-background: #f0ede6;
+    --cnc-editor-grid: #c8c1b6;
+    --cnc-part-fill: #d8cdbd;
+    --cnc-part-stroke: #81776c;
+    --cnc-part-stroke-selected: #874622;
+    --cnc-part-guide: #8d8377;
+    --cnc-operation-fill: #4e5155;
+    --cnc-operation-stroke: #25272a;
+    --cnc-operation-selected: #a95f2f;
+    --cnc-operation-selected-stroke: #5f2f16;
+    --cnc-operation-path: #5f4a38;
+    --cnc-compensation-path: #6e7378;
+    --cnc-dimension-line: #202824;
+    --cnc-dimension-text: #202824;
 
-    /* Tailwind-Akzentklassen werden im Light Mode zu Copper. */
+    /* Die Variablen erhalten die Copper-Skala; Textkontraste folgen unten. */
     --color-blue-50: #fdf7f1;
-    --color-blue-100: #faeadb;
-    --color-blue-200: #f3d2b3;
-    --color-blue-300: #e3ad75;
-    --color-blue-400: #d99a60;
-    --color-blue-500: #cf8b4f;
-    --color-blue-600: #b96f35;
-    --color-blue-700: #96552b;
-    --color-blue-800: #754326;
-    --color-blue-900: #603921;
-    --color-blue-950: #341b0e;
+    --color-blue-100: #f8e8d7;
+    --color-blue-200: #efd0b0;
+    --color-blue-300: #dfaa78;
+    --color-blue-400: #c9824b;
+    --color-blue-500: #a95f2f;
+    --color-blue-600: #934d25;
+    --color-blue-700: #7d3f1f;
+    --color-blue-800: #68351c;
+    --color-blue-900: #572e1a;
+    --color-blue-950: #31160b;
+    --color-sky-50: #fdf7f1;
+    --color-sky-100: #f8e8d7;
+    --color-sky-200: #efd0b0;
+    --color-sky-300: #dfaa78;
+    --color-sky-400: #c9824b;
+    --color-sky-500: #a95f2f;
+    --color-sky-600: #934d25;
+    --color-sky-700: #7d3f1f;
+    --color-sky-800: #68351c;
+    --color-sky-900: #572e1a;
+    --color-sky-950: #31160b;
 }
 
 html,
@@ -123,72 +213,238 @@ body,
     color: var(--theme-text-primary);
 }
 
+html {
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+}
+
 body,
 button,
 input,
 select,
 textarea {
-    transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+    transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease,
+        box-shadow 160ms ease, opacity 160ms ease, transform 160ms ease;
 }
 
 ::selection {
-    background: color-mix(in srgb, var(--theme-accent) 30%, transparent);
+    background: color-mix(in srgb, var(--theme-accent) 34%, transparent);
+    color: var(--theme-text-primary);
+}
+
+* {
+    scrollbar-color: var(--theme-border-strong) transparent;
+}
+
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--theme-accent);
+    outline-offset: 2px;
+}
+
+:where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]), select, textarea) {
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.025), 0 1px 2px var(--theme-shadow-soft);
+}
+
+:where(input, textarea)::placeholder {
+    color: var(--theme-text-faint);
+    opacity: 0.9;
+}
+
+:where(button, [role="button"], a) {
+    -webkit-tap-highlight-color: transparent;
+}
+
+:where(button, [role="button"]):active:not(:disabled) {
+    transform: translateY(1px);
 }
 
 .theme-canvas { background-color: var(--theme-canvas); }
 .theme-surface { background-color: var(--theme-surface); }
 .theme-surface-subtle { background-color: var(--theme-surface-subtle); }
+.theme-surface-elevated { background-color: var(--theme-surface-elevated); }
 .theme-border { border-color: var(--theme-border); }
 .theme-text-primary { color: var(--theme-text-primary); }
 .theme-text-secondary { color: var(--theme-text-secondary); }
 .theme-text-muted { color: var(--theme-text-muted); }
 .theme-accent { color: var(--theme-accent); }
-.theme-shadow { box-shadow: 0 18px 50px var(--theme-shadow); }
+.theme-shadow { box-shadow: 0 18px 48px var(--theme-shadow); }
 .cnc-viewport { background-color: var(--cnc-editor-background); }
 
-/* Light-Mode-Kompatibilität für die bestehende dunkle Gray-Palette. */
-:root[data-theme="light"] .bg-gray-950 { background-color: #e9eeeb; }
-:root[data-theme="light"] .bg-gray-900 { background-color: var(--theme-canvas); }
-:root[data-theme="light"] .bg-gray-800 { background-color: var(--theme-surface); }
-:root[data-theme="light"] .bg-gray-700 { background-color: var(--theme-surface-subtle); }
-:root[data-theme="light"] .bg-gray-600 { background-color: var(--theme-surface-muted); }
-:root[data-theme="light"] [class*="bg-gray-950/"] { background-color: rgb(233 238 235 / 0.92); }
-:root[data-theme="light"] [class*="bg-gray-900/"] { background-color: rgb(244 245 242 / 0.92); }
-:root[data-theme="light"] [class*="bg-gray-800/"] { background-color: rgb(255 255 255 / 0.92); }
-:root[data-theme="light"] [class*="bg-gray-700/"] { background-color: rgb(238 241 239 / 0.92); }
-
-:root[data-theme="light"] .border-gray-800,
-:root[data-theme="light"] .border-gray-700 { border-color: var(--theme-border); }
-:root[data-theme="light"] .border-gray-600 { border-color: var(--theme-border-strong); }
-:root[data-theme="light"] .border-gray-500 { border-color: #a5b1ab; }
-:root[data-theme="light"] [class*="border-gray-700/"] { border-color: rgb(215 222 217 / 0.78); }
-
-:root[data-theme="light"] .text-white,
-:root[data-theme="light"] .text-gray-50,
-:root[data-theme="light"] .text-gray-100 { color: var(--theme-text-primary); }
-:root[data-theme="light"] .text-gray-200 { color: var(--theme-text-secondary); }
-:root[data-theme="light"] .text-gray-300 { color: #475652; }
-:root[data-theme="light"] .text-gray-400 { color: var(--theme-text-muted); }
-:root[data-theme="light"] .text-gray-500 { color: var(--theme-text-faint); }
-
-:root[data-theme="light"] .hover\:bg-gray-900:hover { background-color: #e9eeeb; }
-:root[data-theme="light"] .hover\:bg-gray-800:hover,
-:root[data-theme="light"] .hover\:bg-gray-700:hover { background-color: var(--theme-surface-muted); }
-:root[data-theme="light"] .hover\:bg-gray-600:hover { background-color: #d6ddd9; }
-:root[data-theme="light"] .hover\:text-white:hover { color: var(--theme-text-primary); }
-
-/* Die Hauptnavigation nutzt den helleren Ink-Ton der Licensing-Palette. */
-:root[data-theme="light"] .app-sidebar {
-    background-color: var(--theme-navigation);
-    border-color: #405154;
-    color: var(--theme-navigation-text);
+.legacy-manual-label { color: var(--theme-accent-ink); }
+.legacy-manual-badge {
+    border: 1px solid color-mix(in srgb, var(--theme-accent) 42%, transparent);
+    background: var(--theme-accent-soft);
+    color: var(--theme-accent-ink);
 }
-:root[data-theme="light"] .app-sidebar .bg-gray-900 {
-    background-color: var(--theme-navigation-active);
-    color: var(--theme-navigation-text);
+
+/* Wiederverwendete Controls und Flaechen erhalten eine konsistente Tiefe. */
+:where(button, a).bg-blue-600,
+:where(button, a).bg-blue-500,
+:where(button, a).bg-sky-600,
+:where(button, a).bg-sky-500 {
+    box-shadow: 0 1px 0 rgb(255 255 255 / 0.13) inset, 0 7px 18px color-mix(in srgb, var(--theme-accent) 18%, transparent);
 }
-:root[data-theme="light"] .app-sidebar .text-gray-400 { color: #a5b0b2; }
-:root[data-theme="light"] .app-sidebar .hover\:bg-gray-700:hover { background-color: #2d3d40; }
+
+:where(.rounded-xl, .rounded-2xl).bg-gray-800,
+:where(.rounded-xl, .rounded-2xl)[class*="bg-slate-800/"] {
+    box-shadow: 0 1px 0 rgb(255 255 255 / 0.025) inset, 0 10px 28px var(--theme-shadow-soft);
+}
+
+/* Haupt- und Bereichsnavigation bleiben bewusst dunkel und eindeutig. */
+.app-sidebar {
+    border-inline-end: 1px solid color-mix(in srgb, var(--theme-border-strong) 68%, transparent);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--theme-navigation) 94%, var(--theme-accent) 6%), var(--theme-navigation));
+    color: var(--theme-navigation-text);
+    box-shadow: 10px 0 30px rgb(0 0 0 / 0.08);
+}
+
+.app-sidebar :is(a, button),
+.project-bar a,
+.settings-bar button {
+    border: 1px solid transparent;
+}
+
+.app-sidebar .bg-gray-900 {
+    border-color: color-mix(in srgb, var(--theme-accent) 24%, transparent);
+    background: var(--theme-navigation-active);
+    color: var(--theme-navigation-text);
+    box-shadow: inset 3px 0 0 var(--theme-accent), 0 8px 18px rgb(0 0 0 / 0.12);
+}
+
+.app-sidebar .text-gray-400 { color: #aab4ae; }
+.app-sidebar .hover\:bg-gray-700:hover { background: var(--theme-navigation-hover); }
+
+.project-bar,
+.settings-bar {
+    border-bottom: 1px solid var(--theme-border);
+    background: color-mix(in srgb, var(--theme-surface) 92%, transparent);
+    box-shadow: 0 8px 26px var(--theme-shadow-soft);
+    backdrop-filter: blur(18px) saturate(120%);
+}
+
+.project-bar .bg-gray-900,
+.settings-bar .bg-gray-900 {
+    border-color: color-mix(in srgb, var(--theme-accent) 35%, var(--theme-border));
+    background: var(--theme-accent-soft);
+    color: var(--theme-accent-hover);
+    box-shadow: inset 0 -2px 0 var(--theme-accent);
+}
+
+/* Historische helle Formfelder werden auch im Dark Mode in das Theme gezogen. */
+:root[data-theme="dark"] :is(input, select, textarea).bg-white,
+:root[data-theme="dark"] :is(input, select, textarea).bg-gray-50 {
+    border-color: var(--theme-border-strong);
+    background: var(--theme-surface-elevated);
+    color: var(--theme-text-primary);
+}
+
+:root[data-theme="dark"] :is(input, select, textarea)[class*="border-[#e0e0e0]"] {
+    border-color: var(--theme-border-strong);
+}
+
+:root[data-theme="dark"] :is(input, select, textarea)[class*="text-[#6B7280]"],
+:root[data-theme="dark"] :is(input, select, textarea).text-gray-900 {
+    color: var(--theme-text-secondary);
+}
+
+:root[data-theme="dark"] .bg-gray-50 { background-color: var(--theme-surface-elevated); }
+:root[data-theme="dark"] .bg-gray-100 { background-color: var(--theme-surface-subtle); }
+:root[data-theme="dark"] .text-gray-900 { color: var(--theme-text-primary); }
+
+:is(input, select, textarea)[class*="focus:border-[#6A64F1]"]:focus {
+    border-color: var(--theme-accent);
+    box-shadow: 0 0 0 3px var(--theme-focus);
+}
+
+/* Light-Mode-Kompatibilitaet fuer bestehende Gray- und Slate-Komponenten. */
+:root[data-theme="light"] :is(.bg-gray-950, .bg-slate-950) { background-color: var(--theme-canvas); }
+:root[data-theme="light"] :is(.bg-gray-900, .bg-slate-900) { background-color: var(--theme-canvas-raised); }
+:root[data-theme="light"] :is(.bg-gray-800, .bg-slate-800) { background-color: var(--theme-surface); }
+:root[data-theme="light"] :is(.bg-gray-700, .bg-slate-700) { background-color: var(--theme-surface-subtle); }
+:root[data-theme="light"] :is(.bg-gray-600, .bg-slate-600) { background-color: var(--theme-surface-muted); }
+:root[data-theme="light"] :is(.bg-gray-50, .bg-slate-50) { background-color: var(--theme-surface-elevated); }
+:root[data-theme="light"] [class*="bg-gray-950/"],
+:root[data-theme="light"] [class*="bg-slate-950/"] { background-color: color-mix(in srgb, var(--theme-canvas) 92%, transparent); }
+:root[data-theme="light"] [class*="bg-gray-900/"],
+:root[data-theme="light"] [class*="bg-slate-900/"] { background-color: color-mix(in srgb, var(--theme-surface-subtle) 76%, transparent); }
+:root[data-theme="light"] [class*="bg-gray-800/"],
+:root[data-theme="light"] [class*="bg-slate-800/"] { background-color: color-mix(in srgb, var(--theme-surface) 90%, transparent); }
+:root[data-theme="light"] [class*="bg-gray-700/"],
+:root[data-theme="light"] [class*="bg-slate-700/"] { background-color: color-mix(in srgb, var(--theme-surface-muted) 74%, transparent); }
+
+:root[data-theme="light"] :is(.border-gray-800, .border-gray-700, .border-slate-800, .border-slate-700) { border-color: var(--theme-border); }
+:root[data-theme="light"] :is(.border-gray-600, .border-slate-600) { border-color: var(--theme-border-strong); }
+:root[data-theme="light"] :is(.border-gray-500, .border-slate-500) { border-color: #9f978a; }
+:root[data-theme="light"] [class*="border-gray-700/"],
+:root[data-theme="light"] [class*="border-slate-700/"] { border-color: color-mix(in srgb, var(--theme-border) 78%, transparent); }
+
+:root[data-theme="light"] :is(.text-white, .text-gray-50, .text-gray-100, .text-slate-50, .text-slate-100) { color: var(--theme-text-primary); }
+:root[data-theme="light"] :is(.text-gray-200, .text-gray-300, .text-slate-200, .text-slate-300) { color: var(--theme-text-secondary); }
+:root[data-theme="light"] :is(.text-gray-400, .text-slate-400) { color: var(--theme-text-muted); }
+:root[data-theme="light"] :is(.text-gray-500, .text-gray-600, .text-slate-500, .text-slate-600) { color: var(--theme-text-faint); }
+:root[data-theme="light"] :is(.text-blue-200, .text-blue-300, .text-blue-400, .text-blue-500, .text-sky-200, .text-sky-300, .text-sky-400, .text-sky-500) { color: var(--theme-accent-strong); }
+:root[data-theme="light"] :is(.text-violet-200, .text-violet-300, .text-violet-400) { color: #664786; }
+
+:root[data-theme="light"] :is(.bg-blue-950, .bg-blue-900).text-blue-300,
+:root[data-theme="light"] :is(.bg-sky-950, .bg-sky-900):is(.text-sky-100, .text-sky-200, .text-sky-300),
+:root[data-theme="light"] :is(.bg-violet-950, .bg-violet-900):is(.text-violet-200, .text-violet-300) {
+    color: #f8e8d7;
+}
+
+:root[data-theme="light"] :is(.hover\:bg-gray-900, .hover\:bg-slate-900):hover { background-color: var(--theme-surface-subtle); }
+:root[data-theme="light"] :is(.hover\:bg-gray-800, .hover\:bg-gray-700, .hover\:bg-slate-800, .hover\:bg-slate-700):hover { background-color: var(--theme-surface-muted); }
+:root[data-theme="light"] :is(.hover\:bg-gray-600, .hover\:bg-slate-600):hover { background-color: #d3cec2; }
+:root[data-theme="light"] :is(.hover\:text-white, .hover\:text-gray-200, .hover\:text-slate-200):hover { color: var(--theme-text-primary); }
+
+:root[data-theme="light"] :is(input, select, textarea).bg-white {
+    border-color: var(--theme-border);
+    background: var(--theme-surface-elevated);
+    color: var(--theme-text-primary);
+}
+
+:root[data-theme="light"] :is(input, select, textarea)[class*="border-[#e0e0e0]"] { border-color: var(--theme-border); }
+:root[data-theme="light"] :is(input, select, textarea)[class*="text-[#6B7280]"] { color: var(--theme-text-secondary); }
+
+/* Navigation muss ihre hellen Kontraste auch im Light Mode behalten. */
+:root[data-theme="light"] .app-sidebar .bg-gray-900,
+:root[data-theme="light"] .app-sidebar .text-white { color: var(--theme-navigation-text); }
+:root[data-theme="light"] .app-sidebar .bg-gray-900 { color: #111214; }
+:root[data-theme="light"] .app-sidebar .text-gray-400 { color: #aab4ae; }
+:root[data-theme="light"] :is(.project-bar, .settings-bar) .bg-gray-900 { color: var(--theme-accent-strong); }
+
+/* Login: dieselbe visuelle Sprache schon vor dem Laden der App-Shell. */
+.auth-page {
+    background:
+        radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--theme-accent) 18%, transparent), transparent 32rem),
+        radial-gradient(circle at 88% 92%, color-mix(in srgb, var(--theme-surface-muted) 28%, transparent), transparent 36rem),
+        var(--theme-canvas);
+}
+
+.auth-card {
+    border: 1px solid var(--theme-border);
+    background: color-mix(in srgb, var(--theme-surface-elevated) 96%, transparent);
+    color: var(--theme-text-primary);
+    box-shadow: 0 28px 72px var(--theme-shadow), inset 0 1px 0 rgb(255 255 255 / 0.08);
+    backdrop-filter: blur(22px) saturate(120%);
+}
+
+.auth-card :is(.text-gray-900, .text-gray-700) { color: var(--theme-text-primary); }
+.auth-card :is(.text-gray-500, .text-gray-600) { color: var(--theme-text-muted); }
+.auth-card :is(input, select, textarea) {
+    border-color: var(--theme-border);
+    background: var(--theme-surface);
+    color: var(--theme-text-primary);
+}
+
+.auth-card .auth-submit {
+    background: var(--theme-accent);
+    color: var(--theme-on-accent);
+    box-shadow: 0 1px 0 rgb(255 255 255 / 0.16) inset, 0 12px 28px color-mix(in srgb, var(--theme-accent) 24%, transparent);
+}
+
+.auth-card .auth-submit:hover { background: var(--theme-accent-hover); }
 
 /*
  * Aufmaß-Arbeitsbereich
@@ -360,14 +616,21 @@ textarea {
     [class*="bg-red-"],
     [class*="bg-green-"],
     [class*="bg-emerald-"],
+    [class*="bg-blue-"],
+    [class*="bg-sky-"],
+    [class*="bg-violet-"],
+    [class*="bg-amber-"],
     [class*="bg-black"],
     [class*="bg-gray-950"]
 ) { color: #ffffff; }
 
-/* Copper-Aktionen verwenden wie im Licensing-Frontend dunkle Schrift. */
-:root[data-theme="light"] .bg-blue-500,
-:root[data-theme="light"] .bg-blue-600,
-:root[data-theme="light"] .bg-blue-700 { color: var(--theme-on-accent); }
+/* Primaeraktionen verwenden auf Copper-Flaechen immer den Kontrastton. */
+.bg-blue-500,
+.bg-blue-600,
+.bg-blue-700,
+.bg-sky-500,
+.bg-sky-600,
+.bg-sky-700 { color: var(--theme-on-accent); }
 
 @media (prefers-reduced-motion: reduce) {
     body,

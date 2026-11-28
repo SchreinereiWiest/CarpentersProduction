@@ -23,7 +23,7 @@ describe("modular CNC postprocessor system", () => {
 
     it("publishes serializable plugin metadata and default configuration", () => {
         expect(descriptor).toMatchObject({
-            apiVersion: 3,
+            apiVersion: 4,
             capabilities: {
                 viewer: true,
                 machineCode: false,
@@ -65,6 +65,44 @@ describe("modular CNC postprocessor system", () => {
         })).toEqual({
             operations: [expect.objectContaining({ id: "op-1", type: "BO" })],
             diagnostics: []
+        });
+    });
+
+    it("uses mathematical centering when a postprocessor has no native row command", () => {
+        const viewer = translatePartForCncViewer(instance, {
+            part: {
+                CNC: {
+                    version: 2,
+                    coordinateSystem: {
+                        unit: "mm",
+                        origin: "top-left",
+                        xAxis: "right",
+                        yAxis: "down",
+                        depthDirection: "into-material"
+                    },
+                    operations: [{
+                        id: "centered-row",
+                        kind: MACHINING_KINDS.DRILL_ROW,
+                        intentId: MACHINING_INTENT_IDS.SHELF_PIN_ROW,
+                        face: "A",
+                        start: 100,
+                        end: 250,
+                        centered: true,
+                        spacing: 32,
+                        crossPositions: [37, 363],
+                        diameter: 5,
+                        depth: 16
+                    }]
+                }
+            }
+        });
+
+        expect(viewer.operations[0]).toMatchObject({
+            start: 111,
+            end: 239,
+            dimensionStart: 111,
+            dimensionEnd: 239,
+            centeredResolution: "mathematical"
         });
     });
 
@@ -115,7 +153,7 @@ describe("modular CNC postprocessor system", () => {
 
     it("rejects incomplete plugins at registration time", () => {
         expect(() => validatePostprocessorPlugin({
-            manifest: { id: "broken", name: "Broken", apiVersion: 3 }
+            manifest: { id: "broken", name: "Broken", apiVersion: 4 }
         })).toThrow(/translateForViewer/);
     });
 });

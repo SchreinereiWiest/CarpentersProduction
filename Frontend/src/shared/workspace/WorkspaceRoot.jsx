@@ -86,6 +86,9 @@ export default function WorkspaceRoot({ children }) {
     const location = useLocation();
     const navigate = useNavigate();
     const paneMode = isWorkspacePane();
+    const guidedTour = new URLSearchParams(location.search).has("guidedTour");
+    const storedTour = typeof window !== "undefined" && Boolean(window.sessionStorage.getItem("carpenters-guided-help"));
+    const standaloneRoute = location.pathname === "/login" || location.pathname === "/init" || guidedTour || storedTour;
     const largeWorkspace = useLargeWorkspace();
     const currentRoute = `${location.pathname}${location.search}${location.hash}`;
     const settingsLoaded = useRef(false);
@@ -174,7 +177,7 @@ export default function WorkspaceRoot({ children }) {
     }, [currentRoute, navigate, paneMode]);
 
     useEffect(() => {
-        if (paneMode || location.pathname === "/login" || settingsLoaded.current) return undefined;
+        if (paneMode || standaloneRoute || settingsLoaded.current) return undefined;
         settingsLoaded.current = true;
         let active = true;
         loadCompanySettings()
@@ -186,7 +189,7 @@ export default function WorkspaceRoot({ children }) {
         return () => {
             active = false;
         };
-    }, [location.pathname, paneMode]);
+    }, [standaloneRoute, paneMode]);
 
     useEffect(() => {
         activeFrameRef.current = frameRefs.current[activePane] ?? null;
@@ -231,8 +234,8 @@ export default function WorkspaceRoot({ children }) {
     }
 
     if (preferences.workspaceLayout === "single"
-        || !largeWorkspace || location.pathname === "/login") {
-        const scaleContent = largeWorkspace && location.pathname !== "/login";
+        || !largeWorkspace || standaloneRoute) {
+        const scaleContent = largeWorkspace && !standaloneRoute;
         return (
             <GlobalKeybindings keybindings={preferences.keybindings}>
                 {scaleContent ? (

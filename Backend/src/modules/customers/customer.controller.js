@@ -114,6 +114,94 @@ export const newcustomer = async (req, res) => {
 
 }
 
+const importText = (value, maxLength = 500) => {
+    const text = String(value ?? "").trim();
+    return text ? text.slice(0, maxLength) : null;
+};
+
+const normalizeImportedCustomer = (row, index) => {
+    const firstName = importText(row?.firstName, 100);
+    const lastName = importText(row?.lastName, 100);
+    const companyName = importText(row?.companyName, 200);
+    if (!firstName && !lastName && !companyName) {
+        const error = new Error(`Zeile ${index + 2}: Name oder Firma fehlt.`);
+        error.statusCode = 400;
+        throw error;
+    }
+    const email = importText(row?.email, 320)?.toLowerCase() || null;
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        const error = new Error(`Zeile ${index + 2}: E-Mail-Adresse ist ungültig.`);
+        error.statusCode = 400;
+        throw error;
+    }
+    return {
+        customerNumber: importText(row?.customerNumber, 100),
+        firstName,
+        lastName,
+        companyName,
+        email,
+        phoneMobile: importText(row?.phoneMobile, 100),
+        phoneLandline: importText(row?.phoneLandline, 100),
+        preferredContact: importText(row?.preferredContact, 100),
+        customerStatus: "active",
+        source: importText(row?.source, 100) || "CSV-Import",
+        notes: importText(row?.notes, 5000),
+        address: {
+            street: importText(row?.street, 200),
+            houseNumber: importText(row?.houseNumber, 50),
+            postalCode: importText(row?.postalCode, 30),
+            city: importText(row?.city, 200),
+            country: importText(row?.country, 100)
+        }
+    };
+};
+
+export const importCustomers = async (req, res) => {
+    const rows = Array.isArray(req.body?.customers) ? req.body.customers : null;
+    if (!rows || rows.length === 0 || rows.length > 1000) {
+        return res.status(400).json({ message: "Bitte 1 bis 1.000 Kontakte übergeben." });
+    }
+
+    try {
+        const normalized = rows.map(normalizeImportedCustomer);
+        const result = await prisma.$transaction(async transaction => {
+            let imported = 0;
+            let skipped = 0;
+            for (const item of normalized) {
+                const duplicateFilters = [];
+                if (item.customerNumber) duplicateFilters.push({ customerNumber: item.customerNumber });
+                if (item.email) duplicateFilters.push({ email: { equals: item.email, mode: "insensitive" } });
+                if (duplicateFilters.length && await transaction.customer.findFirst({
+                    where: { OR: duplicateFilters },
+                    select: { id: true }
+                })) {
+                    skipped += 1;
+                    continue;
+                }
+
+                const { address, ...customerData } = item;
+                await transaction.customer.create({
+                    data: {
+                        ...customerData,
+                        createdById: req.user.id,
+                        addresses: {
+                            create: { ...address, tenantId: req.tenant.id }
+                        }
+                    }
+                });
+                imported += 1;
+            }
+            return { imported, skipped, total: rows.length };
+        });
+        return res.status(201).json(result);
+    } catch (error) {
+        if (error.statusCode) return res.status(error.statusCode).json({ message: error.message });
+        if (error?.code === "P2002") return res.status(409).json({ message: "Eine Kundennummer ist bereits vorhanden." });
+        console.error("Kundenimport fehlgeschlagen:", error);
+        return res.status(500).json({ message: "Kontakte konnten nicht importiert werden." });
+    }
+};
+
 
 export const getCustomers = async (req, res) => {
   try {

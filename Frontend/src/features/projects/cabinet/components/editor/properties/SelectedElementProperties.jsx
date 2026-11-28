@@ -1,6 +1,3 @@
-import React from "react";
-
-
 export default function SelectedElementProperties({
     selectedElement
 }) {
@@ -13,7 +10,7 @@ export default function SelectedElementProperties({
                 Auswahl
             ================================================= */}
 
-            <section>
+            {selectedElement.type !== "section" && <section>
 
                 <div className="
                     text-xs
@@ -41,7 +38,7 @@ export default function SelectedElementProperties({
                     {selectedElement.type}
                 </div>
 
-            </section>
+            </section>}
 
 
             {/* =================================================

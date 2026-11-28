@@ -1,45 +1,32 @@
-# Management: Betriebskalkulation
+# Management-Arbeitsbereich
 
-Der Bereich bildet die interne Kosten- und Leistungsrechnung eines Betriebs ab. Ziel ist eine nachvollziehbare jährliche Kalkulationsbasis: Vermögen und Finanzierung, laufende Kosten, produktive Stunden, Kostenstellen, Maschinenkosten und freigegebene Stundensätze.
+Der Managementbereich unterstützt die tägliche Kapazitäts- und Projektsteuerung sowie die jährliche Ziel- und Stundensatzplanung. Einzelne Geschäftsvorfälle, Zahlungen oder eine Finanzbuchhaltung gehören ausdrücklich nicht zum aktiven Funktionsumfang.
 
-## Orientierung
+## Bereiche
 
-| Ansicht | Wann sie verwendet wird | Einstieg |
-| --- | --- | --- |
-| Einrichtung | Noch keine Jahresversion freigegeben oder Konfiguration bearbeiten | Acht nummerierte Schritte |
-| Jahresbetrieb | Jahresversion freigegeben | Betriebsübersicht, Stunden, Kostenstellen |
-| Dokumente | Betriebsbelege sammeln | Eigene Dokumentenseite |
+1. **Mitarbeiterauslastung:** zeigt alle registrierten Firmenkonten und ihre Projektzuweisungen. Darunter stehen produktive Stunden je Kostenstelle, maximale Jahresarbeitszeit, stündlich verrechneter Kalenderurlaub sowie Urlaubstage und Jahresgehalt.
+2. **Projektstatus:** ein spaltenbasiertes Board. Neue oder noch nicht eingeordnete Projekte erscheinen in der ersten konfigurierten Spalte. Verschieben ändert ausschließlich `ManagementProjectStage`.
+3. **Projektzeitraum:** ein projektbezogenes Tages-Gantt verwaltet frei benennbare Zeilen wie Aufmaß, Planung, Fertigung und Montage. Balken werden mit zwei Klicks gezeichnet, per Drag-and-drop verschoben und per Doppelklick in ihrer Dauer geändert. Der Gesamtzeitraum entsteht automatisch aus allen Balken.
+4. **Jahresziele:** jeder Eintrag besitzt Zieltyp, Sollwert, Einheit und Stichtag. Zwischenstände werden als eigene Datensätze gespeichert; Istwert und Ist-Datum schließen den Vergleich ab. Über die Jahresauswahl bleiben Vorjahre einsehbar.
+5. **Stundensätze:** berechnet pro Unternehmenstätigkeit Basis-, Maschinen-, Selbstkosten- und Verkaufssatz. Die Tätigkeits-ID verbindet den Satz mit Zeiterfassung und Projektkalkulation. Zeitbuchungen können kontrolliert als Maschinenstunden-Vorschlag übernommen werden.
 
-Ohne Freigabe führt `/Management` nach `/Management/Setup/Business`. Nach der Freigabe wechselt die ManagementBar zur Jahresnavigation. **Betrieb konfigurieren** öffnet die Einrichtung; **Zur Jahresansicht** zeigt wieder die laufenden Daten.
+## Konfiguration
 
-## Einrichtung
+Unter **Firmeneinstellungen → Advanced → Management** werden Reihenfolge und Bezeichnung der Boardspalten sowie die verfügbaren Zieltypen und Einheiten gepflegt. Diese Konfiguration liegt in `settings-company.json`. Bereits angelegte Jahresziele speichern Bezeichnung und Einheit als historische Momentaufnahme.
 
-1. [Betrieb und Geschäftsjahr](setup/business.md): Zeitraum, Umfang und Betriebsbereiche.
-2. [Vermögen und Finanzierung](setup/assets.md): Anlagen, Eröffnungsbestände, Abschreibungen und Restschulden.
-3. [Jährliche Betriebskosten](setup/annual-costs.md): verbleibende Aufwendungen und Personalkostenquelle.
-4. [Mitarbeiter und Arbeitsstunden](setup/hours.md): Kapazität, Tätigkeitsgruppen und Kalenderberichte.
-5. [Kostenstellenverteilung](setup/distribution.md): direkte Kosten und nachvollziehbare Umlagen.
-6. [Maschinenkostenrechnung](setup/machines.md): Standardmaschinen, CNC und Laufzeitbasis.
-7. [BAB und Vollkostenkalkulation](setup/bab.md): Stellenkosten, Easy-Sätze und Planexport.
-8. [Prüfung und Freigabe](setup/review.md): Preisvorschau und unveränderliche Jahresversionen.
+Die Unternehmenstätigkeiten und die tagesgenaue Arbeitswoche werden weiterhin im Reiter **Unternehmen** gepflegt. Arbeitsbeginn, Arbeitsende und Pausen sind je Wochentag unabhängig. Wiederkehrende Regeln wie „jeder zweite Freitag frei“ wirken direkt auf Kapazität, Urlaub und Mitarbeiter-Zeiterfassung. Arbeitsblöcke abzüglich der tagesgültigen Pausen bestimmen den Urlaubsverbrauch; ein kurzer oder teilweise abwesender Tag wird deshalb nur mit seinen fehlenden Stunden belastet.
 
-## Laufender Betrieb
+## Projektstatus
 
-- [Betriebsübersicht](operating/overview.md) zeigt freigegebene Sätze und bisherige Kennzahlen.
-- [Stunden und Produktivität](operating/hours.md) gliedert abgeschlossene Arbeitsberichte auf.
-- [Kostenstellen und Vorjahresvergleich](operating/costs.md) erfasst Ist-Summen und vergleicht Stellenkosten.
-- [Dokumente und CSV-Import](documents-import.md) erklärt Ablage, Übernahme und unterstützte Datenformate.
+`Project.status` behält die allgemeinen Werte `active`, `inactive` und den Archivzustand. Der interne Management-Status ist ein separater Datensatz. Dadurch kann ein aktives Projekt beispielsweise gleichzeitig im Management-Status „Fertigung“ stehen, ohne dass Projektberechtigungen oder Archivierung verändert werden.
 
-## Arbeitsweise
+## Kalkulationsprinzip
 
-Ein Entwurf ist zunächst lokal. Schrittwechsel behalten seine Eingaben. **Entwurf speichern** sichert den gesamten Jahresentwurf; **Speichern & Weiter** sichert und navigiert zum nächsten Schritt. **Änderungen verwerfen** setzt ungespeicherte Eingaben zurück. Geschäftsjahrwechsel und Aktualisierung sind bei ungespeicherten Änderungen gesperrt.
+Allgemeine Jahreskosten umfassen Raum/Energie, Verwaltung/Vertrieb, Versicherungen, Fahrzeuge, Abschreibungen, Finanzierung sowie kalkulatorischen Unternehmerlohn, kalkulatorische Zinsen und Wagnis. Sie werden nach produktiven Stunden auf Tätigkeiten verteilt.
 
-Eine gespeicherte Änderung ist noch keine Freigabe. Die veröffentlichte Planbasis bleibt bis zur nächsten Freigabe unverändert. Ist-Summen bleiben im Jahresbetrieb separat editierbar. Leere Ist-Werte bedeuten fehlende Daten; ein geprüfter Nullbetrag wird ausdrücklich als `0` erfasst.
+Je Tätigkeit werden produktive Jahresstunden, Personalkosten inklusive Arbeitgeberanteilen, sonstige direkte Kosten, Maschinenjahreskosten, Maschinenstunden und der typische Maschinen-Nutzungsanteil erfasst. Daraus entstehen:
 
-Im **Easy-Modus** genügen Betriebsname und mindestens ein positiver Satz in Schritt 07. Die weiteren Betriebsdaten sind optional. Neue, vollständig leere Betriebe starten mit dem Vorschlag zur Vollkalkulation; der Umfang kann in Schritt 01 umgestellt werden.
-
-## Technische Unterlagen
-
-[Architektur und Dateien](architecture.md), [Vorgaben und Defaultfabriken](defaults.md), [API und Speicherung](api.md), [Funktionsreferenz](functions.md) und [Tests](testing.md) beschreiben die Umsetzung. Alle Management-Endpunkte sind auf Admin- und Managerrollen beschränkt.
-
-Einzelne Geschäftsvorfälle, Zahlungen und Darlehensbuchungen werden derzeit nicht angeboten. Die zugehörigen unbenutzten APIs und Berechnungen wurden entfernt. Vorhandene Datenbanktabellen werden nicht gelöscht; die einmalige Übernahme vorhandener Anlagen und Restschulden bleibt erhalten. Eine DATEV-Anbindung ist noch nicht implementiert.
+- Basisstundensatz = Personal + direkte Kosten + Gemeinkostenanteil, geteilt durch produktive Stunden
+- Maschinenstundensatz = Maschinenjahreskosten, geteilt durch Maschinenstunden
+- Selbstkostensatz = Basisstundensatz + anteiliger Maschinenstundensatz
+- Verkaufssatz = Selbstkostensatz plus Gewinn-/Sicherheitsaufschlag

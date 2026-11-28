@@ -5,7 +5,8 @@ import { groupCncParts } from "@Engine/cnc/groupCncParts.js";
 import {
     expandCncMachiningVariants,
     getStoredCncVariantHeader,
-    updateCncMachiningVariantHeader
+    updateCncMachiningVariantHeader,
+    updateCncMachiningVariantProgram
 } from "@Engine/cnc/machiningVariants.js";
 import { MACHINING_INTENT_IDS, MACHINING_KINDS } from "@Engine/postprocessor/index.js";
 
@@ -29,6 +30,33 @@ const connectorOperations = part => (part?.CNC?.operations ?? []).filter(operati
 );
 
 describe("Korpusverbinder", () => {
+    it("uses inserted grooves on continuous horizontal parts and through grooves on the sides", async () => {
+        vi.spyOn(console, "log").mockImplementation(() => {});
+
+        const [root] = await buildPartList([{
+            ...baseCabinet,
+            continuous: "bottom",
+            // Simuliert ein älteres Projekt, dessen Rückwandwert noch auf
+            // "side" steht. Die Korpuskonstruktion ist hier maßgeblich.
+            backPanel: { construction: "groove", continuous: "side" }
+        }], []);
+        const side = root.Children.find(part => part.Source?.role === "side");
+        const horizontal = root.Children.find(part => part.Source?.role === "horizontalPanel");
+        const sideGroove = side.CNC.operations.find(operation => operation.intentId === MACHINING_INTENT_IDS.BACK_GROOVE);
+        const horizontalGroove = horizontal.CNC.operations.find(operation => operation.intentId === MACHINING_INTENT_IDS.BACK_GROOVE);
+
+        expect(horizontalGroove).toMatchObject({
+            start: { x: 3 },
+            end: { x: horizontal.L - 3 },
+            source: { continuous: "bottom", target: "continuousHorizontalInsertedGroove" }
+        });
+        expect(sideGroove).toMatchObject({
+            start: { x: -20 },
+            end: { x: side.L + 20 },
+            source: { continuous: "bottom", target: "insertedSideContinuousGroove" }
+        });
+    });
+
     it("connects both ends of shortened sides to continuous horizontal panels", async () => {
         vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -80,6 +108,42 @@ describe("Korpusverbinder", () => {
         );
         expect(expandCncMachiningVariants(manuallyUnmirrored)[1].CNC.header.sx).toBe(false);
         expect(manuallyUnmirrored.CNC.machiningVariants[1].cnc.header.sx).toBe(true);
+
+        const editedRightOperation = {
+            ...rightVariant.cnc.operations[0],
+            id: "edited-right-operation",
+            position: 321
+        };
+        const editedRight = updateCncMachiningVariantProgram(
+            groupedSides,
+            rightVariant.id,
+            {
+                ...rightVariant.cnc,
+                operations: [editedRightOperation]
+            }
+        );
+        const editedVariants = expandCncMachiningVariants(editedRight);
+        expect(editedVariants[0].CNC.operations).toEqual(groupedSides.CNC.machiningVariants[0].cnc.operations);
+        expect(editedVariants[1].CNC.operations).toEqual([editedRightOperation]);
+        expect(editedRight.CNC.operations).toEqual(groupedSides.CNC.operations);
+
+        const leftVariant = groupedSides.CNC.machiningVariants[0];
+        const editedLeftOperation = {
+            ...leftVariant.cnc.operations[0],
+            id: "edited-left-operation",
+            position: 123
+        };
+        const editedLeft = updateCncMachiningVariantProgram(
+            groupedSides,
+            leftVariant.id,
+            {
+                ...leftVariant.cnc,
+                operations: [editedLeftOperation]
+            }
+        );
+        expect(editedLeft.CNC.operations).toEqual([editedLeftOperation]);
+        expect(editedLeft.CNC.machiningVariants[0].cnc.operations).toEqual([editedLeftOperation]);
+        expect(editedLeft.CNC.machiningVariants[1].cnc.operations).toEqual(rightVariant.cnc.operations);
 
         const sideGroup = groupCncParts([root]).find(group => group.name === "Seite");
         expect(sideGroup.count).toBe(2);
@@ -165,5 +229,69 @@ describe("Korpusverbinder", () => {
             { edge: "right", position: 633, panel: "middleWall" }
         ]);
         expect(edgeOperations.every(operation => ["left", "right"].includes(operation.edge))).toBe(true);
+    });
+
+    it("references connector positions on an inserted horizontal wall in local coordinates", async () => {
+        vi.spyOn(console, "log").mockImplementation(() => {});
+
+        const horizontalWallId = "support-wall";
+        const firstVerticalWallId = "upper-wall-1";
+        const secondVerticalWallId = "upper-wall-2";
+        const [root] = await buildPartList([{
+            ...baseCabinet,
+            id: "local-reference-cabinet",
+            width: 600,
+            height: 720,
+            continuous: "side",
+            sections: [{
+                id: "inner-section",
+                type: "section",
+                x: 19,
+                y: 19,
+                width: 562,
+                height: 682,
+                functionConfig: [{
+                    id: horizontalWallId,
+                    type: "middleWall",
+                    orientation: "horizontal",
+                    positionReference: "sectionTop",
+                    positionOffset: 381
+                }],
+                children: [{
+                    id: "upper-section",
+                    type: "section",
+                    parentId: "inner-section",
+                    x: 19,
+                    y: 19,
+                    width: 562,
+                    height: 371.5,
+                    functionConfig: [{
+                        id: firstVerticalWallId,
+                        type: "middleWall",
+                        orientation: "vertical",
+                        positionReference: "sectionLeft",
+                        positionOffset: 100
+                    }, {
+                        id: secondVerticalWallId,
+                        type: "middleWall",
+                        orientation: "vertical",
+                        positionReference: "sectionLeft",
+                        positionOffset: 200
+                    }],
+                    children: []
+                }]
+            }]
+        }], []);
+
+        const horizontalWall = root.Children.find(part => part.Source?.wallId === horizontalWallId);
+        const connectorPositions = connectorOperations(horizontalWall)
+            .filter(operation =>
+                operation.kind === MACHINING_KINDS.DRILL_LINEAR_PATTERN &&
+                [firstVerticalWallId, secondVerticalWallId].includes(operation.source?.memberInstance)
+            )
+            .map(operation => operation.x)
+            .sort((left, right) => left - right);
+
+        expect(connectorPositions).toEqual([100, 200]);
     });
 });

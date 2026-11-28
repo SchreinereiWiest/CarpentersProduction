@@ -10,6 +10,11 @@ import {
 import { createStringId } from "@Engine/shared/id.js";
 import { DEFAULT_CNC } from "@Engine/cabinet/cnc/cncDefaults.js";
 import { getCncPartKey, storePartCncInCabinet } from "@Engine/cabinet/cnc/manualPrograms.js";
+import {
+    expandCncMachiningVariants,
+    getStoredCncVariantHeader,
+    updateCncMachiningVariantProgram
+} from "@Engine/cnc/machiningVariants.js";
 
 import SideBar from "../../../../shared/components/sideBar.jsx";
 import ProjectBar from "../../../../shared/components/projectBar.jsx";
@@ -75,6 +80,7 @@ export default function CncPartEditorPage() {
     const [searchParams] = useSearchParams();
     const requestedPartKey = searchParams.get("partKey");
     const requestedCabinetId = searchParams.get("cabinetId");
+    const requestedVariantId = searchParams.get("variantId");
     const navigate = useNavigate();
     const [partList, setPartList] = useState(null);
     const [cabinets, setCabinets] = useState([]);
@@ -187,13 +193,18 @@ export default function CncPartEditorPage() {
                     getGlobalFile({ file: "settings-cnc.json", loadFromServer: { download: downloadFile, path: "/api/settings/cnc" } }).catch(() => null)
                 ]);
                 if (cancelled) return;
-                const selected = requestedPartKey
+                const selectedBasePart = requestedPartKey
                     ? findPartByKey(list, requestedPartKey, requestedCabinetId)
                     : findPartById(list, partId);
-                if (!selected) {
+                if (!selectedBasePart) {
                     setNotice({ type: "error", message: "Das ausgewählte Bauteil wurde in der Projektliste nicht gefunden." });
                     return;
                 }
+                const selected = requestedVariantId
+                    ? expandCncMachiningVariants(selectedBasePart).find(candidate =>
+                        String(candidate._cncMachiningVariant?.id) === String(requestedVariantId)
+                    ) ?? selectedBasePart
+                    : selectedBasePart;
                 const instances = Array.isArray(settings?.postprocessors) ? settings.postprocessors : [];
                 const configured = instances.find(item => item.id === settings?.activePostprocessorId && item.enabled !== false)
                     ?? instances.find(item => item.enabled !== false)
@@ -216,7 +227,7 @@ export default function CncPartEditorPage() {
                 });
                 setProgramHeader(selected.CNC?.header ?? {
                     stopId: configured.configuration?.workingFields ?? "A",
-                    edgeAtStop: "front",
+                    edgeAtStop: configured.configuration?.defaultEdgeAtStop === "back" ? "back" : "front",
                     sx: false,
                     sy: false,
                     comment: ""
@@ -232,7 +243,7 @@ export default function CncPartEditorPage() {
         };
         load();
         return () => { cancelled = true; };
-    }, [partId, projectId, requestedCabinetId, requestedPartKey]);
+    }, [partId, projectId, requestedCabinetId, requestedPartKey, requestedVariantId]);
 
     const viewerResult = useMemo(() => {
         if (!part) return { operations: [], diagnostics: [] };
@@ -332,13 +343,30 @@ export default function CncPartEditorPage() {
                 throw new Error("Der Elternkorpus des Bauteils konnte nicht ermittelt werden.");
             }
             const cnc = { ...(part.CNC ?? {}), ...createEmptyCnc(), header: programHeader, operations };
+            const variant = part._cncMachiningVariant ?? null;
+            const storedHeader = variant
+                ? getStoredCncVariantHeader(programHeader, variant)
+                : programHeader;
+            const storedCnc = {
+                ...cnc,
+                header: storedHeader
+            };
             const updatedList = updatePartByKey(partList, requestedPartKey ?? getCncPartKey(part), parentCabinetId, current => {
                 const generatedPart = { ...current };
                 delete generatedPart.manual;
                 delete generatedPart._manualOrigin;
-                return { ...generatedPart, CNC: cnc };
+                return updateCncMachiningVariantProgram(generatedPart, variant?.id, storedCnc);
             });
-            const updatedCabinet = storePartCncInCabinet(parentCabinet, part, operations, { tools, header: programHeader });
+            const storagePart = variant
+                ? {
+                    ...part,
+                    PID: variant.partId ?? part.PID,
+                    _generatedId: variant.generatedId ?? part._generatedId,
+                    _cabinetId: variant.cabinetId ?? parentCabinetId,
+                    CNC: storedCnc
+                }
+                : part;
+            const updatedCabinet = storePartCncInCabinet(parentCabinet, storagePart, operations, { tools, header: storedHeader });
             const updatedCabinets = cabinets.map(cabinet => String(cabinet.id) === String(parentCabinetId) ? updatedCabinet : cabinet);
             const [result] = await Promise.all([
                 uploadProjectFile({
@@ -432,7 +460,7 @@ export default function CncPartEditorPage() {
             <MobileWorkspaceGuard title="CNC-Bauteileditor" />
             <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
                 <div className="shrink-0 border-b border-gray-700 bg-gray-900"><ProjectBar selected={6} /></div>
-                <header className="flex h-16 shrink-0 items-center gap-3 border-b border-gray-700 bg-gray-900 px-4">
+                <header data-tour="project-cnc-editor-actions" className="flex h-16 shrink-0 items-center gap-3 border-b border-gray-700 bg-gray-900 px-4">
                     <button type="button" onClick={() => navigate(`/Projects/Cnc/${projectId}`)} className="rounded border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800">← CNC-Übersicht</button>
                     <div className="min-w-0">
                         <h1 className="truncate text-sm font-semibold">{part?.Objektname ?? "Bauteil bearbeiten"}</h1>
@@ -448,7 +476,7 @@ export default function CncPartEditorPage() {
                 {notice && <div className={`shrink-0 border-b px-4 py-2 text-xs ${notice.type === "error" ? "border-red-900 bg-red-950/60 text-red-300" : "border-emerald-900 bg-emerald-950/50 text-emerald-300"}`}>{notice.message}</div>}
 
                 <div className="grid min-h-0 flex-1 grid-cols-[310px_minmax(0,1fr)_260px]">
-                    <aside className="flex min-h-0 flex-col border-r border-gray-700 bg-gray-900">
+                    <aside data-tour="project-cnc-editor-operations" className="flex min-h-0 flex-col border-r border-gray-700 bg-gray-900">
                         <div className="shrink-0 border-b border-gray-700 p-3">
                             <div className="flex items-center justify-between"><h2 className="text-sm font-semibold">Bearbeitungen</h2><span className="text-xs text-gray-500">{effectiveSelectedOperationIds.length ? `${effectiveSelectedOperationIds.length} / ` : ""}{operations.length}</span></div>
                             <p className="mt-1 text-[11px] text-gray-500">Shift-Klick oder langes Drücken erweitert die Auswahl · Doppelklick bearbeitet</p>
@@ -501,7 +529,7 @@ export default function CncPartEditorPage() {
                         </ol>
                     </aside>
 
-                    <section className="flex min-h-0 min-w-0 flex-col bg-gray-950">
+                    <section data-tour="project-cnc-editor-viewport" className="flex min-h-0 min-w-0 flex-col bg-gray-950">
                         <div className="flex h-12 shrink-0 items-center gap-2 overflow-x-auto border-b border-gray-700 px-3">
                             {['A', 'B'].map(face => <button key={face} type="button" onClick={() => setSelectedFace(face)} className={`rounded px-3 py-1.5 text-xs ${selectedFace === face ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-400"}`}>Seite {face} ({faceCount(face)})</button>)}
                             {resolvedProgramHeader && <>
@@ -538,7 +566,7 @@ export default function CncPartEditorPage() {
                         {!!viewerResult.diagnostics?.length && <div className="max-h-20 shrink-0 overflow-y-auto border-t border-amber-900 bg-amber-950/30 px-3 py-2 text-[11px] text-amber-300">{viewerResult.diagnostics.map((entry, index) => <div key={index}>{entry.message}</div>)}</div>}
                     </section>
 
-                    <aside className="min-h-0 overflow-y-auto border-l border-gray-700 bg-gray-900 p-3">
+                    <aside data-tour="project-cnc-editor-tools" className="min-h-0 overflow-y-auto border-l border-gray-700 bg-gray-900 p-3">
                         <h2 className="text-sm font-semibold">Werkzeuge</h2>
                         <p className="mt-1 text-[11px] leading-relaxed text-gray-500">Neue Bearbeitungen werden direkt nach der ausgewählten Zeile eingefügt.</p>
                         {MANUAL_TOOL_GROUPS.map(group => <section key={group.id} className="mt-5">

@@ -37,6 +37,30 @@ async function readJsonFile(file) {
 
 function managementRates(snapshot, { forceEasy = false } = {}) {
   const config = snapshot.operationalConfig || snapshot.config;
+  const direct = snapshot.config?.rateCalculation;
+  if (direct?.rates?.length) {
+    const rates = direct.rates.map(rate => ({
+      id: String(rate.id),
+      name: String(rate.name),
+      kind: "primary",
+      activityIds: Array.isArray(rate.activityIds) ? rate.activityIds : [String(rate.id)],
+      hours: Number(rate.productiveHours) || 0,
+      hourlyRate: Number(rate.hourlyRate) || 0,
+      sellingRate: Number(rate.sellingRate) || 0,
+      machineHourlyRate: Number(rate.machineHourlyRate) || 0
+    }));
+    return {
+      available: true,
+      approved: true,
+      mode: "full",
+      year: snapshot.year,
+      fullHourlyRate: Number(direct.fullHourlyRate) || 0,
+      rateSource: "direct-management-calculation",
+      staffCount: 0,
+      costCenters: forceEasy ? [] : rates,
+      easyRates: forceEasy ? rates : []
+    };
+  }
   const approved = Boolean(snapshot.config?.setup?.approvals?.length);
   const calculated = snapshot.operatingPlan;
   const calculatedCenters = (calculated?.rates || [])

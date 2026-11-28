@@ -1,9 +1,9 @@
-import { useEffect, useId, useMemo, useState } from "react";
+import { useId, useMemo } from "react";
 import { evaluateMeasurementExpression } from "../../measurementExpressions.js";
 
-export default function FormulaNumberInput({ label, value, expression, variables = [], onChange, min = 0.001, max = Number.POSITIVE_INFINITY, unit = "mm" }) {
+export default function FormulaNumberInput({ label, value, expression, variables = [], onChange, min = 0.001, max = Number.POSITIVE_INFINITY, unit = "mm", compactResult = false }) {
     const listId = useId();
-    const [draft, setDraft] = useState(() => expression ?? String(value ?? ""));
+    const draft = expression ?? String(value ?? "");
     const evaluation = useMemo(() => {
         const result = evaluateMeasurementExpression(draft, variables);
         if (result.valid && result.value < min) {
@@ -13,13 +13,8 @@ export default function FormulaNumberInput({ label, value, expression, variables
         return result;
     }, [draft, max, min, unit, variables]);
 
-    useEffect(() => {
-        setDraft(expression ?? String(value ?? ""));
-    }, [expression, value]);
-
     const update = event => {
         const nextDraft = event.target.value;
-        setDraft(nextDraft);
         const result = evaluateMeasurementExpression(nextDraft, variables);
         onChange(nextDraft, result.valid && result.value >= min && result.value <= max
             ? result
@@ -44,7 +39,9 @@ export default function FormulaNumberInput({ label, value, expression, variables
                 />
                 <span id={`${listId}-result`} className={`pointer-events-none absolute right-3 top-1.5 text-[10px] text-gray-500 ${evaluation.valid ? "text-emerald-400" : "text-red-400"}`}>
                 {evaluation.valid
-                    ? `${evaluation.identifiers?.length ? "Berechnet" : "Wert"}: ${evaluation.value}${unit ? ` ${unit}` : ""}`
+                    ? compactResult
+                        ? `${evaluation.value}`
+                        : `${evaluation.identifiers?.length ? "Berechnet" : "Wert"}: ${evaluation.value}${unit ? ` ${unit}` : ""}`
                     : evaluation.error}
                 </span>
             </div>

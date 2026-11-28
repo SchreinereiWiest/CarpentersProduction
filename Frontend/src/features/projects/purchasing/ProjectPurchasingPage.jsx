@@ -459,7 +459,7 @@ export default function ProjectPurchasing() {
 
                 <div className="flex-1 overflow-y-auto">
                     <div className="mx-auto max-w-[1500px] p-3 sm:p-5 xl:p-8">
-                        <div className="flex flex-wrap items-start justify-between gap-5">
+                        <div data-tour="project-purchasing-overview" className="flex flex-wrap items-start justify-between gap-5">
                             <div>
                                 <p className="text-sm font-medium uppercase tracking-widest text-blue-400">Projekt-Einkaufswagen</p>
                                 <h1 className="mt-1 text-2xl font-bold xl:text-3xl">{project?.title || "Projekt"}</h1>
@@ -468,7 +468,7 @@ export default function ProjectPurchasing() {
                                 </p>
                             </div>
 
-                            <div className="flex flex-wrap items-stretch gap-3">
+                            <div data-tour="project-purchasing-actions" className="flex flex-wrap items-stretch gap-3">
                                 <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-700 bg-gray-800 px-4 py-3 hover:border-gray-600">
                                     <input
                                         type="checkbox"
@@ -511,7 +511,7 @@ export default function ProjectPurchasing() {
                         {loading ? (
                             <div className="mt-8 rounded-xl border border-gray-700 bg-gray-800 p-10 text-center text-gray-400">Einkaufswagen wird geladen …</div>
                         ) : (
-                            <div className="mt-7 space-y-6">
+                            <div data-tour="project-purchasing-items" className="mt-7 space-y-6">
                                 <PurchaseTable
                                     title="Nesting-Material"
                                     description="Benötigte Rohplatten und Kanten aus dem zuletzt gespeicherten Nesting. Kanten enthalten den eingestellten Verschnittzuschlag."

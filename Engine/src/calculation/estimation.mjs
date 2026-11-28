@@ -120,8 +120,8 @@ function hoursFromCandidate(candidate, costCenters) {
 /**
  * Ermittelt innerhalb freigegebener Nachkalkulations-Snapshots ähnliche
  * Projekte und erzeugt aus deren Iststunden eine gewichtete Schätzung. Diese
- * deterministische Bewertung bleibt der Fallback für die spätere Embedding-
- * und Erklärpipeline.
+ * deterministische Bewertung bleibt die verlässliche Grundlage der Stunden-
+ * und Vergleichsberechnung.
  */
 export function estimateProjectHours({ project = {}, cabinets = [], partList = [], candidates = [], costCenters = [], settings = {} } = {}) {
   const normalizedSettings = normalizeEstimationSettings(settings);

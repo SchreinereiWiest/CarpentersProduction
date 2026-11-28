@@ -11,6 +11,8 @@
     "./cabinet/*": "./src/cabinet/*",
     "./cnc": "./src/cnc/index.js",
     "./cnc/*": "./src/cnc/*",
+    "./eticket": "./src/eticket/index.js",
+    "./eticket/*": "./src/eticket/*",
     "./calculation/*": "./src/calculation/*",
     "./management": "./src/management/index.mjs",
     "./management/*": "./src/management/*",

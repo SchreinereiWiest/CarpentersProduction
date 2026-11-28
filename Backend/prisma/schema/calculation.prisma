@@ -4,9 +4,9 @@ model CalculationSnapshot {
   projectId    String? @map("project_id") @db.Uuid
   releasedById String? @map("released_by") @db.Uuid
 
-  tenant     Tenant  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   project    Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  releasedBy User?   @relation("CalculationSnapshotReleasedBy", fields: [releasedById], references: [id], onDelete: SetNull)
+  releasedBy User?    @relation("CalculationSnapshotReleasedBy", fields: [releasedById], references: [id], onDelete: SetNull)
 
   schemaVersion Int     @default(1) @map("schema_version")
   sourceVersion Int     @map("source_version")
@@ -46,3 +46,50 @@ model CalculationSnapshot {
 }
 
 // Interne Betriebsrechnung. Keine steuerlichen Buchungen oder Kontenrahmen.
+
+model CommercialDocument {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  tenant       Tenant            @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  customerId   String            @map("customer_id") @db.Uuid
+  customer     Customer          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  projectId    String?           @map("project_id") @db.Uuid
+  project      Project?          @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  commissionId String?           @map("commission_id") @db.Uuid
+  commission   Commission?       @relation(fields: [commissionId], references: [id], onDelete: SetNull)
+  templateId   String?           @map("template_id") @db.Uuid
+  template     DocumentTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  documentType   String  @map("document_type")
+  documentNumber String? @map("document_number")
+  title          String
+  status         String  @default("draft")
+  currency       String  @default("EUR")
+  introText      String? @map("intro_text")
+  notes          String?
+  items          Json    @default("[]")
+  totals         Json    @default("{}")
+  fieldValues    Json    @default("{}") @map("field_values")
+  /// Legacy-Snapshot für bestehende Belege; Standardvorlagen verwenden analysis.fields.
+  layout         Json    @default("{}")
+
+  issuedAt DateTime? @map("issued_at")
+  dueAt    DateTime? @map("due_at")
+
+  createdById  String? @map("created_by") @db.Uuid
+  createdBy    User?   @relation("CommercialDocumentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  assignedToId String? @map("assigned_to") @db.Uuid
+  assignedTo   User?   @relation("CommercialDocumentAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, documentNumber])
+  @@index([customerId, createdAt])
+  @@index([projectId])
+  @@index([commissionId])
+  @@index([assignedToId, updatedAt])
+  @@map("commercial_documents")
+}

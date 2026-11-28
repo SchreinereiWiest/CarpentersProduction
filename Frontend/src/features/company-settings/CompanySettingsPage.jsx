@@ -32,8 +32,8 @@ import UserInterfaceSettingsPanel
 
 import EstimationSettingsPanel
     from "./panels/estimationSettingsPanel.jsx";
-import AttachmentSearchSettingsPanel
-    from "./panels/attachmentSearchSettingsPanel.jsx";
+import AiSettingsPanel
+    from "./panels/aiSettingsPanel.jsx";
 import StorageSettingsPanel
     from "./panels/storageSettingsPanel.jsx";
 import HourlyRatesSettingsPanel
@@ -42,17 +42,24 @@ import { useAuth } from "../../app/providers/AuthContext.js";
 import PaperlessSettingsPanel from "./panels/paperlessSettingsPanel.jsx";
 import ContactHistorySettingsPanel from "./panels/contactHistorySettingsPanel.jsx";
 import { advancedSettingsTabs } from "./advancedSettingsTabs.js";
+import ManagementSettingsPanel from "./panels/managementSettingsPanel.jsx";
+import ResetSettingsPanel from "./panels/resetSettingsPanel.jsx";
 
 
 export default function CompanySettings() {
 
     const { user } = useAuth();
+    const isAdmin = user?.role === "admin";
     const [searchParams] = useSearchParams();
 
     const [
         selectedSection,
         setSelectedSection
-    ] = useState(() => searchParams.get("section") === "advanced" ? "advanced" : "userInterface");
+    ] = useState(() => {
+        const requested = searchParams.get("section");
+        if (!isAdmin) return requested === "cache" ? "cache" : "userInterface";
+        return requested === "advanced" ? "advanced" : requested || "userInterface";
+    });
 
     const [selectedAdvancedSection, setSelectedAdvancedSection] = useState(() => searchParams.get("tab") || "estimation");
     const features = new Set(user?.features || []);
@@ -62,6 +69,7 @@ export default function CompanySettings() {
     );
 
     const selectPrimarySection = section => {
+        if (!isAdmin && !["userInterface", "cache"].includes(section)) return;
         setSelectedSection(section);
         if (section === "advanced" && !visibleAdvancedTabs.some(tab => tab.id === selectedAdvancedSection)) {
             setSelectedAdvancedSection(visibleAdvancedTabs[0]?.id ?? "estimation");
@@ -70,6 +78,10 @@ export default function CompanySettings() {
 
 
     const renderSection = () => {
+
+        if (!isAdmin) {
+            return selectedSection === "cache" ? <CacheSettingsPanel /> : <UserInterfaceSettingsPanel />;
+        }
 
         const section = selectedSection === "advanced" ? selectedAdvancedSection : selectedSection;
 
@@ -114,6 +126,11 @@ export default function CompanySettings() {
                     <CompanySettingsPanel />
                 );
 
+            case "management":
+                return (
+                    <ManagementSettingsPanel />
+                );
+
             case "estimation":
                 return (
                     <EstimationSettingsPanel />
@@ -126,7 +143,7 @@ export default function CompanySettings() {
 
             case "ai":
                 return (
-                    <AttachmentSearchSettingsPanel />
+                    <AiSettingsPanel />
                 );
 
             case "documents":
@@ -152,6 +169,11 @@ export default function CompanySettings() {
             case "storage":
                 return (
                     <StorageSettingsPanel />
+                );
+
+            case "reset":
+                return (
+                    <ResetSettingsPanel />
                 );
 
 
@@ -204,7 +226,7 @@ export default function CompanySettings() {
 
                 </div>
 
-                {selectedSection === "advanced" && (
+                {isAdmin && selectedSection === "advanced" && (
                     <nav aria-label="Advanced Settings" className="shrink-0 border-b border-gray-700 bg-gray-900">
                         <div className="flex h-12 items-end gap-1 overflow-x-auto px-4">
                             {visibleAdvancedTabs.map(tab => {

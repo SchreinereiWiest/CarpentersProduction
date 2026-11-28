@@ -35,7 +35,7 @@ Routen, Controller und Services eines Fachbereichs liegen bewusst nebeneinander.
 | Alle HTTP-Routen | [API-Referenz](api.md) |
 | Login, Cookies und Rollen | [Authentifizierung](authentication.md) |
 | Development-, Zertifikat- und Remote-Lizenzen | [Lizenzierung](licensing.md) |
-| Fachbereiche | [Kunden](customers.md), [Projekte](projects.md), [Zeiten](time-tracking.md), [Benutzer](users.md) |
+| Fachbereiche | [Kunden](customers.md), [Projekte](projects.md), [PID-Etickets](etickets.md), [Zeiten](time-tracking.md), [Benutzer](users.md) |
 | S3, Materialien und Einstellungen | [Dateien, Material & Einstellungen](files-storage-settings.md) |
 | Benannte Backend-Funktionen | [Funktionsreferenz](functions.md) |
 | Sicherheitsregeln | [Sicherheit & bekannte Risiken](security.md) |
@@ -61,6 +61,7 @@ Routen, Controller und Services eines Fachbereichs liegen bewusst nebeneinander.
 | `/api/time` | Tages- und Wochenzeiterfassung |
 | `/api/user` | Benutzerverwaltung |
 | `/api/settings` | JSON-Einstellungen |
+| `/api/etickets` | PID-Etikettendruck über Netzwerk-Thermodrucker |
 | `/api/shop` | Einkauf und Lieferantenartikel |
 | `/api/management` | Betriebsrechnung und Managementdaten |
 | `/api/license` | Lizenzstatus |

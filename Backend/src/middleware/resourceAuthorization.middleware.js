@@ -1,4 +1,4 @@
-import prisma from "../infrastructure/database/prisma.js";
+import prisma, { systemPrisma } from "../infrastructure/database/prisma.js";
 
 const isPrivileged = user => ["admin", "manager"].includes(user?.role);
 
@@ -128,9 +128,15 @@ export const authorizeUploadTarget = async (req, res, next) => {
     return res.status(400).json({ message: "Invalid entity type" });
 };
 
-export const authorizeUserResource = (parameter = "id") => (req, res, next) => {
-    if (isPrivileged(req.user) || req.params[parameter] === req.user.id) return next();
-    return deny(res);
+export const authorizeUserResource = (parameter = "id") => async (req, res, next) => {
+    const userId = req.params[parameter];
+    if (!isPrivileged(req.user) && userId !== req.user.id) return deny(res);
+    const membership = await systemPrisma.tenantMembership.findFirst({
+        where: { tenantId: req.tenant.id, userId, isActive: true, user: { isActive: true, deletedAt: null } },
+        select: { id: true }
+    });
+    if (!membership) return missing(res, "User");
+    return next();
 };
 
 export const authorizeTimeEntry = (parameter = "id") => async (req, res, next) => {

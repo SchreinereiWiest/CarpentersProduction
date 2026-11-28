@@ -55,8 +55,8 @@ export const generateBottomPart = ({
         materials,
         {
             front: true,
-            top: false,
-            bottom: false
+            top: bottomIsContinuous,
+            bottom: bottomIsContinuous
         }
     );
 

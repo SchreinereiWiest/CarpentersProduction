@@ -553,15 +553,77 @@ function createImportedFrontConfiguration(
   };
 }
 
+function comparableFront(front) {
+  if (!front || typeof front !== "object") return front;
+  return Object.fromEntries(
+    Object.entries(front).filter(
+      ([key]) => !["id", "name", "sourcePid"].includes(key)
+    )
+  );
+}
+
+function cabinetSignature(cabinet, sourceProperties = null) {
+  const properties = Object.fromEntries(
+    Object.entries(cabinet).filter(
+      ([key]) => !["id", "name", "quantity", "sourcePid", "fronts"].includes(key)
+    )
+  );
+  return JSON.stringify({
+    ...properties,
+    fronts: (cabinet.fronts ?? []).map(comparableFront),
+    sourceProperties
+  });
+}
+
+function sourceMaterialProperties(root, children, context) {
+  const records = [root, ...children].flatMap((part) => {
+    const materials = MATERIAL_FIELDS.flatMap((field) => {
+      const source = String(part?.[field] ?? "").trim();
+      if (!source) return [];
+      return [[field, mappedMaterialId(source, context) ?? `source:${source}`]];
+    });
+    return materials.length
+      ? [{ type: cadType(part).toLocaleLowerCase("de"), materials }]
+      : [];
+  });
+  return records.sort((left, right) =>
+    JSON.stringify(left).localeCompare(JSON.stringify(right), "de")
+  );
+}
+
+/**
+ * Palette CAD writes repeated, physically identical cabinets as separate KO
+ * records. The cabinet editor models those as one cabinet with a quantity.
+ * Identity and display names are intentionally ignored; outer dimensions,
+ * fronts, materials and every construction property remain part of the match.
+ */
+export function mergeIdenticalCabinets(cabinets, sourceProperties = []) {
+  const merged = new Map();
+  cabinets.forEach((cabinet, index) => {
+    const signature = cabinetSignature(cabinet, sourceProperties[index] ?? null);
+    const existing = merged.get(signature);
+    if (!existing) {
+      merged.set(signature, { ...cabinet });
+      return;
+    }
+    existing.quantity =
+      Math.max(1, Number(existing.quantity) || 1) +
+      Math.max(1, Number(cabinet.quantity) || 1);
+  });
+  return [...merged.values()];
+}
+
 export function createCabinetsFromPartList(
   partList,
   { mappings = [], materials = [], partListSettings } = {}
 ) {
   const context = createMappingContext(mappings, materials);
-  return partList
+  const sourceProperties = [];
+  const cabinets = partList
     .filter((item) => isCabinetRoot(item))
     .map((item) => {
       const children = Array.isArray(item.Children) ? item.Children : [];
+      sourceProperties.push(sourceMaterialProperties(item, children, context));
       const frontParts = children.filter(isFrontPart);
       const backParts = children.filter(isBackPart);
       const sideParts = children.filter(isSidePart);
@@ -648,6 +710,7 @@ export function createCabinetsFromPartList(
         sections: []
       };
     });
+  return mergeIdenticalCabinets(cabinets, sourceProperties);
 }
 
 export function collectMaterialReferences(partList) {

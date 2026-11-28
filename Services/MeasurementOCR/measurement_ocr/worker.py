@@ -178,10 +178,10 @@ def process_paperless_qr_job(job: dict[str, Any]) -> None:
         values: list[dict[str, Any]] = []
         try:
             maximum_pages = min(
-                20, max(1, int(os.getenv("PAPERLESS_QR_MAX_PAGES", "5")))
+                100, max(1, int(os.getenv("PAPERLESS_QR_MAX_PAGES", "50")))
             )
         except ValueError:
-            maximum_pages = 5
+            maximum_pages = 50
         inspected_pages = 0
         for source_page, source in iter_document_pages(
             response.content,
@@ -193,10 +193,6 @@ def process_paperless_qr_job(job: dict[str, Any]) -> None:
                 {"value": value, "sourcePage": source_page}
                 for value in decode_qr_values(source)
             )
-            if any(
-                entry["value"].startswith(("CPD1.", "CPM1:")) for entry in values
-            ):
-                break
         _post(
             job["callbackUrl"],
             {

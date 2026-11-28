@@ -14,6 +14,12 @@ import { promoteLocalProject } from "../../../shared/projects/local-project-prom
 import { deleteLocalProject } from "../../../shared/offline/local-projects.js";
 import { storeLocalProjectAsset } from "../../../shared/cache/project-asset-cache.js";
 import { invalidateProjectAsset } from "../../../shared/cache/project-indexed-db.js";
+import {
+  syncPendingProjectFiles,
+  uploadProjectFile
+} from "../../../shared/cache/project-cache.js";
+import { uploadJSONFile } from "../../../shared/api/file-api.js";
+import { getAufmasWorkspaceCache } from "../measurement/state/workspaceCache.js";
 
 export default function ProjectSettings() {
   const { projectId } = useParams();
@@ -282,6 +288,41 @@ export default function ProjectSettings() {
         return;
       }
 
+      // The measurement editor keeps the latest workspace in memory and saves
+      // with a short debounce. Persist and await it explicitly so an export
+      // started directly after editing cannot race an outstanding save.
+      const workspace = getAufmasWorkspaceCache(projectId);
+      if (workspace) {
+        const result = await uploadProjectFile({
+          projectId,
+          file: "aufmas.json",
+          data: {
+            version: 1,
+            views: workspace.views ?? [],
+            objects: workspace.objects ?? [],
+            variables: workspace.variables ?? [],
+            todos: workspace.todos ?? [],
+            expose: workspace.expose,
+            completed: Boolean(workspace.isCompleted)
+          },
+          uploadFunction: {
+            upload: uploadJSONFile,
+            path: `/api/projects/generated/${projectId}/aufmas`
+          }
+        });
+        const syncResult = result?.syncPromise
+          ? await result.syncPromise
+          : result;
+        if (["conflict", "error", "pending"].includes(syncResult?.status)) {
+          throw new Error("Die aktuellen Aufmaßdaten konnten vor dem Export nicht synchronisiert werden.");
+        }
+      }
+
+      const pending = await syncPendingProjectFiles(projectId);
+      if (pending.conflicts || pending.errors) {
+        throw new Error("Nicht alle Projektdaten konnten vor dem Export synchronisiert werden.");
+      }
+
       const response = await axios.get(`/api/projects/export/${projectId}`, {
         responseType: "blob"
       });
@@ -299,7 +340,9 @@ export default function ProjectSettings() {
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Projekt konnte nicht exportiert werden:", error);
-      setExportError("Der Projekt-Download konnte nicht erstellt werden.");
+      setExportError(
+        error.message || "Der Projekt-Download konnte nicht erstellt werden."
+      );
     } finally {
       setExporting(false);
     }
@@ -376,7 +419,7 @@ export default function ProjectSettings() {
             {/* Project status */}
             {/* -------------------------------- */}
 
-            <section className="bg-gray-800 border border-gray-700 rounded-xl xl:p-6 p-4 xl:mb-6 mb-4">
+            <section data-tour="project-settings-status" className="bg-gray-800 border border-gray-700 rounded-xl xl:p-6 p-4 xl:mb-6 mb-4">
               <div className="mb-5">
                 <h2 className="text-lg font-semibold">Projektstatus</h2>
 
@@ -479,7 +522,7 @@ export default function ProjectSettings() {
             {/* Edit project */}
             {/* -------------------------------- */}
 
-            <section className="bg-gray-800 border border-gray-700 rounded-xl xl:p-6 p-4 xl:mb-6 mb-4">
+            <section data-tour="project-settings-details" className="bg-gray-800 border border-gray-700 rounded-xl xl:p-6 p-4 xl:mb-6 mb-4">
               <div className="mb-6">
                 <h2 className="text-lg font-semibold">Projekt bearbeiten</h2>
 
@@ -737,7 +780,7 @@ export default function ProjectSettings() {
 
             {/* Project export */}
 
-            <section className="bg-gray-800 border border-gray-700 rounded-xl xl:p-6 p-4 xl:mb-6 mb-4">
+            <section data-tour="project-settings-export" className="bg-gray-800 border border-gray-700 rounded-xl xl:p-6 p-4 xl:mb-6 mb-4">
               <div className="flex items-center justify-between xl:gap-6 gap-3">
                 <div>
                   <h2 className="text-lg font-semibold">
@@ -771,7 +814,7 @@ export default function ProjectSettings() {
             {/* Danger zone */}
             {/* -------------------------------- */}
 
-            <section className="border border-red-900/60 bg-red-950/20 rounded-xl xl:p-6 p-4 mb-10">
+            <section data-tour="project-settings-danger" className="border border-red-900/60 bg-red-950/20 rounded-xl xl:p-6 p-4 mb-10">
               <div className="flex items-center justify-between xl:gap-6 gap-2">
                 <div>
                   <h2 className="text-lg font-semibold text-red-400">

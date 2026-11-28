@@ -1,7 +1,7 @@
 import express from "express";
 import prisma from "../../infrastructure/database/prisma.js";
 import {
-  newcustomer, getCustomers, getCustomerInfo, updateCustomer, searchCustomers
+  newcustomer, getCustomers, getCustomerInfo, updateCustomer, searchCustomers, importCustomers
 } from "./customer.controller.js";
 import { authenticate, authorizeRoles, requireFeature } from "../../middleware/auth.middleware.js";
 import {
@@ -25,6 +25,7 @@ router.get("/search", requireFeature("work-preparation"), searchCustomers);
 router.use(requireFeature("crm"));
 
 router.post("/new", authorizeRoles("admin", "manager"), newcustomer);
+router.post("/import", authorizeRoles("admin"), importCustomers);
 
 router.get("/all", authorizeRoles("admin", "manager"), getCustomers);
 

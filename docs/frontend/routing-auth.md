@@ -28,8 +28,7 @@ Die Rollenstufen der Guards sind:
 - `admin`: `manager` und `admin`,
 - `adminOnly`: ausschließlich `admin`.
 
-`adminOnly` wird für die gesamte Route `/CompanySettings` und deren
-Navigation verwendet.
+`/CompanySettings` ist für alle angemeldeten Rollen erreichbar. User und Manager sehen dort ausschließlich ihre persönlichen Bereiche **Benutzeroberfläche** und **Persönlicher Cache**. Alle weiteren primären und erweiterten Einstellungen bleiben über `adminOnly` ausschließlich Administratoren vorbehalten.
 
 ## Routen
 
@@ -57,7 +56,7 @@ Navigation verwendet.
 | `/Kontakte/info/:userid` | Kundendetails | Admin oder Manager |
 | `/Kontakte/edit/:userid` | Kunde bearbeiten | Admin oder Manager |
 | `/Kontakte/NewProject/:userId` | Projekt für Kunden anlegen | Admin oder Manager |
-| `/CompanySettings` | Administration | ausschließlich Admin |
+| `/CompanySettings` | persönliche UI-/Cache-Einstellungen; Firmenadministration für Admins | angemeldet, Inhalte rollenabhängig |
 
 ## Login und CSRF
 

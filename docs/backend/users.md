@@ -1,9 +1,8 @@
 # Benutzerverwaltung
 
-Alle Routen unter `/api/user` verwenden `authenticateAdmin`. Sie gehören zur
-ausgenommenen `/CompanySettings`-Administration und bleiben daher
-ausschließlich dem Admin vorbehalten. Passworthashes werden mit bcrypt und
-Kostenfaktor 12 erstellt und nie in API-Antworten ausgewählt.
+Administrative Routen unter `/api/user` verwenden `authenticateAdmin`. Die Endpunkte `/api/user/me`, `/api/user/me/password` und `/api/user/me/preferences` sind dagegen für den jeweils angemeldeten Account verfügbar. Passworthashes werden mit bcrypt und Kostenfaktor 12 erstellt und nie in API-Antworten ausgewählt.
+
+`GET` und `PUT /api/user/me/preferences` lesen beziehungsweise aktualisieren das JSON der aktuellen TenantMembership. Startseitenmodule werden rollenbezogen normalisiert. User und Manager dürfen zusätzlich ausschließlich bekannte UI- und Cachefelder speichern; Administratoren verwalten diese Werte weiterhin über die globalen Firmen-/Cachedateien. Eine Aktualisierung eines Bereichs bewahrt die übrigen persönlichen Präferenzen.
 
 ## Liste
 

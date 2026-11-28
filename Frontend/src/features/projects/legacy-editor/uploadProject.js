@@ -250,17 +250,10 @@ export async function ProjectSave(corpuses, materials, selectedCustomer, files, 
             formData.append("mimeType", mimeType);
             formData.append("fileSize", file.size);
 
-            const response = await axios.post(
+            await axios.post(
                 "/api/files/upload",
                 formData
             );
-
-            console.log("response", response.data.fileEntry.id);
-
-            // await axios.post(`/api/files/complete/`, {
-            //     id: response.data.fileEntry.id
-            // }
-            // );
             }
         }
     }

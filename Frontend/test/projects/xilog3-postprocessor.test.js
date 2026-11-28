@@ -6,7 +6,8 @@ import {
     DEFAULT_MACHINING_ASSIGNMENTS,
     MACHINING_INTENT_IDS,
     MACHINING_KINDS,
-    generateCncMachineCode as generateMachineCode
+    generateCncMachineCode as generateMachineCode,
+    translatePartForCncViewer
 } from "@Engine/postprocessor/index.js";
 import { getPartMachineCodeFaces } from "../../src/features/projects/cnc/shared/machineCodeFaces.js";
 
@@ -42,7 +43,7 @@ const instance = {
 describe("SCM Xilog 3 postprocessor", () => {
     it("publishes the workshop-specific XXL adapter", () => {
         expect(descriptor).toMatchObject({
-            version: "0.5.0",
+            version: "0.6.0",
             sourceFormat: "Xilog 3 XXL (ASCII, CRLF)",
             machineCodeFaces: ["A", "B"],
             capabilities: {
@@ -52,8 +53,13 @@ describe("SCM Xilog 3 postprocessor", () => {
             }
         });
         expect(descriptor.machiningLocations.map(location => location.id)).toEqual(["A", "AB", "AD", "DA", "DB", "D"]);
+        expect(descriptor.configuration.slice(0, 2).map(field => field.key)).toEqual([
+            "workingFields",
+            "defaultEdgeAtStop"
+        ]);
         expect(instance.configuration).toMatchObject({
             workingFields: "AD",
+            defaultEdgeAtStop: "front",
             departurePositionA: 1600,
             departurePositionAD: 2800,
             toolSetup: "W",
@@ -208,6 +214,80 @@ describe("SCM Xilog 3 postprocessor", () => {
 
         expect(result.code).toContain("LR2M X=100 Y=60 Z=16 x=200 y=60");
         expect(result.code).not.toContain("LR2M X=100 Y=60 Z=16 x=200 y=60 C=0");
+    });
+
+    it("resolves centered rows natively for Xilog while drawing their actual hole positions", () => {
+        const viewer = translatePartForCncViewer(instance, {
+            part: withNeutralCnc({
+                L: 450,
+                B: 695,
+                T: 20,
+                CNC: { operations: [{
+                    id: "manual-centered",
+                    kind: MACHINING_KINDS.DRILL_ROW,
+                    intentId: MACHINING_INTENT_IDS.MANUAL_DRILLING,
+                    face: "A",
+                    start: 100,
+                    end: 250,
+                    centered: true,
+                    spacing: 32,
+                    crossPositions: [60, 635],
+                    depth: 16,
+                    diameter: 5
+                }] }
+            })
+        });
+
+        expect(viewer.operations[0]).toMatchObject({
+            start: 111,
+            end: 239,
+            dimensionStart: 100,
+            dimensionEnd: 250,
+            centeredResolution: "native"
+        });
+
+        const { type: _viewerType, ...neutralOperation } = viewer.operations[0];
+        const result = generateCncMachineCode(instance, {
+            part: {
+                PID: "MANUAL-CENTERED",
+                L: 450,
+                B: 695,
+                T: 20,
+                CNC: { operations: [neutralOperation] }
+            }
+        });
+        expect(result.code).toContain("LR2M X=100 Y=60 Z=16 x=200 y=60");
+    });
+
+    it("rewrites Y coordinates for a back-edge default without emitting SY", () => {
+        const result = generateCncMachineCode({
+            ...instance,
+            configuration: {
+                ...instance.configuration,
+                defaultEdgeAtStop: "back"
+            }
+        }, {
+            part: {
+                PID: "BACK-ORIENTATION",
+                L: 450,
+                B: 695,
+                T: 20,
+                CNC: { operations: [{
+                    id: "drill",
+                    kind: MACHINING_KINDS.DRILL_POINT,
+                    intentId: MACHINING_INTENT_IDS.MANUAL_DRILLING,
+                    face: "A",
+                    x: 100,
+                    y: 80,
+                    depth: 8,
+                    diameter: 5
+                }] }
+            }
+        });
+
+        expect(result.code).toContain('XBO X=100 Y=80 Z=8 R=1 D=5 N="P"');
+        expect(result.code).not.toContain("SY=1");
+        expect(result.metadata.header).toMatchObject({ edgeAtStop: "back", displayMirrorY: true, sy: false });
     });
 
     it("writes only additional SX and SY mirrors after the header", () => {

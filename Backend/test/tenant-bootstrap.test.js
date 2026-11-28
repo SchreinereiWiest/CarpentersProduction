@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 
 import {
   parseTenantBootstrapInput,
+  provisionBootstrapTenant,
   TenantBootstrapError,
+  tenantSlugForCompany,
   tenantNeedsBootstrap
 } from "../src/modules/tenants/tenant-bootstrap.service.js";
 
@@ -25,6 +27,39 @@ test("Bootstrap-Eingaben werden normalisiert, ohne den Lizenzschlüssel umzudeut
     password: "a-secure-password",
     licenseKey: "MDL_secret"
   });
+});
+
+test("Neue Firmen erhalten einen stabilen, URL-tauglichen Tenant-Slug", () => {
+  assert.equal(tenantSlugForCompany("  Möbelschreinerei Weiß & Söhne GmbH  "), "mobelschreinerei-weiss-sohne-gmbh");
+  assert.equal(tenantSlugForCompany("***"), "unternehmen");
+});
+
+test("eine neue Lizenz erhält vor der Aktivierung einen wiederverwendbaren Setup-Mandanten", async () => {
+  const created = [];
+  let lockCalls = 0;
+  const transaction = {
+    $executeRaw: async () => { lockCalls += 1; return 1; },
+    $queryRaw: async () => assert.fail("Void-Funktionen dürfen nicht über $queryRaw ausgeführt werden"),
+    tenant: {
+      findFirst: async () => null,
+      findUnique: async () => null,
+      create: async ({ data }) => {
+        created.push(data);
+        return { id: "tenant-new", ...data };
+      }
+    }
+  };
+  const database = { $transaction: callback => callback(transaction) };
+
+  const tenant = await provisionBootstrapTenant("Neue Schreinerei", database);
+
+  assert.deepEqual(created, [{
+    name: "Neue Schreinerei",
+    slug: "neue-schreinerei",
+    status: "pending-setup"
+  }]);
+  assert.equal(tenant.id, "tenant-new");
+  assert.equal(lockCalls, 1);
 });
 
 test("Bootstrap verlangt ein eigenständiges starkes Benutzerpasswort", () => {

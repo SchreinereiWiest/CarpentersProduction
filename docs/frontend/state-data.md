@@ -40,9 +40,13 @@ Der Memory Cache besitzt aktuell keine exportierte Invalidierungsfunktion. Ein I
 
 ## Unternehmenssettings
 
-`companySettings.js` liefert robuste Defaults für Arbeitszeit, Pausen und Tätigkeitsarten. `normalizeCompanySettings` ergänzt fehlende Werte, `createWorkBlocks` teilt den Arbeitstag entlang der Pausen, und `useCompanySettings` lädt die Einstellungen beim Mounten mit Default-Fallback.
+`companySettings.js` liefert robuste Defaults für Arbeitszeit, Pausen und Tätigkeitsarten. `normalizeCompanySettings` ergänzt fehlende Werte, `createWorkBlocks` teilt den Arbeitstag entlang der Pausen, und `useCompanySettings` lädt die Einstellungen beim Mounten mit Default-Fallback. Für User und Manager überlagert `loadCompanySettings()` die firmenweiten Werte mit den erlaubten persönlichen UI-Präferenzen ihrer TenantMembership. Firmenstruktur, Arbeitszeiten und DMS-Tags bleiben davon unberührt.
+
+Persönliche Cache-Einstellungen werden ebenfalls in der TenantMembership gespeichert. Der eigentliche Offline-Datenbestand, Aktivzustand und die Cachebereinigung bleiben gerätebezogen in LocalStorage beziehungsweise IndexedDB. Administratoren behalten die globale Cachekonfiguration.
 
 ## Kalenderzustand
 
 `useEmployeeCalendar` koordiniert Benutzer, Woche, Zeitslots, offene Einträge, Drag/Drop und Editierdialoge. Die Hilfsmodule laden Wochen-JSON und Tagesdaten, ordnen freie Slots zu, validieren Splits und speichern geänderte beziehungsweise neu erzeugte Zeitsegmente wieder im Backend.
+
+Im Firmenkalender sind neue Termine rollenunabhängig für alle Firmenmitglieder sichtbar. Das explizite Feld `isPrivate` beschränkt einen Termin auf seinen Eigentümer; nur dieser kann einen persönlichen Termin bearbeiten. Beim Datenbank-Upgrade bleiben bereits vorhandene persönliche Termine privat. Automatisch erzeugte Einträge `company-closed` sind immer firmenweit sichtbar.
 

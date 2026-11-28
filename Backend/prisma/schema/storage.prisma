@@ -24,8 +24,8 @@ model TenantBackup {
   tenantId String @map("tenant_id") @db.Uuid
 
   name       String
-  backupType String @default("full") @map("backup_type")
-  status     String @default("creating")
+  backupType String  @default("full") @map("backup_type")
+  status     String  @default("creating")
   objectKey  String? @map("object_key")
   bucketName String? @map("bucket_name")
   fileSize   BigInt? @map("file_size")
@@ -37,9 +37,9 @@ model TenantBackup {
   createdById String? @map("created_by") @db.Uuid
   createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
 
-  createdAt  DateTime  @default(now()) @map("created_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
   completedAt DateTime? @map("completed_at")
-  restoredAt DateTime? @map("restored_at")
+  restoredAt  DateTime? @map("restored_at")
 
   @@unique([tenantId, id])
   @@index([tenantId, createdAt])
@@ -77,12 +77,12 @@ model File {
   id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   tenantId String @map("tenant_id") @db.Uuid
 
-  customerId String? @map("customer_id") @db.Uuid
-  projectId  String? @map("project_id") @db.Uuid
+  customerId       String? @map("customer_id") @db.Uuid
+  projectId        String? @map("project_id") @db.Uuid
   documentFolderId String? @map("document_folder_id") @db.Uuid
 
-  customer Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  project  Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  customer       Customer?        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  project        Project?         @relation(fields: [projectId], references: [id], onDelete: Cascade)
   documentFolder PaperlessFolder? @relation("ManagementDocumentFolderFiles", fields: [documentFolderId], references: [id], onDelete: SetNull)
 
   storageObjectId String   @map("storage_object_id") @db.Uuid
@@ -114,10 +114,39 @@ model File {
   managementTransactions ManagementTransaction[]
   syncMutations          SyncMutation[]
   measurementScans       MeasurementScan[]
+  documentTemplate       DocumentTemplate?
 
   @@unique([tenantId, id])
   @@index([documentFolderId])
   @@map("files")
+}
+
+model DocumentTemplate {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId String @map("tenant_id") @db.Uuid
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  fileId String? @unique @map("file_id") @db.Uuid
+  file   File?   @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  name         String
+  documentType String  @default("universal") @map("document_type")
+  status       String  @default("active")
+  isDefault    Boolean @default(false) @map("is_default")
+  analysis     Json
+
+  uploadedById String? @map("uploaded_by") @db.Uuid
+  uploadedBy   User?   @relation("DocumentTemplateUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  commercialDocuments CommercialDocument[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([tenantId, id])
+  @@index([tenantId, status, createdAt])
+  @@index([tenantId, documentType, isDefault])
+  @@map("document_templates")
 }
 
 model MeasurementPrintRun {

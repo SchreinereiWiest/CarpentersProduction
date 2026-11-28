@@ -9,10 +9,10 @@ import {
     updateManualSnapshot
 } from "../calculation/calculation-snapshot.controller.js";
 import {
-    deleteAttachmentSearchCredential,
-    getAttachmentSearchCredentialStatus,
-    setAttachmentSearchCredential
-} from "../attachment-search/attachment-credential.controller.js";
+    deleteAiCredential,
+    getAiCredentialStatus,
+    setAiCredential
+} from "../ai/ai-credential.controller.js";
 import { getHourlyRates, saveHourlyRates } from "./hourly-rates.controller.js";
 
 
@@ -41,9 +41,9 @@ router.delete("/calculation-snapshots/manual/:id", authenticateAdmin, requireFea
 router.get("/hourly-rates", authenticateAdmin, requireFeature("calculation"), getHourlyRates);
 router.put("/hourly-rates", authenticateAdmin, requireFeature("calculation"), saveHourlyRates);
 
-router.get("/attachment-search-credential", authenticateAdmin, requireFeature("work-preparation"), getAttachmentSearchCredentialStatus);
-router.post("/attachment-search-credential", authenticateAdmin, requireFeature("work-preparation"), setAttachmentSearchCredential);
-router.delete("/attachment-search-credential", authenticateAdmin, requireFeature("work-preparation"), deleteAttachmentSearchCredential);
+router.get("/ai-credential", authenticateAdmin, getAiCredentialStatus);
+router.post("/ai-credential", authenticateAdmin, setAiCredential);
+router.delete("/ai-credential", authenticateAdmin, deleteAiCredential);
 
 router.get("/:name", authenticateAdmin, requireSettingsModule, getSettingsData);
 

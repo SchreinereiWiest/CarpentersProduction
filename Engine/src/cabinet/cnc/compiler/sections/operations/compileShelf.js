@@ -58,6 +58,18 @@ export const compileShelf = ({
         ) || 0;
 
 
+    /*
+     * Sections use the cabinet coordinate system, while every CNC program
+     * uses the local coordinate system of its physical part. Inserted sides
+     * therefore start below the cabinet origin (usually by one material
+     * thickness). The boundary carries that physical instance origin.
+     */
+    const partOriginY =
+        Number(
+            boundary.memberGeometry?.y
+        ) || 0;
+
+
     const startFromBottom =
         Math.max(
             0,
@@ -99,35 +111,17 @@ export const compileShelf = ({
         );
 
 
-    let start =
+    const start =
         sectionY +
-        endFromTop;
+        endFromTop -
+        partOriginY;
 
 
-    let end =
+    const end =
         sectionY +
         sectionHeight -
-        startFromBottom;
-
-
-    const rangeStart = start;
-    const rangeEnd = end;
-
-
-    if (
-        func.holeRow?.centered === true &&
-        Number.isFinite(spacing) &&
-        spacing > 0 &&
-        end >= start
-    ) {
-        const availableLength = end - start;
-        const intervalCount = Math.floor((availableLength + 1e-9) / spacing);
-        const usedLength = intervalCount * spacing;
-        const edgeOffset = (availableLength - usedLength) / 2;
-
-        start += edgeOffset;
-        end -= edgeOffset;
-    }
+        startFromBottom -
+        partOriginY;
 
 
     const partDepth =
@@ -159,10 +153,6 @@ export const compileShelf = ({
 
                 centered:
                     func.holeRow?.centered === true,
-
-                rangeStart,
-
-                rangeEnd,
 
                 depth:
                     config.shelf.depth,

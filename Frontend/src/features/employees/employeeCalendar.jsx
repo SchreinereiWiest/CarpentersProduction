@@ -20,7 +20,7 @@ export default function EmployeeCalendar({
             overflow-hidden
         ">
 
-            <div className="flex items-center justify-center gap-4 mb-4">
+            <div data-tour="employee-week-controls" className="flex items-center justify-center gap-4 mb-4">
 
     {/* Vorherige Woche */}
     <button
@@ -69,8 +69,8 @@ export default function EmployeeCalendar({
 
 </div>
 
-            <div className="flex-1 overflow-x-auto overflow-y-hidden">
-            <div className="grid h-full min-w-[700px] grid-cols-5 gap-4">
+            <div data-tour="employee-calendar-grid" className="flex-1 overflow-x-auto overflow-y-hidden">
+            <div className="grid h-full min-w-[700px] gap-4" style={{ gridTemplateColumns: `repeat(${Math.max(1, data.weekData.length)}, minmax(130px, 1fr))` }}>
 
                 {
 

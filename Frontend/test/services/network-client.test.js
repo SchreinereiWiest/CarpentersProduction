@@ -94,4 +94,10 @@ describe("verlässlicher Offline-Netzwerkstatus", () => {
     it("speichert die letzte bestätigte Sitzung für einen Offline-Reload", async () => {
         await expect(shouldCacheApiResponse("/api/auth/me")).resolves.toBe(true);
     });
+
+    it("hält normale Ansichten ohne manuellen Offline-Schalter lokal vor", async () => {
+        await expect(shouldCacheApiResponse("/api/projects/getAll")).resolves.toBe(true);
+        await expect(shouldCacheApiResponse("/api/customers/get/customer-1")).resolves.toBe(true);
+        await expect(shouldCacheApiResponse("/api/settings/company")).resolves.toBe(false);
+    });
 });

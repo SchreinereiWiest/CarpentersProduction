@@ -13,7 +13,10 @@ const ICONS = [
 ];
 export const SETUP_NAVIGATION = SETUP_STEPS.map(([path, label], index) => [`Setup/${path}`, label, ICONS[index]]);
 export const OPERATING_NAVIGATION = [
-  ['', 'Betriebsübersicht', ICONS[0]], ['Hours', 'Stunden & Produktivität', ICONS[3]],
-  ['Costs', 'Kostenstellen & Vergleich', ICONS[6]],
+  ['', 'Mitarbeiterauslastung', ICONS[3]],
+  ['Board', 'Projektstatus', ICONS[6]],
+  ['Timeline', 'Projektzeitraum', ICONS[4]],
+  ['Goals', 'Jahresziele', ICONS[7]],
+  ['Rates', 'Stundensätze', ICONS[5]],
 ];
 export const YEAR_SELECT_DEFAULTS = { count: 12, pastYears: 6 };

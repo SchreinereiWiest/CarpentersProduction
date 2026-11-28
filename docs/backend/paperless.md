@@ -93,8 +93,17 @@ HMAC-Signatur. Manipulierte oder für einen anderen Mandanten ausgestellte Codes
 werden ignoriert. Vorhandene `CPM1`-Codes auf Aufmaßblättern werden zusätzlich
 gegen gespeicherte Druckseiten geprüft und dem zugehörigen Projekt zugeordnet.
 
-Der Worker prüft standardmäßig nur die ersten fünf Seiten. Der Wert lässt sich
-mit `PAPERLESS_QR_MAX_PAGES` zwischen 1 und 20 anpassen.
+Der Exposé-Editor kann denselben signierten Projekt-QR mit dem zusätzlichen
+Merkmal `wholePdf` erzeugen. Ist es gesetzt, gilt die Zuordnung ab dieser Seite
+für alle folgenden Seiten. Weitere QR-Codes desselben Projekts unterbrechen den
+Bereich nicht; erst ein QR mit einem anderen Projektziel beginnt einen neuen
+Abschnitt. Normale `CPD1`-Codes bleiben Dokumentgrenzen. Die so ermittelten
+Bereiche werden über Paperless `documents/edit_pdf/` in einzelne Dokumente
+geteilt. Für ältere Paperless-Versionen bleibt der kompatible
+`documents/bulk_edit/`-Split als Fallback aktiv.
+
+Der Worker prüft standardmäßig die ersten 50 Seiten. Der Wert lässt sich
+mit `PAPERLESS_QR_MAX_PAGES` zwischen 1 und 100 anpassen (Standard: 50).
 
 ## Garage-Bibliothek und PDF-Bearbeitung
 
@@ -125,6 +134,7 @@ Editor nicht verändert.
 | `POST` | `/api/paperless/sync` | Pull-Abgleich sofort ausführen |
 | `POST` | `/api/paperless/upload` | Beleg ausschließlich an Paperless übergeben und Verarbeitung starten |
 | `PUT` | `/api/paperless/documents/:id/assignment` | Referenz zuordnen |
+| `PUT` | `/api/paperless/documents/:id/assignee` | Manager/Admin als persönlichen Bearbeiter setzen oder entfernen |
 | `POST` | `/api/paperless/documents/:id/dismiss` | Nur aus Carpenters-Eingang ausblenden |
 | `PUT/DELETE` | `/api/paperless/local-documents/:id/assignment` | Internen Beleg zuordnen oder Verknüpfung lösen |
 | `POST` | `/api/paperless/local-documents/:id/dismiss` | Internen Beleg aus dem Eingang ausblenden |
@@ -140,6 +150,8 @@ Editor nicht verändert.
 Alle Browser-Endpunkte sind sitzungs- und rollenbasiert geschützt. Der externe
 Webhook verwendet ein separates, rotierbares Secret; interne Worker-Endpunkte
 verwenden `MEASUREMENT_OCR_SECRET`.
+
+Die Bearbeiterfreigabe speichert nur die User-ID eines aktiven Manager-Accounts derselben TenantMembership. Zugewiesene Dokumente werden über `/api/dashboard` ausschließlich dem betreffenden Manager als Bearbeitungsliste bereitgestellt.
 
 ## Development über das interne Netzwerk
 

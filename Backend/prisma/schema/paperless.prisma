@@ -8,11 +8,11 @@ model PaperlessConfiguration {
   enabled      Boolean @default(false)
   autoAssignQr Boolean @default(true) @map("auto_assign_qr")
 
-  lastConnectedAt   DateTime? @map("last_connected_at")
-  lastConnectionError String? @map("last_connection_error")
+  lastConnectedAt      DateTime? @map("last_connected_at")
+  lastConnectionError  String?   @map("last_connection_error")
   lastRemoteDocumentId Int?      @map("last_remote_document_id")
-  lastSyncAt            DateTime? @map("last_sync_at")
-  lastSyncError         String?   @map("last_sync_error")
+  lastSyncAt           DateTime? @map("last_sync_at")
+  lastSyncError        String?   @map("last_sync_error")
 
   folders   PaperlessFolder[]
   documents PaperlessDocument[]
@@ -35,7 +35,7 @@ model PaperlessFolder {
   sortOrder Int    @default(0) @map("sort_order")
 
   documents PaperlessDocument[]
-  files     File[] @relation("ManagementDocumentFolderFiles")
+  files     File[]              @relation("ManagementDocumentFolderFiles")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -57,15 +57,15 @@ model PaperlessDocument {
   remoteVersionId  Int? @map("remote_version_id")
 
   title            String
-  originalFileName String? @map("original_file_name")
-  mimeType         String? @map("mime_type")
+  originalFileName String?   @map("original_file_name")
+  mimeType         String?   @map("mime_type")
   checksum         String?
-  documentType     String? @map("document_type")
+  documentType     String?   @map("document_type")
   correspondent    String?
   remoteCreatedAt  DateTime? @map("remote_created_at")
   remoteAddedAt    DateTime? @map("remote_added_at")
   remoteModifiedAt DateTime? @map("remote_modified_at")
-  remoteMetadata   Json? @map("remote_metadata")
+  remoteMetadata   Json?     @map("remote_metadata")
 
   status           String  @default("inbox")
   qrStatus         String  @default("queued") @map("qr_status")
@@ -84,6 +84,9 @@ model PaperlessDocument {
   linkedById String? @map("linked_by") @db.Uuid
   linkedBy   User?   @relation(fields: [linkedById], references: [id], onDelete: SetNull)
 
+  assignedToId String? @map("assigned_to") @db.Uuid
+  assignedTo   User?   @relation("PaperlessDocumentAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
   receivedAt DateTime  @default(now()) @map("received_at")
   linkedAt   DateTime? @map("linked_at")
   createdAt  DateTime  @default(now()) @map("created_at")
@@ -95,5 +98,6 @@ model PaperlessDocument {
   @@index([projectId, linkedAt])
   @@index([customerId, linkedAt])
   @@index([folderId, linkedAt])
+  @@index([assignedToId, status])
   @@map("paperless_documents")
 }

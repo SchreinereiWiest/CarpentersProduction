@@ -16,7 +16,9 @@ const samePartIdentity = (generated, existing) => {
     }
 
     if (generated?._cabinetId && cabinetId) {
-        return String(generated._cabinetId) === String(cabinetId);
+        return String(generated._cabinetId) === String(cabinetId) &&
+            generated?.Plattentyp === partType &&
+            generated?.Objektname === partName;
     }
 
     return Boolean(
@@ -71,6 +73,7 @@ export function mergeManualPartList(generatedData = [], existingData = []) {
 
         usedRoots.add(existingIndex);
         const existingRoot = existingRoots[existingIndex];
+        if (isManualPart(existingRoot)) return existingRoot;
         const existingChildren = Array.isArray(existingRoot?.Children)
             ? existingRoot.Children
             : [];
@@ -92,13 +95,7 @@ export function mergeManualPartList(generatedData = [], existingData = []) {
 
             usedChildren.add(existingIndex);
             const existingChild = existingChildren[existingIndex];
-            return {
-                ...generatedChild,
-                ...existingChild,
-                PID: generatedChild.PID,
-                _generatedId: generatedChild._generatedId ?? existingChild._generatedId,
-                manual: true
-            };
+            return existingChild;
         });
 
         existingChildren.forEach((child, index) => {
@@ -107,15 +104,8 @@ export function mergeManualPartList(generatedData = [], existingData = []) {
             }
         });
 
-        const existingRootFields = { ...existingRoot };
-        delete existingRootFields.Children;
-        const rootFields = isManualPart(existingRoot)
-            ? existingRootFields
-            : {};
-
         return {
             ...generatedRoot,
-            ...rootFields,
             PID: generatedRoot.PID,
             _generatedId: generatedRoot._generatedId ?? existingRoot._generatedId,
             _cabinetId: generatedRoot._cabinetId ?? existingRoot._cabinetId,

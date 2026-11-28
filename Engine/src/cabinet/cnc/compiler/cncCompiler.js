@@ -39,6 +39,7 @@ const compileBackPanel = ({
 
     const continuous =
         String(
+            cabinet.continuous ??
             backPanel.continuous ??
             "side"
         ).toLowerCase();
@@ -324,6 +325,7 @@ const compileBackPanelGroove = ({
 
     const continuous =
         String(
+            cabinet.continuous ??
             backPanel.continuous ??
             "side"
         ).toLowerCase();
@@ -615,8 +617,9 @@ const compileBackPanelGroove = ({
      * Die momentan erzeugten getrennten Deckel/Boden-Parts
      * machen diese Zuordnung jetzt möglich.
      *
-     * Für den Boden lassen wir die Nut über beide Enden
-     * hinauslaufen.
+     * Im durchgehenden Horizontalteil endet die Nut innerhalb
+     * der Außenkanten. In den eingesetzten Seiten läuft sie an
+     * beiden Stirnseiten durch.
      */
 
     if (
@@ -626,6 +629,7 @@ const compileBackPanelGroove = ({
         parts
             .filter(
                 part =>
+                    isTopPart(part) ||
                     isBottomPart(part)
             )
             .forEach(
@@ -639,13 +643,13 @@ const compileBackPanelGroove = ({
 
                     const startX =
                         grooveConfig
-                            .intermediateStartOffset;
+                            .startOffset;
 
 
                     const endX =
-                        length +
+                        length -
                         grooveConfig
-                            .intermediateEndOffset;
+                            .endOffset;
 
 
                     addOperation(
@@ -700,7 +704,7 @@ const compileBackPanelGroove = ({
                                 construction,
 
                                 target:
-                                    "continuousBottom",
+                                    "continuousHorizontalInsertedGroove",
 
                                 continuous,
 
@@ -715,6 +719,54 @@ const compileBackPanelGroove = ({
 
                 }
             );
+
+        /*
+         * Die Seiten stehen zwischen den durchgehenden Horizontalteilen.
+         * Ihre Nut muss deshalb an den Stirnseiten durchlaufen, während die
+         * Nut im durchgehenden Boden/Deckel innerhalb der Außenkanten endet.
+         */
+        parts
+            .filter(part => isSidePart(part))
+            .forEach(part => {
+                const length = Number(part.L) || 0;
+                const startX = cabinet.topExists !== false
+                    ? grooveConfig.intermediateStartOffset
+                    : isOpenGroove
+                        ? grooveConfig.openStartOffset
+                        : grooveConfig.startOffset;
+                const endX = cabinet.bottomExists !== false
+                    ? length + grooveConfig.intermediateEndOffset
+                    : length - grooveConfig.endOffset;
+
+                addOperation(part, {
+                    kind: MACHINING_KINDS.MILL_GROOVE,
+                    intentId: MACHINING_INTENT_IDS.BACK_GROOVE,
+                    face: "A",
+                    axis: "x",
+                    start: {
+                        x: startX,
+                        y: part.B - grooveConfig.y,
+                        z: grooveConfig.z
+                    },
+                    end: {
+                        x: endX,
+                        y: part.B - grooveConfig.y,
+                        z: grooveConfig.z
+                    },
+                    width: grooveConfig.width,
+                    frontOffset: config.backPanel.groove.frontOffset,
+                    backOffset: config.backPanel.groove.backOffset,
+                    source: {
+                        type: "backPanel",
+                        role: "groove",
+                        construction,
+                        target: "insertedSideContinuousGroove",
+                        continuous,
+                        startX,
+                        endX
+                    }
+                });
+            });
 
     }
 

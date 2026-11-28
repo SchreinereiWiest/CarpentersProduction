@@ -89,8 +89,8 @@ export default function Groove({
 
             stroke={
                 selected
-                    ? "#f97316"
-                    : "#22c55e"
+                    ? "var(--cnc-operation-selected)"
+                    : "var(--cnc-operation-path)"
             }
 
             strokeWidth={

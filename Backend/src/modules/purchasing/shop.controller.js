@@ -153,6 +153,9 @@ const readSettings = async () => {
         edgeWastePercentage: configuration
             ? Number(configuration.edgeWastePercentage)
             : 10,
+        manufacturerWebsites: Array.isArray(configuration?.manufacturerWebsites)
+            ? configuration.manufacturerWebsites
+            : [],
         suppliers: suppliers.map(supplier => ({
             id: supplier.id,
             name: supplier.name,
@@ -283,6 +286,13 @@ export const saveShopSettings = async (req, res) => {
     const suppliers = Array.isArray(req.body?.suppliers) ? req.body.suppliers : null;
     const mappings = req.body?.legraboxArticleIds;
     const edgeWastePercentage = Number(req.body?.edgeWastePercentage ?? 10);
+    const manufacturerWebsites = Array.isArray(req.body?.manufacturerWebsites)
+        ? req.body.manufacturerWebsites.map(website => ({
+            id: String(website?.id || ""),
+            name: String(website?.name || "").trim(),
+            baseUrl: String(website?.baseUrl || "").trim().replace(/\/+$/, "")
+        })).filter(website => website.name || website.baseUrl)
+        : [];
 
     if (!suppliers || !mappings || typeof mappings !== "object") {
         return res.status(400).json({ error: "Suppliers and Legrabox mappings are required" });
@@ -290,6 +300,15 @@ export const saveShopSettings = async (req, res) => {
 
     if (!Number.isFinite(edgeWastePercentage) || edgeWastePercentage < 0 || edgeWastePercentage > 1000) {
         return res.status(400).json({ error: "Edge waste percentage must be between 0 and 1000" });
+    }
+
+    if (manufacturerWebsites.some(website => (
+        !UUID_PATTERN.test(website.id) ||
+        !website.name ||
+        !website.baseUrl ||
+        !isHttpUrlOrEmpty(website.baseUrl)
+    ))) {
+        return res.status(400).json({ error: "Every manufacturer website needs a UUID, a name and a valid HTTP(S) URL" });
     }
 
     if (suppliers.some(supplier => (
@@ -316,8 +335,8 @@ export const saveShopSettings = async (req, res) => {
         await prisma.$transaction(async transaction => {
             await transaction.shopConfiguration.upsert({
                 where: { tenantId: getTenantId() },
-                create: { edgeWastePercentage },
-                update: { edgeWastePercentage }
+                create: { edgeWastePercentage, manufacturerWebsites },
+                update: { edgeWastePercentage, manufacturerWebsites }
             });
 
             for (const supplier of suppliers) {

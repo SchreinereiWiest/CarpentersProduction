@@ -15,10 +15,15 @@ export const getProjectRecord = async projectId => {
 };
 
 export const getProjectRecords = async endpoint => {
+    let remoteError = null;
     const [remoteResponse, localProjects] = await Promise.all([
-        axios.get(endpoint).catch(() => ({ data: { projects: [] } })),
+        axios.get(endpoint).catch(error => {
+            remoteError = error;
+            return { data: { projects: [] } };
+        }),
         listLocalProjects()
     ]);
+    if (remoteError && localProjects.length === 0) throw remoteError;
     const remoteProjects = remoteResponse.data.projects ?? [];
     const visibleLocalProjects = String(endpoint).includes("getActive")
         ? localProjects.filter(project => project.status === "active")

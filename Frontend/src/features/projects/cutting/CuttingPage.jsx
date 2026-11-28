@@ -1,141 +1,20 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Canvas, useThree } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
+import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { useParams } from "react-router";
 import SideBar from "../../../shared/components/sideBar.jsx";
 import ProjectBar from "../../../shared/components/projectBar.jsx";
 import MobileWorkspaceGuard from "../../../shared/components/MobileWorkspaceGuard.jsx";
 import { getProjectFile, uploadProjectFile } from "../../../shared/cache/project-cache.js";
+import { getGlobalFile } from "../../../shared/cache/global-cache.js";
 import { downloadFile, uploadJSONFile } from "../../../shared/api/file-api.js";
+import { getProjectRecord } from "../../../shared/projects/project-records.js";
 import CutScene from "./cutScene.jsx";
+import EticketPrintDialog from "../nesting/EticketPrintDialog.jsx";
+import { createNestingEticketData } from "../nesting/eticketData.js";
 import { getStripLayout } from "@Engine/nesting/placement/manualStripPlacement.js";
+import { DEFAULT_ETICKET_SETTINGS, normalizeEticketSettings } from "@Engine/eticket/index.js";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-function PanControls({ controlsRef, onBackgroundClick }) {
-    const { camera, gl } = useThree();
-    const touchPan = useRef(null);
-
-    const panByPixels = useCallback((deltaX, deltaY) => {
-        const controls = controlsRef.current;
-        if (!controls || !gl.domElement.clientWidth || !gl.domElement.clientHeight) return;
-
-        const visibleWorldWidth = (camera.right - camera.left) / camera.zoom;
-        const visibleWorldHeight = (camera.top - camera.bottom) / camera.zoom;
-        const cameraDeltaX = -deltaX * visibleWorldWidth / gl.domElement.clientWidth;
-        const cameraDeltaY = deltaY * visibleWorldHeight / gl.domElement.clientHeight;
-        controls.target.x += cameraDeltaX;
-        controls.target.y += cameraDeltaY;
-        camera.position.x += cameraDeltaX;
-        camera.position.y += cameraDeltaY;
-        controls.update();
-    }, [camera, controlsRef, gl]);
-
-    useEffect(() => {
-        const element = gl.domElement;
-        let mousePan = null;
-
-        const handlePointerDown = (event) => {
-            if (event.pointerType !== "mouse" || event.button !== 0 || !event.ctrlKey) return;
-
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            mousePan = {
-                pointerId: event.pointerId,
-                lastX: event.clientX,
-                lastY: event.clientY
-            };
-            element.setPointerCapture?.(event.pointerId);
-        };
-
-        const handlePointerMove = (event) => {
-            if (!mousePan || mousePan.pointerId !== event.pointerId) return;
-
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            panByPixels(
-                event.clientX - mousePan.lastX,
-                event.clientY - mousePan.lastY
-            );
-            mousePan.lastX = event.clientX;
-            mousePan.lastY = event.clientY;
-        };
-
-        const finishMousePan = (event) => {
-            if (!mousePan || mousePan.pointerId !== event.pointerId) return;
-
-            event.preventDefault();
-            element.releasePointerCapture?.(event.pointerId);
-            mousePan = null;
-        };
-
-        element.addEventListener("pointerdown", handlePointerDown, true);
-        element.addEventListener("pointermove", handlePointerMove, true);
-        element.addEventListener("pointerup", finishMousePan, true);
-        element.addEventListener("pointercancel", finishMousePan, true);
-
-        return () => {
-            element.removeEventListener("pointerdown", handlePointerDown, true);
-            element.removeEventListener("pointermove", handlePointerMove, true);
-            element.removeEventListener("pointerup", finishMousePan, true);
-            element.removeEventListener("pointercancel", finishMousePan, true);
-        };
-    }, [gl, panByPixels]);
-
-    const startTouchPan = (event) => {
-        const nativeEvent = event.nativeEvent;
-        if (nativeEvent.pointerType !== "touch") return;
-        event.stopPropagation();
-        if (!nativeEvent.isPrimary) return;
-
-        touchPan.current = {
-            pointerId: nativeEvent.pointerId,
-            lastX: nativeEvent.clientX,
-            lastY: nativeEvent.clientY
-        };
-        event.target.setPointerCapture?.(nativeEvent.pointerId);
-    };
-
-    const moveTouchPan = (event) => {
-        const nativeEvent = event.nativeEvent;
-        if (!touchPan.current || touchPan.current.pointerId !== nativeEvent.pointerId) return;
-
-        event.stopPropagation();
-        panByPixels(
-            nativeEvent.clientX - touchPan.current.lastX,
-            nativeEvent.clientY - touchPan.current.lastY
-        );
-        touchPan.current.lastX = nativeEvent.clientX;
-        touchPan.current.lastY = nativeEvent.clientY;
-    };
-
-    const finishTouchPan = (event) => {
-        const nativeEvent = event.nativeEvent;
-        if (!touchPan.current || touchPan.current.pointerId !== nativeEvent.pointerId) return;
-
-        event.stopPropagation();
-        event.target.releasePointerCapture?.(nativeEvent.pointerId);
-        touchPan.current = null;
-    };
-
-    return (
-        <mesh
-            position={[0, 0, -50]}
-            onClick={(event) => {
-                event.stopPropagation();
-                onBackgroundClick?.();
-            }}
-            onPointerDown={startTouchPan}
-            onPointerMove={moveTouchPan}
-            onPointerUp={finishTouchPan}
-            onPointerCancel={finishTouchPan}
-        >
-            <planeGeometry args={[100000, 100000]} />
-            <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-        </mesh>
-    );
-}
 
 function getCutStripLayout(strip, settings) {
     const stripRotation = Number(strip.rotation) === 90 ? 90 : 0;
@@ -237,7 +116,12 @@ function CutingView() {
     const [finishedSaveError, setFinishedSaveError] = useState("");
     const [materialCatalog, setMaterialCatalog] = useState(null);
     const [materialLoadError, setMaterialLoadError] = useState("");
-    const orbitControlsRef = useRef(null);
+    const [project, setProject] = useState(null);
+    const [customer, setCustomer] = useState(null);
+    const [showEticket, setShowEticket] = useState(false);
+    const [cncSettings, setCncSettings] = useState(() => ({
+        eticket: { ...normalizeEticketSettings(DEFAULT_ETICKET_SETTINGS), printerConfigured: false }
+    }));
 
     useEffect(() => {
         const controller = new AbortController();
@@ -262,6 +146,64 @@ function CutingView() {
         loadMaterials();
         return () => controller.abort();
     }, []);
+
+    useEffect(() => {
+        let isCurrentRequest = true;
+        Promise.allSettled([
+            getGlobalFile({
+                file: "settings-cnc.json",
+                loadFromServer: { download: downloadFile, path: "/api/settings/cnc" }
+            }),
+            axios.get("/api/etickets/settings")
+        ]).then(([cncResult, eticketResult]) => {
+            if (!isCurrentRequest) return;
+            const data = cncResult.status === "fulfilled" ? cncResult.value : null;
+            const publicEticket = eticketResult.status === "fulfilled" ? eticketResult.value.data : null;
+            const source = publicEticket ?? data?.eticket ?? DEFAULT_ETICKET_SETTINGS;
+            setCncSettings({
+                ...(data ?? {}),
+                eticket: {
+                    ...normalizeEticketSettings(source),
+                    printerConfigured: publicEticket?.printerConfigured ?? Boolean(data?.eticket?.printer?.host)
+                }
+            });
+        });
+        return () => {
+            isCurrentRequest = false;
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!projectId) return undefined;
+        let isCurrentRequest = true;
+
+        const loadProject = async () => {
+            try {
+                const loadedProject = await getProjectRecord(projectId);
+                if (!isCurrentRequest) return;
+                setProject(loadedProject);
+                if (loadedProject?.customer) {
+                    setCustomer(loadedProject.customer);
+                } else if (loadedProject?.customerId) {
+                    const response = await axios.get(`/api/customers/get/${loadedProject.customerId}`);
+                    if (isCurrentRequest) setCustomer(response.data.customer ?? null);
+                } else {
+                    setCustomer(null);
+                }
+            } catch (error) {
+                console.error("Projektinformationen für das Eticket konnten nicht geladen werden", error);
+                if (isCurrentRequest) {
+                    setProject(null);
+                    setCustomer(null);
+                }
+            }
+        };
+
+        loadProject();
+        return () => {
+            isCurrentRequest = false;
+        };
+    }, [projectId]);
 
     useEffect(() => {
         if (!projectId) return undefined;
@@ -321,6 +263,7 @@ function CutingView() {
                 : strip.id === selectedPart.stripId
         )) ?? null;
     }, [activeStack, selectedPart]);
+    const displayedStripEntry = selectedStripEntry ?? activeStack?.strips[0] ?? null;
     const materialsByReference = useMemo(() => {
         const references = new Map();
         (materialCatalog ?? []).forEach((material) => {
@@ -331,6 +274,15 @@ function CutingView() {
         });
         return references;
     }, [materialCatalog]);
+    const activeEticketData = selectedPart?.plate?.original?.PID
+        ? createNestingEticketData({
+            projectId,
+            project,
+            customer,
+            plate: selectedPart.plate,
+            productionPath: selectedStripEntry?.strip?.packingMode === "2d" ? "2d" : "1d"
+        })
+        : null;
 
     const getEdgeMaterialNumber = (reference) => {
         if (!reference) return "–";
@@ -360,11 +312,13 @@ function CutingView() {
         setActiveSheetIndex(index);
         setActiveStackIndex(0);
         setSelectedPart(null);
+        setShowEticket(false);
     };
 
     const changeStack = (index) => {
         setActiveStackIndex(index);
         setSelectedPart(null);
+        setShowEticket(false);
     };
 
     const toggleSelectedPartFinished = async () => {
@@ -400,8 +354,6 @@ function CutingView() {
         }
     };
 
-    console.log(activeStack);
-
     return (
         <div className="bg-gray-900 text-white h-screen flex overflow-hidden">
             <SideBar selected={2} />
@@ -413,7 +365,7 @@ function CutingView() {
                 </div>
 
                 <div className="relative flex-1 overflow-hidden">
-                    <div className="absolute top-2 xl:top-4 left-2 xl:left-4 right-2 xl:right-4 z-20">
+                    <div data-tour="project-cut-sheets" className="absolute top-2 xl:top-4 left-2 xl:left-4 right-2 xl:right-4 z-20">
                         <div className="bg-gray-800/95 backdrop-blur border border-gray-700 rounded-xl shadow-xl p-2 xl:p-3">
                             <div className="flex items-center gap-2 xl:gap-3">
                                 <div className="text-xs xl:text-sm text-gray-400 whitespace-nowrap">
@@ -443,7 +395,7 @@ function CutingView() {
                         </div>
                     </div>
 
-                    <div className="absolute top-20 xl:top-24 right-2 xl:right-4 z-20 flex w-[min(24rem,calc(100%-1rem))] flex-col gap-2 xl:gap-3">
+                    <div data-tour="project-cut-stack" className="absolute top-20 xl:top-24 right-2 xl:right-4 z-20 flex w-[min(24rem,calc(100%-1rem))] flex-col gap-2 xl:gap-3">
                         <div className="flex items-center gap-1 xl:gap-3 bg-gray-800/90 backdrop-blur border border-gray-700 rounded-lg px-2 xl:px-4 py-2 xl:py-3 shadow-lg">
                             <span className="rounded-lg border border-gray-700 bg-gray-900 px-2 xl:px-4 py-2 whitespace-nowrap text-gray-400 text-xs xl:text-sm">
                                 Stapel {stacks.length ? activeStackIndex + 1 : 0} | {stacks.length}
@@ -515,6 +467,15 @@ function CutingView() {
                                             );
                                         })}
                                     </div>
+                                    {activeEticketData && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowEticket(true)}
+                                            className="mt-3 w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-500"
+                                        >
+                                            Eticket drucken
+                                        </button>
+                                    )}
                                 </>
                             ) : (
                                 <div className="mt-2 text-sm text-gray-400">
@@ -524,7 +485,7 @@ function CutingView() {
                         </div>
                     </div>
 
-                    <div className="absolute top-20 xl:top-24 left-2 xl:left-4 z-20 max-w-[min(24rem,calc(100%-1rem))]">
+                    <div data-tour="project-cut-part" className="absolute top-20 xl:top-24 left-2 xl:left-4 z-20 max-w-[min(24rem,calc(100%-1rem))]">
                         <div className="bg-gray-800/90 backdrop-blur border border-gray-700 rounded-lg px-2 xl:px-4 py-2 xl:py-3 shadow-lg max-h-[calc(100vh-12rem)] overflow-y-auto">
                             {activeStack ? (
                                 <>
@@ -534,6 +495,11 @@ function CutingView() {
                                     <div className="font-semibold text-white text-sm xl:text-lg">
                                         Außenbreite {activeStack.strips[0].strip.plates[0].originalWidth} mm
                                     </div>
+                                    {displayedStripEntry && (
+                                        <div className="mt-1 text-sm text-gray-300">
+                                            Strip-Außenmaße {displayedStripEntry.width} × {displayedStripEntry.length} mm
+                                        </div>
+                                    )}
                                     <div className="text-xs text-gray-400 mt-1">
                                         {activeStack.strips.length} {isDirect2DNesting ? "Bauteile" : "Strips"}, nach Länge sortiert
                                     </div>
@@ -601,32 +567,26 @@ function CutingView() {
                         </div>
                     </div>
 
-                    <div className="absolute inset-0">
-                        <Canvas
-                            orthographic
-                            camera={{ zoom: 25, position: [0, 0, 20] }}
-                            onPointerMissed={() => setSelectedPart(null)}
-                        >
-                            <CutScene
-                                stack={activeStack}
-                                onSelectPart={setSelectedPart}
-                                selectedPartKey={selectedPart?.key}
-                                finishedPartKeys={finishedPartKeys}
-                            />
-                            <OrbitControls
-                                ref={orbitControlsRef}
-                                enableRotate={false}
-                                enablePan={false}
-                                enableZoom
-                            />
-                            <PanControls
-                                controlsRef={orbitControlsRef}
-                                onBackgroundClick={() => setSelectedPart(null)}
-                            />
-                        </Canvas>
+                    <div data-tour="project-cut-canvas" className="absolute inset-0">
+                        <CutScene
+                            key={`${activeSheetIndex}-${activeStackIndex}`}
+                            stack={activeStack}
+                            onSelectPart={setSelectedPart}
+                            onBackgroundClick={() => setSelectedPart(null)}
+                            selectedPartKey={selectedPart?.key}
+                            finishedPartKeys={finishedPartKeys}
+                            cncSettings={cncSettings}
+                        />
                     </div>
                 </div>
             </main>
+            {showEticket && activeEticketData && (
+                <EticketPrintDialog
+                    ticket={activeEticketData}
+                    configuredSettings={cncSettings.eticket}
+                    onClose={() => setShowEticket(false)}
+                />
+            )}
         </div>
     );
 }

@@ -1,44 +1,8 @@
 
 
 import { useAuth } from '../../app/providers/AuthContext.js';
-
-export const primarySettingsTabs = [
-    {
-        id: "userInterface",
-        label: "Benutzeroberfläche"
-    },
-    {
-        id: "users",
-        label: "Benutzer"
-    },
-    {
-        id: "cache",
-        label: "Cache"
-    },
-    {
-        id: "storage",
-        label: "Storage",
-        requiredFeature: "work-preparation"
-    },
-    {
-        id: "project",
-        label: "Projekt",
-        requiredFeature: "work-preparation"
-    },
-    {
-        id: "cnc",
-        label: "CNC",
-        requiredFeature: "work-preparation"
-    },
-    {
-        id: "programSettings",
-        label: "Programmeinstellungen"
-    },
-    {
-        id: "advanced",
-        label: "Advanced"
-    }
-];
+import { canAccessRequiredRole } from '../../app/routing/roleAuthorization.js';
+import { primarySettingsTabs } from './settings-tabs.js';
 
 export default function SettingsBar({
     selected,
@@ -50,6 +14,7 @@ export default function SettingsBar({
     const visibleTabs = primarySettingsTabs.filter(tab =>
         (!tab.requiredFeature || features.has(tab.requiredFeature))
         && (!tab.excludedFeature || !features.has(tab.excludedFeature))
+        && canAccessRequiredRole(user?.role, tab.requiredRole)
     );
 
     return (

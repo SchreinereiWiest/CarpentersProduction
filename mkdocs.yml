@@ -60,6 +60,7 @@ nav:
       - Routing & Authentifizierung: frontend/routing-auth.md
       - State, API & Cache: frontend/state-data.md
       - Seiten & Komponenten: frontend/pages-components.md
+      - Rollenabhängige Startseite: frontend/dashboard.md
       - UI-/UX-Konzept: frontend/ui-ux-concept.md
       - Projektmodule: frontend/project-modules.md
       - Management & Betriebskalkulation: frontend/management.md
@@ -95,6 +96,7 @@ nav:
       - Kunden: backend/customers.md
       - FreePBX-/Asterisk-Telefonintegration: backend/freepbx.md
       - Projekte & Archive: backend/projects.md
+      - PID-Etickets: backend/etickets.md
       - Zeiterfassung: backend/time-tracking.md
       - Benutzer: backend/users.md
       - Dateien, Material & Einstellungen: backend/files-storage-settings.md

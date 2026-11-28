@@ -11,6 +11,9 @@ import { comparePassword } from "../../shared/security/passwords.js";
 import { assertActiveLicense, LicenseError } from "../licensing/services/index.js";
 import {
   bootstrapTenantAdmin,
+  ensureOnboardingForFirstAdminLogin,
+  parseTenantBootstrapInput,
+  provisionBootstrapTenant,
   TenantBootstrapError,
   tenantNeedsBootstrap
 } from "../tenants/tenant-bootstrap.service.js";
@@ -91,6 +94,9 @@ export const login = async (req, res) => {
 
     // Ohne aktive, zum Firmennamen passende Lizenz wird keine Sitzung erzeugt.
     const license = await assertActiveLicense(tenant);
+    if (membership.role === "admin") {
+      await ensureOnboardingForFirstAdminLogin(tenant.id, user.id);
+    }
 
     // tenantId und authVersion binden die Sitzung an Firma und Kontostand. Die
     // Rolle wird serverseitig trotzdem bei jedem Request neu aus der Membership
@@ -142,10 +148,11 @@ export const bootstrap = async (req, res) => {
       return res.status(400).json({ error: "BOOTSTRAP_VALIDATION", message: "Firma ist erforderlich" });
     }
 
-    const tenant = await findActiveTenant(companyInput);
-    if (!tenant) {
-      return res.status(401).json({ error: "BOOTSTRAP_NOT_AVAILABLE", message: "Ersteinrichtung nicht verfügbar" });
-    }
+    // Erst die vollständigen Eingaben validieren, bevor für eine neue Lizenz
+    // eine lokale Installations-ID reserviert wird.
+    parseTenantBootstrapInput(req.body);
+    const tenant = await findActiveTenant(companyInput)
+      ?? await provisionBootstrapTenant(companyInput);
 
     const user = await bootstrapTenantAdmin(tenant, req.body);
     return res.status(201).json({

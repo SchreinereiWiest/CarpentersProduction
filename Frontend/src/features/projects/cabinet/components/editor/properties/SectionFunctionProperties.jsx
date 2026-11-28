@@ -7,6 +7,7 @@ import { createId } from "@Engine/shared/id.js";
 import { createShelfHoleRowDefaults, getShelfFrontOffsetDefault } from "../../../sectionFunctionDefaults.js";
 import FormulaNumberInput from "../FormulaNumberInput.jsx";
 import { removeCncProfilesForFunction } from "@Engine/cabinet/cnc/manualPrograms.js";
+import { lockMiddleWallSection } from "@Engine/cabinet/sektions/interior/lockMiddleWallSection.js";
 
 
 
@@ -385,21 +386,21 @@ export default function SectionFunctionProperties({
         const center =
             getMiddleWallCenter({
                 wall,
-                section: selectedElement,
+                section: currentSection,
                 cabinet: activeCabinet
             });
 
         const sectionX =
-            Number(selectedElement.x);
+            Number(currentSection.x);
 
         const sectionY =
-            Number(selectedElement.y);
+            Number(currentSection.y);
 
         const sectionWidth =
-            Number(selectedElement.width);
+            Number(currentSection.width);
 
         const sectionHeight =
-            Number(selectedElement.height);
+            Number(currentSection.height);
 
         const cabinetWidth =
             Number(activeCabinet.width);
@@ -491,6 +492,17 @@ export default function SectionFunctionProperties({
                 )}
             />
         );
+    };
+
+    const lockMiddleWall = wall => {
+        const result = lockMiddleWallSection({
+            cabinet: activeCabinet,
+            sectionId: selectedElement.id,
+            functionId: wall.id
+        });
+        if (!result.wallSection) return;
+        updateActiveCabinet({ sections: result.cabinet.sections });
+        setSelectedElement({ ...result.wallSection, type: "section" });
     };
 
 
@@ -861,6 +873,7 @@ export default function SectionFunctionProperties({
 
                                         <button
                                             type="button"
+                                            disabled={func.locked === true}
                                             onClick={() => {
                                                 const halfMaterialThickness =
                                                     (Number(activeCabinet?.thickness) || 19) / 2;
@@ -879,6 +892,7 @@ export default function SectionFunctionProperties({
                                                         ? "bg-blue-600 text-white"
                                                         : "bg-gray-800 text-gray-400 hover:bg-gray-700"
                                                 }
+                                                disabled:cursor-not-allowed disabled:opacity-45
                                             `}
                                         >
                                             Horizontal
@@ -886,6 +900,7 @@ export default function SectionFunctionProperties({
 
                                         <button
                                             type="button"
+                                            disabled={func.locked === true}
                                             onClick={() =>
                                                 updateFunction(func.id, {
                                                     orientation: "vertical",
@@ -901,6 +916,7 @@ export default function SectionFunctionProperties({
                                                         ? "bg-blue-600 text-white"
                                                         : "bg-gray-800 text-gray-400 hover:bg-gray-700"
                                                 }
+                                                disabled:cursor-not-allowed disabled:opacity-45
                                             `}
                                         >
                                             Vertikal
@@ -937,12 +953,14 @@ export default function SectionFunctionProperties({
                                             {middleWallFormulaInput(func, "cabinetBottom", "Abstand zur Korpusunterkante")}
 
 
-                                            {/* Sektionoberkante */}
-                                            {middleWallFormulaInput(func, "sectionTop", "Abstand zur Sektionoberkante")}
+                                            {func.locked !== true && <>
+                                                {/* Sektionoberkante */}
+                                                {middleWallFormulaInput(func, "sectionTop", "Abstand zur Sektionoberkante")}
 
 
-                                            {/* Sektionunterkante */}
-                                            {middleWallFormulaInput(func, "sectionBottom", "Abstand zur Sektionunterkante")}
+                                                {/* Sektionunterkante */}
+                                                {middleWallFormulaInput(func, "sectionBottom", "Abstand zur Sektionunterkante")}
+                                            </>}
 
                                         </div>
 
@@ -962,17 +980,28 @@ export default function SectionFunctionProperties({
                                             {middleWallFormulaInput(func, "cabinetRight", "Abstand zur Korpus rechten Kante")}
 
 
-                                            {/* Sektion linke Kante */}
-                                            {middleWallFormulaInput(func, "sectionLeft", "Abstand zur Sektion linken Kante")}
+                                            {func.locked !== true && <>
+                                                {/* Sektion linke Kante */}
+                                                {middleWallFormulaInput(func, "sectionLeft", "Abstand zur Sektion linken Kante")}
 
 
-                                            {/* Sektion rechte Kante */}
-                                            {middleWallFormulaInput(func, "sectionRight", "Abstand zur Sektion rechten Kante")}
+                                                {/* Sektion rechte Kante */}
+                                                {middleWallFormulaInput(func, "sectionRight", "Abstand zur Sektion rechten Kante")}
+                                            </>}
 
                                         </div>
                                     )}
 
                                 </div>
+
+                                <button
+                                    type="button"
+                                    disabled={func.locked === true}
+                                    onClick={() => lockMiddleWall(func)}
+                                    className="w-full rounded-md border border-amber-700/70 bg-amber-950/20 px-3 py-2 text-sm text-amber-200 hover:bg-amber-950/40 disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                    {func.locked ? "Mittelwand ist festgesetzt" : "Mittelwand festsetzen"}
+                                </button>
                             </div>
                         )}
 

@@ -402,14 +402,6 @@ export default function EstimationSettingsPanel() {
       weights: { ...previous.estimation.weights, [key]: value }
     }
   }));
-  const updateOllama = (key, value) => setCompanySettings(previous => ({
-    ...previous,
-    estimation: {
-      ...previous.estimation,
-      ollama: { ...previous.estimation.ollama, [key]: value }
-    }
-  }));
-
   const save = async () => {
     setSaving(true);
     setMessage(null);
@@ -492,7 +484,7 @@ export default function EstimationSettingsPanel() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-xl font-semibold">Stundenschätzung</h1>
-            <p className="mt-1 text-sm text-gray-500">Snapshot-Suche, Gewichtung und vorbereitete lokale Ollama-Anbindung verwalten.</p>
+            <p className="mt-1 text-sm text-gray-500">Interne Snapshot-Suche und Gewichtung der algorithmischen Stundenschätzung verwalten.</p>
           </div>
           <button type="button" onClick={save} disabled={saving} className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold hover:bg-blue-500 disabled:opacity-50">
             {saving ? "Speichert …" : "Einstellungen speichern"}
@@ -534,19 +526,6 @@ export default function EstimationSettingsPanel() {
             {Object.entries(weightLabels).map(([key, label]) => (
               <NumberField key={key} label={label} value={estimation.weights[key]} min="0" max="100" onChange={value => updateWeight(key, value)} />
             ))}
-          </div>
-        </section>
-
-        <section className="rounded-xl border border-gray-700 bg-gray-800 p-5">
-          <div className="flex items-center gap-3">
-            <input id="ollama-enabled" type="checkbox" checked={estimation.ollama.enabled} onChange={event => updateOllama("enabled", event.target.checked)} className="h-4 w-4" />
-            <label htmlFor="ollama-enabled" className="font-semibold">Lokale Ollama-Pipeline vorbereiten</label>
-          </div>
-          <p className="mt-2 text-sm text-gray-500">Die Felder werden bereits gespeichert. Aktiv verwendet werden sie erst mit der Embedding- und Erklärpipeline.</p>
-          <div className="mt-4 grid gap-4 sm:grid-cols-3">
-            <TextField label="Ollama-URL" value={estimation.ollama.baseUrl} placeholder="http://ollama:11434" onChange={value => updateOllama("baseUrl", value)} />
-            <TextField label="Embedding-Modell" value={estimation.ollama.embeddingModel} placeholder="nomic-embed-text" onChange={value => updateOllama("embeddingModel", value)} />
-            <TextField label="Erklärmodell" value={estimation.ollama.explanationModel} placeholder="z. B. llama3.2" onChange={value => updateOllama("explanationModel", value)} />
           </div>
         </section>
 

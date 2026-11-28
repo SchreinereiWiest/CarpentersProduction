@@ -10,6 +10,7 @@ import {
   uploadGlobalFile,
 } from '../../src/shared/cache/global-cache.js';
 import { getProjectFile, uploadProjectFile } from '../../src/shared/cache/project-cache.js';
+import { getS3FileBlob, invalidateS3FileCache } from '../../src/shared/cache/project-asset-cache.js';
 import { getCachedProjectFile, setCachedProjectFile } from '../../src/shared/cache/project-indexed-db.js';
 import { loadCadFile } from '../../src/features/projects/measurement/import/cadLoader.js';
 import { CALCULATION_SOURCES } from '@Engine/contracts/project/calculation-source.js';
@@ -122,9 +123,16 @@ describe('Dateispeicherung und -abruf', () => {
 
     expect(axios.get).toHaveBeenCalledWith(
       '/api/files/download/cad-file-1',
-      { withCredentials: true },
+      {
+        withCredentials: true,
+        headers: {
+          'Cache-Control': 'no-cache, no-store',
+          Pragma: 'no-cache',
+        },
+        params: { signedUrlRequest: expect.any(String) },
+      },
     );
-    expect(fetchMock).toHaveBeenCalledWith('https://storage.test/cad.json');
+    expect(fetchMock).toHaveBeenCalledWith('https://storage.test/cad.json', { cache: 'no-store' });
     expect(result).toEqual([
       expect.objectContaining({
         PID: '001000',
@@ -132,6 +140,48 @@ describe('Dateispeicherung und -abruf', () => {
         Children: [expect.objectContaining({ PID: '001001', T: 19 })],
       }),
     ]);
+  });
+
+  it('fordert nach einer abgelaufenen signierten Asset-URL einen frischen Descriptor an', async () => {
+    const file = {
+      id: 'asset-expired-signed-url',
+      projectId: 'project-signed-url',
+      fileName: 'perspektive.jpg',
+      mimeType: 'image/jpeg',
+      serverVersion: 1,
+    };
+    const freshBlob = new Blob(['fresh-image'], { type: 'image/jpeg' });
+    axios.get
+      .mockResolvedValueOnce({
+        data: { url: 'https://storage.test/expired', serverVersion: 1 },
+      })
+      .mockResolvedValueOnce({
+        data: { url: 'https://storage.test/fresh', serverVersion: 1 },
+      });
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: false, status: 403 })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        blob: vi.fn().mockResolvedValue(freshBlob),
+      });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(getS3FileBlob(file)).resolves.toBe(freshBlob);
+
+    expect(axios.get).toHaveBeenCalledTimes(2);
+    expect(axios.get).toHaveBeenNthCalledWith(1, `/api/files/download/${file.id}`, expect.objectContaining({
+      withCredentials: true,
+      headers: {
+        'Cache-Control': 'no-cache, no-store',
+        Pragma: 'no-cache',
+      },
+      params: { signedUrlRequest: expect.any(String) },
+    }));
+    expect(fetchMock).toHaveBeenNthCalledWith(1, 'https://storage.test/expired', { cache: 'no-store' });
+    expect(fetchMock).toHaveBeenNthCalledWith(2, 'https://storage.test/fresh', { cache: 'no-store' });
+
+    await invalidateS3FileCache(file.id);
   });
 
   it('liest einen Upload nach einem Modul-Neustart aus IndexedDB statt erneut vom Server', async () => {

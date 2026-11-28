@@ -1,29 +1,42 @@
 import { downloadFile } from "../api/file-api.js";
 import { getGlobalFile } from "../cache/global-cache.js";
 import { normalizeEstimationSettings } from "@Engine/calculation/estimation.mjs";
+import { sanitizePersonalUserInterface } from "@Engine/preferences/client.mjs";
+import axios from "axios";
 
 export const CUSTOM_WORK_TYPE_ID = "__custom__";
 
+const DEFAULT_BREAKS = [
+    { id: "morning-break", label: "Frühstückspause", start: "09:00", end: "09:15" },
+    { id: "lunch-break", label: "Mittagspause", start: "12:00", end: "12:45" }
+];
+
+const dayBreaks = () => DEFAULT_BREAKS.map(entry => ({ ...entry }));
+
 export const DEFAULT_COMPANY_SETTINGS = {
-    schemaVersion: 8,
+    schemaVersion: 13,
+    branding: {
+        logoDataUrl: "",
+        logoFileName: "",
+        logoMimeType: "",
+        logoWidth: 0,
+        logoHeight: 0
+    },
     workingHours: {
         start: "07:00",
         end: "16:45"
     },
-    breaks: [
-        {
-            id: "morning-break",
-            label: "Frühstückspause",
-            start: "09:00",
-            end: "09:15"
-        },
-        {
-            id: "lunch-break",
-            label: "Mittagspause",
-            start: "12:00",
-            end: "12:45"
-        }
+    workWeek: [
+        { weekday: 1, label: "Montag", enabled: true, start: "07:00", end: "16:45", breaks: dayBreaks() },
+        { weekday: 2, label: "Dienstag", enabled: true, start: "07:00", end: "16:45", breaks: dayBreaks() },
+        { weekday: 3, label: "Mittwoch", enabled: true, start: "07:00", end: "16:45", breaks: dayBreaks() },
+        { weekday: 4, label: "Donnerstag", enabled: true, start: "07:00", end: "16:45", breaks: dayBreaks() },
+        { weekday: 5, label: "Freitag", enabled: true, start: "07:00", end: "16:45", breaks: dayBreaks() },
+        { weekday: 6, label: "Samstag", enabled: false, start: "07:00", end: "16:45", breaks: [] },
+        { weekday: 0, label: "Sonntag", enabled: false, start: "07:00", end: "16:45", breaks: [] }
     ],
+    breaks: DEFAULT_BREAKS,
+    specialWorkRules: [],
     workTypes: [
         { id: "cutting", label: "Zuschnitt" },
         { id: "edging", label: "Bekantung" },
@@ -32,6 +45,23 @@ export const DEFAULT_COMPANY_SETTINGS = {
         { id: "finishing", label: "Finalisierung" },
         { id: "installation", label: "Montage" }
     ],
+    management: {
+        workflowStates: [
+            { id: "inbox", label: "Eingang" },
+            { id: "planning", label: "Planung" },
+            { id: "approval", label: "Freigabe" },
+            { id: "production", label: "Fertigung" },
+            { id: "installation", label: "Montage" },
+            { id: "done", label: "Erledigt" }
+        ],
+        goalTypes: [
+            { id: "employees", label: "Mitarbeiterentwicklung", unit: "Personen" },
+            { id: "new-customers", label: "Neukunden", unit: "Kunden" },
+            { id: "revenue", label: "Umsatzentwicklung", unit: "€" },
+            { id: "improvements", label: "Verbesserungen und Wirkung", unit: "Punkte" },
+            { id: "profit", label: "Gewinnentwicklung", unit: "€" }
+        ]
+    },
     userInterface: {
         showTips: true,
         lineLockThresholdCm: 5,
@@ -45,25 +75,19 @@ export const DEFAULT_COMPANY_SETTINGS = {
             sidebar: "Alt+1",
             projectBar: "Alt+2",
             apply: "Ctrl+Enter"
+        },
+        home: {
+            documentTags: ["Rechnung", "Auftragsbestätigung", "Angebot"]
         }
     },
     estimation: {
-        ...normalizeEstimationSettings(),
-        ollama: {
-            enabled: false,
-            baseUrl: "http://ollama:11434",
-            embeddingModel: "nomic-embed-text",
-            explanationModel: ""
-        }
+        ...normalizeEstimationSettings()
     },
-    attachmentSearch: {
+    aiIntegration: {
         enabled: false,
-        openWebUiEndpoint: "http://host.docker.internal:3000",
-        model: "carpenters-qwen3627b",
-        manufacturerWebsites: [],
-        allowOpenWebFallback: true,
-        searchPrompt: "Bewerte die gefundenen Herstellerunterlagen zur Artikelnummer. Behalte nur technisch und fertigungsrelevante Dokumente oder Bilder.",
-        filterPrompt: "Extrahiere insbesondere Maße, Montagehinweise, Bohrbilder, Materialangaben, Belastbarkeit und Varianten. Erfinde keine Angaben."
+        provider: "ollama",
+        endpoint: "http://ollama:11434",
+        model: ""
     }
 };
 
@@ -78,6 +102,10 @@ export function timeToMinutes(time) {
 }
 
 export function normalizeCompanySettings(data) {
+    const branding = {
+        ...DEFAULT_COMPANY_SETTINGS.branding,
+        ...(data?.branding ?? {})
+    };
     const workingHours = {
         ...DEFAULT_COMPANY_SETTINGS.workingHours,
         ...(data?.workingHours ?? {})
@@ -86,30 +114,89 @@ export function normalizeCompanySettings(data) {
     const breaks = Array.isArray(data?.breaks)
         ? data.breaks
         : DEFAULT_COMPANY_SETTINGS.breaks;
+    const suppliedWorkWeek = Array.isArray(data?.workWeek) ? data.workWeek : null;
+    const normalizeBreaks = (items, prefix) => items.map((entry, index) => ({
+        id: String(entry?.id || `${prefix}-break-${index + 1}`),
+        label: String(entry?.label || `Pause ${index + 1}`),
+        start: String(entry?.start || "09:00"),
+        end: String(entry?.end || "09:15")
+    }));
+    const workWeek = DEFAULT_COMPANY_SETTINGS.workWeek.map(defaultDay => {
+        const suppliedDay = suppliedWorkWeek?.find(entry => Number(entry?.weekday) === defaultDay.weekday);
+        return suppliedDay
+            ? {
+                ...defaultDay,
+                ...suppliedDay,
+                weekday: defaultDay.weekday,
+                label: defaultDay.label,
+                enabled: suppliedDay.enabled === undefined ? defaultDay.enabled : suppliedDay.enabled !== false,
+                breaks: normalizeBreaks(
+                    Array.isArray(suppliedDay.breaks) ? suppliedDay.breaks : breaks,
+                    `day-${defaultDay.weekday}`
+                )
+            }
+            : {
+                ...defaultDay,
+                start: workingHours.start,
+                end: workingHours.end,
+                breaks: defaultDay.enabled ? normalizeBreaks(breaks, `day-${defaultDay.weekday}`) : []
+            };
+    });
+    const specialWorkRules = Array.isArray(data?.specialWorkRules)
+        ? data.specialWorkRules.map((entry, index) => ({
+            id: String(entry?.id || `work-rule-${index + 1}`),
+            label: String(entry?.label || `Sonderregel ${index + 1}`).trim(),
+            kind: "recurring-day-off",
+            enabled: entry?.enabled !== false,
+            weekday: Math.min(6, Math.max(0, Number(entry?.weekday ?? 5))),
+            intervalWeeks: Math.min(52, Math.max(1, Math.round(Number(entry?.intervalWeeks) || 2))),
+            anchorDate: /^\d{4}-\d{2}-\d{2}$/.test(String(entry?.anchorDate || ""))
+                ? String(entry.anchorDate)
+                : "2026-01-02"
+        }))
+        : [];
 
     const workTypes = Array.isArray(data?.workTypes) && data.workTypes.length > 0
         ? data.workTypes
         : DEFAULT_COMPANY_SETTINGS.workTypes;
+    const managementData = data?.management ?? {};
+    const workflowStates = Array.isArray(managementData.workflowStates) && managementData.workflowStates.length > 0
+        ? managementData.workflowStates
+        : DEFAULT_COMPANY_SETTINGS.management.workflowStates;
+    const goalTypes = Array.isArray(managementData.goalTypes) && managementData.goalTypes.length > 0
+        ? managementData.goalTypes
+        : DEFAULT_COMPANY_SETTINGS.management.goalTypes;
     const userInterface = {
         ...DEFAULT_COMPANY_SETTINGS.userInterface,
         ...(data?.userInterface ?? {})
     };
+    const homeDocumentTags = [...new Set((Array.isArray(userInterface.home?.documentTags)
+        ? userInterface.home.documentTags
+        : DEFAULT_COMPANY_SETTINGS.userInterface.home.documentTags)
+        .map(value => String(value || "").trim())
+        .filter(Boolean))].slice(0, 20);
     const estimation = normalizeEstimationSettings(data?.estimation);
-    const ollama = {
-        ...DEFAULT_COMPANY_SETTINGS.estimation.ollama,
-        ...(data?.estimation?.ollama ?? {})
+    const aiIntegration = {
+        ...DEFAULT_COMPANY_SETTINGS.aiIntegration,
+        ...(data?.aiIntegration ?? {})
     };
-    const attachmentSearch = {
-        ...DEFAULT_COMPANY_SETTINGS.attachmentSearch,
-        ...(data?.attachmentSearch ?? {})
-    };
-    const manufacturerWebsites = Array.isArray(attachmentSearch.manufacturerWebsites)
-        ? attachmentSearch.manufacturerWebsites
-        : [];
 
     return {
-        schemaVersion: 8,
+        schemaVersion: 13,
+        branding: {
+            logoDataUrl: /^data:image\/(png|jpe?g);base64,/i.test(String(branding.logoDataUrl || ""))
+                ? String(branding.logoDataUrl)
+                : "",
+            logoFileName: String(branding.logoFileName || "").trim(),
+            logoMimeType: ["image/png", "image/jpeg", "image/jpg"].includes(String(branding.logoMimeType).toLowerCase())
+                ? String(branding.logoMimeType).toLowerCase()
+                : "",
+            logoWidth: Math.max(0, Number(branding.logoWidth) || 0),
+            logoHeight: Math.max(0, Number(branding.logoHeight) || 0)
+        },
         workingHours,
+        workWeek,
+        specialWorkRules,
         breaks: breaks.map((entry, index) => ({
             id: entry.id || `break-${index + 1}`,
             label: entry.label || `Pause ${index + 1}`,
@@ -120,6 +207,17 @@ export function normalizeCompanySettings(data) {
             id: String(entry.id),
             label: String(entry.label)
         })),
+        management: {
+            workflowStates: workflowStates.map((entry, index) => ({
+                id: String(entry?.id || `status-${index + 1}`),
+                label: String(entry?.label || `Status ${index + 1}`).trim()
+            })),
+            goalTypes: goalTypes.map((entry, index) => ({
+                id: String(entry?.id || `ziel-${index + 1}`),
+                label: String(entry?.label || `Zieltyp ${index + 1}`).trim(),
+                unit: String(entry?.unit || "Wert").trim()
+            }))
+        },
         userInterface: {
             showTips: userInterface.showTips !== false,
             lineLockThresholdCm: normalizeLineLockThresholdCm(
@@ -141,32 +239,17 @@ export function normalizeCompanySettings(data) {
             workspaceScalePercent: normalizeWorkspaceScalePercent(
                 userInterface.workspaceScalePercent
             ),
-            keybindings: normalizeKeybindings(userInterface.keybindings)
-        },
-        estimation: {
-            ...estimation,
-            ollama: {
-                enabled: Boolean(ollama.enabled),
-                baseUrl: String(ollama.baseUrl || "").trim(),
-                embeddingModel: String(ollama.embeddingModel || "").trim(),
-                explanationModel: String(ollama.explanationModel || "").trim()
+            keybindings: normalizeKeybindings(userInterface.keybindings),
+            home: {
+                documentTags: homeDocumentTags
             }
         },
-        attachmentSearch: {
-            enabled: Boolean(attachmentSearch.enabled),
-            openWebUiEndpoint: String(attachmentSearch.openWebUiEndpoint || "").trim().replace(/\/+$/, ""),
-            model: String(attachmentSearch.model || "").trim(),
-            manufacturerWebsites: manufacturerWebsites.map((website, index) => ({
-                id: String(website?.id || `manufacturer-${index + 1}`),
-                name: String(website?.name || "").trim(),
-                baseUrl: String(website?.baseUrl || "").trim().replace(/\/+$/, ""),
-                searchUrlTemplate: String(website?.searchUrlTemplate || "").trim(),
-                downloadsApproved: Boolean(website?.downloadsApproved),
-                licenseNote: String(website?.licenseNote || "").trim()
-            })).filter(website => website.baseUrl),
-            allowOpenWebFallback: attachmentSearch.allowOpenWebFallback !== false,
-            searchPrompt: String(attachmentSearch.searchPrompt || DEFAULT_COMPANY_SETTINGS.attachmentSearch.searchPrompt).trim(),
-            filterPrompt: String(attachmentSearch.filterPrompt || DEFAULT_COMPANY_SETTINGS.attachmentSearch.filterPrompt).trim()
+        estimation,
+        aiIntegration: {
+            enabled: Boolean(aiIntegration.enabled),
+            provider: aiIntegration.provider === "openai-compatible" ? "openai-compatible" : "ollama",
+            endpoint: String(aiIntegration.endpoint || "").trim().replace(/\/+$/, ""),
+            model: String(aiIntegration.model || "").trim()
         }
     };
 }
@@ -248,28 +331,36 @@ export function normalizeKeybindings(value) {
 
 export function createWorkBlocks(settings) {
     const normalized = normalizeCompanySettings(settings);
-    const dayStart = timeToMinutes(normalized.workingHours.start);
-    const dayEnd = timeToMinutes(normalized.workingHours.end);
+    return createBlocks(normalized.workingHours.start, normalized.workingHours.end, normalized.breaks);
+}
+
+function createBlocks(start, end, breaks) {
+    const dayStart = timeToMinutes(start);
+    const dayEnd = timeToMinutes(end);
     const blocks = [];
     let cursor = dayStart;
 
-    const sortedBreaks = [...normalized.breaks]
+    const sortedBreaks = [...breaks]
         .sort((left, right) => timeToMinutes(left.start) - timeToMinutes(right.start));
 
     sortedBreaks.forEach(breakEntry => {
         const breakStart = timeToMinutes(breakEntry.start);
         const breakEnd = timeToMinutes(breakEntry.end);
 
-        if (breakStart > cursor) {
+        if (breakEnd <= dayStart || breakStart >= dayEnd) return;
+        const clippedStart = Math.max(dayStart, breakStart);
+        const clippedEnd = Math.min(dayEnd, breakEnd);
+
+        if (clippedStart > cursor) {
             blocks.push({
                 id: blocks.length,
                 start: minutesToTime(cursor),
-                end: minutesToTime(breakStart),
-                duration: breakStart - cursor
+                end: minutesToTime(clippedStart),
+                duration: clippedStart - cursor
             });
         }
 
-        cursor = Math.max(cursor, breakEnd);
+        cursor = Math.max(cursor, clippedEnd);
     });
 
     if (cursor < dayEnd) {
@@ -282,6 +373,95 @@ export function createWorkBlocks(settings) {
     }
 
     return blocks;
+}
+
+export function scheduledWorkBlocksForDate(settings, date) {
+    const normalized = settings?.schemaVersion === 12 ? settings : normalizeCompanySettings(settings);
+    const value = date instanceof Date ? new Date(date) : new Date(`${date}T12:00:00`);
+    const day = normalized.workWeek.find(entry => entry.weekday === value.getDay());
+    if (!day?.enabled || specialWorkRuleForDate(normalized, value)) return [];
+    return createBlocks(day.start, day.end, day.breaks).map(block => {
+        const start = new Date(value);
+        const end = new Date(value);
+        const startMinutes = timeToMinutes(block.start);
+        const endMinutes = timeToMinutes(block.end);
+        start.setHours(Math.floor(startMinutes / 60), startMinutes % 60, 0, 0);
+        end.setHours(Math.floor(endMinutes / 60), endMinutes % 60, 0, 0);
+        return { ...block, startTime: block.start, endTime: block.end, start, end };
+    });
+}
+
+export function scheduledMinutesForDate(settings, date) {
+    return scheduledWorkBlocksForDate(settings, date).reduce((sum, block) => sum + block.duration, 0);
+}
+
+export function annualScheduledMinutes(settings, year) {
+    const cursor = new Date(Number(year), 0, 1, 12);
+    const end = new Date(Number(year) + 1, 0, 1, 12);
+    let minutes = 0;
+    while (cursor < end) {
+        minutes += scheduledMinutesForDate(settings, cursor);
+        cursor.setDate(cursor.getDate() + 1);
+    }
+    return minutes;
+}
+
+export function averageScheduledDayMinutes(settings) {
+    const normalized = normalizeCompanySettings(settings);
+    const activeDays = normalized.workWeek.filter(day => day.enabled);
+    if (!activeDays.length) return 0;
+    const minutes = activeDays.reduce((sum, day) => (
+        sum + createBlocks(day.start, day.end, day.breaks).reduce((daySum, block) => daySum + block.duration, 0)
+    ), 0);
+    return minutes / activeDays.length;
+}
+
+const calendarDayNumber = date => Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000;
+const weekStartNumber = date => calendarDayNumber(date) - (((date.getDay() || 7) - 1));
+
+export function specialWorkRuleForDate(settings, date) {
+    const normalized = settings?.schemaVersion === 12 ? settings : normalizeCompanySettings(settings);
+    const value = date instanceof Date ? date : new Date(`${date}T12:00:00`);
+    return normalized.specialWorkRules.find(rule => {
+        if (!rule.enabled || rule.kind !== "recurring-day-off" || value.getDay() !== rule.weekday) return false;
+        const anchor = new Date(`${rule.anchorDate}T12:00:00`);
+        const weekDistance = Math.round((weekStartNumber(value) - weekStartNumber(anchor)) / 7);
+        return ((weekDistance % rule.intervalWeeks) + rule.intervalWeeks) % rule.intervalWeeks === 0;
+    }) || null;
+}
+
+export function companyFreeDaysForRange(settings, from, to) {
+    const normalized = normalizeCompanySettings(settings);
+    const cursor = from instanceof Date ? new Date(from) : new Date(`${from}T12:00:00`);
+    const end = to instanceof Date ? new Date(to) : new Date(`${to}T12:00:00`);
+    cursor.setHours(12, 0, 0, 0);
+    end.setHours(12, 0, 0, 0);
+    const days = [];
+    while (cursor < end) {
+        const rule = specialWorkRuleForDate(normalized, cursor);
+        if (rule) {
+            days.push({
+                ruleId: rule.id,
+                label: rule.label,
+                date: `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`
+            });
+        }
+        cursor.setDate(cursor.getDate() + 1);
+    }
+    return days;
+}
+
+export function companyFreeDaysCalendarPayload(settings, year) {
+    const selectedYear = Math.min(2200, Math.max(2000, Math.round(Number(year) || new Date().getFullYear())));
+    const from = new Date(selectedYear, 0, 1, 0, 0, 0, 0);
+    const to = new Date(selectedYear + 1, 0, 1, 0, 0, 0, 0);
+    const days = companyFreeDaysForRange(settings, from, to).map(day => {
+        const start = new Date(`${day.date}T00:00:00`);
+        const end = new Date(start);
+        end.setDate(end.getDate() + 1);
+        return { ...day, startAt: start.toISOString(), endAt: end.toISOString() };
+    });
+    return { from: from.toISOString(), to: to.toISOString(), days, year: selectedYear };
 }
 
 export function getWorkTypeLabel(workTypes, workType, customWorkType) {
@@ -299,7 +479,25 @@ export async function loadCompanySettings() {
         }
     });
 
-    return normalizeCompanySettings(data);
+    const settings = normalizeCompanySettings(data);
+    try {
+        const { data: personal } = await axios.get("/api/user/me/preferences");
+        const overrides = sanitizePersonalUserInterface(personal?.preferences?.userInterface);
+        return {
+            ...settings,
+            userInterface: {
+                ...settings.userInterface,
+                ...overrides,
+                keybindings: {
+                    ...settings.userInterface.keybindings,
+                    ...(overrides.keybindings || {})
+                },
+                home: settings.userInterface.home
+            }
+        };
+    } catch {
+        return settings;
+    }
 }
 
 function minutesToTime(minutes) {

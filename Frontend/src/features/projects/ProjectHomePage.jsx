@@ -7,14 +7,28 @@ import ProjectBar from '../../shared/components/projectBar.jsx';
 import ImageGallery from '../../shared/components/images/imageGalery.jsx';
 import { jsPDF } from "jspdf";
 import { createProjectPDF } from "@EngineBrowser/project-pdf/createProjectPDF.js";
+import { measurementViewSvgDataUrl } from "@EngineBrowser/project-pdf/measurementViewSvgRenderer.js";
 import { appendPartsListPDF } from "./part-list/createPDF.js";
 import { downloadFile } from "../../shared/api/file-api.js";
 import { getProjectFile } from "../../shared/cache/project-cache.js";
 import { getGlobalFile } from "../../shared/cache/global-cache.js";
 import { getS3FileBlob } from "../../shared/cache/project-asset-cache.js";
 import { getProjectRecord } from "../../shared/projects/project-records.js";
+import { renderPdfPages } from "./measurement/import/pdf.js";
+import { parseDxf } from "./measurement/import/dxf.js";
+import {
+  DEFAULT_COMPANY_SETTINGS,
+  loadCompanySettings
+} from "../../shared/settings/company-settings.js";
 
 //Untermenü in Kontakte, um ein neues Projekt für den Kunden zu erstellen.
+
+const blobToDataUrl = blob => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => resolve(reader.result);
+  reader.onerror = () => reject(new Error("Projektansicht konnte nicht gelesen werden."));
+  reader.readAsDataURL(blob);
+});
 
 function ShowProject() {
   const [project, setProject] = useState(null);
@@ -65,15 +79,17 @@ fetchProject();
     setPdfError("");
 
     try {
-      const [cabinets, partsList, nesting, materialResponse, cncSettings] = await Promise.all([
+      const [cabinets, partsList, nesting, aufmas, materialResponse, cncSettings, companySettings] = await Promise.all([
         loadOptionalProjectFile("cabinet"),
         loadOptionalProjectFile("list"),
         loadOptionalProjectFile("nesting"),
+        loadOptionalProjectFile("aufmas"),
         axios.get("/api/materials/get").catch(() => ({ data: { materials: [] } })),
         getGlobalFile({
           file: "settings-cnc.json",
           loadFromServer: { download: downloadFile, path: "/api/settings/cnc" }
-        }).catch(() => null)
+        }).catch(() => null),
+        loadCompanySettings().catch(() => DEFAULT_COMPANY_SETTINGS)
       ]);
 
       const imageFiles = (project.files ?? []).filter(file => (
@@ -81,9 +97,11 @@ fetchProject();
             file.category !== "measurement-image" &&
             file.mimeType?.startsWith("image/")
       ));
-      const images = (await Promise.all(imageFiles.map(async file => {
+      const images = (await Promise.all(imageFiles.map(async (file, index) => {
         try {
           return {
+            id: file.id,
+            label: `Perspektive ${index + 1}`,
             name: file.fileName,
             blob: await getS3FileBlob({ ...file, projectId })
           };
@@ -93,16 +111,71 @@ fetchProject();
         }
       }))).filter(Boolean);
 
+      const pdfPageCache = new Map();
+      const viewAssets = (await Promise.all((aufmas?.views ?? [])
+        .filter(view => !["three", "images", "expose"].includes(view.type))
+        .map(async (view, index) => {
+          try {
+            let planPage = null;
+            const fileId = view.planFileId || view.imageFileId;
+            const file = fileId
+              ? (project.files ?? []).find(candidate => candidate.id === fileId)
+              : null;
+            if (file) {
+              const blob = await getS3FileBlob({ ...file, projectId });
+              if (file.mimeType?.startsWith("image/") || view.imageFileId) {
+                planPage = { dataUrl: await blobToDataUrl(blob) };
+              } else {
+                if (!pdfPageCache.has(file.id)) {
+                  pdfPageCache.set(file.id, await renderPdfPages(blob));
+                }
+                const pages = pdfPageCache.get(file.id);
+                planPage = pages.find(item => item.pageNumber === (view.pageNumber || 1)) ?? null;
+              }
+            }
+            let dxf = null;
+            const dxfFile = view.dxfFileId
+              ? (project.files ?? []).find(candidate => candidate.id === view.dxfFileId)
+              : null;
+            if (dxfFile) {
+              dxf = parseDxf(await (await getS3FileBlob({ ...dxfFile, projectId })).text());
+            }
+            return {
+              id: view.id,
+              label: view.type === "floor" ? "Grundriss" : `Ansicht ${index + 1}`,
+              name: view.label,
+              dataUrl: measurementViewSvgDataUrl({
+                view,
+                objects: aufmas?.objects ?? [],
+                planPage,
+                dxf,
+                measurementLabelOffsetY:
+                  companySettings.userInterface?.measurementLabelOffsetY ?? -30
+              }),
+              width: 1000,
+              height: 650,
+              format: "SVG"
+            };
+          } catch (error) {
+            console.warn(`${view.label || "Aufmaßansicht"} konnte fuer die Projekt-PDF nicht geladen werden`, error);
+            return null;
+          }
+        }))).filter(Boolean);
+
       await createProjectPDF({
         createDocument: () => new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" }),
         project,
         customer,
         images,
+        customImageAssets: images,
+        viewAssets,
         cabinets: Array.isArray(cabinets) ? cabinets : [],
         partsList: Array.isArray(partsList) ? partsList : [],
         nesting: Array.isArray(nesting) ? nesting : [],
         materials: materialResponse.data?.materials ?? [],
         cncConfig: cncSettings?.cncDefault ?? cncSettings ?? undefined,
+        expose: aufmas?.expose,
+        companySettings,
         appendPartsList: appendPartsListPDF
       });
     } catch (error) {
@@ -129,7 +202,7 @@ fetchProject();
                 <div className="overflow-y-auto px-4 pt-4 sm:pl-8">
 
                     {/* Kunde + Bilder */}
-                    <div className="flex flex-col gap-2 md:flex-row md:items-center">
+                    <div data-tour="project-home-summary" className="flex flex-col gap-2 md:flex-row md:items-center">
 
                         <h2 className="mt-2 truncate text-xl font-bold sm:text-2xl md:w-1/5">
                             {customer?.lastName ?? (project?.localOnly ? "Lokales Projekt ohne Kunde" : "")}
@@ -140,6 +213,7 @@ fetchProject();
                         </h2>
 
                         <button
+                            data-tour="project-home-print"
                             type="button"
                             onClick={createPDF}
                             disabled={!project || creatingPDF}
@@ -167,7 +241,7 @@ fetchProject();
                     </h2>
 
                     {/* Beschreibung + Bilder */}
-                    <div className="flex flex-col md:flex-row">
+                    <div data-tour="project-home-content" className="flex flex-col md:flex-row">
 
                         {/* Beschreibung */}
                         <div className="w-full md:w-1/5 pt-4 pr-4">

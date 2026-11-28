@@ -1,12 +1,10 @@
 import express from "express";
 import prisma from "../../infrastructure/database/prisma.js";
 
-import {createUpload, createDownloadUrl, deleteFile} from "../../middleware/upload.middleware.js";
-import {uploadcomplete} from "./file.controller.js";
+import {createUpload, createDownloadUrl, deleteFile, streamFileContent} from "../../middleware/upload.middleware.js";
 import { authenticate, authorizeRoles, requireFeature } from "../../middleware/auth.middleware.js";
-import { authorizeFile, authorizeProjectBody, authorizeUploadTarget } from "../../middleware/resourceAuthorization.middleware.js";
+import { authorizeFile, authorizeUploadTarget } from "../../middleware/resourceAuthorization.middleware.js";
 import { subscribeToFileChanges } from "./file-change-events.service.js";
-import { attachmentSearch, importAttachmentSearchResult } from "../attachment-search/attachment-search.controller.js";
 
 import multer from "multer";
 
@@ -121,24 +119,6 @@ router.post(
 );
 
 router.post(
-    "/attachment-search",
-    authenticate,
-    requireFeature("work-preparation"),
-    authorizeRoles("admin", "manager"),
-    authorizeProjectBody("projectId"),
-    attachmentSearch
-);
-
-router.post(
-    "/attachment-search/import",
-    authenticate,
-    requireFeature("work-preparation"),
-    authorizeRoles("admin", "manager"),
-    authorizeProjectBody("projectId"),
-    importAttachmentSearchResult
-);
-
-router.post(
     "/shop-image",
     authenticate,
     requireFeature("shop"),
@@ -151,9 +131,8 @@ router.post(
     createUpload
 );
 
-// router.post("/complete", uploadcomplete);
-
 router.get("/download/:id", authenticate, authorizeFile("id", { allowSharedShop: true }), requireAuthorizedFileModule, createDownloadUrl);
+router.get("/content/:id", authenticate, authorizeFile("id", { allowSharedShop: true }), requireAuthorizedFileModule, streamFileContent);
 
 router.delete(
     "/delete/:fileId",

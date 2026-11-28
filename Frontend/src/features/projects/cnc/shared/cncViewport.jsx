@@ -316,6 +316,14 @@ export default function CncViewport({
                         selectedOperation
                     }
 
+                    mirrorX={
+                        mirrorX
+                    }
+
+                    mirrorY={
+                        mirrorY
+                    }
+
                 />
 
             </svg>

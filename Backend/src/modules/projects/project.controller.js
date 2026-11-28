@@ -1,13 +1,9 @@
 import prisma from "../../infrastructure/database/prisma.js";
-import {s3Download, s3Upload} from "../../infrastructure/storage/s3.js"
+import {s3Upload} from "../../infrastructure/storage/s3.js"
 import {
     PutObjectCommand,
-    GetObjectCommand,
 } from "@aws-sdk/client-s3";
 import { publishFileChange } from "../files/file-change-events.service.js";
-import {
-    getSignedUrl
-} from "@aws-sdk/s3-request-presigner";
 import { enqueueStorageDeletions, processStorageDeletions } from "../../infrastructure/storage/storage-deletion.service.js";
 import { getTenantId } from "../../infrastructure/database/tenant-context.js";
 import {
@@ -240,7 +236,8 @@ export const getAllProjectsID = async (req, res) => {
 
     const projects = await prisma.project.findMany({
         where: {
-          customerId: id
+          customerId: id,
+          deletedAt: null
         },
         orderBy: [
           {
@@ -248,6 +245,9 @@ export const getAllProjectsID = async (req, res) => {
           },
         ],
 
+        include: {
+          commission: { select: { id: true, title: true, commissionNumber: true } }
+        }
       });
 
     res.status(200).json({
@@ -270,6 +270,7 @@ export const getAllProjects = async (req, res) => {
     const isPrivileged = ["admin", "manager"].includes(req.user?.role);
     const projects = await prisma.project.findMany({
         where: {
+          deletedAt: null,
           ...(isPrivileged
             ? { status: { in: ["active", "inactive"] } }
             : {
@@ -285,7 +286,8 @@ export const getAllProjects = async (req, res) => {
           },
         ],
         include : {
-            customer: true
+            customer: { select: { id: true, firstName: true, lastName: true, companyName: true } },
+            commission: { select: { id: true, title: true, commissionNumber: true } }
         }
 
       });
@@ -360,18 +362,7 @@ export const getGeneratedProjectData = async (req, res) => {
         // Datei existiert bereits
         if (file) {
 
-            const command = new GetObjectCommand({
-                    Bucket: process.env.S3_BUCKET,
-                    Key: file.storageObject.objectKey
-                    });
-            
-            const downloadUrl = await getSignedUrl(
-            s3Download,
-            command,
-            {
-                expiresIn: 900
-            }
-            );
+            const downloadUrl = `/api/files/content/${file.id}?v=${file.serverVersion}`;
 
             res.set("ETag", `"${file.serverVersion}"`);
             return res.json({

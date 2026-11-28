@@ -212,9 +212,9 @@ const syncRecognizedSectionFunctions = (cabinet, part, operations) => {
                             spacing: finite(row.spacing, 32),
                             frontOffset: finite(row.crossPositions?.[0]),
                             backOffset: Math.max(0, finite(part?.B) - finite(row.crossPositions?.at?.(-1))),
-                            endFromTop: Math.max(0, finite(row.start) - finite(current.y)),
-                            startFromBottom: Math.max(0, finite(current.y) + finite(current.height) - finite(row.end)),
-                            centered: false
+                            endFromTop: Math.max(0, finite(row.rangeStart ?? row.start) - finite(current.y)),
+                            startFromBottom: Math.max(0, finite(current.y) + finite(current.height) - finite(row.rangeEnd ?? row.end)),
+                            centered: row.centered === true
                         }
                     };
                 }
@@ -371,6 +371,41 @@ const matchesProfile = (operation, profile) => {
     return true;
 };
 
+const reconcileRecognizedProfileOperation = (storedOperation, generatedOperation, profile) => {
+    if (
+        profile?.profileType !== "shelf.row" ||
+        storedOperation?.kind !== MACHINING_KINDS.DRILL_ROW ||
+        !generatedOperation
+    ) {
+        return clone(storedOperation);
+    }
+
+    /*
+     * Die geometrischen Grenzen einer erkannten Lochreihe gehören zur
+     * Cabinet-Funktion. Ein älterer CNC-Editor-Snapshot darf sie beim
+     * erneuten Build nicht wieder auf bereits mathematisch zentrierte
+     * Lochpositionen zurücksetzen. Maschinenparameter wie Tiefe und
+     * Durchmesser bleiben dagegen aus dem gespeicherten Profil erhalten.
+     */
+    const reconciled = {
+        ...clone(storedOperation),
+        start: generatedOperation.start,
+        end: generatedOperation.end,
+        centered: generatedOperation.centered === true,
+        source: {
+            ...(storedOperation.source ?? {}),
+            ...(generatedOperation.source ?? {}),
+            centered: generatedOperation.centered === true
+        }
+    };
+    delete reconciled.rangeStart;
+    delete reconciled.rangeEnd;
+    delete reconciled.dimensionStart;
+    delete reconciled.dimensionEnd;
+    delete reconciled.centeredResolution;
+    return reconciled;
+};
+
 export const applyStoredCncPrograms = (cabinet, parts) => {
     const config = getCncProgramConfig(cabinet);
     if (!config) return parts;
@@ -384,9 +419,17 @@ export const applyStoredCncPrograms = (cabinet, parts) => {
         const matchingCustoms = customs.filter(entry => entry.partKey === partKey);
         let operations = asArray(part.CNC?.operations);
         matchingProfiles.forEach(profile => {
+            const generatedOperations = operations.filter(operation => matchesProfile(operation, profile));
+            const storedOperations = asArray(profile.operations).map((operation, index) => {
+                const generatedOperation = generatedOperations[index] ?? generatedOperations.find(candidate =>
+                    candidate.kind === operation.kind &&
+                    candidate.intentId === operation.intentId
+                );
+                return reconcileRecognizedProfileOperation(operation, generatedOperation, profile);
+            });
             operations = [
                 ...operations.filter(operation => !matchesProfile(operation, profile)),
-                ...clone(profile.operations)
+                ...storedOperations
             ];
         });
         matchingCustoms.forEach(program => {

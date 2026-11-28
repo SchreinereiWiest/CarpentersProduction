@@ -3,12 +3,13 @@ import crypto from "crypto";
 import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-import prisma from "../../infrastructure/database/prisma.js";
+import prisma, { systemPrisma } from "../../infrastructure/database/prisma.js";
 import { getTenantId } from "../../infrastructure/database/tenant-context.js";
 import { enqueueStorageDeletions } from "../../infrastructure/storage/storage-deletion.service.js";
 import { s3Download, s3Upload } from "../../infrastructure/storage/s3.js";
-import { getTenantSecret, getTenantSecretStatus } from "../attachment-search/tenant-secrets.service.js";
+import { getTenantSecret, getTenantSecretStatus } from "../secrets/tenant-secrets.service.js";
 import { publishFileChange } from "../files/file-change-events.service.js";
+import { removeWorkAssignments, upsertWorkAssignment, WORK_ASSIGNMENT_KIND } from "../assignments/work-assignment.service.js";
 import {
   PAPERLESS_API_TOKEN_SECRET,
   PAPERLESS_QR_SIGNING_SECRET,
@@ -69,7 +70,7 @@ export async function uploadPaperlessDocument(req, res) {
 
 export async function getAssignmentOptions(req, res) {
   const search = String(req.query.search || "").trim().slice(0, 120);
-  const [projects, customers, configuration] = await Promise.all([
+  const [projects, customers, configuration, documentAssignees] = await Promise.all([
     prisma.project.findMany({
       where: {
         deletedAt: null,
@@ -96,9 +97,23 @@ export async function getAssignmentOptions(req, res) {
       orderBy: [{ companyName: "asc" }, { lastName: "asc" }],
       take: 200
     }),
-    getPaperlessConfiguration({ required: false })
+    getPaperlessConfiguration({ required: false }),
+    systemPrisma.tenantMembership.findMany({
+      where: { tenantId: req.tenant.id, isActive: true, role: "manager", user: { isActive: true, deletedAt: null } },
+      include: { user: { select: { id: true, firstName: true, lastName: true, login: true } } },
+      orderBy: [{ user: { lastName: "asc" } }, { user: { firstName: "asc" } }]
+    })
   ]);
-  return res.json({ projects, customers, folders: configuration?.folders ?? [] });
+  return res.json({
+    projects,
+    customers,
+    folders: configuration?.folders ?? [],
+    documentAssignees: documentAssignees.map(item => ({
+      id: item.user.id,
+      name: [item.user.firstName, item.user.lastName].filter(Boolean).join(" ") || item.user.login,
+      role: item.role
+    }))
+  });
 }
 
 async function resolveAssignment(body) {
@@ -502,6 +517,49 @@ export async function updatePaperlessAssignment(req, res) {
   return res.json({ document: presentPaperlessDocument(updated) });
 }
 
+export async function updatePaperlessAssignee(req, res) {
+  const document = await prisma.paperlessDocument.findFirst({ where: { id: req.params.documentId } });
+  if (!document) return res.status(404).json({ message: "Dokument nicht gefunden." });
+  const requestedUserId = req.body?.userId ? String(req.body.userId) : null;
+  if (requestedUserId && !UUID.test(requestedUserId)) return res.status(400).json({ message: "Ungültiger Bearbeiter." });
+  if (requestedUserId) {
+    const membership = await systemPrisma.tenantMembership.findFirst({
+      where: { tenantId: req.tenant.id, userId: requestedUserId, isActive: true, role: "manager", user: { isActive: true, deletedAt: null } }
+    });
+    if (!membership) return res.status(404).json({ message: "Bearbeiter wurde nicht gefunden." });
+  }
+  const updated = await prisma.$transaction(async transaction => {
+    const result = await transaction.paperlessDocument.update({
+      where: { id: document.id }, data: { assignedToId: requestedUserId }, include: paperlessDocumentInclude
+    });
+    if (document.assignedToId && document.assignedToId !== requestedUserId) {
+      await removeWorkAssignments(transaction, { kind: WORK_ASSIGNMENT_KIND.PAPERLESS_DOCUMENT, sourceId: document.id, assigneeId: document.assignedToId });
+    }
+    if (requestedUserId) {
+      await upsertWorkAssignment(transaction, {
+        kind: WORK_ASSIGNMENT_KIND.PAPERLESS_DOCUMENT,
+        sourceId: result.id,
+        assigneeId: requestedUserId,
+        createdById: req.user.id,
+        title: result.title,
+        info: result.project?.title || result.correspondent || null,
+        href: `/Documents?document=${result.id}`
+      });
+    }
+    await transaction.auditLog.create({
+      data: {
+        actorUserId: req.user.id,
+        action: "paperless.document.assign_user",
+        entityType: "PaperlessDocument",
+        entityId: document.id,
+        metadata: { remoteDocumentId: document.remoteDocumentId, assignedToId: requestedUserId }
+      }
+    });
+    return result;
+  });
+  return res.json({ document: presentPaperlessDocument(updated) });
+}
+
 export async function unlinkPaperlessDocument(req, res) {
   const document = await prisma.paperlessDocument.findFirst({ where: { id: req.params.documentId } });
   if (!document) return res.status(404).json({ message: "Dokument nicht gefunden." });
@@ -710,6 +768,7 @@ export async function createAssignmentQr(req, res) {
     projectId: assignment.projectId,
     documentType,
     title,
+    wholePdf: req.body?.wholePdf === true,
     issuedAt: new Date().toISOString()
   };
   return res.json({ value: createPaperlessQrValue(payload, secret), payload });

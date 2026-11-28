@@ -14,6 +14,7 @@ export const DEFAULT_SHOP_SETTINGS = {
     version: 1,
     edgeWastePercentage: 10,
     suppliers: [],
+    manufacturerWebsites: [],
     legraboxArticleIds: Object.fromEntries(
         LEGRABOX_VARIANTS.map(variant => [variant, { white: "", gray: "" }])
     )
@@ -31,6 +32,13 @@ export const normalizeShopSettings = data => {
             procurementType: supplier.procurementType || null,
             datanormArticleCount: Math.max(0, Number(supplier.datanormArticleCount) || 0)
         }));
+    const manufacturerWebsites = (Array.isArray(data?.manufacturerWebsites) ? data.manufacturerWebsites : [])
+        .filter(website => website?.id && website?.baseUrl)
+        .map(website => ({
+            id: String(website.id),
+            name: String(website.name || ""),
+            baseUrl: String(website.baseUrl || "")
+        }));
 
     return {
         ...DEFAULT_SHOP_SETTINGS,
@@ -39,6 +47,7 @@ export const normalizeShopSettings = data => {
             ? configuredEdgeWaste
             : DEFAULT_SHOP_SETTINGS.edgeWastePercentage,
         suppliers,
+        manufacturerWebsites,
         legraboxArticleIds: Object.fromEntries(
             LEGRABOX_VARIANTS.map(variant => [variant, {
                 ...DEFAULT_SHOP_SETTINGS.legraboxArticleIds[variant],
@@ -55,6 +64,8 @@ export const createArticleId = () => {
 export const createSupplierId = () => {
     return createUuid();
 };
+
+export const createManufacturerWebsiteId = () => createUuid();
 
 export const resolveSupplier = (supplierId, shopSettings = DEFAULT_SHOP_SETTINGS) => {
     const normalizedId = String(supplierId || "");

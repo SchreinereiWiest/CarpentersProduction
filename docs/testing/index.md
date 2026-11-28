@@ -33,7 +33,8 @@ Zugangsdaten.
 | Bereich | Automatisch geprüfter Vertrag |
 |---|---|
 | Projektzugriff | Nicht angemeldete Besucher werden zum Login umgeleitet; die Rollen `user`, `manager` und `admin` erreichen `/Projects/Create`. |
-| Rollenmodell | `manager` erreicht administrative Seiten und Funktionen; `user` wird abgewiesen. `/CompanySettings` bleibt einschließlich Navigation strikt `admin` vorbehalten. |
+| Rollenmodell | `manager` erreicht freigegebene Verwaltungsfunktionen; `user` wird dort abgewiesen. In `/CompanySettings` sehen User und Manager nur persönliche Oberfläche und Cache, alle übrigen Bereiche bleiben strikt `admin` vorbehalten. |
+| Kalendersichtbarkeit | Neue Termine sind firmenweit sichtbar; der explizite Privat-Haken wird bis zur API übertragen und beschränkt den Abruf auf den Eigentümer. |
 | Projektanlage | `POST /api/projects/new` erhält Kunde, Titel und Beschreibung einschließlich Session-Cookie. |
 | Anhänge | Ein Anhang wird als `FormData` mit Projekt-, Kunden-, Datei- und MIME-Metadaten an `/api/files/upload` gesendet. Eine fehlende GLB-MIME-Angabe wird als `model/gltf-binary` ergänzt. |
 | Generierte Dateien | `list.json` und `cabinet.json` werden nach der Projektanlage über die jeweilige Generated-Data-Route gespeichert. |

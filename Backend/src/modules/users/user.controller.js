@@ -1,6 +1,8 @@
 import bcrypt from "bcrypt";
 import prisma, { systemPrisma } from "../../infrastructure/database/prisma.js";
 import { getLicense } from "../licensing/services/index.js";
+import { normalizeHomePreferences } from "../../../../Engine/src/dashboard/home.mjs";
+import { normalizePersonalCache, sanitizePersonalUserInterface } from "../../../../Engine/src/preferences/client.mjs";
 
 /**
  * Benutzer besitzen eine globale Identität, aber Rolle und Aktivstatus je Firma.
@@ -253,6 +255,42 @@ export async function getCurrentUser(req, res) {
     const user = await systemPrisma.user.findUnique({ where: { id: req.user.id }, select: currentUserSelect });
     if (!user) return res.status(404).json({ error: "Benutzer nicht gefunden" });
     return res.json({ user: { ...user, role: req.user.role, tenant: req.tenant } });
+}
+
+export async function getCurrentUserPreferences(req, res) {
+    const membership = await systemPrisma.tenantMembership.findUnique({
+        where: { tenantId_userId: { tenantId: req.tenant.id, userId: req.user.id } },
+        select: { preferences: true, role: true }
+    });
+    if (!membership) return res.status(404).json({ error: "Firmenkonto nicht gefunden" });
+    const preferences = membership.preferences && typeof membership.preferences === "object" && !Array.isArray(membership.preferences)
+        ? membership.preferences : {};
+    return res.json({ preferences: { ...preferences, home: normalizeHomePreferences(preferences.home, membership.role) } });
+}
+
+export async function updateCurrentUserPreferences(req, res) {
+    const membership = await systemPrisma.tenantMembership.findUnique({
+        where: { tenantId_userId: { tenantId: req.tenant.id, userId: req.user.id } },
+        select: { preferences: true, role: true }
+    });
+    if (!membership) return res.status(404).json({ error: "Firmenkonto nicht gefunden" });
+    const current = membership.preferences && typeof membership.preferences === "object" && !Array.isArray(membership.preferences)
+        ? membership.preferences : {};
+    const preferences = { ...current };
+    if (Object.hasOwn(req.body || {}, "home")) {
+        preferences.home = normalizeHomePreferences(req.body.home, membership.role);
+    }
+    if (Object.hasOwn(req.body || {}, "userInterface") && membership.role !== "admin") {
+        preferences.userInterface = sanitizePersonalUserInterface(req.body.userInterface);
+    }
+    if (Object.hasOwn(req.body || {}, "cache") && membership.role !== "admin") {
+        preferences.cache = normalizePersonalCache(req.body.cache);
+    }
+    await systemPrisma.tenantMembership.update({
+        where: { tenantId_userId: { tenantId: req.tenant.id, userId: req.user.id } },
+        data: { preferences }
+    });
+    return res.json({ preferences });
 }
 
 export async function updateCurrentUser(req, res) {

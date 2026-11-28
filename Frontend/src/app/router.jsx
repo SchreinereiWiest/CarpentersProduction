@@ -31,9 +31,10 @@ import UserProfilePage from "../features/user-profile/UserProfilePage.jsx";
 import OfflineMergePage from "../features/offline/OfflineMergeView.jsx";
 import ManagementLayout from "../features/management/layout/managementLayout.jsx";
 import ManagementOverview from "../features/management/operating/overview.jsx";
-import ManagementHours from "../features/management/operating/hours.jsx";
-import ManagementOperatingCosts from "../features/management/operating/operatingCosts.jsx";
-import ManagementSetup from "../features/management/setup/setup.jsx";
+import ManagementBoard from "../features/management/operating/projectBoard.jsx";
+import ManagementTimeline from "../features/management/operating/projectTimeline.jsx";
+import ManagementGoals from "../features/management/operating/annualGoals.jsx";
+import ManagementRates from "../features/management/operating/hourlyRates.jsx";
 import { ManagementDocuments } from "../features/management/documents/documents.jsx";
 import ProtectedRoute from "./routing/ProtectedRoute.jsx";
 import PublicRoute from "./routing/PublicRoute.jsx";
@@ -41,6 +42,11 @@ import CalendarPage from "../features/calendar/CalendarPage.jsx";
 import CustomerCrmPage from "../features/customers/pages/CustomerCrmPage.jsx";
 import WorkspaceRoot from "../shared/workspace/WorkspaceRoot.jsx";
 import GlobalPhoneCallLayer from "../features/contact-history/GlobalPhoneCallLayer.jsx";
+import OnboardingGate from "../features/onboarding/OnboardingGate.jsx";
+import OnboardingPage from "../features/onboarding/OnboardingPage.jsx";
+import GuidedHelpProvider from "../features/guided-help/GuidedHelpProvider.jsx";
+import CommissionPage from "../features/commercial/CommissionPage.jsx";
+import CommercialDocumentEditorPage from "../features/commercial/CommercialDocumentEditorPage.jsx";
 
 function LegacyCadRedirect() {
   const { projectId } = useParams();
@@ -57,19 +63,26 @@ export default function AppRouter() {
       <WorkspaceRoot>
         <OfflineStatusCenter />
         <CacheRefreshBoundary>
+          <OnboardingGate>
+          <GuidedHelpProvider>
           <Routes>
           <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+          <Route path="/init" element={protectedPage(<OnboardingPage />, "admin")} />
           <Route path="/" element={protectedPage(<DashboardPage />, undefined)} />
 
           <Route path="/Management" element={protectedPage(<ManagementLayout />, "admin", ["business-management"])}>
             <Route index element={<ManagementOverview />} />
-            <Route path="Setup/:step" element={<ManagementSetup />} />
-            <Route path="Hours" element={<ManagementHours />} />
-            <Route path="Costs" element={<ManagementOperatingCosts />} />
-            <Route path="CostAccounting" element={<Navigate to="/Management/Setup/Bab" replace />} />
-            <Route path="Calculation" element={<Navigate to="/Management/Setup/Bab" replace />} />
-            <Route path="Assets" element={<Navigate to="/Management/Setup/Assets" replace />} />
-            <Route path="Settings" element={<Navigate to="/Management/Setup/Business" replace />} />
+            <Route path="Board" element={<ManagementBoard />} />
+            <Route path="Timeline" element={<ManagementTimeline />} />
+            <Route path="Goals" element={<ManagementGoals />} />
+            <Route path="Rates" element={<ManagementRates />} />
+            <Route path="Setup/:step" element={<Navigate to="/Management/Rates" replace />} />
+            <Route path="Hours" element={<Navigate to="/Management" replace />} />
+            <Route path="Costs" element={<Navigate to="/Management/Rates" replace />} />
+            <Route path="CostAccounting" element={<Navigate to="/Management/Rates" replace />} />
+            <Route path="Calculation" element={<Navigate to="/Management/Rates" replace />} />
+            <Route path="Assets" element={<Navigate to="/Management/Rates" replace />} />
+            <Route path="Settings" element={<Navigate to="/CompanySettings?section=advanced&tab=management" replace />} />
             <Route path="Transactions" element={<Navigate to="/Management" replace />} />
           </Route>
           <Route path="/Documents" element={protectedPage(<ManagementLayout sidebarSelected={3} />, "admin", ["business-management"])}>
@@ -103,14 +116,20 @@ export default function AppRouter() {
           <Route path="/Kontakte" element={protectedPage(<ContactsPage />, "admin", ["crm"])} />
           <Route path="/Kontakte/new" element={protectedPage(<NewContactPage />, "admin", ["crm"])} />
           <Route path="/Kontakte/info/:userid" element={protectedPage(<ContactDetailsPage />, "admin", ["crm"])} />
+          <Route path="/Kontakte/:userid" element={protectedPage(<ContactDetailsPage />, "admin", ["crm"])} />
           <Route path="/Kontakte/info/:userid/crm" element={protectedPage(<CustomerCrmPage />, "admin", ["crm"])} />
           <Route path="/Kontakte/edit/:userid" element={protectedPage(<EditContactPage />, "admin", ["crm"])} />
           <Route path="/Kontakte/NewProject/:userId" element={protectedPage(<CabinetEditorPage />, "admin", ["crm", "work-preparation"])} />
+          <Route path="/Kommissionen/:commissionId" element={protectedPage(<CommissionPage />, "admin", ["crm", "work-preparation", "calculation"])} />
+          <Route path="/Belege/neu" element={protectedPage(<CommercialDocumentEditorPage />, "admin", ["crm"])} />
+          <Route path="/Belege/:documentId" element={protectedPage(<CommercialDocumentEditorPage />, "user", ["crm"])} />
 
-          <Route path="/CompanySettings" element={protectedPage(<CompanySettingsPage />, "adminOnly")} />
+          <Route path="/CompanySettings" element={protectedPage(<CompanySettingsPage />, "user")} />
           <Route path="/User" element={protectedPage(<UserProfilePage />)} />
           <Route path="/Offline/Merge/:conflictKey" element={protectedPage(<OfflineMergePage />, "user", ["work-preparation"])} />
           </Routes>
+          </GuidedHelpProvider>
+          </OnboardingGate>
         </CacheRefreshBoundary>
       </WorkspaceRoot>
     </GlobalPhoneCallLayer>

@@ -8,7 +8,11 @@ export default function CacheRefreshBoundary({ children }) {
     useEffect(() => {
         const refreshPageState = () => setRevision(current => current + 1);
         window.addEventListener(MANUAL_CACHE_REFRESH_COMPLETE_EVENT, refreshPageState);
-        return () => window.removeEventListener(MANUAL_CACHE_REFRESH_COMPLETE_EVENT, refreshPageState);
+        window.addEventListener("s3-cache-updated", refreshPageState);
+        return () => {
+            window.removeEventListener(MANUAL_CACHE_REFRESH_COMPLETE_EVENT, refreshPageState);
+            window.removeEventListener("s3-cache-updated", refreshPageState);
+        };
     }, []);
 
     return <Fragment key={revision}>{children}</Fragment>;
